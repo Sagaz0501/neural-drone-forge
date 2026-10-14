@@ -41,6 +41,7 @@ from drone_rl import ACT_LABELS, DEFAULT_REWARD, MISSIONS, OBS_LABELS, STAGES, D
 from drone_rl.env import LEVEL_MISSION
 
 TOP_K = (300, 500, 512)        # conexiones a mandar por capa (las de mayor |peso|)
+CHUNK = 6000                   # bytes por datagrama (macOS: máximo ~9216)
 
 
 def r3(v):
@@ -73,8 +74,18 @@ class LiveLink(BaseCallback):
 
     # ---------------- envío ----------------
     def send(self, obj):
+        """Manda un mensaje JSON. macOS limita cada datagrama UDP a ~9 KB, así que los
+        mensajes grandes (pesos de la red, curva de progreso) se parten en pedazos ("c")."""
+        data = json.dumps(obj, separators=(",", ":"))
         try:
-            self.out.sendto(json.dumps(obj, separators=(",", ":")).encode(), self.dst)
+            if len(data) <= CHUNK:
+                self.out.sendto(data.encode(), self.dst)
+                return
+            self.msg_id = getattr(self, "msg_id", 0) + 1
+            parts = [data[i:i + CHUNK] for i in range(0, len(data), CHUNK)]
+            for k, part in enumerate(parts):
+                self.out.sendto(json.dumps({"t": "c", "id": self.msg_id, "k": k, "n": len(parts), "p": part},
+                                           separators=(",", ":")).encode(), self.dst)
         except OSError:
             pass                      # Blender cerrado o lleno: seguimos entrenando igual
 

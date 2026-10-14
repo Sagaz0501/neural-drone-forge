@@ -413,6 +413,18 @@ def tick():
             m = json.loads(data)
         except ValueError:
             continue
+        if m.get("t") == "c":                # pedazo de un mensaje grande: juntar
+            parts = st.setdefault("chunks", {}).setdefault(m["id"], {})
+            parts[m["k"]] = m["p"]
+            if len(parts) < m["n"]:
+                continue
+            del st["chunks"][m["id"]]
+            for old_id in [i for i in st["chunks"] if i < m["id"] - 20]:
+                del st["chunks"][old_id]     # pedazos perdidos de mensajes viejos
+            try:
+                m = json.loads("".join(parts[k] for k in range(m["n"])))
+            except (ValueError, KeyError):
+                continue
         t = m.get("t")
         if t == "f":
             frame = m
