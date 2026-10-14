@@ -9,8 +9,8 @@ se puede correr a mano y mirar desde Blender:
 Protocolo (UDP en localhost, mensajes JSON, como telemetría de un dron real):
     trainer -> Blender  :9001   "h" hola + misión · "f" posiciones · "l" nivel de un dron · "s" estadísticas
                                 "a" activaciones de la red del dron observado · "w" conexiones más fuertes
-    Blender -> trainer  :9002   {"lr":…, "ent":…, "reward":{…}, "speed":"real|rapido", "pause":bool,
-                                 "watch": i, "save":true, "stop":true}
+    Blender -> trainer  :9002   {"lr":…, "ent":…, "reward":{…}, "curriculum":{"retry", "max_retries", "checkpoint"},
+                                 "speed":"real|rapido", "pause":bool, "watch": i, "save":true, "stop":true}
 
 Cada GENERACIÓN = un ciclo de PPO:
     1. VOLAR:     los N drones vuelan n_steps pasos con la red actual (juntan experiencia)
@@ -37,7 +37,7 @@ try:
 except ImportError:
     from stable_baselines3.common.utils import constant_fn as _Const
 
-from drone_rl import ACT_LABELS, DEFAULT_REWARD, MISSIONS, OBS_LABELS, STAGES, DroneEnv
+from drone_rl import ACT_LABELS, DEFAULT_CURRICULUM, DEFAULT_REWARD, MISSIONS, OBS_LABELS, STAGES, DroneEnv
 from drone_rl.env import LEVEL_MISSION
 
 TOP_K = (300, 500, 512)        # conexiones a mandar por capa (las de mayor |peso|)
@@ -49,9 +49,11 @@ def r3(v):
 
 
 class LiveLink(BaseCallback):
-    def __init__(self, args, reward, save_path):
+    def __init__(self, args, reward, cfg, save_path):
         super().__init__()
-        self.args, self.reward, self.save_path = args, reward, save_path
+        self.args, self.reward, self.cfg, self.save_path = args, reward, cfg, save_path
+        self.beaten_after = []        # cuántos intentos necesitó cada nivel superado después de fallar
+        self.gave_up = 0              # niveles abandonados por llegar al máximo de intentos
         self.speed = args.speed
         self.lr, self.ent = args.lr, args.ent
         self.out = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -94,13 +96,13 @@ class LiveLink(BaseCallback):
 
     def send_level(self, i, env):
         lv = env.level
-        self.send({"t": "l", "i": i, "spawn": r3(lv.spawn),
+        self.send({"t": "l", "i": i, "spawn": r3(lv.spawn), "attempt": env.attempt, "start": env.goal_idx,
                    "goals": [r3(g) for g in lv.goals],
                    "boxes": [r3(a) + r3(b) for a, b in zip(lv.box_min, lv.box_max)],
                    "spheres": [r3(c) + [round(float(r), 3)] for c, r in zip(lv.sph_c, lv.sph_r)]})
 
     def params(self):
-        return {"lr": self.lr, "ent": self.ent, "reward": self.reward, "speed": self.speed,
+        return {"lr": self.lr, "ent": self.ent, "reward": self.reward, "curriculum": self.cfg, "speed": self.speed,
                 "drones": self.args.drones, "stage": self.args.stage, "paused": self.paused}
 
     def send_stats(self):
@@ -109,14 +111,22 @@ class LiveLink(BaseCallback):
         self.send({"t": "s", "phase": self.phase, "gen": self.gen, "steps": int(self.num_timesteps),
                    "eps": self.total_eps, "succ": mean(self.ep_succ), "crash": mean(self.ep_crash),
                    "rew": mean(self.ep_rew), "hist": self.history[-300:], "params": self.params(),
-                   "msg": self.msg})
+                   "msg": self.msg, "retry": self.retry_stats()})
+
+    def retry_stats(self):
+        att = [e.attempt for e in self.envs()]
+        b = self.beaten_after
+        return {"retrying": sum(a > 1 for a in att), "max_attempt": max(att) if att else 0,
+                "beaten": len(b), "mean_attempts": round(float(np.mean(b)), 2) if b else 0.0,
+                "max_beaten": max(b) if b else 0, "gave_up": self.gave_up}
 
     def send_frame(self):
         d = []
         for e in self.envs():
             s = e.state
             hold = e.hold / e.hold_steps if e.hold_steps else 0.0
-            d.append(r3(s.pos) + [round(s.roll, 3), round(s.pitch, 3), round(s.yaw, 3), e.goal_idx, round(hold, 2)])
+            d.append(r3(s.pos) + [round(s.roll, 3), round(s.pitch, 3), round(s.yaw, 3), e.goal_idx, round(hold, 2),
+                                  e.attempt])
         self.send({"t": "f", "s": int(self.num_timesteps), "d": d, "ev": self.events, "w": self.watch})
         self.events = []
 
@@ -173,6 +183,14 @@ class LiveLink(BaseCallback):
             if "ent" in m:
                 self.ent = float(m["ent"])
                 self.model.ent_coef = self.ent
+            if "curriculum" in m:
+                c = m["curriculum"]
+                if "retry" in c:
+                    self.cfg["retry"] = bool(c["retry"])
+                if "max_retries" in c:
+                    self.cfg["max_retries"] = max(0, int(c["max_retries"]))
+                if "checkpoint" in c:
+                    self.cfg["checkpoint"] = bool(c["checkpoint"])
             if "reward" in m:
                 for k, v in m["reward"].items():
                     if k in self.reward:
@@ -241,8 +259,14 @@ class LiveLink(BaseCallback):
                 if ep:
                     self.ep_rew.append(float(ep["r"]))
                 self.total_eps += 1
-                if not self.args.level and self.args.stage >= 2:
-                    self.send_level(i, envs[i])      # nivel aleatorio nuevo para ese dron
+                attempt = int(info.get("attempt", 1))
+                if info.get("success") and attempt > 1:
+                    self.beaten_after.append(attempt)         # ¡superó un nivel que había fallado!
+                mx = self.cfg.get("max_retries", 0)
+                if not info.get("success") and self.cfg.get("retry") and mx and attempt >= mx:
+                    self.gave_up += 1
+                # el entorno ya se reinició: mandar su nivel (nuevo, o el mismo con otro intento)
+                self.send_level(i, envs[i])
 
         now = time.perf_counter()
         if now - self.last_act > 1 / 15:
@@ -279,14 +303,19 @@ def main():
     ap.add_argument("--ctrl-port", type=int, default=9002)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--watch", type=int, default=0, help="dron cuya red neuronal se manda a Blender")
+    ap.add_argument("--retry", type=int, default=0, help="1 = repetir el nivel fallado hasta pasarlo")
+    ap.add_argument("--max-retries", type=int, default=0, help="rendirse después de N intentos (0 = nunca)")
+    ap.add_argument("--checkpoint", type=int, default=1, help="1 = al reintentar, arrancar desde el último aro pasado")
     args = ap.parse_args()
 
+    cfg = dict(DEFAULT_CURRICULUM, retry=bool(args.retry), max_retries=max(0, args.max_retries),
+               checkpoint=bool(args.checkpoint))
     reward = dict(DEFAULT_REWARD)
     reward.update({k: float(v) for k, v in json.loads(args.reward).items() if k in reward})
 
     n = args.drones
     env = make_vec_env(DroneEnv, n_envs=n, seed=args.seed,
-                       env_kwargs=dict(stage=args.stage, level_path=args.level, reward=reward))
+                       env_kwargs=dict(stage=args.stage, level_path=args.level, reward=reward, curriculum=cfg))
     n_steps = max(32, round(12_800 / n))         # ~12 800 pasos de experiencia por generación
     batch = min(1024, n_steps * n)
 
@@ -305,7 +334,7 @@ def main():
                     n_steps=n_steps, batch_size=batch, n_epochs=10, learning_rate=args.lr,
                     gamma=0.99, gae_lambda=0.95, clip_range=0.2, ent_coef=args.ent, seed=args.seed, verbose=0)
 
-    link = LiveLink(args, reward, save_path)
+    link = LiveLink(args, reward, cfg, save_path)
     print(f"Drone Lab: {n} drones · nivel {name} · {n_steps} pasos por dron por generación", flush=True)
     try:
         model.learn(total_timesteps=args.steps, callback=link, reset_num_timesteps=not args.init)
