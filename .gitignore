@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+runs/
+models/checkpoints/
+trajectories/*.json
+!trajectories/demo_*.json
+*.blend1
+.pytest_cache/
