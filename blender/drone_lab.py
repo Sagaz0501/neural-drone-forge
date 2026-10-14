@@ -414,24 +414,21 @@ def draw_hud():
     st = S()
     if "stats" not in st and not st.get("running") and not st.get("error"):
         return
-    region = bpy.context.region
+    ctx = bpy.context
+    region, area = ctx.region, ctx.area
+    f = ctx.preferences.system.ui_scale              # escala de la pantalla (Retina = ~2)
     W, H = region.width, region.height
+    left, right = 0, 0
+    for r in area.regions:                           # no tapar barra de herramientas ni lateral
+        if r.type == 'TOOLS' and r.width > 1:
+            left = r.width
+        if r.type == 'UI' and r.width > 1:
+            right = r.width
     sh = _shader()
     gpu.state.blend_set('ALPHA')
-    x0, y = 20, H - 40
     s = st.get("stats", {})
-    phase = s.get("phase", "fly" if st.get("running") else "stopped")
-    if sh:
-        draw_rect(sh, 10, H - 238, 430, 228, (0.05, 0.06, 0.08, 0.72))
-    text(x0, y, "DRONE LAB", 18, (0.55, 0.85, 1.0, 1))
-    y -= 26
-    if phase == "fly":
-        text(x0, y, f"VOLANDO · generación {s.get('gen', 0)} · juntando experiencia", 14, (0.6, 1.0, 0.6, 1))
-    elif phase == "learn":
-        text(x0, y, f"APRENDIENDO · PPO actualiza la red (gen {s.get('gen', 0)})", 14, (1.0, 0.85, 0.3, 1))
-    else:
-        text(x0, y, "DETENIDO", 14, (0.8, 0.8, 0.8, 1))
     p = s.get("params", {})
+    phase = s.get("phase", "fly" if st.get("running") else "stopped")
     lines = [
         f"pasos {s.get('steps', 0):,}   episodios {s.get('eps', 0):,}   drones {p.get('drones', '-')}",
         f"éxito {s.get('succ', 0) * 100:5.1f} %    crash {s.get('crash', 0) * 100:5.1f} %    recompensa {s.get('rew', 0):6.1f}",
@@ -441,37 +438,55 @@ def draw_hud():
     rw = p.get("reward", {})
     if rw:
         lines.append("recompensa: " + "  ".join(f"{k} {v:g}" for k, v in rw.items()))
-    for ln in lines:
-        y -= 21
-        text(x0, y, ln, 13)
     if s.get("msg"):
-        y -= 21
-        text(x0, y, s["msg"], 12, (0.7, 0.85, 1, 1))
-    for ln in st.get("error", []):
-        y -= 18
-        text(x0, y, ln[:90], 12, (1, 0.4, 0.35, 1))
+        lines.append(s["msg"])
+    err = st.get("error", [])
 
-    # curva de progreso: éxito (verde) y crash (rojo) por generación
-    hist = s.get("hist", [])
-    cw, ch = 360, 150
-    cx, cy = W - cw - 30, 30
+    # ---- panel de texto, abajo a la izquierda ----
+    lh = 19 * f
+    box_h = (52 + len(lines) * 19 + len(err) * 17) * f
+    box_w = 470 * f
+    x0, y0 = left + 14 * f, 14 * f
     if sh:
-        draw_rect(sh, cx - 10, cy - 10, cw + 20, ch + 44, (0.05, 0.06, 0.08, 0.72))
+        draw_rect(sh, x0, y0, box_w, box_h, (0.05, 0.06, 0.08, 0.75))
+    y = y0 + box_h - 24 * f
+    tx = x0 + 12 * f
+    text(tx, y, "DRONE LAB", int(17 * f), (0.55, 0.85, 1.0, 1))
+    y -= 22 * f
+    if phase == "fly":
+        text(tx, y, f"VOLANDO · generación {s.get('gen', 0)} · juntando experiencia", int(14 * f), (0.6, 1.0, 0.6, 1))
+    elif phase == "learn":
+        text(tx, y, f"APRENDIENDO · PPO actualiza la red (generación {s.get('gen', 0)})", int(14 * f), (1.0, 0.85, 0.3, 1))
+    else:
+        text(tx, y, "DETENIDO", int(14 * f), (0.8, 0.8, 0.8, 1))
+    for ln in lines:
+        y -= lh
+        text(tx, y, ln, int(12 * f), (0.7, 0.85, 1, 1) if ln.startswith("Modelo") else (0.95, 0.95, 0.95, 1))
+    for ln in err:
+        y -= 17 * f
+        text(tx, y, ln[:90], int(11 * f), (1, 0.4, 0.35, 1))
+
+    # ---- curva de progreso, abajo a la derecha ----
+    hist = s.get("hist", [])
+    cw, ch = 330 * f, 130 * f
+    cx, cy = W - right - cw - 26 * f, 26 * f
+    if sh:
+        draw_rect(sh, cx - 12 * f, cy - 12 * f, cw + 24 * f, ch + 46 * f, (0.05, 0.06, 0.08, 0.75))
         for q in (0.25, 0.5, 0.75, 1.0):
-            draw_line(sh, [(cx, cy + ch * q), (cx + cw, cy + ch * q)], (1, 1, 1, 0.08))
+            draw_line(sh, [(cx, cy + ch * q), (cx + cw, cy + ch * q)], (1, 1, 1, 0.1))
         if len(hist) >= 2:
             g0, g1 = hist[0][0], hist[-1][0]
             span = max(g1 - g0, 1)
             px = lambda g: cx + (g - g0) / span * cw
             draw_line(sh, [(px(h[0]), cy + h[3] * ch) for h in hist], (1.0, 0.3, 0.25, 1))
             draw_line(sh, [(px(h[0]), cy + h[2] * ch) for h in hist], (0.3, 1.0, 0.45, 1))
-    text(cx, cy + ch + 14, "progreso por generación", 12, (0.85, 0.85, 0.9, 1))
-    text(cx + cw - 110, cy + ch + 14, "éxito", 12, (0.3, 1.0, 0.45, 1))
-    text(cx + cw - 55, cy + ch + 14, "crash", 12, (1.0, 0.3, 0.25, 1))
-    text(cx - 4, cy + ch - 6, "100%", 10, (0.7, 0.7, 0.75, 1))
-    text(cx - 4, cy + 2, "0%", 10, (0.7, 0.7, 0.75, 1))
+    text(cx, cy + ch + 14 * f, "progreso por generación", int(12 * f), (0.85, 0.85, 0.9, 1))
+    text(cx + cw - 105 * f, cy + ch + 14 * f, "éxito", int(12 * f), (0.3, 1.0, 0.45, 1))
+    text(cx + cw - 50 * f, cy + ch + 14 * f, "crash", int(12 * f), (1.0, 0.3, 0.25, 1))
+    text(cx + 4 * f, cy + ch - 14 * f, "100%", int(10 * f), (0.7, 0.7, 0.75, 1))
+    text(cx + 4 * f, cy + 4 * f, "0%", int(10 * f), (0.7, 0.7, 0.75, 1))
     if hist:
-        text(cx + cw - 50, cy + 2, f"gen {hist[-1][0]}", 10, (0.7, 0.7, 0.75, 1))
+        text(cx + cw - 60 * f, cy + 4 * f, f"gen {hist[-1][0]}", int(10 * f), (0.7, 0.7, 0.75, 1))
     gpu.state.blend_set('NONE')
 
 
