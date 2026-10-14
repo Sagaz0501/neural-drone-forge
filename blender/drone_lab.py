@@ -611,11 +611,11 @@ def draw_network(sh, f, x0, y_bot, width, y_top):
         norm = max(abs(c) for _, _, c in contrib) or 1e-6
         for i, j, c in contrib:
             m = abs(c) / norm
-            if m < 0.04:
+            if m < 0.15:                     # solo lo que de verdad influye ahora
                 continue
             bk = min(buckets, int(m * buckets) + 1)
             base = POS if c > 0 else NEG
-            key = (base[0], base[1], base[2], 0.08 + 0.8 * (bk / buckets) ** 1.5)
+            key = (base[0], base[1], base[2], 0.04 + 0.8 * (bk / buckets) ** 2)
             segs.setdefault(key, []).extend([(xs[L], ny(i, n_src)), (xs[L + 1], ny(j, n_dst))])
     draw_segments(sh, segs)
 
@@ -738,7 +738,8 @@ def draw_hud():
     if props and props.show_net and (st.get("act") or st.get("running")):
         net_bot = max(y0 + box_h, cy + ch + 34 * f) + 12 * f
         net_top = H - 105 * f
-        draw_network(sh, f, left + 14 * f, net_bot, W - left - right - 28 * f, net_top)
+        avail = W - left - right - 28 * f
+        draw_network(sh, f, left + 14 * f, net_bot, max(min(avail, avail * 0.62), min(avail, 640 * f)), net_top)
     gpu.state.blend_set('NONE')
 
 
