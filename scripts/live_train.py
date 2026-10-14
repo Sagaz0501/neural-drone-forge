@@ -7,8 +7,10 @@ se puede correr a mano y mirar desde Blender:
     python scripts/live_train.py --drones 50 --stage 0
 
 Protocolo (UDP en localhost, mensajes JSON, como telemetría de un dron real):
-    trainer -> Blender  :9001   "h" hola · "f" posiciones · "l" nivel de un dron · "s" estadísticas · "m" mensaje
-    Blender -> trainer  :9002   {"lr":…, "ent":…, "reward":{…}, "speed":"real|rapido", "pause":bool, "save":true, "stop":true}
+    trainer -> Blender  :9001   "h" hola + misión · "f" posiciones · "l" nivel de un dron · "s" estadísticas
+                                "a" activaciones de la red del dron observado · "w" conexiones más fuertes
+    Blender -> trainer  :9002   {"lr":…, "ent":…, "reward":{…}, "speed":"real|rapido", "pause":bool,
+                                 "watch": i, "save":true, "stop":true}
 
 Cada GENERACIÓN = un ciclo de PPO:
     1. VOLAR:     los N drones vuelan n_steps pasos con la red actual (juntan experiencia)
@@ -26,6 +28,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 import numpy as np
+import torch
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.env_util import make_vec_env
@@ -34,7 +37,10 @@ try:
 except ImportError:
     from stable_baselines3.common.utils import constant_fn as _Const
 
-from drone_rl import DEFAULT_REWARD, STAGES, DroneEnv
+from drone_rl import ACT_LABELS, DEFAULT_REWARD, MISSIONS, OBS_LABELS, STAGES, DroneEnv
+from drone_rl.env import LEVEL_MISSION
+
+TOP_K = (300, 500, 512)        # conexiones a mandar por capa (las de mayor |peso|)
 
 
 def r3(v):
@@ -61,6 +67,8 @@ class LiveLink(BaseCallback):
         self.events = []
         self.next_tick = time.perf_counter()
         self.last_send = 0.0
+        self.last_act = 0.0
+        self.watch = args.watch % args.drones
         self.msg = ""
 
     # ---------------- envío ----------------
@@ -75,7 +83,7 @@ class LiveLink(BaseCallback):
 
     def send_level(self, i, env):
         lv = env.level
-        self.send({"t": "l", "i": i,
+        self.send({"t": "l", "i": i, "spawn": r3(lv.spawn),
                    "goals": [r3(g) for g in lv.goals],
                    "boxes": [r3(a) + r3(b) for a, b in zip(lv.box_min, lv.box_max)],
                    "spheres": [r3(c) + [round(float(r), 3)] for c, r in zip(lv.sph_c, lv.sph_r)]})
@@ -96,9 +104,42 @@ class LiveLink(BaseCallback):
         d = []
         for e in self.envs():
             s = e.state
-            d.append(r3(s.pos) + [round(s.roll, 3), round(s.pitch, 3), round(s.yaw, 3)] + r3(e._goal()))
-        self.send({"t": "f", "s": int(self.num_timesteps), "d": d, "ev": self.events})
+            hold = e.hold / e.hold_steps if e.hold_steps else 0.0
+            d.append(r3(s.pos) + [round(s.roll, 3), round(s.pitch, 3), round(s.yaw, 3), e.goal_idx, round(hold, 2)])
+        self.send({"t": "f", "s": int(self.num_timesteps), "d": d, "ev": self.events, "w": self.watch})
         self.events = []
+
+    # ---------------- la red neuronal, para verla en Blender ----------------
+    def layers(self):
+        """Capas lineales del ACTOR: 24 -> 128 -> 128 -> 4."""
+        pol = self.model.policy
+        lin = [m for m in pol.mlp_extractor.policy_net if isinstance(m, torch.nn.Linear)]
+        return lin + [pol.action_net]
+
+    def send_weights(self):
+        out = []
+        for layer, k in zip(self.layers(), TOP_K):
+            w = layer.weight.detach().cpu().numpy()          # (salidas, entradas)
+            flat = np.abs(w).ravel()
+            k = min(k, flat.size)
+            idx = np.argpartition(-flat, k - 1)[:k]
+            j, i = np.unravel_index(idx, w.shape)            # i = neurona origen, j = destino
+            out.append([[int(a), int(b), round(float(w[b, a]), 4)] for a, b in zip(i, j)])
+        self.send({"t": "w", "gen": self.gen, "l": out})
+
+    def send_activations(self, obs_tensor, actions):
+        x = obs_tensor[self.watch:self.watch + 1].float()
+        hidden = []
+        with torch.no_grad():
+            h = x
+            for m in self.model.policy.mlp_extractor.policy_net:
+                h = m(h)
+                if not isinstance(m, torch.nn.Linear):       # salida de la activación (tanh)
+                    hidden.append(h[0].cpu().numpy())
+            mu = self.model.policy.action_net(h)[0].cpu().numpy()
+        r = lambda v: [round(float(a), 3) for a in v]
+        self.send({"t": "a", "i": self.watch, "in": r(x[0].cpu().numpy()), "h": [r(a) for a in hidden],
+                   "mu": r(np.clip(mu, -1, 1)), "act": r(np.clip(actions[self.watch], -1, 1))})
 
     # ---------------- control desde Blender ----------------
     def poll_control(self):
@@ -128,6 +169,8 @@ class LiveLink(BaseCallback):
             if "speed" in m:
                 self.speed = m["speed"]
                 self.next_tick = time.perf_counter()
+            if "watch" in m:
+                self.watch = int(m["watch"]) % self.args.drones
             if "pause" in m:
                 self.paused = bool(m["pause"])
             if m.get("save"):
@@ -141,15 +184,20 @@ class LiveLink(BaseCallback):
 
     # ---------------- ciclo de PPO ----------------
     def _on_training_start(self):
+        mission = LEVEL_MISSION if self.args.level else MISSIONS[self.args.stage]
         self.send({"t": "h", "n": self.args.drones, "stage": self.args.stage,
-                   "fixed_level": bool(self.args.level), "params": self.params()})
+                   "fixed_level": bool(self.args.level), "params": self.params(), "mission": mission,
+                   "obs_labels": OBS_LABELS, "act_labels": ACT_LABELS})
         for i, e in enumerate(self.envs()):
             self.send_level(i, e)
+        self.send_weights()
 
     def _on_rollout_start(self):
         self.gen += 1
         self.phase = "fly"
         self.send_stats()
+        if self.gen > 1:
+            self.send_weights()                      # la red acaba de cambiar
         self.next_tick = time.perf_counter()
 
     def _on_rollout_end(self):
@@ -186,6 +234,10 @@ class LiveLink(BaseCallback):
                     self.send_level(i, envs[i])      # nivel aleatorio nuevo para ese dron
 
         now = time.perf_counter()
+        if now - self.last_act > 1 / 15:
+            self.send_activations(self.locals["obs_tensor"], self.locals["clipped_actions"]
+                                  if "clipped_actions" in self.locals else self.locals["actions"])
+            self.last_act = now
         if self.speed == "real":
             self.next_tick += envs[0].dt
             delay = self.next_tick - now
@@ -215,6 +267,7 @@ def main():
     ap.add_argument("--port", type=int, default=9001)
     ap.add_argument("--ctrl-port", type=int, default=9002)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--watch", type=int, default=0, help="dron cuya red neuronal se manda a Blender")
     args = ap.parse_args()
 
     reward = dict(DEFAULT_REWARD)

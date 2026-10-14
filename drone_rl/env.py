@@ -13,9 +13,13 @@ Currículum (de fácil a difícil), parámetro `stage`:
     2 goal_random  : meta aleatoria a 3-8 m
     3 obstacles    : meta aleatoria con columnas en el camino
     4 multi_goal   : 3 metas seguidas con columnas
+    5 circuit      : circuito de 4 aros, 2 vueltas (8 pasadas en orden)
 O un nivel fijo hecho en Blender: DroneEnv(level_path="levels/mi_nivel.json")
 """
 from __future__ import annotations
+
+import json
+from pathlib import Path
 
 import gymnasium as gym
 import numpy as np
@@ -24,7 +28,24 @@ from gymnasium import spaces
 from .level import Level, random_goal, random_pillars
 from .physics import QuadParams, QuadState, step, yaw_frame
 
-STAGES = {0: "hover", 1: "goal_fixed", 2: "goal_random", 3: "obstacles", 4: "multi_goal"}
+STAGES = {0: "hover", 1: "goal_fixed", 2: "goal_random", 3: "obstacles", 4: "multi_goal", 5: "circuit"}
+
+# Qué cuenta como éxito en cada misión (texto en drone_rl/missions.json, que también lee Blender).
+# OJO: la IA no lee esto; solo "siente" la recompensa. Esto es para nosotros.
+_M = json.loads((Path(__file__).with_name("missions.json")).read_text(encoding="utf-8"))
+MISSIONS = {int(k): v for k, v in _M.items() if k.isdigit()}
+LEVEL_MISSION = _M["level"]
+
+CIRCUIT = [np.array(g, dtype=float) for g in ((6, 0, 2), (6, 6, 3), (0, 6, 2), (0, 0, 1.5))]
+CIRCUIT_LAPS = 2
+
+# Nombre de cada una de las 24 entradas de la red (para verlas en Blender)
+OBS_LABELS = ["meta adelante", "meta izquierda", "meta arriba", "distancia",
+              "vel adelante", "vel izquierda", "vel arriba", "roll", "pitch", "altura",
+              "gas anterior", "roll anterior", "pitch anterior", "yaw anterior",
+              "sensor 0°", "sensor 45°", "sensor 90°", "sensor 135°", "sensor 180°",
+              "sensor 225°", "sensor 270°", "sensor 315°", "sensor arriba", "sensor abajo"]
+ACT_LABELS = ["gas", "roll", "pitch", "yaw"]
 
 # 8 rayos horizontales (cada 45°) + 1 arriba + 1 abajo, en el marco 'heading' del dron
 _H = [np.array([np.cos(a), np.sin(a), 0.0]) for a in np.radians(np.arange(0, 360, 45))]
@@ -59,7 +80,8 @@ class DroneEnv(gym.Env):
         self.substeps = physics_substeps
         self.goal_radius = goal_radius
         self.rw = reward if reward is not None else dict(DEFAULT_REWARD)
-        self.max_seconds = max_seconds or (10.0 if stage <= 1 else 15.0 if stage <= 3 else 25.0)
+        mission = LEVEL_MISSION if level_path else MISSIONS[stage]
+        self.max_seconds = max_seconds or float(mission["tiempo"])
         self.max_steps = int(self.max_seconds * control_hz)
         self.hold_steps = int(1.0 * control_hz) if (stage == 0 and not level_path) else 0
 
@@ -80,6 +102,8 @@ class DroneEnv(gym.Env):
             lv.goals = [sp + np.array([5.0, 0.0, 2.0])]
         elif self.stage in (2, 3):
             lv.goals = [random_goal(rng, sp)]
+        elif self.stage == 5:
+            lv.goals = [sp + g for g in CIRCUIT] * CIRCUIT_LAPS
         else:
             g, pts = [], sp
             for _ in range(3):
@@ -87,7 +111,7 @@ class DroneEnv(gym.Env):
                 pts[2] = np.clip(pts[2], 1.0, 5.0)
                 g.append(pts.copy())
             lv.goals = g
-        if self.stage >= 3:
+        if self.stage in (3, 4):
             lv.box_min, lv.box_max = random_pillars(rng, sp, lv.goals)
         return lv
 

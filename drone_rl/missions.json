@@ -1,0 +1,58 @@
+{
+  "0": {
+    "nombre": "Hover",
+    "tiempo": 10,
+    "objetivo": "Despegar y quedarse QUIETO dentro del aro (radio 0.5 m) que está 1.5 m arriba.",
+    "exito": "Estar 1 segundo SEGUIDO dentro del aro. Si sale, el contador vuelve a 0.",
+    "falla": "chocar con el piso a más de 4 m/s, salir del área de 30 m, o que se acabe el tiempo",
+    "premio": "+ por acercarse, + continuo por estar cerca, +10 al completar el segundo, -10 al chocar"
+  },
+  "1": {
+    "nombre": "Meta fija",
+    "tiempo": 10,
+    "objetivo": "Volar al aro que está 5 m adelante y 2 m arriba.",
+    "exito": "PASAR por el aro (a menos de 0.5 m del centro). No hace falta frenar ni quedarse.",
+    "falla": "chocar con el piso a más de 4 m/s, salir del área de 30 m, o que se acabe el tiempo",
+    "premio": "+2 por metro que se acerca, +10 al pasar, -10 al chocar, -0.01 por paso"
+  },
+  "2": {
+    "nombre": "Metas aleatorias",
+    "tiempo": 15,
+    "objetivo": "Pasar por UN aro en un lugar al azar (3-8 m), arrancando mirando a cualquier lado.",
+    "exito": "Pasar por el aro una vez.",
+    "falla": "chocar con el piso a más de 4 m/s, salir del área de 30 m, o que se acabe el tiempo",
+    "premio": "+2 por metro que se acerca, +10 al pasar, -10 al chocar, -0.01 por paso"
+  },
+  "3": {
+    "nombre": "Columnas",
+    "tiempo": 15,
+    "objetivo": "Pasar por un aro al azar ESQUIVANDO columnas que están en el camino.",
+    "exito": "Pasar por el aro sin tocar ninguna columna.",
+    "falla": "tocar una columna, chocar con el piso a más de 4 m/s, salir del área de 30 m, o que se acabe el tiempo",
+    "premio": "+2 por metro que se acerca, +10 al pasar, -10 al chocar, -0.01 por paso"
+  },
+  "4": {
+    "nombre": "Varias metas",
+    "tiempo": 25,
+    "objetivo": "Pasar por 3 aros EN ORDEN (1 → 2 → 3), con columnas.",
+    "exito": "Pasar por los 3 aros en orden. Un aro solo cuenta cuando es el que toca.",
+    "falla": "tocar una columna, chocar con el piso a más de 4 m/s, salir del área de 30 m, o que se acabe el tiempo",
+    "premio": "+2 por metro hacia el aro que toca, +10 por cada aro, -10 al chocar"
+  },
+  "5": {
+    "nombre": "Circuito (2 vueltas)",
+    "tiempo": 30,
+    "objetivo": "Dar 2 VUELTAS a un circuito de 4 aros: 1 → 2 → 3 → 4 → 1 → 2 → 3 → 4.",
+    "exito": "Las 8 pasadas en orden. Cada aro se pasa DOS veces.",
+    "falla": "chocar con el piso a más de 4 m/s, salir del área de 30 m, o que se acabe el tiempo",
+    "premio": "+2 por metro hacia el aro que toca, +10 por cada pasada, -10 al chocar"
+  },
+  "level": {
+    "nombre": "Nivel propio",
+    "tiempo": 25,
+    "objetivo": "Pasar por los aros del nivel EN ORDEN, esquivando los obstáculos.",
+    "exito": "Pasar por todos los aros en orden.",
+    "falla": "tocar un obstáculo, chocar con el piso a más de 4 m/s, salir del área de 30 m, o que se acabe el tiempo",
+    "premio": "+2 por metro hacia el aro que toca, +10 por cada aro, -10 al chocar"
+  }
+}

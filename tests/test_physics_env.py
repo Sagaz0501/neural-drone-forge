@@ -57,7 +57,7 @@ def test_collision():
 
 
 def test_gym_api():
-    for stage in range(5):
+    for stage in range(6):
         check_env(DroneEnv(stage=stage), skip_render_check=True)
 
 
@@ -90,3 +90,13 @@ def test_reward_dict_shared_across_envs():
     venv = make_vec_env(DroneEnv, n_envs=3, env_kwargs=dict(stage=0, reward=rw))
     rw["crash"] = 99.0                       # cambio "en vivo"
     assert all(e.unwrapped.rw["crash"] == 99.0 for e in venv.envs)
+
+
+def test_circuit_two_laps():
+    from drone_rl import MISSIONS, OBS_LABELS
+    env = DroneEnv(stage=5)
+    env.reset(seed=0)
+    assert len(env.level.goals) == 8                       # 4 aros x 2 vueltas
+    assert len(OBS_LABELS) == env.observation_space.shape[0]
+    assert set(MISSIONS) == set(range(6))
+    assert run_pilot(5, episodes=5) == 1.0                 # el piloto PD completa las 2 vueltas

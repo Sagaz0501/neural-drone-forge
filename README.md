@@ -27,6 +27,7 @@ Los niveles se diseñan y los vuelos se ven en **Blender**, usando el frame de 5
 | 2 · goal_random | meta aleatoria a 3–8 m, orientación aleatoria | 100 % | **100 %** (llega ~25 % más rápido) | 800 k |
 | 3 · obstacles | meta aleatoria con columnas en el camino | 50 % | 42 % sin entrenar este nivel · _siguiente paso_ | — |
 | 4 · multi_goal | 3 metas seguidas con columnas | 28 % | _pendiente_ | — |
+| 5 · circuit | circuito de 4 aros, **2 vueltas** (8 pasadas en orden) | 100 % | **100 %** con el modelo del nivel 2, sin entrenarlo | 0 |
 | `levels/ejemplo.json` | 3 metas + 4 obstáculos (hecho para Blender) | 0 % | _pendiente_ | — |
 
 El **piloto PD** es un controlador clásico, sin IA, que vuela en línea recta a la meta
@@ -50,6 +51,8 @@ porque no sabe esquivar, y ahí es donde la IA tiene que ganarle.
 - [ ] Modo **acro**: control de velocidad angular, torque por motor y un PID dentro del simulador
 - [ ] Medidas reales del frame (masa, motores, hélices) en `QuadParams`
 - [x] Drone Lab: entrenamiento en vivo con N drones y parámetros ajustables desde Blender
+- [x] Misiones explícitas, aros por estado y red neuronal en vivo en Blender
+- [x] Nivel 5: circuito de 2 vueltas
 - [ ] Video de la IA volando en Blender para el portafolio
 
 ## Bitácora
@@ -83,7 +86,7 @@ git clone https://github.com/Sagaz0501/drone-rl.git
 cd drone-rl
 python3 -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-pytest -q                                                # 9 pruebas deberían pasar
+pytest -q                                                # 10 pruebas deberían pasar
 ```
 
 En Mac con Apple Silicon, PyTorch se instala solo desde pip. Para estas redes chicas la CPU es
@@ -146,6 +149,17 @@ luego se quedan quietos mientras PPO **aprende** (actualiza la red). El HUD mues
 máxima) y los 7 pesos de la recompensa. **Requiere reiniciar:** número de drones, nivel y
 neuronas por capa. "Detener y guardar" guarda el modelo en `models/live_*.zip`, y lo puedes usar
 en "Continuar desde" para seguir otro día.
+
+**Misiones:** el panel muestra para cada nivel qué cuenta como éxito y como fallo, y qué paga la
+recompensa (el texto vive en `drone_rl/missions.json`). Los aros cambian de color según el orden:
+**verde** el que toca, **celeste** el siguiente, **gris** los que faltan. En hover el aro se pone
+**amarillo** mientras el dron aguanta su segundo. En el **Circuito (2 vueltas)**, el aro de la segunda
+vuelta es un poco más grande.
+
+**Red neuronal en vivo:** con "Mostrar red neuronal" se dibuja la red del dron con luz celeste (eliges
+cuál con "Dron observado"). Se ven las 24 entradas con su valor, las 2 capas de 128 neuronas, las
+4 palancas y las 1 312 conexiones más fuertes, iluminadas según cuánto influyen en ese instante.
+La explicación completa está en [`docs/redes-neuronales.md`](docs/redes-neuronales.md#10-las-neuronas-de-este-dron-y-cómo-verlas-en-blender).
 
 Experimentos para probar:
 - Castigo por chocar en 0: ¿qué aprende?
@@ -221,6 +235,7 @@ drone_rl/
   physics.py      física del quad (numpy)
   level.py        niveles JSON, colisiones, raycasts, generador de columnas
   env.py          entorno Gymnasium + currículum + recompensa
+  missions.json   texto de cada misión (lo leen el entorno y Blender)
   controller.py   piloto PD clásico (referencia)
 scripts/
   live_train.py   entrenamiento en vivo para Drone Lab (UDP)

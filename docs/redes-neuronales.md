@@ -212,7 +212,83 @@ volar. Eso está documentado en el README.
 **Currículum:** se empieza por lo fácil (hover) y cada nivel arranca con los pesos del anterior.
 Es como aprender a volar en la vida real: nadie empieza haciendo freestyle.
 
-## 10. Glosario rápido
+## 10. Las neuronas de ESTE dron (y cómo verlas en Blender)
+
+En Drone Lab, la casilla **Mostrar red neuronal** dibuja en vivo la red del dron que tiene la luz
+celeste. Con **Dron observado** eliges cuál ver, y con la lupa la cámara va hacia él.
+
+```
+ 24 entradas ──▶ capa 1: 128 neuronas (tanh) ──▶ capa 2: 128 neuronas (tanh) ──▶ 4 salidas
+ lo que siente      3 072 pesos + 128 sesgos         16 384 pesos + 128 sesgos      512 pesos + 4 sesgos
+```
+
+Son **20 228 números** en total, y entrenar es ajustar esos 20 228 números.
+
+**Las 24 entradas** (la columna izquierda en Blender) son todo lo que el dron sabe del mundo. No ve
+imágenes ni conoce el mapa. Solo tiene esto, y cada valor está dividido entre 10 para que quede
+cerca de [-1, 1]:
+
+| Entradas | Qué son | Ejemplo |
+|---|---|---|
+| meta adelante / izquierda / arriba | dónde está el aro que toca, girado al punto de vista del dron | +0.50 = el aro está 5 m adelante |
+| distancia | qué tan lejos está ese aro | |
+| vel adelante / izquierda / arriba | su velocidad, desde su punto de vista | |
+| roll, pitch | cuánto está inclinado (1 = 35°) | |
+| altura | metros sobre el piso ÷ 10 | |
+| gas / roll / pitch / yaw anterior | lo que hizo en el paso anterior | sirve para moverse suave |
+| 10 sensores | distancia al obstáculo más cercano en 8 direcciones + arriba + abajo | 1.00 = libre, 0.20 = algo a 1 m |
+
+**Capa 1** (128 neuronas): cada neurona suma las 24 entradas multiplicadas por sus 24 pesos, le suma
+su sesgo y lo pasa por `tanh`. El resultado queda entre -1 y +1, y en Blender lo ves como el color del
+cuadrito: **naranja = positiva, azul = negativa, gris = apagada**. Nadie le dice a cada neurona qué
+detectar. El entrenamiento las va especializando solas. Por ejemplo, una puede terminar encendiéndose
+cuando "la meta está a la izquierda y voy rápido a la derecha".
+
+**Capa 2** (128 neuronas): hace lo mismo, pero combina las 128 de la capa 1. Combina ideas simples en
+ideas más complejas, del tipo "tengo que frenar y girar".
+
+**Las 4 salidas** son las palancas: gas, roll, pitch y yaw. Aquí no hay `tanh`, y el número se recorta
+a [-1, 1]. Lo que sale es la **decisión promedio** de la red. Durante el entrenamiento, PPO le suma
+**ruido de exploración** (una campana de Gauss con ancho σ, que también se aprende) para probar
+variantes. La barra al lado de cada salida muestra lo que el dron **hizo de verdad**, con ruido. A
+medida que la IA aprende, σ se achica y la barra se parece cada vez más al número.
+
+**Las líneas** son las conexiones. Hay casi 20 000, así que Blender dibuja solo las 1 312 de mayor peso.
+El brillo de cada línea es **activación de origen × peso**, o sea, cuánto empuja esa conexión a la
+siguiente neurona **en este instante**. Naranja empuja hacia +, azul hacia −. Por eso las líneas
+"parpadean" mientras el dron vuela: muestran qué parte de la red está decidiendo cada movimiento.
+
+**El crítico** es una segunda red con la misma forma (24 → 128 → 128 → 1) que solo estima "cuánta
+recompensa espero desde aquí". Únicamente sirve para entrenar, así que no se dibuja.
+
+### Cosas para observar
+
+- **Red recién creada** (sin "Continuar desde"): todo se ve gris y desordenado, y las salidas dan
+  cerca de 0. Como el gas está centrado en hover, 0 significa "flotar". Esa fue la lección de la
+  bitácora.
+- **Hover**: mira la entrada "meta arriba" y la salida "gas". Cuando el dron está debajo del aro,
+  la entrada es positiva y el gas sube.
+- **Columnas**: observa un dron que se acerca a una columna. Uno de los sensores baja de 1.00 y,
+  justo antes de que el dron cambie de dirección, se encienden líneas nuevas.
+- **Después de cada generación** cambian las conexiones dibujadas, porque PPO acaba de mover los pesos.
+
+### Misión ≠ recompensa
+
+El panel muestra la **misión**: qué cuenta como éxito y como fallo. Pero la IA **no lee la misión**,
+solo siente la recompensa. Si la recompensa paga algo distinto de lo que la misión pide, la IA va a
+hacer lo que paga. Eso fue exactamente lo que pasó con el dron que "aprendió" a quedarse en el suelo.
+Con los sliders de recompensa de Drone Lab puedes provocar esto a propósito y ver cómo cambia lo
+que aprende.
+
+| Misión | Cuenta como éxito | Lo que la recompensa paga |
+|---|---|---|
+| Hover | estar **1 s seguido** dentro del aro (el aro se pone amarillo mientras aguanta) | acercarse + estar cerca + bonus al completar |
+| Meta fija / aleatoria | **pasar** por el aro una vez (no hace falta frenar) | acercarse + bonus al pasar |
+| Columnas | pasar por el aro **sin tocar** columnas | igual, y −10 si toca |
+| Varias metas | 3 aros **en orden** | acercarse al aro que toca + bonus por cada uno |
+| Circuito (2 vueltas) | 4 aros en orden, **dos veces** (8 pasadas) | igual, por cada pasada |
+
+## 11. Glosario rápido
 
 | Término | Qué es |
 |---|---|
@@ -226,3 +302,5 @@ Es como aprender a volar en la vida real: nadie empieza haciendo freestyle.
 | política | la red que decide la acción |
 | recompensa | la señal de "bien / mal" en refuerzo |
 | episodio | un intento completo (hasta llegar, chocar o acabar el tiempo) |
+| activación | el valor de salida de una neurona en este instante (-1 a +1 con tanh) |
+| σ (sigma) | cuánto ruido de exploración agrega PPO a cada palanca |
