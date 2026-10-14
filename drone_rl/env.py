@@ -26,7 +26,8 @@ import numpy as np
 from gymnasium import spaces
 
 from .level import Level, random_goal, random_pillars
-from .physics import QuadParams, QuadState, step, yaw_frame
+from .physics import QuadParams, QuadState, step
+from .sensing import OBS_SCALE, RAY_DIRS_LOCAL, RAY_LEN, build_obs, clearance_penalty, sensor_rays  # noqa: F401
 
 STAGES = {0: "hover", 1: "goal_fixed", 2: "goal_random", 3: "obstacles", 4: "multi_goal", 5: "circuit"}
 
@@ -47,12 +48,6 @@ OBS_LABELS = ["meta adelante", "meta izquierda", "meta arriba", "distancia",
               "sensor 225°", "sensor 270°", "sensor 315°", "sensor arriba", "sensor abajo"]
 ACT_LABELS = ["gas", "roll", "pitch", "yaw"]
 
-# 8 rayos horizontales (cada 45°) + 1 arriba + 1 abajo, en el marco 'heading' del dron
-_H = [np.array([np.cos(a), np.sin(a), 0.0]) for a in np.radians(np.arange(0, 360, 45))]
-RAY_DIRS_LOCAL = np.array(_H + [np.array([0, 0, 1.0]), np.array([0, 0, -1.0])])
-RAY_LEN = 5.0          # alcance del sensor (m)
-OBS_SCALE = 10.0       # metros/velocidades se dividen por esto para quedar ~[-1, 1]
-
 # Pesos de la recompensa. Se pueden cambiar en vivo desde Blender (Drone Lab):
 # todos los entornos comparten el mismo dict, así que un cambio aplica a todos los drones.
 DEFAULT_REWARD = {
@@ -63,6 +58,7 @@ DEFAULT_REWARD = {
     "smooth": 0.05,      # castigo por cambios bruscos de palancas
     "tilt": 0.01,        # castigo por inclinarse
     "near": 0.3,         # solo hover: premio continuo por estar cerca de la meta
+    "clearance": 0.0,    # castigo por pasar a menos de 1.2 m de un obstáculo (0 = apagado)
 }
 
 
@@ -71,7 +67,8 @@ class DroneEnv(gym.Env):
 
     def __init__(self, stage: int = 0, level_path: str | None = None, params: QuadParams | None = None,
                  control_hz: int = 50, physics_substeps: int = 2, max_seconds: float | None = None,
-                 goal_radius: float = 0.5, reward: dict | None = None):
+                 goal_radius: float = 0.5, reward: dict | None = None,
+                 start_anywhere: float = 0.0, spawn_jitter: float = 0.0, yaw_jitter: float = 0.0):
         super().__init__()
         self.stage = stage
         self.fixed_level = Level.load(level_path) if level_path else None
@@ -80,6 +77,10 @@ class DroneEnv(gym.Env):
         self.substeps = physics_substeps
         self.goal_radius = goal_radius
         self.rw = reward if reward is not None else dict(DEFAULT_REWARD)
+        # Solo para entrenar en un nivel fijo con varios aros (ej. la bodega):
+        self.start_anywhere = start_anywhere   # prob. de aparecer en cualquier tramo de la ruta
+        self.spawn_jitter = spawn_jitter       # +- metros de variación en la posición inicial
+        self.yaw_jitter = yaw_jitter           # +- radianes de variación en la orientación inicial
         mission = LEVEL_MISSION if level_path else MISSIONS[stage]
         self.max_seconds = max_seconds or float(mission["tiempo"])
         self.max_steps = int(self.max_seconds * control_hz)
@@ -119,10 +120,30 @@ class DroneEnv(gym.Env):
         super().reset(seed=seed)
         self.level = self._make_level()
         self.state = QuadState(pos=self.level.spawn.copy())
+        self.goal_idx = 0
+        rng = self.np_random
         # pequeño yaw aleatorio para que no memorice una sola orientación
         if self.fixed_level is None:
-            self.state.yaw = float(self.np_random.uniform(-np.pi, np.pi)) if self.stage >= 2 else 0.0
-        self.goal_idx = 0
+            self.state.yaw = float(rng.uniform(-np.pi, np.pi)) if self.stage >= 2 else 0.0
+        else:
+            goals = self.level.goals
+            if len(goals) > 1 and rng.random() < self.start_anywhere:
+                k = int(rng.integers(0, len(goals)))           # aparecer en el tramo k de la ruta
+                if k > 0:
+                    self.state.pos = goals[k - 1].copy()
+                self.goal_idx = k
+            g = goals[self.goal_idx] - self.state.pos
+            self.state.yaw = float(np.arctan2(g[1], g[0])) if self.start_anywhere else 0.0
+            self.state.yaw += float(rng.uniform(-1, 1)) * self.yaw_jitter
+            if self.spawn_jitter:
+                base = self.state.pos.copy()
+                for _ in range(10):                            # variación sin caer dentro de algo
+                    off = rng.uniform(-1, 1, 3) * self.spawn_jitter * np.array([1, 1, 0.5])
+                    cand = base + off
+                    cand[2] = max(cand[2], 0.0)
+                    if not self.level.collides(cand, self.p.radius * 2):
+                        self.state.pos = cand
+                        break
         self.hold = 0
         self.steps = 0
         self.prev_action = np.zeros(4)
@@ -137,27 +158,13 @@ class DroneEnv(gym.Env):
         return float(np.linalg.norm(self._goal() - self.state.pos))
 
     def _rays(self) -> np.ndarray:
-        s = self.state
-        c, sn = np.cos(s.yaw), np.sin(s.yaw)
-        rz = np.array([[c, -sn, 0], [sn, c, 0], [0, 0, 1]])
-        dirs = RAY_DIRS_LOCAL @ rz.T              # rayos girados con el dron (solo yaw)
-        return self.level.raycast(s.pos, dirs, RAY_LEN)
+        return sensor_rays(self.state, self.level)
 
-    def _obs(self) -> np.ndarray:
-        s = self.state
-        rel = yaw_frame(self._goal() - s.pos, s.yaw)
-        dist = np.linalg.norm(rel)
-        vel_h = yaw_frame(s.vel, s.yaw)
-        obs = np.concatenate([
-            np.clip(rel / OBS_SCALE, -2, 2),                 # 3: dónde está la meta (relativa)
-            [min(dist / OBS_SCALE, 2.0)],                    # 1: distancia a la meta
-            np.clip(vel_h / OBS_SCALE, -2, 2),               # 3: velocidad
-            [s.roll / self.p.max_angle, s.pitch / self.p.max_angle],   # 2: inclinación
-            [s.pos[2] / OBS_SCALE],                          # 1: altura
-            self.prev_action,                                # 4: acción anterior
-            self._rays() / RAY_LEN,                          # 10: sensores (1 = libre)
-        ])
-        return obs.astype(np.float32)
+    def _obs(self, rays: np.ndarray | None = None) -> np.ndarray:
+        """Las 24 entradas (el cálculo vive en sensing.py, compartido con Blender)."""
+        if rays is None:
+            rays = self._rays()
+        return build_obs(self.state, self._goal(), rays, self.prev_action, self.p)
 
     # ------------------------------------------------------------------
     def step(self, action):
@@ -181,6 +188,9 @@ class DroneEnv(gym.Env):
         reward -= rw["time"]                                               # el tiempo cuesta
         tilt = abs(self.state.roll) + abs(self.state.pitch)
         reward -= rw["tilt"] * tilt
+        rays = self._rays()
+        if rw.get("clearance", 0.0):
+            reward -= rw["clearance"] * clearance_penalty(rays)          # no pasar pegado a las cosas
         self.prev_dist = dist
         self.prev_action = action
 
@@ -218,4 +228,4 @@ class DroneEnv(gym.Env):
             "dist": dist,
             "pos": pos.copy(),          # para ver dónde chocó (el entorno se reinicia solo)
         }
-        return self._obs(), float(reward), terminated, truncated, info
+        return self._obs(rays), float(reward), terminated, truncated, info

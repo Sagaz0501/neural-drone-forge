@@ -100,3 +100,43 @@ def test_circuit_two_laps():
     assert len(OBS_LABELS) == env.observation_space.shape[0]
     assert set(MISSIONS) == set(range(6))
     assert run_pilot(5, episodes=5) == 1.0                 # el piloto PD completa las 2 vueltas
+
+
+def test_runtime_matches_env(tmp_path):
+    """Blender usa runtime.py (solo numpy): debe volar EXACTAMENTE igual que el entorno de entrenamiento."""
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    from export_policy import export
+    from stable_baselines3 import PPO
+    from drone_rl.runtime import Flight, NumpyPolicy
+    root = Path(__file__).resolve().parents[1]
+    npz = export(root / "models" / "stage2.zip", tmp_path / "p.npz")
+    model, npol = PPO.load(root / "models" / "stage2.zip", device="cpu"), NumpyPolicy(npz)
+    env = DroneEnv(stage=2)
+    obs, _ = env.reset(seed=3)
+    fl = Flight(env.level, npol)
+    fl.reset(pos=env.level.spawn, yaw=env.state.yaw)
+    for _ in range(200):
+        obs, _, te, tr, _ = env.step(model.predict(obs, deterministic=True)[0])
+        fl.step()
+        assert np.linalg.norm(env.state.pos - fl.state.pos) < 1e-4
+        if te or tr:
+            break
+
+
+def test_runtime_lands_on_pad():
+    """Después del último aro, el piloto PD aterriza suave sobre la plataforma."""
+    from drone_rl.runtime import Flight
+    lv = Level.from_dict({"spawn": [0, 0, 0], "goals": [[3, 0, 2]]})
+    pd = PDPilot(QuadParams())
+    fl = Flight(lv, lambda o: None, land_on=(5, 1, 0))
+    fl.reset()
+    fl.phase = "ruta"
+    fl.policy = lambda o: pd.act(fl.state, fl.goal())          # para la prueba: el PD hace la ruta
+    for _ in range(3000):
+        fl.step()
+        if fl.phase not in ("ruta", "aterrizaje"):
+            break
+    assert fl.phase == "aterrizado"
+    assert np.linalg.norm(fl.state.pos[:2] - np.array([5, 1])) < 0.3

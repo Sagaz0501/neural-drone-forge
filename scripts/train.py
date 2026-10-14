@@ -14,6 +14,7 @@ Ejemplos:
 Ver curvas en vivo:  tensorboard --logdir runs
 """
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -26,7 +27,7 @@ from stable_baselines3.common.callbacks import BaseCallback, CheckpointCallback
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
-from drone_rl import STAGES, DroneEnv
+from drone_rl import DEFAULT_REWARD, STAGES, DroneEnv
 
 
 class SuccessLogger(BaseCallback):
@@ -65,6 +66,12 @@ def main():
     ap.add_argument("--out", type=str, default=None)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--ckpt-every", type=int, default=100_000, help="guardar una copia cada N pasos")
+    ap.add_argument("--reward", type=str, default="{}", help='cambiar pesos, ej: {"clearance": 0.5}')
+    ap.add_argument("--max-seconds", type=float, default=None, help="duración máxima de un intento")
+    ap.add_argument("--start-anywhere", type=float, default=0.0,
+                    help="nivel fijo con varios aros: prob. de aparecer en cualquier tramo de la ruta")
+    ap.add_argument("--spawn-jitter", type=float, default=0.0, help="+- metros de variación al aparecer")
+    ap.add_argument("--yaw-jitter", type=float, default=0.0, help="+- radianes de variación al aparecer")
     ap.add_argument("--subproc", action="store_true", help="un proceso por entorno (más rápido con muchos núcleos)")
     args = ap.parse_args()
 
@@ -80,7 +87,10 @@ def main():
     out.parent.mkdir(parents=True, exist_ok=True)
 
     env = make_vec_env(DroneEnv, n_envs=args.envs, seed=args.seed,
-                       env_kwargs=dict(stage=args.stage, level_path=args.level),
+                       env_kwargs=dict(stage=args.stage, level_path=args.level, max_seconds=args.max_seconds,
+                                       reward={**DEFAULT_REWARD, **json.loads(args.reward)},
+                                       start_anywhere=args.start_anywhere, spawn_jitter=args.spawn_jitter,
+                                       yaw_jitter=args.yaw_jitter),
                        vec_env_cls=SubprocVecEnv if args.subproc else DummyVecEnv)
 
     if args.init:
