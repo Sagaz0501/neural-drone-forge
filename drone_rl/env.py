@@ -14,6 +14,8 @@ Currículum (de fácil a difícil), parámetro `stage`:
     3 obstacles    : meta aleatoria con columnas en el camino
     4 multi_goal   : 3 metas seguidas con columnas
     5 circuit      : circuito de 4 aros, 2 vueltas (8 pasadas en orden)
+    6 forest       : cruzar un bosque (troncos, copas, arbustos) hasta un aro a 9-14 m
+Opciones para cualquier nivel: density (bosque más claro/denso) y wind (viento con ráfagas, m/s).
 O un nivel fijo hecho en Blender: DroneEnv(level_path="levels/mi_nivel.json")
 """
 from __future__ import annotations
@@ -25,11 +27,12 @@ import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 
-from .level import Level, random_goal, random_pillars
-from .physics import QuadParams, QuadState, step
+from .level import Level, forest_level, random_goal, random_pillars
+from .physics import QuadParams, QuadState, Wind, step
 from .sensing import OBS_SCALE, RAY_DIRS_LOCAL, RAY_LEN, build_obs, clearance_penalty, sensor_rays  # noqa: F401
 
-STAGES = {0: "hover", 1: "goal_fixed", 2: "goal_random", 3: "obstacles", 4: "multi_goal", 5: "circuit"}
+STAGES = {0: "hover", 1: "goal_fixed", 2: "goal_random", 3: "obstacles", 4: "multi_goal", 5: "circuit",
+          6: "forest"}
 
 # Qué cuenta como éxito en cada misión (texto en drone_rl/missions.json, que también lee Blender).
 # OJO: la IA no lee esto; solo "siente" la recompensa. Esto es para nosotros.
@@ -59,7 +62,10 @@ DEFAULT_REWARD = {
     "tilt": 0.01,        # castigo por inclinarse
     "near": 0.3,         # solo hover: premio continuo por estar cerca de la meta
     "clearance": 0.0,    # castigo por pasar a menos de 1.2 m de un obstáculo (0 = apagado)
+    "speed": 1.0,        # al pasar cada aro: + esto x velocidad media del tramo (m/s). Premia llegar RÁPIDO
+    "stability": 0.5,    # castigo por segundo de giros bruscos (roll/pitch) y por girar sobre sí mismo (yaw)
 }
+ANG_RATE_REF = 4.0       # rad/s: un giro de roll/pitch así de rápido cuenta como "1" en el castigo de estabilidad
 
 
 class DroneEnv(gym.Env):
@@ -69,9 +75,12 @@ class DroneEnv(gym.Env):
                  control_hz: int = 50, physics_substeps: int = 2, max_seconds: float | None = None,
                  goal_radius: float = 0.5, reward: dict | None = None,
                  start_anywhere: float = 0.0, spawn_jitter: float = 0.0, yaw_jitter: float = 0.0,
-                 focus_blocked: float = 1.0, start_speed: float = 0.0):
+                 focus_blocked: float = 1.0, start_speed: float = 0.0, density: float = 1.0, wind: float = 0.0):
         super().__init__()
         self.stage = stage
+        self.density = density                 # bosque: 0.5 claro · 1 normal · 2 denso (se puede cambiar en vivo)
+        self.wind = Wind(wind)                 # viento máx. en m/s (0 = sin viento; se puede cambiar en vivo)
+        self.trees = []
         self.fixed_level = Level.load(level_path) if level_path else None
         self.p = params or QuadParams()
         self.dt = 1.0 / control_hz
@@ -125,6 +134,8 @@ class DroneEnv(gym.Env):
             lv.goals = g
         if self.stage in (3, 4):
             lv.box_min, lv.box_max = random_pillars(rng, sp, lv.goals)
+        if self.stage == 6:
+            lv, self.trees = forest_level(rng, self.density)
         return lv
 
     def reset(self, *, seed=None, options=None):
@@ -165,6 +176,10 @@ class DroneEnv(gym.Env):
         self.steps = 0
         self.prev_action = np.zeros(4)
         self.prev_dist = self._goal_dist()
+        self.wind_now = self.wind.reset(rng)
+        # para el premio de rapidez y las estadísticas del vuelo
+        self.seg_start, self.seg_len = 0, self.prev_dist
+        self.path_len, self.ang_sum = 0.0, 0.0
         return self._obs(), {}
 
     # ------------------------------------------------------------------
@@ -187,10 +202,15 @@ class DroneEnv(gym.Env):
     def step(self, action):
         action = np.clip(np.asarray(action, dtype=float), -1, 1)
         ground_crash = False
+        prev_pos, prev_att = self.state.pos.copy(), (self.state.roll, self.state.pitch)
+        self.wind_now = self.wind.step(self.dt, self.np_random)
         for _ in range(self.substeps):
-            self.state, info = step(self.state, action, self.dt / self.substeps, self.p)
+            self.state, info = step(self.state, action, self.dt / self.substeps, self.p, self.wind_now)
             ground_crash |= info["ground_crash"]
         self.steps += 1
+        ang_rate = np.hypot(self.state.roll - prev_att[0], self.state.pitch - prev_att[1]) / self.dt   # rad/s
+        self.ang_sum += ang_rate
+        self.path_len += float(np.linalg.norm(self.state.pos - prev_pos))
 
         pos = self.state.pos
         hit_obstacle = self.level.collides(pos, self.p.radius)
@@ -208,6 +228,8 @@ class DroneEnv(gym.Env):
         rays = self._rays()
         if rw.get("clearance", 0.0):
             reward -= rw["clearance"] * clearance_penalty(rays)          # no pasar pegado a las cosas
+        if rw.get("stability", 0.0):                                     # vuelo estable: sin sacudidas ni trompos
+            reward -= rw["stability"] * self.dt * ((ang_rate / ANG_RATE_REF) ** 2 + float(action[3]) ** 2)
         self.prev_dist = dist
         self.prev_action = action
 
@@ -224,11 +246,14 @@ class DroneEnv(gym.Env):
                     terminated = success = True
             else:
                 reward += rw["goal"]
+                seg_time = (self.steps - self.seg_start) * self.dt
+                reward += rw.get("speed", 0.0) * min(self.seg_len / max(seg_time, 1e-3), 8.0)   # más rápido = más premio
                 self.goal_idx += 1
                 if self.goal_idx >= len(self.level.goals):
                     terminated = success = True
                 else:
                     self.prev_dist = self._goal_dist()
+                    self.seg_start, self.seg_len = self.steps, self.prev_dist
         else:
             self.hold = 0
 
@@ -245,4 +270,8 @@ class DroneEnv(gym.Env):
             "dist": dist,
             "pos": pos.copy(),          # para ver dónde chocó (el entorno se reinicia solo)
         }
+        if terminated or truncated:     # cómo voló: para el HUD del laboratorio
+            t = self.steps * self.dt
+            info["avg_speed"] = self.path_len / t
+            info["ang_rate"] = float(np.degrees(self.ang_sum / self.steps))
         return self._obs(rays), float(reward), terminated, truncated, info

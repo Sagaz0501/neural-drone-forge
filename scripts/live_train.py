@@ -10,7 +10,7 @@ Protocolo (UDP en localhost, mensajes JSON, como telemetría de un dron real):
     trainer -> Blender  :9001   "h" hola + misión · "f" posiciones · "l" nivel de un dron · "s" estadísticas
                                 "a" activaciones de la red del dron observado · "w" conexiones más fuertes
     Blender -> trainer  :9002   {"lr":…, "ent":…, "log_std":…, "reward":{…}, "speed":"real|rapido", "pause":bool,
-                                 "watch": i, "save":true, "export":true, "stop":true}
+                                 "env": {"density":…, "wind":…}, "watch": i, "save":true, "export":true, "stop":true}
     "export": guarda el modelo actual y lo pasa a numpy (.npz) para probarlo en un escenario de Blender;
               responde con {"t": "x", "npz": ruta}.
 
@@ -67,6 +67,8 @@ class LiveLink(BaseCallback):
         self.gen = 0
         self.total_eps = 0
         self.ep_succ, self.ep_crash, self.ep_rew = [], [], []
+        self.ep_speed, self.ep_ang = [], []          # cómo vuelan los que llegan: rapidez y estabilidad
+        self.density, self.wind = args.density, args.wind
         self.history = []
         self.events = []
         self.next_tick = time.perf_counter()
@@ -95,17 +97,34 @@ class LiveLink(BaseCallback):
     def envs(self):
         return [e.unwrapped for e in self.training_env.envs]
 
-    def send_level(self, i, env):
+    def send_level(self, i, env, cap=36):
         lv = env.level
+        spheres = [r3(c) + [round(float(r), 3)] for c, r in zip(lv.sph_c, lv.sph_r)]
+        cyls = [r3(c) + [round(float(r), 3)] + r3(z) for c, r, z in zip(lv.cyl_xy, lv.cyl_r, lv.cyl_z)]
+        if len(spheres) + len(cyls) > cap:
+            # un bosque tiene ~100 piezas: a Blender solo le mandamos las más cercanas al camino
+            path = np.array([lv.spawn] + list(lv.goals))[:, :2]
+            a, ab = path[:-1], path[1:] - path[:-1]
+
+            def gap(xy, r):
+                u = np.clip(np.sum((xy - a) * ab, axis=1) / np.maximum(np.sum(ab * ab, axis=1), 1e-9), 0, 1)
+                return float(np.min(np.linalg.norm(a + ab * u[:, None] - xy, axis=1))) - r
+
+            ranked = sorted([(gap(np.array(s[:2]), s[3]), "s", s) for s in spheres]
+                            + [(gap(np.array(c[:2]), c[2]), "c", c) for c in cyls], key=lambda t: t[0])
+            keep = [t for t in ranked if t[0] < 3.0][:cap]
+            spheres = [t[2] for t in keep if t[1] == "s"]
+            cyls = [t[2] for t in keep if t[1] == "c"]
         self.send({"t": "l", "i": i, "spawn": r3(lv.spawn),
                    "goals": [r3(g) for g in lv.goals],
                    "boxes": [r3(a) + r3(b) for a, b in zip(lv.box_min, lv.box_max)],
-                   "spheres": [r3(c) + [round(float(r), 3)] for c, r in zip(lv.sph_c, lv.sph_r)]})
+                   "spheres": spheres, "cylinders": cyls})
 
     def params(self):
         sigma = float(torch.exp(self.model.policy.log_std.detach()).mean()) if getattr(self, "model", None) is not None else 0.0
         return {"lr": self.lr, "ent": self.ent, "sigma": round(sigma, 3), "reward": self.reward, "speed": self.speed,
-                "drones": self.args.drones, "stage": self.args.stage, "paused": self.paused}
+                "drones": self.args.drones, "stage": self.args.stage, "paused": self.paused,
+                "density": self.density, "wind": self.wind}
 
     def send_stats(self):
         w = max(2 * self.args.drones, 100)
@@ -113,7 +132,7 @@ class LiveLink(BaseCallback):
         self.send({"t": "s", "phase": self.phase, "gen": self.gen, "steps": int(self.num_timesteps),
                    "eps": self.total_eps, "succ": mean(self.ep_succ), "crash": mean(self.ep_crash),
                    "rew": mean(self.ep_rew), "hist": self.history[-300:], "params": self.params(),
-                   "msg": self.msg})
+                   "spd": mean(self.ep_speed), "ang": mean(self.ep_ang), "msg": self.msg})
 
     def send_frame(self):
         d = []
@@ -187,6 +206,12 @@ class LiveLink(BaseCallback):
             if "speed" in m:
                 self.speed = m["speed"]
                 self.next_tick = time.perf_counter()
+            if "env" in m:                          # ambiente: aplica desde el próximo intento de cada dron
+                self.density = float(m["env"].get("density", self.density))
+                self.wind = float(m["env"].get("wind", self.wind))
+                for e in self.envs():
+                    e.density = self.density
+                    e.wind.max_speed = self.wind
             if "watch" in m:
                 self.watch = int(m["watch"]) % self.args.drones
             if "pause" in m:
@@ -253,6 +278,9 @@ class LiveLink(BaseCallback):
                 st = 2 if info.get("success") else 1 if info.get("crashed") else 3
                 self.events.append([i, st] + r3(info.get("pos", (0, 0, 0))))
                 self.ep_succ.append(float(info.get("success", False)))
+                if info.get("success") and "avg_speed" in info:
+                    self.ep_speed.append(float(info["avg_speed"]))
+                    self.ep_ang.append(float(info["ang_rate"]))
                 self.ep_crash.append(float(info.get("crashed", False)))
                 ep = info.get("episode")             # lo agrega el Monitor de SB3
                 if ep:
@@ -300,6 +328,8 @@ def main():
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--watch", type=int, default=0, help="dron cuya red neuronal se manda a Blender")
     ap.add_argument("--log-std", type=float, default=None, help="ruido de exploración inicial (log σ)")
+    ap.add_argument("--density", type=float, default=1.0, help="bosque: 0.5 claro · 1 normal · 2 denso")
+    ap.add_argument("--wind", type=float, default=0.0, help="viento máx. con ráfagas (m/s)")
     args = ap.parse_args()
 
     reward = dict(DEFAULT_REWARD)
@@ -307,7 +337,8 @@ def main():
 
     n = args.drones
     env = make_vec_env(DroneEnv, n_envs=n, seed=args.seed,
-                       env_kwargs=dict(stage=args.stage, level_path=args.level, reward=reward))
+                       env_kwargs=dict(stage=args.stage, level_path=args.level, reward=reward,
+                                       density=args.density, wind=args.wind))
     n_steps = max(32, round(12_800 / n))         # ~12 800 pasos de experiencia por generación
     batch = min(1024, n_steps * n)
 

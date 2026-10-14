@@ -13,7 +13,7 @@
     "objetivo": "Volar al aro que está 5 m adelante y 2 m arriba.",
     "exito": "PASAR por el aro (a menos de 0.5 m del centro). No hace falta frenar ni quedarse.",
     "falla": "chocar con el piso a más de 4 m/s, salir del área de 30 m, o que se acabe el tiempo",
-    "premio": "+2 por metro que se acerca, +10 al pasar, -10 al chocar, -0.01 por paso"
+    "premio": "+2 por metro que se acerca, +10 al pasar, -10 al chocar, -0.01 por paso · + velocidad media x 'rapidez' por aro"
   },
   "2": {
     "nombre": "Metas aleatorias",
@@ -21,7 +21,7 @@
     "objetivo": "Pasar por UN aro en un lugar al azar (3-8 m), arrancando mirando a cualquier lado.",
     "exito": "Pasar por el aro una vez.",
     "falla": "chocar con el piso a más de 4 m/s, salir del área de 30 m, o que se acabe el tiempo",
-    "premio": "+2 por metro que se acerca, +10 al pasar, -10 al chocar, -0.01 por paso"
+    "premio": "+2 por metro que se acerca, +10 al pasar, -10 al chocar, -0.01 por paso · + velocidad media x 'rapidez' por aro"
   },
   "3": {
     "nombre": "Columnas",
@@ -29,7 +29,7 @@
     "objetivo": "Pasar por un aro al azar ESQUIVANDO columnas que están en el camino.",
     "exito": "Pasar por el aro sin tocar ninguna columna.",
     "falla": "tocar una columna, chocar con el piso a más de 4 m/s, salir del área de 30 m, o que se acabe el tiempo",
-    "premio": "+2 por metro que se acerca, +10 al pasar, -10 al chocar, -0.01 por paso"
+    "premio": "+2 por metro que se acerca, +10 al pasar, -10 al chocar, -0.01 por paso · + velocidad media x 'rapidez' por aro"
   },
   "4": {
     "nombre": "Varias metas",
@@ -37,7 +37,7 @@
     "objetivo": "Pasar por 3 aros EN ORDEN (1 → 2 → 3), con columnas.",
     "exito": "Pasar por los 3 aros en orden. Un aro solo cuenta cuando es el que toca.",
     "falla": "tocar una columna, chocar con el piso a más de 4 m/s, salir del área de 30 m, o que se acabe el tiempo",
-    "premio": "+2 por metro hacia el aro que toca, +10 por cada aro, -10 al chocar"
+    "premio": "+2 por metro hacia el aro que toca, +10 por cada aro, -10 al chocar · + velocidad media x 'rapidez' por aro"
   },
   "5": {
     "nombre": "Circuito (2 vueltas)",
@@ -45,7 +45,7 @@
     "objetivo": "Dar 2 VUELTAS a un circuito de 4 aros: 1 → 2 → 3 → 4 → 1 → 2 → 3 → 4.",
     "exito": "Las 8 pasadas en orden. Cada aro se pasa DOS veces.",
     "falla": "chocar con el piso a más de 4 m/s, salir del área de 30 m, o que se acabe el tiempo",
-    "premio": "+2 por metro hacia el aro que toca, +10 por cada pasada, -10 al chocar"
+    "premio": "+2 por metro hacia el aro que toca, +10 por cada pasada, -10 al chocar · + velocidad media x 'rapidez' por aro"
   },
   "level": {
     "nombre": "Nivel propio",
@@ -53,6 +53,14 @@
     "objetivo": "Pasar por los aros del nivel EN ORDEN, esquivando los obstáculos.",
     "exito": "Pasar por todos los aros en orden.",
     "falla": "tocar un obstáculo, chocar con el piso a más de 4 m/s, salir del área de 30 m, o que se acabe el tiempo",
-    "premio": "+2 por metro hacia el aro que toca, +10 por cada aro, -10 al chocar"
+    "premio": "+2 por metro hacia el aro que toca, +10 por cada aro, -10 al chocar · + velocidad media x 'rapidez' por aro"
+  },
+  "6": {
+    "nombre": "Bosque",
+    "tiempo": 25,
+    "objetivo": "Cruzar un bosque hasta un aro a 9-14 m, pasando ENTRE troncos, árboles jóvenes y arbustos (las copas altas dejan ~2.6 m libres abajo).",
+    "exito": "Pasar por el aro sin tocar ningún tronco, copa, arbusto ni roca.",
+    "falla": "tocar un árbol o una roca, chocar con el piso a más de 4 m/s, salir del área de 30 m, o que se acabe el tiempo",
+    "premio": "+2 por metro que se acerca, +10 al pasar, + velocidad media x 'rapidez', - giros bruscos x 'estabilidad', -10 al chocar"
   }
 }

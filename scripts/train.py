@@ -80,6 +80,8 @@ def main():
     ap.add_argument("--spawn-jitter", type=float, default=0.0, help="+- metros de variación al aparecer")
     ap.add_argument("--yaw-jitter", type=float, default=0.0, help="+- radianes de variación al aparecer")
     ap.add_argument("--subproc", action="store_true", help="un proceso por entorno (más rápido con muchos núcleos)")
+    ap.add_argument("--density", type=float, default=1.0, help="bosque: 0.5 claro · 1 normal · 2 denso")
+    ap.add_argument("--wind", type=float, default=0.0, help="viento máx. con ráfagas (m/s)")
     args = ap.parse_args()
 
     try:
@@ -98,7 +100,7 @@ def main():
                                        reward={**DEFAULT_REWARD, **json.loads(args.reward)},
                                        start_anywhere=args.start_anywhere, spawn_jitter=args.spawn_jitter,
                                        yaw_jitter=args.yaw_jitter, focus_blocked=args.focus_blocked,
-                                       start_speed=args.start_speed),
+                                       start_speed=args.start_speed, density=args.density, wind=args.wind),
                        vec_env_cls=SubprocVecEnv if args.subproc else DummyVecEnv)
 
     if args.init:

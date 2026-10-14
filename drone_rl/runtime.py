@@ -15,7 +15,7 @@ import json
 import numpy as np
 
 from .controller import PDPilot
-from .physics import QuadParams, QuadState, step
+from .physics import QuadParams, QuadState, Wind, step
 from .sensing import build_obs, sensor_rays
 
 
@@ -43,8 +43,10 @@ class Flight:
     """Un vuelo: la red sigue la ruta y, si hay plataforma, el piloto PD aterriza al final."""
 
     def __init__(self, level, policy, p: QuadParams | None = None, control_hz: int = 50, substeps: int = 2,
-                 goal_radius: float = 0.5, land_on=None):
+                 goal_radius: float = 0.5, land_on=None, wind: float = 0.0, seed=None):
         self.level, self.policy = level, policy
+        self.wind = Wind(wind)                     # mismo viento con ráfagas que en el entrenamiento
+        self.rng = np.random.default_rng(seed)
         self.p = p or QuadParams()
         self.dt = 1.0 / control_hz
         self.substeps = substeps
@@ -64,6 +66,7 @@ class Flight:
         self.rays = sensor_rays(self.state, self.level)
         self.action = np.zeros(4)
         self._land_low = False
+        self.wind_now = self.wind.reset(self.rng)
         return self.info()
 
     def goal(self):
@@ -85,8 +88,9 @@ class Flight:
             target = pad + np.array([0, 0, -0.4]) if self._land_low else above
             a = self.pd.act(s, target)
         ground_crash = grounded = False
+        self.wind_now = self.wind.step(self.dt, self.rng)
         for _ in range(self.substeps):
-            self.state, inf = step(self.state, a, self.dt / self.substeps, self.p)
+            self.state, inf = step(self.state, a, self.dt / self.substeps, self.p, self.wind_now)
             ground_crash |= inf["ground_crash"]
             grounded |= inf["grounded"]
         self.prev_action, self.action = a, a
@@ -113,4 +117,4 @@ class Flight:
         s = self.state
         return {"t": self.t, "pos": s.pos.copy(), "rot": (s.roll, s.pitch, s.yaw), "vel": s.vel.copy(),
                 "throttle": s.throttle, "goal_idx": self.goal_idx, "phase": self.phase, "reason": self.reason,
-                "rays": self.rays.copy(), "action": np.array(self.action)}
+                "rays": self.rays.copy(), "action": np.array(self.action), "wind": self.wind_now.copy()}

@@ -6,11 +6,12 @@ Lo usa el botón "Probar en escenario aleatorio" de Drone Lab. Cada vez:
      metas a 3-8 m y columnas en el camino (nivel 3), o 3 metas seguidas (nivel 4)
   2. lo modela en 3D en la escena "Prueba IA": cada obstáculo según su tamaño es una columna de
      concreto, una torre de cajas o un contenedor; los aros son las metas y abajo de la última
-     hay una plataforma de aterrizaje ("META")
+     hay una plataforma de aterrizaje ("META"). Nivel 6: un BOSQUE completo (blender/bosque.py)
   3. el Piloto IA (blender/piloto_ia.py) vuela con la red: sensores -> red -> física, en vivo
 
 Botones en N > Piloto IA: "Otro escenario aleatorio" y "Volver al laboratorio".
 """
+import importlib
 import math
 import os
 import random
@@ -33,15 +34,18 @@ from escena_lib import (M, MB, build_chase_cameras, build_drone, collision_proxy
 SCENE = "Prueba IA"
 COLS = ("Prueba_Escenario", "Colisiones", "Ruta", "Ruta_Visual", "Dron", "Camaras_Luces")
 TIPOS = {0: "Hover", 1: "Meta fija", 2: "Una meta, sin obstáculos", 3: "Una meta con columnas",
-         4: "Tres metas con columnas", 5: "Circuito (2 vueltas)"}
+         4: "Tres metas con columnas", 5: "Circuito (2 vueltas)", 6: "Bosque"}
 CIRCUIT = [(6, 0, 2), (6, 6, 3), (0, 6, 2), (0, 0, 1.5)]      # igual que drone_rl/env.py
 
 
 # =====================================================================
 # Nivel al azar (igual que en el entrenamiento)
 # =====================================================================
-def make_level(stage, rng):
-    from drone_rl.level import Level, random_goal, random_pillars
+def make_level(stage, rng, density=1.0):
+    """Devuelve (nivel, árboles). Los árboles solo existen en el bosque (nivel 6)."""
+    from drone_rl.level import Level, forest_level, random_goal, random_pillars
+    if stage == 6:
+        return forest_level(rng, density)
     lv = Level(name=f"prueba_{stage}")
     sp = lv.spawn
     if stage == 0:
@@ -61,7 +65,7 @@ def make_level(stage, rng):
         lv.goals = g
     if stage in (3, 4):
         lv.box_min, lv.box_max = random_pillars(rng, sp, lv.goals)
-    return lv
+    return lv, None
 
 
 # =====================================================================
@@ -86,7 +90,8 @@ def clear_scene():
         if c:
             bpy.data.collections.remove(c)
     mine = ("Piso_pruebas", "Obstaculo_", "COL_obst_", "Aro_", "Plataforma_", "Dron_Cuerpo", "Helice_", "Disco_",
-            "txt", "Cam_", "Sol", "Reflector_")
+            "txt", "Cam_", "Sol", "Reflector_", "Bosque_Troncos", "Bosque_Hojas", "Bosque_Pinos", "Bosque_Rocas",
+            "Bosque_Flores", "Bosque_Suelo")
     for block in (bpy.data.meshes, bpy.data.curves, bpy.data.cameras, bpy.data.lights):
         for d in list(block):
             if d.users == 0 and d.name.startswith(mine):      # solo lo que creó este script
@@ -217,36 +222,54 @@ def build_lights(col, center):
         col.objects.link(lo)
 
 
-def build(stage=3, seed=None, model_npz=None, return_scene=None):
+def build(stage=3, seed=None, model_npz=None, return_scene=None, density=1.0, wind=0.0, switch=True):
     """Arma un escenario NUEVO al azar y lo deja listo para volar."""
     seed = random.randrange(1_000_000) if seed is None else seed
     rng = np.random.default_rng(seed)
     pyrng = random.Random(seed)
-    lv = make_level(stage, rng)
+    lv, trees = make_level(stage, rng, density)
 
     sc = clear_scene()
-    bpy.context.window.scene = sc
+    if switch:
+        bpy.context.window.scene = sc
     cols = setup_scene(sc)
     materials()
-    build_ground(cols["Prueba_Escenario"])
-    kinds = [build_obstacle(i, mn.tolist(), mx.tolist(), cols["Prueba_Escenario"], cols["Colisiones"], pyrng)
-             for i, (mn, mx) in enumerate(zip(lv.box_min, lv.box_max), 1)]
+    if stage == 6:
+        import bosque
+        importlib.reload(bosque)
+        res = bosque.build(sc, lv, trees, cols, seed, density)
+        kinds = [t["tipo"] for t in res["chocables"]]
+    else:
+        build_ground(cols["Prueba_Escenario"])
+        kinds = [build_obstacle(i, mn.tolist(), mx.tolist(), cols["Prueba_Escenario"], cols["Colisiones"], pyrng)
+                 for i, (mn, mx) in enumerate(zip(lv.box_min, lv.box_max), 1)]
     build_goals(lv, cols)
     g0 = lv.goals[0] - lv.spawn
     drone = build_drone(cols["Dron"], tuple(lv.spawn), math.atan2(g0[1], g0[0]))
     cam, _ = build_chase_cameras(cols["Camaras_Luces"], drone, tuple(lv.spawn), math.atan2(g0[1], g0[0]))
     center = (np.mean([lv.spawn] + lv.goals, axis=0)).tolist()
     general_camera(cols["Camaras_Luces"], (center[0] - 11, center[1] - 11, 9), (center[0], center[1], 1.0), lens=22)
-    build_lights(cols["Camaras_Luces"], center)
+    if stage == 6:
+        cam.data.lens = 26
+        cam.data.clip_end = 250.0
+    else:
+        build_lights(cols["Camaras_Luces"], center)
     sc.camera = cam
     lc = sc.view_layers[0].layer_collection.children.get("Colisiones")
     if lc:
         lc.hide_viewport = True
 
     sc["prueba_stage"] = stage
-    sc["cam_atras"], sc["cam_arriba"] = 3.2, 1.7         # cámara de persecución más alta: ver los obstáculos
-    sc["tiempo_max"] = {0: 15.0, 1: 15.0, 2: 20.0, 3: 30.0, 4: 45.0, 5: 60.0}.get(stage, 45.0)
+    if stage == 6:      # bosque: cámara baja, debajo de las copas (si no, las hojas la tapan)
+        sc["cam_atras"], sc["cam_arriba"] = 2.6, 0.45
+        sc["sombreado"] = "RENDERED"                      # verlo con luz, sombras y neblina
+    else:
+        sc["cam_atras"], sc["cam_arriba"] = 3.2, 1.7     # cámara de persecución más alta: ver los obstáculos
+        sc["sombreado"] = "MATERIAL"
+    sc["tiempo_max"] = {0: 15.0, 1: 15.0, 2: 20.0, 3: 30.0, 4: 45.0, 5: 60.0, 6: 35.0}.get(stage, 45.0)
     sc["prueba_seed"] = seed
+    sc["prueba_densidad"] = float(density)
+    sc["viento"] = float(wind)
     if return_scene:
         sc["volver_a"] = return_scene
     if model_npz:
@@ -263,10 +286,21 @@ def build(stage=3, seed=None, model_npz=None, return_scene=None):
 # =====================================================================
 # Botones (aparecen en N > Piloto IA cuando estás en la escena de prueba)
 # =====================================================================
+def view_style(space, scene):
+    """Bosque: verlo "como video" (render en vivo, sin íconos encima). Laboratorio: como antes."""
+    mode = scene.get("sombreado", "MATERIAL") if scene.get("es_prueba") else "MATERIAL"
+    space.shading.type = mode
+    ov = space.overlay
+    for attr in ("show_extras", "show_relationship_lines", "show_outline_selected", "show_object_origins"):
+        if hasattr(ov, attr):
+            setattr(ov, attr, mode != "RENDERED")
+
+
 def fly(context):
     for a in context.screen.areas:
         if a.type == 'VIEW_3D':
             region = next(r for r in a.regions if r.type == 'WINDOW')
+            view_style(a.spaces.active, context.scene)
             a.spaces.active.region_3d.view_perspective = 'CAMERA'
             with context.temp_override(area=a, region=region):
                 bpy.ops.piloto.volar('INVOKE_DEFAULT')
@@ -282,7 +316,8 @@ class PRUEBA_OT_otro(bpy.types.Operator):
     def execute(self, context):
         sc = context.scene
         info = build(stage=int(sc.get("prueba_stage", 3)), model_npz=sc.get("prueba_modelo"),
-                     return_scene=sc.get("volver_a"))
+                     return_scene=sc.get("volver_a"), density=float(sc.get("prueba_densidad", 1.0)),
+                     wind=float(sc.get("viento", 0.0)))
         self.report({'INFO'}, f"Escenario {info['seed']}: {info['metas']} meta(s), {len(info['obstaculos'])} obstáculos")
         fly(bpy.context)
         return {'FINISHED'}
@@ -297,6 +332,9 @@ class PRUEBA_OT_volver(bpy.types.Operator):
             (s for s in bpy.data.scenes if s.name != SCENE), None)
         if dest:
             context.window.scene = dest
+            for a in context.screen.areas:
+                if a.type == 'VIEW_3D':
+                    view_style(a.spaces.active, dest)
         return {'FINISHED'}
 
 

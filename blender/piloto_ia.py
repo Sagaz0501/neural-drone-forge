@@ -2,7 +2,8 @@
 PILOTO IA: la red neuronal entrenada vuela el dron dentro de esta escena, EN VIVO.
 
 Cada vez que le das "Volar con la IA":
-  1. se lee la escena: colección "Colisiones" (cajas), "Ruta" (Ruta_01, Ruta_02...), "Salida" y "Estacion"
+  1. se lee la escena: colección "Colisiones" (cajas, y en el bosque troncos y copas), "Ruta" (Ruta_01...),
+     "Salida" y "Estacion"
   2. cada 1/50 s: sensores -> red neuronal (models/policy_bodega.npz) -> física del proyecto -> mover el dron
   3. al pasar el último punto, el piloto PD aterriza en la estación de carga
 Puedes mover una caja, el montacargas o un punto de la ruta y volver a volar: la IA reacciona a la escena nueva.
@@ -55,21 +56,28 @@ def S():
 def level_from_scene():
     """Arma el nivel con lo que HAY en la escena ahora (por si moviste algo)."""
     Level = lib()[0]
-    boxes = []
+    boxes, spheres, cyls = [], [], []
     col = bpy.data.collections.get("Colisiones")
     for o in (col.all_objects if col else []):
         if o.type != 'MESH':
             continue
-        cs = [o.matrix_world @ Vector(c) for c in o.bound_box]
-        boxes.append({"min": [min(c[i] for c in cs) for i in range(3)],
-                      "max": [max(c[i] for c in cs) for i in range(3)]})
+        forma = o.get("forma")
+        loc, sc = o.matrix_world.translation, o.matrix_world.to_scale()
+        if forma == "esfera":                    # malla de radio 1 escalada
+            spheres.append({"center": list(loc), "radius": max(sc)})
+        elif forma == "cilindro":                # radio 1, alto 1, base en el origen
+            cyls.append({"center": [loc.x, loc.y], "radius": max(sc.x, sc.y), "z": [loc.z, loc.z + sc.z]})
+        else:
+            cs = [o.matrix_world @ Vector(c) for c in o.bound_box]
+            boxes.append({"min": [min(c[i] for c in cs) for i in range(3)],
+                          "max": [max(c[i] for c in cs) for i in range(3)]})
     ruta = sorted((o for o in bpy.data.collections["Ruta"].objects if o.name.startswith("Ruta_")),
                   key=lambda o: o.name)
     salida = bpy.data.objects["Salida"].matrix_world.translation
     est = bpy.data.objects.get("Estacion")
     lv = Level.from_dict({"name": "escena", "spawn": list(salida),
                           "goals": [list(o.matrix_world.translation) for o in ruta],
-                          "boxes": boxes, "bounds": {"xy": 30, "z": 15}})
+                          "boxes": boxes, "spheres": spheres, "cylinders": cyls, "bounds": {"xy": 30, "z": 15}})
     return lv, (np.array(est.matrix_world.translation) if est else None)
 
 
@@ -89,7 +97,7 @@ def load_policy(props):
 def new_flight(props):
     _, Flight, _, _, _ = lib()
     level, pad = level_from_scene()
-    fl = Flight(level, load_policy(props), land_on=pad)
+    fl = Flight(level, load_policy(props), land_on=pad, wind=float(bpy.context.scene.get("viento", 0.0)))
     # cada vuelo arranca un poco distinto: la IA tiene que reaccionar, no repetir una grabación
     rng = np.random.default_rng()
     j = props.variacion
@@ -196,6 +204,9 @@ def draw_hud():
     a = info["action"]
     lines.append((f"palancas  gas {a[0]:+.2f}  roll {a[1]:+.2f}  pitch {a[2]:+.2f}  yaw {a[3]:+.2f}", 12,
                   (0.8, 0.85, 0.9, 1)))
+    w = info.get("wind")
+    if w is not None and float(np.linalg.norm(w)) > 0.05:
+        lines.append((f"viento {float(np.linalg.norm(w[:2])):4.1f} m/s (con ráfagas)", 12, (0.75, 0.9, 1, 1)))
     if st.get("result"):
         lines.append((st["result"], 13, color))
     if bpy.context.scene.get("es_prueba") and st.get("tally"):

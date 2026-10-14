@@ -57,8 +57,10 @@ def test_collision():
 
 
 def test_gym_api():
-    for stage in range(6):
+    from drone_rl import STAGES
+    for stage in STAGES:
         check_env(DroneEnv(stage=stage), skip_render_check=True)
+    check_env(DroneEnv(stage=6, wind=5.0, density=2.0), skip_render_check=True)
 
 
 def run_pilot(stage, episodes=20):
@@ -98,7 +100,7 @@ def test_circuit_two_laps():
     env.reset(seed=0)
     assert len(env.level.goals) == 8                       # 4 aros x 2 vueltas
     assert len(OBS_LABELS) == env.observation_space.shape[0]
-    assert set(MISSIONS) == set(range(6))
+    assert set(MISSIONS) == set(range(7))
     assert run_pilot(5, episodes=5) == 1.0                 # el piloto PD completa las 2 vueltas
 
 
@@ -140,3 +142,53 @@ def test_runtime_lands_on_pad():
             break
     assert fl.phase == "aterrizado"
     assert np.linalg.norm(fl.state.pos[:2] - np.array([5, 1])) < 0.3
+
+
+def test_cylinder_raycast_and_collision():
+    lv = Level.from_dict({"cylinders": [{"center": [3, 0], "radius": 0.5, "z": [0, 4]}]})
+    d = lv.raycast(np.array([0, 0, 1.0]), np.array([[1, 0, 0], [0, 1, 0.0]]), 5.0)
+    assert np.allclose(d, [2.5, 5.0])
+    assert np.isclose(lv.raycast(np.array([3, 0, 6.0]), np.array([[0, 0, -1.0]]), 5.0)[0], 2.0)  # tapa de arriba
+    assert lv.collides(np.array([3.6, 0, 2]), 0.15) and not lv.collides(np.array([3.7, 0, 2]), 0.15)
+    assert not lv.collides(np.array([3, 0, 4.2]), 0.15)
+
+
+def test_cone_sensor_sees_thin_trunk_between_rays():
+    from drone_rl.sensing import sensor_rays
+    lv = Level.from_dict({"cylinders": [{"center": [3, 0.6], "radius": 0.2, "z": [0, 4]}]})
+    rays = sensor_rays(QuadState(pos=np.array([0, 0, 1.0])), lv)
+    assert rays[0] < 3.5                       # el sensor de adelante (cono) ve el tronco a 11°
+
+
+def test_forest_keeps_spawn_and_goal_clear():
+    from drone_rl.level import forest_level
+    rng = np.random.default_rng(0)
+    for _ in range(30):
+        lv, trees = forest_level(rng, density=2.0)
+        assert len(trees) > 20
+        assert not lv.collides(np.array([0, 0, 1.0]), 0.5)          # se puede despegar
+        assert not lv.collides(lv.goals[0], 0.8)                     # el aro está libre
+
+
+def test_wind_pushes_hovering_drone():
+    from drone_rl.physics import Wind
+    w = Wind(5.0)
+    rng = np.random.default_rng(1)
+    base = w.reset(rng)
+    s = QuadState(pos=np.array([0, 0, 3.0]))
+    for _ in range(200):
+        s, _ = step(s, hover_action(), 0.01, P, w.step(0.01, rng))
+    assert np.dot(s.vel[:2], base[:2]) > 0                         # se lo lleva el viento
+
+
+def test_speed_reward_prefers_fast_arrival():
+    env = DroneEnv(stage=1, reward={**__import__("drone_rl").DEFAULT_REWARD, "speed": 1.0})
+    env.reset(seed=0)
+    env.state.pos = env.level.goals[0] - np.array([0.3, 0, 0])
+    env.steps, env.seg_start, env.seg_len = 50, 0, 5.4             # 5.4 m en 1 s
+    _, r_fast, *_ = env.step(np.zeros(4))
+    env.reset(seed=0)
+    env.state.pos = env.level.goals[0] - np.array([0.3, 0, 0])
+    env.steps, env.seg_start, env.seg_len = 400, 0, 5.4            # 5.4 m en 8 s
+    _, r_slow, *_ = env.step(np.zeros(4))
+    assert r_fast > r_slow + 3

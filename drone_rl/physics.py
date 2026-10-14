@@ -84,9 +84,42 @@ def throttle_to_action(thr: float, p: QuadParams) -> float:
     return (thr - h) / (1.0 - h) if thr >= h else thr / h - 1.0
 
 
-def step(state: QuadState, action: np.ndarray, dt: float, p: QuadParams) -> tuple[QuadState, dict]:
+class Wind:
+    """Viento: una dirección y fuerza base por intento + ráfagas que cambian solas.
+
+    Las ráfagas son un proceso de Ornstein-Uhlenbeck: un ruido "con memoria" que sube y baja
+    suave (como el viento real), con un tiempo típico de `tau` segundos.
+    El dron NO siente el viento directamente: solo ve que su velocidad cambia y tiene que corregir.
+    """
+
+    def __init__(self, max_speed: float = 0.0, tau: float = 1.5):
+        self.max_speed, self.tau = float(max_speed), tau
+        self.base = np.zeros(3)
+        self.gust = np.zeros(3)
+
+    def reset(self, rng):
+        self.gust = np.zeros(3)
+        if self.max_speed <= 0:
+            self.base = np.zeros(3)
+            return self.base
+        a = rng.uniform(-np.pi, np.pi)
+        self.base = np.array([np.cos(a), np.sin(a), 0.0]) * rng.uniform(0.0, self.max_speed)
+        return self.base
+
+    def step(self, dt, rng) -> np.ndarray:
+        if self.max_speed <= 0:          # (si lo apagan en vivo, el viento base sigue hasta el próximo intento)
+            return self.base + self.gust
+        k = dt / self.tau
+        sigma = 0.35 * np.linalg.norm(self.base) + 0.15 * self.max_speed      # ráfagas: más fuertes con más viento
+        self.gust += -self.gust * k + sigma * np.sqrt(2 * k) * rng.normal(size=3) * np.array([1, 1, 0.3])
+        return self.base + self.gust
+
+
+def step(state: QuadState, action: np.ndarray, dt: float, p: QuadParams,
+         wind: np.ndarray | None = None) -> tuple[QuadState, dict]:
     """Avanza la simulación dt segundos. Devuelve (nuevo estado, info).
 
+    wind = velocidad del aire (m/s, mundo). El arrastre depende de la velocidad RELATIVA al aire.
     info["ground_crash"] = True si tocó el suelo demasiado rápido.
     info["grounded"]     = True si está apoyado en el suelo.
     """
@@ -110,11 +143,12 @@ def step(state: QuadState, action: np.ndarray, dt: float, p: QuadParams) -> tupl
         s.yaw += a[3] * p.yaw_rate * dt
     s.yaw = (s.yaw + np.pi) % (2 * np.pi) - np.pi
 
-    # fuerzas: empuje en el eje Z del cuerpo + gravedad + arrastre
+    # fuerzas: empuje en el eje Z del cuerpo + gravedad + arrastre (contra el aire)
     thrust = s.throttle * p.twr * p.mass * p.g
     body_z = rot_matrix(s.roll, s.pitch, s.yaw)[:, 2]
     force = body_z * thrust + np.array([0.0, 0.0, -p.mass * p.g])
-    force -= p.drag * np.linalg.norm(s.vel) * s.vel
+    v_air = s.vel if wind is None or grounded else s.vel - wind
+    force -= p.drag * np.linalg.norm(v_air) * v_air
 
     # integración semi-implícita de Euler
     s.vel = s.vel + force / p.mass * dt

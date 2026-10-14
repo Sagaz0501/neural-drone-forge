@@ -5,27 +5,43 @@ Está separado del entorno para que el entrenamiento (env.py) y Blender (runtime
 usen EXACTAMENTE el mismo cálculo. Si cambiara algo aquí, la red vería el mundo distinto.
 Solo usa numpy (Blender ya lo trae).
 """
+import os
+
 import numpy as np
 
 from .physics import QuadParams, QuadState, yaw_frame
 
-# 8 rayos horizontales (cada 45°) + 1 arriba + 1 abajo, en el marco 'heading' del dron
+# 8 sensores horizontales (cada 45°) + 1 arriba + 1 abajo, en el marco 'heading' del dron
 _H = [np.array([np.cos(a), np.sin(a), 0.0]) for a in np.radians(np.arange(0, 360, 45))]
 RAY_DIRS_LOCAL = np.array(_H + [np.array([0, 0, 1.0]), np.array([0, 0, -1.0])])
 RAY_LEN = 5.0          # alcance del sensor (m)
 OBS_SCALE = 10.0       # metros/velocidades se dividen por esto para quedar ~[-1, 1]
 
+# Cada sensor horizontal es un CONO (como un ToF real, que ve ~27°), no una línea:
+# se miden 3 rayos (-15°, 0°, +15°) y se reporta el más corto. Con una sola línea, un
+# tronco delgado podía quedar escondido ENTRE dos sensores hasta chocarlo.
+RAY_SPREAD_DEG = float(os.environ.get("DRONE_RL_RAY_SPREAD", 15.0))     # 0 = rayos finos (versión vieja)
+_SUB = [0.0] if RAY_SPREAD_DEG <= 0 else [-RAY_SPREAD_DEG, 0.0, RAY_SPREAD_DEG]
+_SUB_DIRS = np.array([[np.cos(a + np.radians(s)), np.sin(a + np.radians(s)), 0.0]
+                      for a in np.radians(np.arange(0, 360, 45)) for s in _SUB]
+                     + [[0, 0, 1.0], [0, 0, -1.0]])
+_NS = len(_SUB)
+
+
+def _rz(yaw: float) -> np.ndarray:
+    c, s = np.cos(yaw), np.sin(yaw)
+    return np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
+
 
 def ray_dirs_world(yaw: float) -> np.ndarray:
-    """Direcciones de los 10 rayos en el mundo (giran con el yaw del dron)."""
-    c, s = np.cos(yaw), np.sin(yaw)
-    rz = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
-    return RAY_DIRS_LOCAL @ rz.T
+    """Dirección CENTRAL de los 10 sensores en el mundo (giran con el yaw del dron)."""
+    return RAY_DIRS_LOCAL @ _rz(yaw).T
 
 
 def sensor_rays(state: QuadState, level) -> np.ndarray:
-    """Distancia (m) al obstáculo más cercano en cada uno de los 10 rayos, hasta RAY_LEN."""
-    return level.raycast(state.pos, ray_dirs_world(state.yaw), RAY_LEN)
+    """Distancia (m) a lo más cercano que ve cada uno de los 10 sensores, hasta RAY_LEN."""
+    d = level.raycast(state.pos, _SUB_DIRS @ _rz(state.yaw).T, RAY_LEN)
+    return np.concatenate([d[:8 * _NS].reshape(8, _NS).min(axis=1), d[8 * _NS:]])
 
 
 def build_obs(state: QuadState, goal: np.ndarray, rays: np.ndarray, prev_action: np.ndarray,

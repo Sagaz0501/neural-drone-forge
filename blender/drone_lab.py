@@ -41,10 +41,11 @@ STAGE_ITEMS = [
     ("3", "Columnas", "Meta aleatoria con columnas en el camino"),
     ("4", "Varias metas", "3 metas seguidas con columnas"),
     ("5", "Circuito (2 vueltas)", "4 aros en orden, dos vueltas: cada aro se pasa 2 veces"),
+    ("6", "Bosque", "Cruzar un bosque (troncos, árboles jóvenes, arbustos) hasta un aro a 9-14 m"),
     ("LEVEL", "Nivel JSON", "Un nivel exportado desde Blender (todos los drones en el mismo nivel)"),
 ]
 COLORS = {"fly": (0.9, 0.9, 0.95, 1), 1: (1.0, 0.12, 0.08, 1), 2: (0.1, 1.0, 0.35, 1), 3: (1.0, 0.75, 0.1, 1)}
-REWARD_KEYS = ["progress", "goal", "crash", "time", "smooth", "tilt", "near", "clearance"]
+REWARD_KEYS = ["progress", "goal", "crash", "time", "smooth", "tilt", "near", "clearance", "speed", "stability"]
 
 
 def S():
@@ -95,6 +96,10 @@ def _on_sigma(self, context):
     send_ctrl({"log_std": math.log(self.sigma)})
 
 
+def _on_env_change(self, context):
+    send_ctrl({"env": {"density": self.densidad, "wind": self.viento}})
+
+
 # =====================================================================
 # Probar el modelo en un escenario aleatorio 3D (escena "Prueba IA")
 # =====================================================================
@@ -131,7 +136,8 @@ def start_test(npz, stage):
     project, _ = _paths(lab.drone_lab)
     with bpy.context.temp_override(window=win, screen=win.screen):
         pa = _load_test_modules(project)
-        info = pa.build(stage=stage, model_npz=npz, return_scene=lab.name)
+        p = lab.drone_lab
+        info = pa.build(stage=stage, model_npz=npz, return_scene=lab.name, density=p.densidad, wind=p.viento)
         pa.fly(bpy.context)
     S()["test_msg"] = f"Escenario #{info['seed']}: {info['metas']} meta(s), {len(info['obstaculos'])} obstáculos"
     return None
@@ -272,6 +278,35 @@ def ring_mesh(name, R, r):
     return me
 
 
+def unit_cyl_mesh():
+    """Tronco: cilindro de radio 1 y alto 1 con la base en el origen (se escala por objeto)."""
+    me = bpy.data.meshes.get("DL_Cyl")
+    if me:
+        return me
+    n = 12
+    v = [(math.cos(2 * math.pi * i / n), math.sin(2 * math.pi * i / n), z) for z in (0, 1) for i in range(n)]
+    f = [(i, (i + 1) % n, n + (i + 1) % n, n + i) for i in range(n)] + [tuple(range(n))[::-1], tuple(range(n, 2 * n))]
+    me = bpy.data.meshes.new("DL_Cyl")
+    me.from_pydata(v, [], f)
+    me.materials.append(flat_material("DL_Tronco", (0.32, 0.2, 0.1, 1)))
+    return me
+
+
+def unit_sphere_mesh():
+    """Copa, arbusto o roca: esfera de radio 1."""
+    me = bpy.data.meshes.get("DL_Esfera")
+    if me:
+        return me
+    import bmesh
+    me = bpy.data.meshes.new("DL_Esfera")
+    bm = bmesh.new()
+    bmesh.ops.create_icosphere(bm, subdivisions=2, radius=1.0)
+    bm.to_mesh(me)
+    bm.free()
+    me.materials.append(flat_material("DL_Copa", (0.12, 0.42, 0.12, 1)))
+    return me
+
+
 def cube_mesh():
     me = bpy.data.meshes.get("DL_Cube")
     if me:
@@ -314,7 +349,7 @@ def build_proto():
 def cell_size(stage, fixed_level):
     if fixed_level:
         return 24.0
-    return {0: 3.0, 1: 9.0, 5: 12.0}.get(stage, 22.0)
+    return {0: 3.0, 1: 9.0, 5: 12.0, 6: 32.0}.get(stage, 22.0)
 
 
 RING_CUR = (0.1, 1.0, 0.35, 1)      # el aro que toca ahora
@@ -420,9 +455,11 @@ def apply_level(i, msg):
     st["ring_state"][i] = None
     color_rings(i, 0, 0.0)
 
-    # ---- obstáculos ----
+    # ---- obstáculos: cajas, esferas (copas, arbustos, rocas) y cilindros (troncos) ----
     obs = st["obstacles"][i]
-    shapes = [("box", b) for b in msg.get("boxes", [])] + [("sph", s) for s in msg.get("spheres", [])]
+    shapes = ([("box", b) for b in msg.get("boxes", [])] + [("sph", s) for s in msg.get("spheres", [])]
+              + [("cyl", c) for c in msg.get("cylinders", [])])
+    meshes = {"box": cube_mesh(), "sph": unit_sphere_mesh(), "cyl": unit_cyl_mesh()}
     while len(obs) < len(shapes):
         o = bpy.data.objects.new(f"DL_Obs_{i:03d}_{len(obs)}", cube_mesh())
         col.objects.link(o)
@@ -430,16 +467,21 @@ def apply_level(i, msg):
     for j, o in enumerate(obs):
         if j < len(shapes):
             kind, d = shapes[j]
+            if o.data != meshes[kind]:
+                o.data = meshes[kind]
             if kind == "box":
                 mn, mx = Vector(d[:3]), Vector(d[3:6])
                 o.location = (off + Vector(((mn.x + mx.x) / 2, (mn.y + mx.y) / 2, mn.z))) * k
                 o.scale = (mx - mn) * k
-            else:                            # esfera aproximada como cubo del mismo tamaño
+            elif kind == "sph":
                 c, r = Vector(d[:3]), d[3]
-                o.location = (off + c - Vector((0, 0, r))) * k
-                o.scale = (2 * r * k,) * 3
+                o.location = (off + c) * k
+                o.scale = (r * k,) * 3
+            else:                            # [x, y, radio, z0, z1]
+                o.location = (off + Vector((d[0], d[1], d[3]))) * k
+                o.scale = (d[2] * k, d[2] * k, (d[4] - d[3]) * k)
             o.hide_viewport = False
-        else:
+        elif not o.hide_viewport:
             o.hide_viewport = True
 
 
@@ -804,9 +846,16 @@ def draw_hud():
         f"lr {p.get('lr', 0):.1e}   σ {p.get('sigma', 0):.2f}   entropía {p.get('ent', 0):.3f}   velocidad {p.get('speed', '-')}"
         + ("   [PAUSA]" if p.get("paused") else ""),
     ]
+    if s.get("spd"):
+        lines.append(f"los que llegan: vel. media {s['spd']:.1f} m/s · giro medio {s.get('ang', 0):.0f}°/s"
+                     + (f" · viento {p['wind']:g} m/s" if p.get("wind") else "")
+                     + (f" · densidad {p.get('density', 1):g}" if p.get("stage") == 6 else ""))
     rw = p.get("reward", {})
     if rw:
-        lines.append("recompensa: " + "  ".join(f"{k} {v:g}" for k, v in rw.items()))
+        items = [f"{k} {v:g}" for k, v in rw.items()]
+        half = (len(items) + 1) // 2
+        lines.append("recompensa: " + "  ".join(items[:half]))
+        lines.append("      " + "  ".join(items[half:]))
     if s.get("msg"):
         lines.append(s["msg"])
     mis = st.get("hello", {}).get("mission")
@@ -905,6 +954,19 @@ class DroneLabProps(bpy.types.PropertyGroup):
     rw_near: bpy.props.FloatProperty(name="Premio cerca (hover)", default=0.3, min=0, max=5, update=_on_live_change)
     rw_clearance: bpy.props.FloatProperty(name="Castigo por cercanía", default=0.0, min=0, max=5, update=_on_live_change,
                                           description="Castiga pasar a menos de 1.2 m de un obstáculo: lo siente ANTES de chocar")
+    rw_speed: bpy.props.FloatProperty(name="Premio por rapidez", default=1.0, min=0, max=10, update=_on_live_change,
+                                      description="Al pasar cada aro: + esto × velocidad media del tramo (m/s). "
+                                                  "Más alto = vuela más rápido (y arriesga más)")
+    rw_stability: bpy.props.FloatProperty(name="Castigo por inestabilidad", default=0.5, min=0, max=10,
+                                          update=_on_live_change,
+                                          description="Castiga (por segundo) los giros bruscos de roll/pitch y girar "
+                                                      "sobre sí mismo. Más alto = vuelo más suave y estable")
+    # ---- ambiente (cambia en vivo, desde el próximo intento de cada dron) ----
+    densidad: bpy.props.FloatProperty(name="Densidad del bosque", default=1.0, min=0.3, max=2.5, update=_on_env_change,
+                                      description="Solo para Bosque: 0.5 = claro · 1 = normal · 2 = denso")
+    viento: bpy.props.FloatProperty(name="Viento máx. (m/s)", default=0.0, min=0.0, max=8.0, update=_on_env_change,
+                                    description="Cada intento sopla un viento al azar hasta este valor, con ráfagas. "
+                                                "Sirve en cualquier nivel: entrena la estabilidad")
     sigma: bpy.props.FloatProperty(name="Exploración σ (ruido)", default=0.4, min=0.02, max=1.0, update=_on_sigma,
                                    description="Cuánto ruido agrega PPO a las palancas para probar cosas nuevas. "
                                                "Muy bajo = repite siempre lo mismo (no aprende a esquivar)")
@@ -917,7 +979,7 @@ class DroneLabProps(bpy.types.PropertyGroup):
         ("IGUAL", "Igual que el entrenamiento", "El mismo tipo de nivel que estás entrenando"),
         ("0", "Hover", ""), ("1", "Meta fija", ""), ("2", "Una meta sin obstáculos", ""),
         ("3", "Una meta con columnas", ""), ("4", "Tres metas con columnas", ""),
-        ("5", "Circuito (2 vueltas)", "")], default="IGUAL")
+        ("5", "Circuito (2 vueltas)", ""), ("6", "Bosque", "")], default="IGUAL")
 
 
 class DRONELAB_OT_start(bpy.types.Operator):
@@ -962,7 +1024,8 @@ class DRONELAB_OT_start(bpy.types.Operator):
                "--lr", repr(lp["lr"]), "--ent", repr(lp["ent"]), "--speed", lp["speed"],
                "--net", str(p.net), "--reward", json.dumps(lp["reward"]),
                "--port", str(TELE_PORT), "--ctrl-port", str(CTRL_PORT),
-               "--watch", str(min(p.watch, p.drones - 1)), "--log-std", repr(math.log(p.sigma))]
+               "--watch", str(min(p.watch, p.drones - 1)), "--log-std", repr(math.log(p.sigma)),
+               "--density", repr(p.densidad), "--wind", repr(p.viento)]
         if p.stage == "LEVEL" and p.level_path:
             cmd += ["--level", os.path.expanduser(bpy.path.abspath(p.level_path))]
         if p.init_model:
@@ -1227,6 +1290,13 @@ class VIEW3D_PT_drone_lab(bpy.types.Panel):
         row.operator("dronelab.probar", icon='WORLD')
         if st.get("test_msg"):
             box.label(text=st["test_msg"])
+
+        box = L.box()
+        box.label(text="Ambiente (cambia en vivo)", icon='OUTLINER_OB_FORCE_FIELD')
+        row = box.row()
+        row.active = p.stage == "6"
+        row.prop(p, "densidad", slider=True)
+        box.prop(p, "viento", slider=True)
 
         box = L.box()
         box.label(text="Aprendizaje (cambia en vivo)", icon='DRIVER')
