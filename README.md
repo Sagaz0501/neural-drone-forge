@@ -5,6 +5,9 @@ Los niveles se diseñan y los vuelos se ven en **Blender**, usando el frame de 5
 
 > Proyecto de aprendizaje de **Santiago Bernal**: física de drones, redes neuronales y RL,
 > conectado con Blender.
+>
+> **¿Primera vez aquí (o una sesión nueva de Claude Code)?** Lee [`CLAUDE.md`](CLAUDE.md) (reglas y
+> comandos) y [`docs/PROYECTO.md`](docs/PROYECTO.md) (cómo funciona todo: el modelo, Blender y el juego).
 
 ```
  Blender (diseñar nivel) ──export_level.py──▶ levels/*.json
@@ -196,7 +199,7 @@ git clone https://github.com/Sagaz0501/drone-rl.git
 cd drone-rl
 python3 -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-pytest -q                                                # 18 pruebas deberían pasar
+pytest -q                                                # 23 pruebas deberían pasar
 ```
 
 En Mac con Apple Silicon, PyTorch se instala solo desde pip. Para estas redes chicas la CPU es
@@ -283,7 +286,7 @@ recompensa (el texto vive en `drone_rl/missions.json`). Los aros cambian de colo
 vuelta es un poco más grande.
 
 **Red neuronal en vivo:** con "Mostrar red neuronal" se dibuja la red del dron con luz celeste (eliges
-cuál con "Dron observado"). Se ven las 24 entradas con su valor, las 2 capas de 128 neuronas, las
+cuál con "Dron observado"). Se ven las 27 entradas con su valor, las 2 capas de 128 neuronas, las
 4 palancas y las 1 312 conexiones más fuertes, iluminadas según cuánto influyen en ese instante.
 La explicación completa está en [`docs/redes-neuronales.md`](docs/redes-neuronales.md#10-las-neuronas-de-este-dron-y-cómo-verlas-en-blender).
 
@@ -342,7 +345,7 @@ En Drone Lab dale **Jugar en el navegador**, o en la terminal `python scripts/ju
    árboles que tapan un aro, como en el entrenamiento.
 3. **Volar con la IA.** Tu modelo vuela en vivo y aterriza bajo el último aro. Abajo a la izquierda
    ves *las manos de la IA*: las dos palancas de un control de radio, moviéndose como las mueve la
-   red. Abajo a la derecha ves sus 10 sensores. Con **N** ves el cerebro (24 entradas, 128 + 128
+   red. Abajo a la derecha ves sus 10 sensores. Con **N** ves el cerebro (27 entradas, 128 + 128
    neuronas, 4 palancas).
 4. **Pilotear yo.** El mismo dron y la misma física.
    - **Ratón:** gira a los lados, las vueltas que quieras. Haz clic para atraparlo y Esc lo suelta.

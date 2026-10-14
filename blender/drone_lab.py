@@ -160,7 +160,7 @@ def _reload_project_modules():
     si no, la prueba usa la versión VIEJA (ej. sin el bosque) y falla sin decir nada."""
     import importlib
     for name in ("drone_rl.physics", "drone_rl.sensing", "drone_rl.controller", "drone_rl.level",
-                 "drone_rl.runtime", "escena_lib", "bosque"):
+                 "drone_rl.birds", "drone_rl.runtime", "escena_lib", "bosque"):
         if name in sys.modules:
             importlib.reload(sys.modules[name])
 
