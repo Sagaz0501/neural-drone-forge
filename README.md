@@ -53,6 +53,7 @@ porque no sabe esquivar, y ahí es donde la IA tiene que ganarle.
 - [x] Drone Lab: entrenamiento en vivo con N drones y parámetros ajustables desde Blender
 - [x] Misiones explícitas, aros por estado y red neuronal en vivo en Blender
 - [x] Nivel 5: circuito de 2 vueltas
+- [x] Bodega 3D: la IA entrenada vuela en vivo dentro de Blender (Piloto IA)
 - [ ] Video de la IA volando en Blender para el portafolio
 
 ## Bitácora
@@ -76,6 +77,18 @@ porque no sabe esquivar, y ahí es donde la IA tiene que ganarle.
   (1.5 s contra 2.0 s en la misma meta).
 - Probé ese modelo en el nivel 3 sin entrenarlo para obstáculos: 42 % de éxito y todos los
   crashes son contra columnas. Es lo esperado, porque nunca vio una. **Siguiente paso: entrenar el nivel 3.**
+- **Drone Lab** (entrenamiento en vivo en Blender), red neuronal visible, misiones explícitas y nivel 5
+  (circuito de 2 vueltas). Probé repetir el nivel fallado hasta pasarlo, pero lo quité porque no era
+  lo que buscábamos.
+- **Nivel 3 (columnas al azar)**: 900 k pasos más de entrenamiento y se quedó en ~40 % de éxito.
+  Esquivar obstáculos al azar le cuesta mucho a este diseño.
+- **Bodega.** Diseñé un nivel fijo con una ruta de 15 puntos (`scripts/make_warehouse.py`) y entrené
+  en él, haciendo que cada intento empiece en un tramo al azar de la ruta. El primer modelo dominó
+  **12 de 15 tramos** (incluido pasar por debajo del letrero), pero chocaba el **100 %** de las veces
+  en los 3 tramos con algo en la línea recta: montacargas, columna y torre de pallets.
+  **Diagnóstico:** el ruido de exploración había bajado a σ ≈ 0.1, así que la red casi nunca probaba
+  desviarse. **Arreglo:** subir σ a 0.4, hacer que los tramos bloqueados salgan 6 veces más seguido
+  y un castigo por cercanía que se siente *antes* del choque.
 
 ---
 
@@ -86,7 +99,7 @@ git clone https://github.com/Sagaz0501/drone-rl.git
 cd drone-rl
 python3 -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-pytest -q                                                # 10 pruebas deberían pasar
+pytest -q                                                # 12 pruebas deberían pasar
 ```
 
 En Mac con Apple Silicon, PyTorch se instala solo desde pip. Para estas redes chicas la CPU es
@@ -167,7 +180,39 @@ Experimentos para probar:
 - Hover con 10 drones contra 100: ¿cuál aprende antes en tiempo real?
 - Quitar el "premio cerca": vuelve el óptimo local de quedarse en el suelo (ver bitácora).
 
-### 5. Aprender cómo funcionan las redes neuronales
+### 5. Bodega: la IA entrenada vuela en una escena 3D
+
+`blender/bodega.blend` es una escena aparte: una bodega de 36 × 22 m con estanterías, montacargas,
+columnas, un letrero colgante y una estación de carga. Hay una ruta de 15 puntos, y **cada vez que le
+das "Volar con la IA", la red entrenada vuela el dron en vivo**: lee sus 10 sensores, decide las 4
+palancas y la física del proyecto lo mueve, 50 veces por segundo. No es una grabación.
+
+```
+levels/bodega.json ──▶ entrenamiento (scripts/train.py --level ...) ──▶ models/bodega.zip
+        │                                                                    │ scripts/export_policy.py
+        ▼                                                                    ▼
+blender/build_bodega.py ──▶ bodega.blend  ◀── Piloto IA (numpy) ◀── models/policy_bodega.npz
+```
+
+- Abre `blender/bodega.blend` (si Blender pide permiso para ejecutar scripts, dale **Allow**).
+- Tecla **N** › pestaña **Piloto IA** › **Volar con la IA**.
+- Cada vuelo sale de un punto un poco distinto ("Variación de salida"), así que la IA tiene que
+  reaccionar cada vez.
+- Puedes **mover el montacargas, las cajas o los puntos de la ruta** y volver a volar. El piloto lee
+  la escena en cada vuelo (cada objeto lleva su colisión como hija).
+- **Grabar vuelo** guarda un vuelo como keyframes para renderizar un video, con cámaras de
+  persecución, FPV y general.
+- Los sensores se dibujan en vivo: verde = libre, de amarillo a rojo = algo cerca.
+
+Para que esto funcione, Blender corre la **misma** física (`physics.py`) y los **mismos** sensores
+(`sensing.py`) que el entrenamiento, y la red exportada a numpy (`runtime.py`). Una prueba
+automática verifica que un vuelo en numpy sea idéntico al del entorno de entrenamiento (diferencia
+de menos de 0.001 mm).
+
+Para regenerar la escena:
+`/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup --python blender/build_bodega.py -- --preview`
+
+### 6. Aprender cómo funcionan las redes neuronales
 
 Lee [`docs/redes-neuronales.md`](docs/redes-neuronales.md) y corre
 `python learn/red_neuronal_desde_cero.py`. Es una red hecha solo con numpy, con backpropagation
@@ -237,12 +282,18 @@ drone_rl/
   env.py          entorno Gymnasium + currículum + recompensa
   missions.json   texto de cada misión (lo leen el entorno y Blender)
   controller.py   piloto PD clásico (referencia)
+  sensing.py      sensores y las 24 entradas (compartido por el entorno y Blender)
+  runtime.py      vuelo con solo numpy: la IA dentro de Blender
 scripts/
   live_train.py   entrenamiento en vivo para Drone Lab (UDP)
   train.py        entrenamiento PPO
   evaluate.py     evaluación + exportar trayectorias para Blender
+  export_policy.py  red de PPO -> .npz (numpy), verificada contra PyTorch
+  make_warehouse.py diseña la bodega -> levels/bodega.json
 blender/
   drone_lab.py         Drone Lab: panel, N drones en vivo, HUD
+  build_bodega.py      construye bodega.blend (escena, dron, cámaras, luces)
+  piloto_ia.py         panel "Piloto IA": la red vuela en vivo dentro de la escena
   drone_sim.py         vuelo manual en el viewport
   export_level.py      Blender -> levels/*.json
   import_trajectory.py trajectories/*.json -> animación

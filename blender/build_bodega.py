@@ -252,6 +252,12 @@ def new_scene():
         sc.eevee.use_raytracing = True
     except AttributeError:
         pass
+    for size in ('2048', '1024', '512'):              # 20 lámparas con sombra: más memoria de sombras
+        try:
+            sc.eevee.shadow_pool_size = size
+            break
+        except (AttributeError, TypeError):
+            continue
     world = bpy.data.worlds.new("Interior")
     world.use_nodes = True
     world.node_tree.nodes["Background"].inputs["Color"].default_value = (0.03, 0.035, 0.045, 1)
@@ -682,10 +688,39 @@ def test_flight(policy_path):
     lv, pad = ns["level_from_scene"]()
     fl = Flight(lv, NumpyPolicy(policy_path), land_on=pad)
     fl.reset()
+    hist = [fl.info()]
     while fl.phase in ("ruta", "aterrizaje") and fl.t < 120:
-        fl.step()
+        hist.append(fl.step())
     print(f"VUELO_PRUEBA fase={fl.phase} motivo={fl.reason} puntos={fl.goal_idx}/{len(lv.goals)} t={fl.t:.1f}s")
-    return fl
+    return fl, hist
+
+
+def flight_stills(hist, cam):
+    """Fotos del vuelo REAL de la IA en cada reto (pose y cámara de persecución de ese instante)."""
+    import numpy as np
+    targets = [("montacargas", (3.3, -8.4)), ("columna", (-8.0, -2.75)), ("letrero", (1.75, 2.75)),
+               ("pallets", (10.0, 8.5)), ("estacion", tuple(VIS["pad_end"][:2]))]
+    xy = np.array([h["pos"][:2] for h in hist])
+    drone, tgt = bpy.data.objects["Dron"], bpy.data.objects["Cam_Objetivo"]
+    for name, (tx, ty) in targets:
+        k = int(np.argmin(np.linalg.norm(xy - np.array([tx, ty]), axis=1)))
+        if name != "estacion":
+            k = max(0, k - 12)                       # un instante antes de pasar el reto
+        h = hist[k]
+        drone.location = Vector(h["pos"])
+        drone.rotation_euler = h["rot"]
+        vel = Vector(h["vel"])
+        fwd = vel.normalized() if vel.length > 0.5 else Vector((math.cos(h["rot"][2]), math.sin(h["rot"][2]), 0))
+        fwd.z = 0
+        fwd.normalize()
+        tgt.location = Vector(h["pos"]) + fwd * 1.5
+        cam.location = Vector(h["pos"]) - fwd * 2.4 + Vector((0, 0, 0.9))
+        for i in range(1, 5):
+            d = bpy.data.objects.get(f"Disco_{i}")
+            if d:
+                d.hide_render = h["throttle"] < 0.05
+        render(os.path.join(HERE, f"vuelo_{name}.png"), cam, samples=32)
+        print(f"FOTO {name}: t={h['t']:.1f}s pos={[round(v, 2) for v in h['pos']]} fase={h['phase']}")
 
 
 def render(path, cam, samples=48):
@@ -727,8 +762,11 @@ def main():
         lc.hide_viewport = True
     install_pilot()
 
+    hist = None
     if "--test-policy" in ARGS:
-        test_flight(ARGS[ARGS.index("--test-policy") + 1])
+        _, hist = test_flight(ARGS[ARGS.index("--test-policy") + 1])
+    if "--stills" in ARGS and hist:
+        flight_stills(hist, cam)
     if "--preview" in ARGS:
         render(os.path.join(HERE, "preview_general.png"), gen)
         # dron a medio camino, frente al montacargas, para ver de cerca

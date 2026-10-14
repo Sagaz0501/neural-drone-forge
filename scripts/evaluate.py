@@ -50,9 +50,13 @@ def main():
     ap.add_argument("--level", type=str, default=None)
     ap.add_argument("--episodes", type=int, default=20)
     ap.add_argument("--save", type=int, default=3, help="cuántas trayectorias guardar")
+    ap.add_argument("--max-seconds", type=float, default=None, help="tiempo máximo por intento")
+    ap.add_argument("--spawn-jitter", type=float, default=0.0, help="+- metros de variación en la salida")
+    ap.add_argument("--yaw-jitter", type=float, default=0.0, help="+- radianes de variación en la salida")
     args = ap.parse_args()
 
-    env = DroneEnv(stage=args.stage, level_path=args.level)
+    env = DroneEnv(stage=args.stage, level_path=args.level, max_seconds=args.max_seconds,
+                   spawn_jitter=args.spawn_jitter, yaw_jitter=args.yaw_jitter)
     if args.pd:
         pilot = PDPilot(env.p)
         policy, tag = (lambda o, e: pilot.act(e.state, e._goal())), "pd"
@@ -64,12 +68,13 @@ def main():
     name = Path(args.level).stem if args.level else f"stage{args.stage}"
     outdir = ROOT / "trajectories"
     outdir.mkdir(exist_ok=True)
-    succ, crash, rewards, reasons = 0, 0, [], {}
+    succ, crash, rewards, reasons, reached = 0, 0, [], {}, []
     for ep in range(args.episodes):
         frames, total, info = run_episode(env, policy, seed=10_000 + ep)
         succ += info["success"]
         crash += info["crashed"]
         rewards.append(total)
+        reached.append(env.goal_idx)
         if info["crash_reason"]:
             reasons[info["crash_reason"]] = reasons.get(info["crash_reason"], 0) + 1
         if ep < args.save:
@@ -81,6 +86,8 @@ def main():
     n = args.episodes
     print(f"{tag} en {name}:  exito {succ/n*100:.0f} %   crash {crash/n*100:.0f} %   "
           f"recompensa media {np.mean(rewards):.1f}   crashes por: {reasons or '-'}")
+    if env.level.goals and len(env.level.goals) > 1:
+        print(f"puntos alcanzados por intento: {reached}  (de {len(env.level.goals)})")
     print(f"Trayectorias en {outdir}")
 
 
