@@ -110,6 +110,13 @@
            transition: opacity .3s; }
   #fps { position: fixed; right: 8px; top: 4px; font-size: 11px; color: var(--muted); pointer-events: none; }
   #drop { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(15,23,20,0.8); font-size: 26px; }
+  #fatal { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(560px, calc(100vw - 32px));
+           border-radius: 18px; padding: 24px 26px; border-left: 4px solid var(--crash); z-index: 10; }
+  #fatal h2 { margin: 0 0 10px; font-size: 26px; }
+  #fatal p, #fatal li { color: var(--muted); font-size: 16px; line-height: 1.5; }
+  #fatal ol { padding-left: 20px; margin: 8px 0; }
+  #fatal b { color: var(--text); }
+  #fatal code { font-size: 13px; color: var(--muted); word-break: break-word; }
   @media (max-width: 700px) {
     #menu { left: 12px; right: 12px; width: auto; top: 12px; bottom: 12px; }
     #menu h1 { font-size: 48px; }
@@ -118,6 +125,28 @@
   }
   @media (prefers-reduced-motion: reduce) { #toast { transition: none; } }
 </style>
+<script>
+  // Si algo falla al arrancar, decirlo en pantalla (si no, los botones simplemente no hacen nada).
+  window.showFatal = function (title, html) {
+    var f = document.getElementById("fatal");
+    if (!f) return;
+    document.getElementById("menu") && document.getElementById("menu").classList.add("hidden");
+    f.innerHTML = "<h2>" + title + "</h2>" + html;
+    f.classList.remove("hidden");
+  };
+  function onBoot(msg) {
+    if (window.__gameReady) return;
+    var webgl = /WebGL/i.test(msg);
+    window.showFatal(webgl ? "Tu navegador no está usando la tarjeta de video" : "El juego no pudo arrancar",
+      webgl
+        ? "<p>El juego necesita WebGL. En Chrome:</p><ol><li>Abre <b>chrome://settings/system</b></li>" +
+          "<li>Activa <b>Usar aceleración de gráficos cuando esté disponible</b></li><li>Dale <b>Reiniciar</b> y vuelve a abrir el juego</li></ol>" +
+          "<p>O ábrelo en Safari, que ya trae WebGL activado.</p><code>" + msg + "</code>"
+        : "<p>Este es el error (cópiamelo si no sabes qué hacer):</p><code>" + msg + "</code>");
+  }
+  window.addEventListener("error", function (e) { onBoot(String(e.message || e.error)); });
+  window.addEventListener("unhandledrejection", function (e) { onBoot(String((e.reason && e.reason.message) || e.reason)); });
+</script>
 <script type="importmap">
 { "imports": { "three": "./vendor/three.module.min.js", "three/addons/": "./vendor/" } }
 </script>
@@ -177,6 +206,7 @@
 <div id="toast" class="panel" style="opacity:0"></div>
 <div id="fps" class="hidden"></div>
 <div id="drop" class="hidden">Suelta aquí modelo_web.json</div>
+<div id="fatal" class="panel hidden" role="alert"></div>
 
 <script type="module" src="./main.js"></script>
 </body>

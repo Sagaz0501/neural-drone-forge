@@ -674,4 +674,5 @@ editorSetup();
 await buildWorld();
 await loadModel();
 setMode("menu");
+window.__gameReady = true;
 requestAnimationFrame(frame);
