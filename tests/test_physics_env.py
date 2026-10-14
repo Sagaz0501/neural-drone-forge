@@ -113,8 +113,8 @@ def test_runtime_matches_env(tmp_path):
     from stable_baselines3 import PPO
     from drone_rl.runtime import Flight, NumpyPolicy
     root = Path(__file__).resolve().parents[1]
-    npz = export(root / "models" / "stage2.zip", tmp_path / "p.npz")
-    model, npol = PPO.load(root / "models" / "stage2.zip", device="cpu"), NumpyPolicy(npz)
+    npz = export(root / "models" / "anteriores" / "stage2.zip", tmp_path / "p.npz")
+    model, npol = PPO.load(root / "models" / "anteriores" / "stage2.zip", device="cpu"), NumpyPolicy(npz)
     env = DroneEnv(stage=2)
     obs, _ = env.reset(seed=3)
     fl = Flight(env.level, npol)

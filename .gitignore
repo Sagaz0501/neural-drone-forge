@@ -14,3 +14,16 @@ models/live_*.zip
 live_train.log
 install.log
 models/prueba_*.npz
+# el modelo único (cambia todo el tiempo; vive en tu máquina)
+models/modelo.zip
+models/modelo.npz
+models/modelo.json
+models/modelo_guardando.*
+# modelos viejos que no están en el repo
+models/anteriores/*
+!models/anteriores/stage0.zip
+!models/anteriores/stage2.zip
+!models/anteriores/stage3.zip
+!models/anteriores/bodega_v1.zip
+!models/anteriores/policy_stage3.npz
+_deploy/

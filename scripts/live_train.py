@@ -14,6 +14,12 @@ Protocolo (UDP en localhost, mensajes JSON, como telemetría de un dron real):
     "export": guarda el modelo actual y lo pasa a numpy (.npz) para probarlo en un escenario de Blender;
               responde con {"t": "x", "npz": ruta}.
 
+UN SOLO MODELO: todo el entrenamiento (cualquier nivel, cualquier número de drones) vive en
+models/modelo.zip. Si existe, se continúa; si no, se crea una red nueva al azar. Se guarda solo
+cada 10 generaciones y al detener. Su historia (pasos, generaciones, curva de éxito y en qué nivel
+se entrenó) va en models/modelo.json, así la curva del laboratorio muestra el desarrollo completo.
+Los N drones del laboratorio son N copias del MISMO cerebro: todo lo que viven entrena esa única red.
+
 Cada GENERACIÓN = un ciclo de PPO:
     1. VOLAR:     los N drones vuelan n_steps pasos con la red actual (juntan experiencia)
     2. APRENDER:  PPO actualiza la red con esa experiencia (los drones se quedan quietos)
@@ -21,6 +27,7 @@ Cada GENERACIÓN = un ciclo de PPO:
 import argparse
 import json
 import math
+import os
 import socket
 import sys
 import time
@@ -52,9 +59,9 @@ def r3(v):
 
 
 class LiveLink(BaseCallback):
-    def __init__(self, args, reward, save_path):
+    def __init__(self, args, reward, model_path, meta):
         super().__init__()
-        self.args, self.reward, self.save_path = args, reward, save_path
+        self.args, self.reward, self.model_path, self.meta = args, reward, model_path, meta
         self.speed = args.speed
         self.lr, self.ent = args.lr, args.ent
         self.out = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -64,12 +71,14 @@ class LiveLink(BaseCallback):
         self.ctrl.setblocking(False)
         self.paused = self.stop = False
         self.phase = "fly"
-        self.gen = 0
+        self.gen = int(meta.get("generaciones", 0))       # el modelo sigue contando donde se quedó
+        self.gen_done = self.gen                          # última generación que ya aprendió
         self.total_eps = 0
         self.ep_succ, self.ep_crash, self.ep_rew = [], [], []
         self.ep_speed, self.ep_ang = [], []          # cómo vuelan los que llegan: rapidez y estabilidad
         self.density, self.wind = args.density, args.wind
-        self.history = []
+        self.history = list(meta.get("historia", []))     # [gen, pasos, éxito, crash, nivel]
+        self.session = {"inicio": time.strftime("%Y-%m-%d %H:%M:%S"), "nivel": args.stage, "drones": args.drones}
         self.events = []
         self.next_tick = time.perf_counter()
         self.last_send = 0.0
@@ -131,8 +140,37 @@ class LiveLink(BaseCallback):
         mean = lambda xs: float(np.mean(xs[-w:])) if xs else 0.0
         self.send({"t": "s", "phase": self.phase, "gen": self.gen, "steps": int(self.num_timesteps),
                    "eps": self.total_eps, "succ": mean(self.ep_succ), "crash": mean(self.ep_crash),
-                   "rew": mean(self.ep_rew), "hist": self.history[-300:], "params": self.params(),
+                   "rew": mean(self.ep_rew), "hist": self.hist_to_send(), "params": self.params(),
                    "spd": mean(self.ep_speed), "ang": mean(self.ep_ang), "msg": self.msg})
+
+    def hist_to_send(self, n=300):
+        h = self.history
+        if len(h) <= n:
+            return h
+        step = len(h) / n                       # toda la vida del modelo, resumida en n puntos
+        return [h[int(i * step)] for i in range(n - 1)] + [h[-1]]
+
+    # ---------------- el modelo único ----------------
+    def save_model(self):
+        """Guarda models/modelo.zip (+ modelo.json) sin dejar nunca un archivo a medias."""
+        tmp = self.model_path.with_name("modelo_guardando.zip")
+        self.model.save(tmp)
+        os.replace(tmp, self.model_path)
+        self.meta.update(generaciones=self.gen_done, pasos=int(self.num_timesteps), historia=self.history,
+                         actualizado=time.strftime("%Y-%m-%d %H:%M"))
+        ses = dict(self.session, fin=time.strftime("%Y-%m-%d %H:%M"), pasos_fin=int(self.num_timesteps))
+        sesiones = self.meta.setdefault("sesiones", [])
+        if sesiones and sesiones[-1].get("inicio") == ses["inicio"]:
+            sesiones[-1] = ses
+        else:
+            sesiones.append(ses)
+        niveles = self.meta.setdefault("niveles", {})
+        k = STAGES[self.args.stage] if not self.args.level else Path(self.args.level).stem
+        niveles[k] = niveles.get(k, 0) + int(self.num_timesteps) - self.meta.get("_pasos_contados", self.steps0)
+        self.meta["_pasos_contados"] = int(self.num_timesteps)
+        tmpj = self.model_path.with_name("modelo_guardando.json")
+        tmpj.write_text(json.dumps(self.meta, ensure_ascii=False))
+        os.replace(tmpj, self.model_path.with_suffix(".json"))
 
     def send_frame(self):
         d = []
@@ -217,19 +255,17 @@ class LiveLink(BaseCallback):
             if "pause" in m:
                 self.paused = bool(m["pause"])
             if m.get("save"):
-                p = self.save_path.with_name(self.save_path.stem + f"_gen{self.gen}.zip")
-                self.model.save(p)
-                self.msg = f"Modelo guardado: models/{p.name}"
+                self.save_model()
+                self.msg = f"Modelo guardado (generación {self.gen}): models/modelo.zip"
             if m.get("resend"):                     # Blender reconstruyó su vista
                 self._on_training_start()
             if m.get("export"):
                 from export_policy import export
-                zp = self.save_path.with_name(self.save_path.stem + f"_gen{self.gen}.zip")
-                self.model.save(zp)
-                npz = ROOT / "models" / "prueba_actual.npz"
-                export(zp, npz)
+                self.save_model()
+                npz = self.model_path.with_suffix(".npz")
+                export(self.model_path, npz)
                 self.msg = f"Generación {self.gen} lista para probar"
-                self.send({"t": "x", "npz": str(npz), "zip": str(zp), "gen": self.gen})
+                self.send({"t": "x", "npz": str(npz), "zip": str(self.model_path), "gen": self.gen})
             if m.get("stop"):
                 self.stop = True
         if changed:
@@ -238,7 +274,10 @@ class LiveLink(BaseCallback):
     # ---------------- ciclo de PPO ----------------
     def _on_training_start(self):
         mission = LEVEL_MISSION if self.args.level else MISSIONS[self.args.stage]
+        self.steps0 = getattr(self, "steps0", int(self.num_timesteps))
         self.send({"t": "h", "n": self.args.drones, "stage": self.args.stage,
+                   "modelo": {"nuevo": not self.meta.get("generaciones"), "pasos": int(self.num_timesteps),
+                              "generaciones": self.gen},
                    "fixed_level": bool(self.args.level), "params": self.params(), "mission": mission,
                    "obs_labels": OBS_LABELS, "act_labels": ACT_LABELS})
         for i, e in enumerate(self.envs()):
@@ -246,11 +285,15 @@ class LiveLink(BaseCallback):
         self.send_weights()
 
     def _on_rollout_start(self):
-        self.gen += 1
+        if getattr(self, "flown", False):            # PPO acaba de aprender de la generación self.gen
+            self.gen_done = self.gen
+            self.send_weights()                      # la red acaba de cambiar
+            if self.gen % 10 == 0:
+                self.save_model()                    # autoguardado
+        self.gen += 1                                # generación nueva
+        self.flown = True
         self.phase = "fly"
         self.send_stats()
-        if self.gen > 1:
-            self.send_weights()                      # la red acaba de cambiar
         self.next_tick = time.perf_counter()
 
     def _on_rollout_end(self):
@@ -258,7 +301,7 @@ class LiveLink(BaseCallback):
         if self.ep_succ:
             self.history.append([self.gen, int(self.num_timesteps),
                                  round(float(np.mean(self.ep_succ[-w:])), 3),
-                                 round(float(np.mean(self.ep_crash[-w:])), 3)])
+                                 round(float(np.mean(self.ep_crash[-w:])), 3), self.args.stage])
         self.phase = "learn"           # ahora PPO actualiza la red; los drones esperan
         self.send_frame()
         self.send_stats()
@@ -316,10 +359,11 @@ def main():
     ap.add_argument("--drones", type=int, default=50)
     ap.add_argument("--stage", type=int, default=0, choices=list(STAGES))
     ap.add_argument("--level", type=str, default=None, help="nivel JSON (todos los drones en el mismo nivel)")
-    ap.add_argument("--init", type=str, default=None, help="continuar desde un modelo .zip")
+    ap.add_argument("--model", type=str, default=str(ROOT / "models" / "modelo.zip"),
+                    help="EL modelo: si existe se continúa, si no se crea uno nuevo")
     ap.add_argument("--lr", type=float, default=3e-4)
     ap.add_argument("--ent", type=float, default=0.0)
-    ap.add_argument("--net", type=int, default=128, help="neuronas por capa oculta")
+    ap.add_argument("--net", type=int, default=128, help="neuronas por capa oculta (solo al crear el modelo)")
     ap.add_argument("--speed", choices=["real", "rapido"], default="real")
     ap.add_argument("--reward", type=str, default="{}", help='JSON, ej: {"crash": 20}')
     ap.add_argument("--steps", type=int, default=20_000_000)
@@ -343,14 +387,20 @@ def main():
     batch = min(1024, n_steps * n)
 
     name = Path(args.level).stem if args.level else STAGES[args.stage]
-    save_path = ROOT / "models" / f"live_{name}_{time.strftime('%Y%m%d_%H%M%S')}.zip"
-    save_path.parent.mkdir(exist_ok=True)
+    model_path = Path(args.model).expanduser().resolve()
+    model_path.parent.mkdir(exist_ok=True)
+    meta_path = model_path.with_suffix(".json")
+    existe = model_path.exists()
+    meta = json.loads(meta_path.read_text()) if (existe and meta_path.exists()) else {}
 
-    if args.init:
-        model = PPO.load(args.init, env=env, device="cpu",
+    if existe:
+        model = PPO.load(model_path, env=env, device="cpu",
                          custom_objects={"n_steps": n_steps, "batch_size": batch,
                                          "learning_rate": args.lr, "ent_coef": args.ent})
+        meta.setdefault("pasos", int(model.num_timesteps))
     else:
+        meta = {"creado": time.strftime("%Y-%m-%d %H:%M"), "red": [24, args.net, args.net, 4],
+                "generaciones": 0, "pasos": 0, "historia": [], "sesiones": [], "niveles": {}}
         model = PPO("MlpPolicy", env, device="cpu",
                     policy_kwargs=dict(net_arch=dict(pi=[args.net, args.net], vf=[args.net, args.net]),
                                        log_std_init=-0.7),
@@ -360,17 +410,19 @@ def main():
     if args.log_std is not None:
         with torch.no_grad():
             model.policy.log_std.fill_(args.log_std)
-    link = LiveLink(args, reward, save_path)
-    print(f"Drone Lab: {n} drones · nivel {name} · {n_steps} pasos por dron por generación", flush=True)
+    link = LiveLink(args, reward, model_path, meta)
+    estado = (f"continuando el modelo ({int(model.num_timesteps):,} pasos, generación {link.gen})" if existe
+              else "modelo NUEVO (red al azar)")
+    print(f"Drone Lab: {n} drones · nivel {name} · {n_steps} pasos por dron por generación · {estado}", flush=True)
     try:
-        model.learn(total_timesteps=args.steps, callback=link, reset_num_timesteps=not args.init)
+        model.learn(total_timesteps=args.steps, callback=link, reset_num_timesteps=not existe)
     except KeyboardInterrupt:
         pass
-    model.save(save_path)
-    link.msg = f"Modelo guardado: models/{save_path.name}"
+    link.save_model()
+    link.msg = f"Modelo guardado (generación {link.gen}): models/{model_path.name}"
     link.phase = "stopped"
     link.send_stats()
-    link.send({"t": "bye", "model": str(save_path)})
+    link.send({"t": "bye", "model": str(model_path)})
     print(link.msg, flush=True)
 
 

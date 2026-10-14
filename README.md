@@ -29,6 +29,11 @@ Los niveles se diseñan y los vuelos se ven en **Blender**, usando el frame de 5
 | 4 · multi_goal | 3 metas seguidas con columnas | 28 % | _pendiente_ | — |
 | 5 · circuit | circuito de 4 aros, **2 vueltas** (8 pasadas en orden) | 100 % | **100 %** con el modelo del nivel 2, sin entrenarlo | 0 |
 | `levels/ejemplo.json` | 3 metas + 4 obstáculos (hecho para Blender) | 0 % | _pendiente_ | — |
+| 6 · forest | cruzar un bosque hasta un aro a 9–14 m | — | 40 % sin entrenarlo (modelo de columnas) | — |
+| 7 · forest_multi | slalom de 3 aros dentro del bosque | — | _pendiente_ | — |
+
+Estos números son de los modelos de referencia en `models/anteriores/`. Desde ahora el proyecto
+entrena **un solo modelo**, `models/modelo.zip` (ver Drone Lab).
 
 El **piloto PD** es un controlador clásico, sin IA, que vuela en línea recta a la meta
 (`drone_rl/controller.py`). Es la vara que hay que superar: en los niveles con obstáculos choca
@@ -54,6 +59,10 @@ porque no sabe esquivar, y ahí es donde la IA tiene que ganarle.
 - [x] Misiones explícitas, aros por estado y red neuronal en vivo en Blender
 - [x] Nivel 5: circuito de 2 vueltas
 - [x] Bodega 3D: la IA entrenada vuela en vivo dentro de Blender (Piloto IA)
+- [x] Bosque (niveles 6 y 7): troncos, copas, arbustos y rocas; escena 3D con pasto, flores, neblina y sol
+- [x] Viento con ráfagas, premios por rapidez y estabilidad, castigo por peligro
+- [x] Un solo modelo (`models/modelo.zip`) para todo: entrenamiento y pruebas 3D
+- [ ] Bosque resuelto con el modelo único
 - [ ] Video de la IA volando en Blender para el portafolio
 
 ## Bitácora
@@ -90,6 +99,35 @@ porque no sabe esquivar, y ahí es donde la IA tiene que ganarle.
   desviarse. **Arreglo:** subir σ a 0.4, hacer que los tramos bloqueados salgan 6 veces más seguido
   y un castigo por cercanía que se siente *antes* del choque.
 
+**2026-10-14**
+- **Bosque** (nivel 6) y **bosque con 3 aros** (nivel 7). La física ahora tiene cilindros verticales
+  (troncos) además de cajas y esferas, y los sensores se calculan todos a la vez (vectorizados),
+  porque un bosque tiene cientos de piezas. Las copas altas dejan ~2.6 m libres abajo, y los
+  obstáculos de verdad son los troncos, los árboles jóvenes y los arbustos. La escena 3D usa
+  exactamente las mismas piezas, vestidas con corteza, copas con racimos de hojas, pinos en capas,
+  pasto y flores (Geometry Nodes), neblina y sol de tarde. Se arma en menos de 1 segundo.
+- **Opciones nuevas para entrenar:** viento con ráfagas (sirve para cualquier nivel), densidad del
+  bosque, *premio por rapidez* (velocidad media de cada tramo al pasar el aro), *castigo por
+  inestabilidad* (giros bruscos de roll/pitch y yaw) y *castigo por peligro* (ir rápido hacia algo
+  que se ve, a menos de 1 s de chocarlo). El HUD muestra la velocidad media y el giro medio de los
+  que llegan.
+- **Sensores en cono:** cada sensor horizontal mide 3 rayos (−15°, 0°, +15°), como un ToF real.
+  Antes, un tronco delgado podía quedar escondido entre dos sensores.
+- **Experimentos** (mismo punto de partida, 2–3 M pasos en el bosque):
+  - Sensores en cono contra rayos finos: 40 % contra 39 %. **No cambió el éxito.**
+  - Diagnóstico de los choques: el **100 %** de las veces el dron *veía* el árbol medio segundo antes,
+    y chocaba a ~7 m/s. El problema no era ver, era ir demasiado rápido: con *rapidez* = 1 aprendió
+    a correr. Se dejó en 0.3.
+  - *Castigo por peligro* = 0.2: se volvió miedoso. Bajaron los choques, pero se quedaba flotando
+    hasta que se acababa el tiempo (éxito 11 %). Queda en 0 por defecto.
+- **Un solo modelo.** Antes cada entrenamiento creaba otro archivo (`live_*`, `_genN`, pruebas...).
+  Ahora todo vive en `models/modelo.zip`: el laboratorio lo continúa siempre y todas las pruebas 3D
+  vuelan con él. Los modelos viejos están en `models/anteriores/`.
+- **Pruebas 3D que fallaban sin avisar:** Blender guardaba en memoria la versión vieja del código
+  (sin el bosque), así que la prueba fallaba en silencio. Ahora se recarga y, si algo falla, lo dice
+  en el panel. También se arregló que los ajustes del laboratorio se leían de la escena que estabas
+  viendo (la de prueba tiene los suyos), lo que hacía que "Volver al laboratorio" no volviera.
+
 ---
 
 ## Instalación (macOS / Linux / Windows)
@@ -99,7 +137,7 @@ git clone https://github.com/Sagaz0501/drone-rl.git
 cd drone-rl
 python3 -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-pytest -q                                                # 12 pruebas deberían pasar
+pytest -q                                                # 18 pruebas deberían pasar
 ```
 
 En Mac con Apple Silicon, PyTorch se instala solo desde pip. Para estas redes chicas la CPU es
@@ -114,8 +152,12 @@ python scripts/train.py --stage 0 --steps 400000                                
 python scripts/train.py --stage 2 --steps 800000  --init models/stage0.zip        # metas aleatorias
 python scripts/train.py --stage 3 --steps 2000000 --init models/stage2.zip        # obstáculos
 python scripts/train.py --stage 4 --steps 2000000 --init models/stage3.zip        # varias metas
+python scripts/train.py --stage 6 --density 1.0 --wind 2 --init models/stage3.zip  # bosque con viento
 python scripts/train.py --level levels/ejemplo.json --steps 1000000 --init models/stage4.zip
 ```
+
+Esto es entrenar sin Blender, por consola. Lo normal ahora es el **Drone Lab**, que usa un solo
+modelo (`models/modelo.zip`). Los modelos de referencia de antes están en `models/anteriores/`.
 
 Cada 20 k pasos imprime la tasa de éxito y de crash. Con `tensorboard` instalado:
 `tensorboard --logdir runs`. Si tu máquina tiene muchos núcleos, agrega `--subproc --envs 16`.
@@ -123,7 +165,8 @@ Cada 20 k pasos imprime la tasa de éxito y de crash. Con `tensorboard` instalad
 ### 2. Evaluar y exportar trayectorias
 
 ```bash
-python scripts/evaluate.py --model models/stage2.zip --stage 2 --episodes 50
+python scripts/evaluate.py --model models/modelo.zip --stage 6 --episodes 50
+python scripts/evaluate.py --model models/anteriores/stage2.zip --stage 2 --episodes 50
 python scripts/evaluate.py --pd --stage 3                     # comparar con el piloto clásico
 ```
 
@@ -158,10 +201,21 @@ luego se quedan quietos mientras PPO **aprende** (actualiza la red). El HUD mues
 éxito y el porcentaje de crashes, y una curva por generación. Un destello **rojo** es un crash,
 **verde** es meta alcanzada y **ámbar** es que se acabó el tiempo.
 
-**En vivo, sin reiniciar:** learning rate, exploración (entropía), velocidad (tiempo real o
-máxima) y los 7 pesos de la recompensa. **Requiere reiniciar:** número de drones, nivel y
-neuronas por capa. "Detener y guardar" guarda el modelo en `models/live_*.zip`, y lo puedes usar
-en "Continuar desde" para seguir otro día.
+**Un solo modelo.** Todo se entrena en `models/modelo.zip`. La primera vez que le das Iniciar se
+crea una red nueva al azar. Después, **cada Iniciar continúa el mismo modelo**, aunque cambies de
+nivel o de número de drones. Así ves su desarrollo completo: Hover → Metas → Columnas → Bosque. Los
+N drones son N copias del **mismo** cerebro, y todo lo que viven entrena esa única red. Se guarda solo
+cada 10 generaciones y al detener. Su historia (pasos, generaciones, curva de éxito y en qué niveles
+entrenó) va en `models/modelo.json`, y la curva del HUD muestra toda su vida, con una marca cada vez
+que cambiaste de nivel. **Empezar de cero** archiva el modelo en `models/anteriores/`.
+
+Ojo: una red que se entrena solo en un nivel nuevo puede **olvidar** parte del anterior. Si después
+del bosque vuelve a fallar en el circuito, es eso.
+
+**En vivo, sin reiniciar:** learning rate, exploración (σ y entropía), velocidad (tiempo real o
+máxima), los pesos de la recompensa y el ambiente (viento, densidad del bosque). **Requiere
+reiniciar:** número de drones y nivel. **Probar en 3D** abre un escenario aleatorio del mismo tipo
+(el bosque incluido) y el modelo vuela en vivo con la generación de ese momento.
 
 **Misiones:** el panel muestra para cada nivel qué cuenta como éxito y como fallo, y qué paga la
 recompensa (el texto vive en `drone_rl/missions.json`). Los aros cambian de color según el orden:
@@ -188,10 +242,10 @@ das "Volar con la IA", la red entrenada vuela el dron en vivo**: lee sus 10 sens
 palancas y la física del proyecto lo mueve, 50 veces por segundo. No es una grabación.
 
 ```
-levels/bodega.json ──▶ entrenamiento (scripts/train.py --level ...) ──▶ models/bodega.zip
-        │                                                                    │ scripts/export_policy.py
-        ▼                                                                    ▼
-blender/build_bodega.py ──▶ bodega.blend  ◀── Piloto IA (numpy) ◀── models/policy_bodega.npz
+levels/bodega.json ──▶ Drone Lab (nivel JSON) ──▶ models/modelo.zip
+        │                                              │ scripts/export_policy.py (automático)
+        ▼                                              ▼
+blender/build_bodega.py ──▶ bodega.blend  ◀── Piloto IA (numpy) ◀── models/modelo.npz
 ```
 
 - Abre `blender/bodega.blend` (si Blender pide permiso para ejecutar scripts, dale **Allow**).

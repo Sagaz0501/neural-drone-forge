@@ -4,7 +4,7 @@ PILOTO IA: la red neuronal entrenada vuela el dron dentro de esta escena, EN VIV
 Cada vez que le das "Volar con la IA":
   1. se lee la escena: colección "Colisiones" (cajas, y en el bosque troncos y copas), "Ruta" (Ruta_01...),
      "Salida" y "Estacion"
-  2. cada 1/50 s: sensores -> red neuronal (models/policy_bodega.npz) -> física del proyecto -> mover el dron
+  2. cada 1/50 s: sensores -> red neuronal (EL modelo: models/modelo.npz) -> física del proyecto -> mover el dron
   3. al pasar el último punto, el piloto PD aterriza en la estación de carga
 Puedes mover una caja, el montacargas o un punto de la ruta y volver a volar: la IA reacciona a la escena nueva.
 
@@ -85,11 +85,26 @@ def level_from_scene():
     return lv, (np.array(est.matrix_world.translation) if est else None)
 
 
+def model_npz():
+    """EL modelo (el único): models/modelo.npz, re-exportado si models/modelo.zip es más nuevo."""
+    import subprocess
+    proj = project_dir()
+    zp = os.path.join(proj, "models", "modelo.zip")
+    npz = os.path.join(proj, "models", "modelo.npz")
+    if os.path.isfile(zp) and (not os.path.isfile(npz) or os.path.getmtime(npz) < os.path.getmtime(zp)):
+        py = os.path.join(proj, ".venv", "bin", "python")
+        r = subprocess.run([py, os.path.join(proj, "scripts", "export_policy.py"), zp, "--out", npz],
+                           cwd=proj, capture_output=True, text=True, timeout=180)
+        if r.returncode != 0:
+            raise RuntimeError("no pude exportar models/modelo.zip: " + (r.stderr or r.stdout).strip()[-200:])
+    if not os.path.isfile(npz):
+        raise RuntimeError("todavía no hay modelo: entrena primero en Drone Lab")
+    return npz
+
+
 def load_policy(props):
     NumpyPolicy = lib()[2]
-    path = os.path.expanduser(bpy.path.abspath(props.modelo))
-    if not os.path.isabs(path):
-        path = os.path.join(project_dir(), path)
+    path = model_npz()
     st = S()
     mt = os.path.getmtime(path)
     if st.get("policy_key") != (path, mt):
@@ -296,7 +311,7 @@ class PILOTO_OT_volar(bpy.types.Operator):
         if event.type != 'TIMER':
             return {'PASS_THROUGH'}
         now = time.perf_counter()
-        dt = min(now - self.last, 0.1)
+        dt = min(now - self.last, 0.25)              # si un cuadro tarda, la simulación igual va a tiempo real
         self.last = now
         self.acc += dt * float(context.scene.piloto_ia.velocidad)
         info = st["info"]
@@ -429,8 +444,8 @@ def _upd_col(self, context):
 
 
 class PilotoProps(bpy.types.PropertyGroup):
-    modelo: bpy.props.StringProperty(name="Modelo", subtype='FILE_PATH', default="models/policy_bodega.npz",
-                                     description="Red exportada con scripts/export_policy.py (relativo al proyecto)")
+    modelo: bpy.props.StringProperty(name="Modelo", subtype='FILE_PATH', default="models/modelo.npz",
+                                     description="(ya no se usa: siempre vuela EL modelo, models/modelo.zip)")
     velocidad: bpy.props.EnumProperty(name="Velocidad", items=[("0.25", "x0.25", ""), ("0.5", "x0.5", ""),
                                                                ("1.0", "x1", ""), ("2.0", "x2", "")], default="1.0")
     variacion: bpy.props.FloatProperty(name="Variación de salida (m)", default=0.3, min=0.0, max=1.0,
@@ -463,7 +478,8 @@ class VIEW3D_PT_piloto_ia(bpy.types.Panel):
         if context.scene.get("es_prueba") and hasattr(bpy.types, "PRUEBA_OT_otro"):
             box = L.box()
             tipo = {0: "hover (llegar al aro)", 1: "meta fija", 2: "una meta, sin obstáculos",
-                    3: "una meta con columnas", 4: "tres metas con columnas", 5: "circuito de 2 vueltas"}
+                    3: "una meta con columnas", 4: "tres metas con columnas", 5: "circuito de 2 vueltas",
+                    6: "bosque", 7: "bosque con 3 aros"}
             box.label(text=f"Escenario aleatorio #{context.scene.get('prueba_seed', 0)}", icon='WORLD')
             box.label(text=f"Tipo: {tipo.get(int(context.scene.get('prueba_stage', 3)), '')}")
             col = box.column(align=True)
@@ -489,7 +505,14 @@ class VIEW3D_PT_piloto_ia(bpy.types.Panel):
         box.prop(p, "mostrar_ruta")
         box.prop(p, "mostrar_colisiones")
         box = L.box()
-        box.prop(p, "modelo")
+        gen = ""
+        try:
+            import json
+            js = os.path.join(project_dir(), "models", "modelo.json")
+            gen = f" · generación {json.load(open(js)).get('generaciones', '?')}"
+        except (OSError, ValueError):
+            pass
+        box.label(text=f"Modelo: models/modelo.zip (el único){gen}", icon='OUTLINER_OB_ARMATURE')
         box.label(text="Mueve cajas o puntos de la ruta y vuelve a volar.", icon='INFO')
 
 

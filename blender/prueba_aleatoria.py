@@ -312,10 +312,14 @@ def fly(context):
 class PRUEBA_OT_otro(bpy.types.Operator):
     bl_idname = "prueba.otro"
     bl_label = "Otro escenario aleatorio"
-    bl_description = "Genera obstáculos y metas nuevos al azar y vuelve a volar con el mismo modelo"
+    bl_description = ("Genera obstáculos y metas nuevos al azar y vuelve a volar con EL modelo "
+                      "(si estás entrenando, con su generación más nueva)")
 
     def execute(self, context):
         sc = context.scene
+        if hasattr(bpy.types, "DRONELAB_OT_probar"):       # lo hace el laboratorio: modelo al día + errores visibles
+            bpy.ops.dronelab.probar(stage=int(sc.get("prueba_stage", 3)))
+            return {'FINISHED'}
         info = build(stage=int(sc.get("prueba_stage", 3)), model_npz=sc.get("prueba_modelo"),
                      return_scene=sc.get("volver_a"), density=float(sc.get("prueba_densidad", 1.0)),
                      wind=float(sc.get("viento", 0.0)))
