@@ -328,6 +328,8 @@ function editorSetup() {
 function setMode(m) {
   S.mode = m;
   drone.visible = true;
+  if (m !== "vuelo") unlockMouse();
+  updateMouseHint?.();
   $("menu").classList.toggle("hidden", m !== "menu");
   for (const id of ["editor-top", "route", "editor-hint", "editor-bottom"]) $(id).classList.toggle("hidden", m !== "editor");
   $("hud").classList.toggle("hidden", m !== "vuelo");
@@ -364,8 +366,8 @@ window.addEventListener("keydown", (e) => {
     if (e.code === "KeyP") { S.pausedByUser = !S.pausedByUser; S.paused = S.pausedByUser; }
     if (e.key === "+" || e.code === "Equal" || e.code === "NumpadAdd") changeSpeed(1);
     if (e.key === "-" || e.code === "Minus" || e.code === "NumpadSubtract") changeSpeed(-1);
-    if (e.code === "Escape") setMode("menu");
-    if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].includes(e.code)) e.preventDefault();
+    if (e.code === "Escape" && performance.now() - (S.lastUnlock || 0) > 400) setMode("menu");   // (el 1er Esc solo suelta el ratón)
+    if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space", "ShiftLeft", "ShiftRight"].includes(e.code)) e.preventDefault();
   } else if (S.mode === "editor") {
     if (!$("controls").classList.contains("hidden")) { if (e.code === "Escape") openControls(false); return; }
     if ((e.metaKey || e.ctrlKey) && e.code === "KeyZ") $("undo").click();
@@ -407,12 +409,16 @@ const manual = new ManualPilot(S.ctl, keys);
 // ---------------- panel de controles ----------------
 function openControls(open) {
   $("controls").classList.toggle("hidden", !open);
+  if (open) unlockMouse();
+  updateMouseHint();
   if (S.mode === "vuelo") S.paused = open || S.pausedByUser;
   if (open) syncControls();
 }
 function syncControls() {
   const c = S.ctl;
   $("ctl-alt").checked = c.altHold;
+  $("ctl-mouse").checked = c.mouseYaw;
+  $("ctl-msens").value = c.mouseSens; $("o-msens").textContent = `${Math.round(c.mouseSens * 100)} %`;
   $("ctl-brake").checked = c.brake;
   $("ctl-sens").value = c.sens; $("o-sens").textContent = `${Math.round(c.sens * 100)} %`;
   $("ctl-smooth").value = c.smooth; $("o-smooth").textContent = `${Math.round(c.smooth * 100)} %`;
@@ -420,8 +426,8 @@ function syncControls() {
   $("ctl-fov").value = c.fpvFov; $("o-fov").textContent = `${c.fpvFov}°`;
   for (const b of $("ctl-mode").children) b.setAttribute("aria-pressed", String(+b.dataset.m === c.mode));
   $("ctl-left-help").textContent = c.altHold
-    ? "↑ ↓ suben o bajan la altura que el dron mantiene. ← → lo hacen girar sobre sí mismo."
-    : "↑ ↓ son el gas directo: al soltar, el dron sigue subiendo o bajando a la misma velocidad. ← → giran.";
+    ? "Mientras mantienes Espacio sube; al soltar se queda a esa altura. Shift baja. También sirven ↑ ↓."
+    : "Gas directo: Espacio acelera hacia arriba y Shift hacia abajo. Al soltar sigue a la misma velocidad.";
   const gp = readGamepad();
   $("pad-status").innerHTML = gp ? `<b>Control conectado</b> (${gp.id.split("(")[0].trim().slice(0, 40)})` :
     "Conecta un control (Xbox, PlayStation…) y mueve una palanca.";
@@ -429,6 +435,8 @@ function syncControls() {
 function controlsSetup() {
   const save = () => { store.set("ctl", S.ctl); syncControls(); };
   $("ctl-alt").onchange = (e) => { S.ctl.altHold = e.target.checked; save(); };
+  $("ctl-mouse").onchange = (e) => { S.ctl.mouseYaw = e.target.checked; save(); };
+  $("ctl-msens").oninput = (e) => { S.ctl.mouseSens = +e.target.value; save(); };
   $("ctl-brake").onchange = (e) => { S.ctl.brake = e.target.checked; save(); };
   $("ctl-sens").oninput = (e) => { S.ctl.sens = +e.target.value; save(); };
   $("ctl-smooth").oninput = (e) => { S.ctl.smooth = +e.target.value; save(); };
@@ -439,6 +447,25 @@ function controlsSetup() {
   $("ctl-reset").onclick = () => { Object.assign(S.ctl, DEFAULT_CTL); save(); };
   window.addEventListener("gamepadconnected", (e) => { toast(`Control conectado: ${e.gamepad.id.split("(")[0].trim().slice(0, 40)}`); syncControls(); });
   window.addEventListener("gamepaddisconnected", () => { toast("Se desconectó el control"); syncControls(); });
+}
+
+// ---------------- girar con el ratón (el ratón queda "atrapado" en el juego) ----------------
+const wantsMouse = () => S.mode === "vuelo" && S.pilot !== "ia" && S.ctl.mouseYaw && !S.ended && $("controls").classList.contains("hidden");
+function lockMouse() {
+  if (!wantsMouse() || document.pointerLockElement === canvas) return;
+  try { const r = canvas.requestPointerLock(); r?.catch?.(() => {}); } catch { /* el navegador no lo permite */ }
+}
+function unlockMouse() { if (document.pointerLockElement) document.exitPointerLock(); }
+canvas.addEventListener("click", () => { if (wantsMouse()) lockMouse(); });
+document.addEventListener("mousemove", (e) => {
+  if (document.pointerLockElement === canvas && wantsMouse() && !S.paused) manual.addMouse(e.movementX || 0);
+});
+document.addEventListener("pointerlockchange", () => {
+  if (document.pointerLockElement !== canvas) S.lastUnlock = performance.now();   // Esc soltó el ratón
+  updateMouseHint();
+});
+function updateMouseHint() {
+  $("mouse-hint").classList.toggle("hidden", !wantsMouse() || document.pointerLockElement === canvas);
 }
 
 // botones del control: A = otra vez, B = cámara, Start = pausa
@@ -487,11 +514,14 @@ async function startFlight(pilot) {
   $("swap").disabled = pilot !== "ia" && !S.policy;
   $("keys").textContent = pilot === "ia"
     ? "R otra vez, E editar la ruta, N cerebro, + y − velocidad, P pausa, Esc menú"
-    : `Flechas: ${S.ctl.altHold ? "altura" : "gas"} y giro. WASD: moverte. R otra vez, E editar, P pausa, Esc menú`;
+    : `${S.ctl.mouseYaw ? "Ratón: girar. " : "← →: girar. "}Espacio: subir, Shift: bajar. WASD: moverte. R otra vez, E editar, Esc menú`;
   setCam(S.cam, true);
   openControls(false);
-  if (pilot !== "ia") toast(S.ctl.altHold ? "Despegando solo a 1,2 m. Usa WASD para moverte y ← → para girar." :
-    "Gas directo: ↑ para despegar.", 3500);
+  if (pilot !== "ia") {
+    toast(S.ctl.altHold ? "Mantén Espacio para despegar. Al soltar se queda a esa altura." : "Gas directo: Espacio para despegar.", 3500);
+    lockMouse();
+  } else unlockMouse();
+  updateMouseHint();
   const fl = S.flight;
   const g = S.goals[0];
   camera.position.copy(V(fl.state.pos[0] - Math.cos(fl.state.yaw) * 3, fl.state.pos[1] - Math.sin(fl.state.yaw) * 3, 1.4));
@@ -506,6 +536,8 @@ const routeKey = () => `${S.world.kind}|${S.world.kind === "bosque" || S.world.k
 const WHAT = { bosque: "un árbol", columnas: "una columna", bodega: "algo de la bodega", campo: "un obstáculo" };
 function endFlight() {
   S.ended = true;
+  unlockMouse();
+  updateMouseHint();
   const fl = S.flight, n = S.goals.length, done = n > 0 && fl.goalIdx >= n;
   const h = $("res-h"), p = $("res-p");
   $("res-rec").textContent = "";
@@ -676,7 +708,8 @@ function hud(fl, now) {
   const spd = Math.hypot(...s.vel);
   $("spd").textContent = Math.round(spd * 3.6);
   const w = fl.windNow ? Math.hypot(fl.windNow[0], fl.windNow[1]) : 0;
-  $("sub").innerHTML = `${fmt(spd)} m/s<br>altura ${fmt(s.pos[2])} m${w > 0.05 ? `<br>viento ${fmt(w)} m/s` : ""}` +
+  const fija = S.pilot !== "ia" && S.ctl.altHold ? ` <span style="color:var(--next)">→ ${fmt(manual.alt)} m</span>` : "";
+  $("sub").innerHTML = `${fmt(spd)} m/s<br>altura ${fmt(s.pos[2])} m${fija}${w > 0.05 ? `<br>viento ${fmt(w)} m/s` : ""}` +
     `${S.speed !== 1 ? `<br>x${fmt(S.speed, S.speed < 1 ? 2 : 0)}` : ""}${S.paused ? "<br>pausa" : ""}`;
   $("ring-txt").textContent = S.free ? "Vuelo libre" : fl.phase === "aterrizaje" ? "Aterrizando" : `Aro ${Math.min(fl.goalIdx + 1, n)} de ${n}`;
   $("time-txt").textContent = `${fmt(fl.t)} s`;

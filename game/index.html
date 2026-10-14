@@ -128,6 +128,12 @@
   kbd.k { display: grid; place-items: center; border: 1px solid var(--line); border-bottom-width: 3px; border-radius: 7px; font-family: var(--font);
           font-size: 15px; color: var(--text); background: rgba(234,242,239,0.06); }
   .stick small { color: var(--muted); font-size: 13.5px; line-height: 1.4; display: block; }
+  .stick .mouse, .stick .pad2 { display: flex; gap: 10px; align-items: center; justify-content: center; margin: 12px 0 10px; min-height: 34px; }
+  .stick .pad2 span { color: var(--muted); font-size: 14px; margin-right: 8px; }
+  .stick .mouse .m { color: var(--prop); font-size: 14px; }
+  kbd.k.wide { padding: 0 14px; height: 34px; }
+  #mouse-hint { position: fixed; left: 50%; bottom: 200px; transform: translateX(-50%); font-size: 15px; padding: 9px 16px; border-radius: 10px;
+                pointer-events: none; }
   .opts2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 22px; }
   .tog { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; font-size: 15px; cursor: pointer; }
   .tog input { width: 18px; height: 18px; accent-color: var(--prop); margin-top: 2px; }
@@ -234,6 +240,7 @@
   <div id="radio" class="panel"><div class="t" id="radio-t">Las manos de la IA</div><canvas id="radio-c" width="300" height="150"></canvas></div>
   <div id="radar" class="panel"><div class="t">Sensores</div><canvas id="radar-c" width="170" height="170"></canvas></div>
   <div id="brain" class="panel hidden"><div class="t">Cerebro: 24 entradas, 128 + 128 neuronas, 4 palancas</div><canvas id="brain-c" width="560" height="96"></canvas></div>
+  <div id="mouse-hint" class="panel hidden">Haz clic para girar con el ratón</div>
   <div id="result" class="panel hidden" role="dialog" aria-live="polite">
     <h2 id="res-h"></h2><p id="res-p"></p><div class="records" id="res-rec"></div>
     <div class="go"><button class="btn main" id="again">Otra vez (R)</button><button class="btn ghost" id="swap">Pilotear yo</button><button class="btn ghost" id="edit">Editar la ruta (E)</button></div>
@@ -246,14 +253,20 @@
 
 <section id="controls" class="panel hidden" role="dialog" aria-label="Controles">
   <h2>Controles</h2>
-  <p>Un control de radio de dron tiene dos palancas. En el teclado son las flechas y WASD.</p>
+  <p>Con teclado y ratón: el ratón gira, Espacio y Shift suben y bajan, WASD mueve. Las mismas 4 palancas que usa la IA.</p>
   <div class="sticks">
-    <div class="stick"><b>Palanca izquierda: altura y giro</b>
-      <div class="pad"><span></span><kbd class="k">↑</kbd><span></span><kbd class="k">←</kbd><kbd class="k">↓</kbd><kbd class="k">→</kbd></div>
-      <small id="ctl-left-help">↑ ↓ suben o bajan la altura que el dron mantiene. ← → lo hacen girar sobre sí mismo.</small></div>
-    <div class="stick"><b>Palanca derecha: moverse</b>
+    <div class="stick"><b>Girar: el ratón</b>
+      <div class="mouse"><span class="m">◀</span><kbd class="k wide">ratón</kbd><span class="m">▶</span></div>
+      <small>Mueve el ratón a los lados para girar, las vueltas que quieras. Haz clic en el juego para atrapar el ratón; Esc lo suelta. También sirven ← →.</small></div>
+    <div class="stick"><b>Subir y bajar</b>
+      <div class="pad2"><kbd class="k wide">Espacio</kbd><span>sube</span><kbd class="k wide">Shift</kbd><span>baja</span></div>
+      <small id="ctl-left-help">Mientras mantienes Espacio sube; al soltar se queda a esa altura. Shift baja. También sirven ↑ ↓.</small></div>
+    <div class="stick"><b>Moverse</b>
       <div class="pad"><span></span><kbd class="k">W</kbd><span></span><kbd class="k">A</kbd><kbd class="k">S</kbd><kbd class="k">D</kbd></div>
       <small>W y S lo inclinan hacia adelante y atrás, A y D hacia los lados. El dron va hacia donde se inclina.</small></div>
+    <div class="stick"><b>Ratón</b>
+      <label class="tog" style="margin:8px 0 10px"><input type="checkbox" id="ctl-mouse"><span>Girar con el ratón</span></label>
+      <div class="row"><span>Sensibilidad del ratón</span><output id="o-msens"></output><input id="ctl-msens" type="range" min="0" max="1" step="0.05"></div></div>
   </div>
   <h3>Control de videojuego</h3>
   <div class="row"><span id="pad-status">Conecta un control (Xbox, PlayStation…) y mueve una palanca.</span>
@@ -261,7 +274,7 @@
   <small style="color:var(--muted);font-size:13.5px">Modo 2 (el más común): gas y giro a la izquierda, moverse a la derecha. Botón A: otra vez. B: cámara. Start: pausa.</small>
   <h3>Ayudas</h3>
   <div class="opts2">
-    <label class="tog"><input type="checkbox" id="ctl-alt"><span>Mantener altura<small>Despega solo a 1,2 m y se queda ahí. Sin esto, ↑ ↓ son el gas directo (más difícil).</small></span></label>
+    <label class="tog"><input type="checkbox" id="ctl-alt"><span>Mantener altura<small>Al soltar Espacio o Shift se queda a esa altura. Sin esto, Espacio y Shift son el gas directo (más difícil).</small></span></label>
     <label class="tog"><input type="checkbox" id="ctl-brake"><span>Frenar solo<small>Al soltar W A S D se inclina al revés hasta quedar quieto, como un dron con GPS.</small></span></label>
   </div>
   <h3>Sensación</h3>
