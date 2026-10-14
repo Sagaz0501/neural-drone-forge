@@ -24,6 +24,7 @@ import math
 import os
 import socket
 import subprocess
+import sys
 import time
 
 import blf
@@ -43,7 +44,7 @@ STAGE_ITEMS = [
     ("LEVEL", "Nivel JSON", "Un nivel exportado desde Blender (todos los drones en el mismo nivel)"),
 ]
 COLORS = {"fly": (0.9, 0.9, 0.95, 1), 1: (1.0, 0.12, 0.08, 1), 2: (0.1, 1.0, 0.35, 1), 3: (1.0, 0.75, 0.1, 1)}
-REWARD_KEYS = ["progress", "goal", "crash", "time", "smooth", "tilt", "near"]
+REWARD_KEYS = ["progress", "goal", "crash", "time", "smooth", "tilt", "near", "clearance"]
 
 
 def S():
@@ -78,6 +79,68 @@ def live_params(props):
 
 def _on_live_change(self, context):
     send_ctrl(live_params(self))
+
+
+def _on_sigma(self, context):
+    send_ctrl({"log_std": math.log(self.sigma)})
+
+
+# =====================================================================
+# Probar el modelo en un escenario aleatorio 3D (escena "Prueba IA")
+# =====================================================================
+def _paths(props):
+    project = os.path.expanduser(bpy.path.abspath(props.project)).rstrip("/")
+    python = os.path.expanduser(bpy.path.abspath(props.python))
+    return project, python
+
+
+def _load_test_modules(project):
+    import importlib
+    bdir = os.path.join(project, "blender")
+    for p in (bdir, project):
+        if p not in sys.path:
+            sys.path.insert(0, p)
+    path = os.path.join(bdir, "piloto_ia.py")
+    src = open(path, encoding="utf-8").read()
+    t = bpy.data.texts.get("piloto_ia.py") or bpy.data.texts.new("piloto_ia.py")
+    t.clear()
+    t.write(src)
+    exec(compile(src, path, "exec"), {"__name__": "piloto_ia"})          # registra el Piloto IA
+    import escena_lib
+    import prueba_aleatoria
+    importlib.reload(escena_lib)
+    importlib.reload(prueba_aleatoria)
+    prueba_aleatoria.register()
+    return prueba_aleatoria
+
+
+def start_test(npz, stage):
+    """Arma un escenario aleatorio nuevo y pone a volar el modelo."""
+    win = bpy.context.window_manager.windows[0]
+    lab = win.scene
+    project, _ = _paths(lab.drone_lab)
+    with bpy.context.temp_override(window=win, screen=win.screen):
+        pa = _load_test_modules(project)
+        info = pa.build(stage=stage, model_npz=npz, return_scene=lab.name)
+        pa.fly(bpy.context)
+    S()["test_msg"] = f"Escenario #{info['seed']}: {info['metas']} meta(s), {len(info['obstaculos'])} obstáculos"
+    return None
+
+
+def export_zip(props, zp):
+    project, python = _paths(props)
+    npz = os.path.join(project, "models", "prueba_" + os.path.splitext(os.path.basename(zp))[0] + ".npz")
+    r = subprocess.run([python, os.path.join(project, "scripts", "export_policy.py"), zp, "--out", npz],
+                       cwd=project, capture_output=True, text=True, timeout=180)
+    if r.returncode != 0:
+        raise RuntimeError((r.stderr or r.stdout).strip().splitlines()[-1])
+    return npz
+
+
+def latest_model(project):
+    import glob
+    zs = glob.glob(os.path.join(project, "models", "live_*.zip"))
+    return max(zs, key=os.path.getmtime) if zs else None
 
 
 def _on_watch_change(self, context):
@@ -443,6 +506,10 @@ def tick():
             st["hello"] = m
         elif t == "bye":
             st["bye"] = m
+        elif t == "x" and st.get("pending_test"):           # el trainer exportó la generación actual
+            pt = st.pop("pending_test")
+            npz, stage = m["npz"], pt["stage"]
+            bpy.app.timers.register(lambda: start_test(npz, stage), first_interval=0.05)
     if frame:
         n = len(st["drones"])
         for i, d in enumerate(frame["d"][:n]):
@@ -657,6 +724,8 @@ def draw_hud():
     st = S()
     if "stats" not in st and not st.get("running") and not st.get("error"):
         return
+    if st.get("scene_name") and bpy.context.scene.name != st["scene_name"]:
+        return                                   # en la escena de prueba no se dibuja el HUD del laboratorio
     ctx = bpy.context
     region, area = ctx.region, ctx.area
     f = ctx.preferences.system.ui_scale              # escala de la pantalla (Retina = ~2)
@@ -675,7 +744,7 @@ def draw_hud():
     lines = [
         f"pasos {s.get('steps', 0):,}   episodios {s.get('eps', 0):,}   drones {p.get('drones', '-')}",
         f"éxito {s.get('succ', 0) * 100:5.1f} %    crash {s.get('crash', 0) * 100:5.1f} %    recompensa {s.get('rew', 0):6.1f}",
-        f"lr {p.get('lr', 0):.1e}   exploración {p.get('ent', 0):.3f}   velocidad {p.get('speed', '-')}"
+        f"lr {p.get('lr', 0):.1e}   σ {p.get('sigma', 0):.2f}   entropía {p.get('ent', 0):.3f}   velocidad {p.get('speed', '-')}"
         + ("   [PAUSA]" if p.get("paused") else ""),
     ]
     rw = p.get("reward", {})
@@ -777,6 +846,19 @@ class DroneLabProps(bpy.types.PropertyGroup):
     rw_smooth: bpy.props.FloatProperty(name="Castigo brusquedad", default=0.05, min=0, max=1, precision=3, update=_on_live_change)
     rw_tilt: bpy.props.FloatProperty(name="Castigo inclinación", default=0.01, min=0, max=1, precision=3, update=_on_live_change)
     rw_near: bpy.props.FloatProperty(name="Premio cerca (hover)", default=0.3, min=0, max=5, update=_on_live_change)
+    rw_clearance: bpy.props.FloatProperty(name="Castigo por cercanía", default=0.0, min=0, max=5, update=_on_live_change,
+                                          description="Castiga pasar a menos de 1.2 m de un obstáculo: lo siente ANTES de chocar")
+    sigma: bpy.props.FloatProperty(name="Exploración σ (ruido)", default=0.4, min=0.02, max=1.0, update=_on_sigma,
+                                   description="Cuánto ruido agrega PPO a las palancas para probar cosas nuevas. "
+                                               "Muy bajo = repite siempre lo mismo (no aprende a esquivar)")
+    # ---- probar el modelo ----
+    prueba_fuente: bpy.props.EnumProperty(name="Modelo", items=[
+        ("ACTUAL", "El del entrenamiento", "La generación actual (o el último modelo guardado)"),
+        ("ARCHIVO", "Un archivo .zip", "Un modelo guardado en models/")], default="ACTUAL")
+    prueba_zip: bpy.props.StringProperty(name="Archivo", subtype='FILE_PATH', default="")
+    prueba_tipo: bpy.props.EnumProperty(name="Escenario", items=[
+        ("3", "Una meta con columnas", ""), ("4", "Tres metas con columnas", ""),
+        ("2", "Una meta sin obstáculos", "")], default="3")
 
 
 class DRONELAB_OT_start(bpy.types.Operator):
@@ -821,7 +903,7 @@ class DRONELAB_OT_start(bpy.types.Operator):
                "--lr", repr(lp["lr"]), "--ent", repr(lp["ent"]), "--speed", lp["speed"],
                "--net", str(p.net), "--reward", json.dumps(lp["reward"]),
                "--port", str(TELE_PORT), "--ctrl-port", str(CTRL_PORT),
-               "--watch", str(min(p.watch, p.drones - 1))]
+               "--watch", str(min(p.watch, p.drones - 1)), "--log-std", repr(math.log(p.sigma))]
         if p.stage == "LEVEL" and p.level_path:
             cmd += ["--level", os.path.expanduser(bpy.path.abspath(p.level_path))]
         if p.init_model:
@@ -830,7 +912,7 @@ class DRONELAB_OT_start(bpy.types.Operator):
         proc = subprocess.Popen(cmd, cwd=project, stdout=open(log, "w"), stderr=subprocess.STDOUT,
                                 start_new_session=True)
         st.clear()
-        st.update(running=True, proc=proc, log=log, tele_sock=tele,
+        st.update(running=True, proc=proc, log=log, tele_sock=tele, scene_name=context.scene.name,
                   ctrl_sock=socket.socket(socket.AF_INET, socket.SOCK_DGRAM), started=time.time())
         build_scene(p, p.drones, stage)
         # ocultar el dron y la repetición anteriores para que no estorben
@@ -942,6 +1024,42 @@ class DRONELAB_OT_goto_watched(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class DRONELAB_OT_probar(bpy.types.Operator):
+    bl_idname = "dronelab.probar"
+    bl_label = "Probar en escenario aleatorio"
+    bl_description = ("Abre una simulación 3D con obstáculos y metas al azar, y el modelo vuela en vivo. "
+                      "El entrenamiento sigue corriendo de fondo")
+
+    def execute(self, context):
+        p = context.scene.drone_lab
+        st = S()
+        stage = int(p.prueba_tipo)
+        project, _ = _paths(p)
+        proc = st.get("proc")
+        try:
+            if p.prueba_fuente == "ACTUAL":
+                if proc and proc.poll() is None:
+                    st["pending_test"] = {"stage": stage}
+                    send_ctrl({"export": True})
+                    self.report({'INFO'}, "Exportando la generación actual…")
+                    return {'FINISHED'}
+                zp = (st.get("bye") or {}).get("model") or latest_model(project)
+                if not zp:
+                    self.report({'ERROR'}, "Todavía no hay modelo: inicia un entrenamiento o elige un archivo .zip")
+                    return {'CANCELLED'}
+            else:
+                zp = os.path.expanduser(bpy.path.abspath(p.prueba_zip))
+                if not os.path.isfile(zp):
+                    self.report({'ERROR'}, "Elige un archivo .zip de models/")
+                    return {'CANCELLED'}
+            npz = export_zip(p, zp)
+        except Exception as e:
+            self.report({'ERROR'}, f"No pude preparar el modelo: {e}")
+            return {'CANCELLED'}
+        start_test(npz, stage)
+        return {'FINISHED'}
+
+
 class DRONELAB_OT_clear(bpy.types.Operator):
     bl_idname = "dronelab.clear"
     bl_label = "Borrar drones de la escena"
@@ -1017,9 +1135,22 @@ class VIEW3D_PT_drone_lab(bpy.types.Panel):
         row.operator("dronelab.frame_view", icon='ZOOM_ALL')
 
         box = L.box()
+        box.label(text="Probar el modelo", icon='PLAY')
+        box.prop(p, "prueba_fuente", text="")
+        if p.prueba_fuente == "ARCHIVO":
+            box.prop(p, "prueba_zip")
+        box.prop(p, "prueba_tipo")
+        row = box.row()
+        row.scale_y = 1.5
+        row.operator("dronelab.probar", icon='WORLD')
+        if st.get("test_msg"):
+            box.label(text=st["test_msg"])
+
+        box = L.box()
         box.label(text="Aprendizaje (cambia en vivo)", icon='DRIVER')
         box.prop(p, "lr_log", slider=True)
         box.label(text=f"learning rate = {10 ** p.lr_log:.1e}")
+        box.prop(p, "sigma", slider=True)
         box.prop(p, "ent", slider=True)
         box.prop(p, "speed", expand=True)
 
@@ -1037,7 +1168,8 @@ class VIEW3D_PT_drone_lab(bpy.types.Panel):
 
 
 CLASSES = [DroneLabProps, DRONELAB_OT_start, DRONELAB_OT_stop, DRONELAB_OT_pause, DRONELAB_OT_save,
-           DRONELAB_OT_reset_rewards, DRONELAB_OT_frame_view, DRONELAB_OT_goto_watched, DRONELAB_OT_clear,
+           DRONELAB_OT_reset_rewards, DRONELAB_OT_frame_view, DRONELAB_OT_goto_watched, DRONELAB_OT_probar,
+           DRONELAB_OT_clear,
            VIEW3D_PT_drone_lab]
 
 

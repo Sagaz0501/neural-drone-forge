@@ -189,6 +189,10 @@ def draw_hud():
                   (0.8, 0.85, 0.9, 1)))
     if st.get("result"):
         lines.append((st["result"], 13, color))
+    if bpy.context.scene.get("es_prueba") and st.get("tally"):
+        t = st["tally"]
+        lines.append((f"pruebas en escenarios aleatorios:  llegó {t['llegó']}  ·  chocó {t['chocó']}  ·  "
+                      f"sin tiempo {t['tiempo']}", 12, (0.75, 0.85, 1, 1)))
     x, y = 24 * f, 30 * f + 22 * f * len(lines)
     for s, size, c in lines:
         blf.size(0, int(size * f))
@@ -270,22 +274,26 @@ class PILOTO_OT_volar(bpy.types.Operator):
         self.last = now
         self.acc += dt * float(context.scene.piloto_ia.velocidad)
         info = st["info"]
+        tmax = float(context.scene.get("tiempo_max", 120.0))
         while self.acc >= self.fl.dt and self.fl.phase in ("ruta", "aterrizaje"):
             info = self.fl.step()                  # sensores -> red -> física (1/50 s)
             self.acc -= self.fl.dt
-            if self.fl.t > 120:
+            if self.fl.t > tmax:
                 break
         st["info"] = info
         apply_pose(info, dt, self.spin)
         redraw()
-        if self.fl.phase not in ("ruta", "aterrizaje") or self.fl.t > 120:
-            return self.finish(context, result_text(self.fl))
+        if self.fl.phase not in ("ruta", "aterrizaje") or self.fl.t > tmax:
+            return self.finish(context, result_text(self.fl), self.fl.phase)
         return {'PASS_THROUGH'}
 
-    def finish(self, context, msg):
+    def finish(self, context, msg, phase=None):
         context.window_manager.event_timer_remove(self._timer)
         st = S()
         st.update(running=False, result=msg, stop=False)
+        if phase and context.scene.get("es_prueba"):          # marcador de la sesión de pruebas
+            t = st.setdefault("tally", {"llegó": 0, "chocó": 0, "tiempo": 0})
+            t["llegó" if phase == "aterrizado" else "chocó" if phase == "choque" else "tiempo"] += 1
         self.report({'INFO'}, msg)
         redraw()
         return {'FINISHED'}
@@ -426,6 +434,18 @@ class VIEW3D_PT_piloto_ia(bpy.types.Panel):
             col.operator("piloto.detener", icon='PAUSE')
         else:
             col.operator("piloto.volar", icon='PLAY')
+        if context.scene.get("es_prueba") and hasattr(bpy.types, "PRUEBA_OT_otro"):
+            box = L.box()
+            tipo = {2: "una meta, sin obstáculos", 3: "una meta con columnas", 4: "tres metas con columnas"}
+            box.label(text=f"Escenario aleatorio #{context.scene.get('prueba_seed', 0)}", icon='WORLD')
+            box.label(text=f"Tipo: {tipo.get(int(context.scene.get('prueba_stage', 3)), '')}")
+            col = box.column(align=True)
+            col.scale_y = 1.3
+            col.operator("prueba.otro", icon='FILE_REFRESH')
+            col.operator("prueba.volver", icon='BACK')
+            t = st.get("tally")
+            if t:
+                box.label(text=f"Llegó {t['llegó']} · chocó {t['chocó']} · sin tiempo {t['tiempo']}")
         L.operator("piloto.grabar", icon='REC')
         L.operator("piloto.reiniciar", icon='LOOP_BACK')
         if st.get("result"):

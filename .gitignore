@@ -13,3 +13,4 @@ models/hover_progress/
 models/live_*.zip
 live_train.log
 install.log
+models/prueba_*.npz

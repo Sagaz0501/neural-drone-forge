@@ -9,8 +9,10 @@ se puede correr a mano y mirar desde Blender:
 Protocolo (UDP en localhost, mensajes JSON, como telemetría de un dron real):
     trainer -> Blender  :9001   "h" hola + misión · "f" posiciones · "l" nivel de un dron · "s" estadísticas
                                 "a" activaciones de la red del dron observado · "w" conexiones más fuertes
-    Blender -> trainer  :9002   {"lr":…, "ent":…, "reward":{…}, "speed":"real|rapido", "pause":bool,
-                                 "watch": i, "save":true, "stop":true}
+    Blender -> trainer  :9002   {"lr":…, "ent":…, "log_std":…, "reward":{…}, "speed":"real|rapido", "pause":bool,
+                                 "watch": i, "save":true, "export":true, "stop":true}
+    "export": guarda el modelo actual y lo pasa a numpy (.npz) para probarlo en un escenario de Blender;
+              responde con {"t": "x", "npz": ruta}.
 
 Cada GENERACIÓN = un ciclo de PPO:
     1. VOLAR:     los N drones vuelan n_steps pasos con la red actual (juntan experiencia)
@@ -26,6 +28,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "scripts"))
 
 import numpy as np
 import torch
@@ -100,7 +103,8 @@ class LiveLink(BaseCallback):
                    "spheres": [r3(c) + [round(float(r), 3)] for c, r in zip(lv.sph_c, lv.sph_r)]})
 
     def params(self):
-        return {"lr": self.lr, "ent": self.ent, "reward": self.reward, "speed": self.speed,
+        sigma = float(torch.exp(self.model.policy.log_std.detach()).mean()) if getattr(self, "model", None) is not None else 0.0
+        return {"lr": self.lr, "ent": self.ent, "sigma": round(sigma, 3), "reward": self.reward, "speed": self.speed,
                 "drones": self.args.drones, "stage": self.args.stage, "paused": self.paused}
 
     def send_stats(self):
@@ -170,6 +174,9 @@ class LiveLink(BaseCallback):
                 self.model.lr_schedule = _Const(self.lr)
                 for g in self.model.policy.optimizer.param_groups:
                     g["lr"] = self.lr
+            if "log_std" in m:
+                with torch.no_grad():
+                    self.model.policy.log_std.fill_(float(m["log_std"]))   # ruido de exploración
             if "ent" in m:
                 self.ent = float(m["ent"])
                 self.model.ent_coef = self.ent
@@ -188,6 +195,14 @@ class LiveLink(BaseCallback):
                 p = self.save_path.with_name(self.save_path.stem + f"_gen{self.gen}.zip")
                 self.model.save(p)
                 self.msg = f"Modelo guardado: models/{p.name}"
+            if m.get("export"):
+                from export_policy import export
+                zp = self.save_path.with_name(self.save_path.stem + f"_gen{self.gen}.zip")
+                self.model.save(zp)
+                npz = ROOT / "models" / "prueba_actual.npz"
+                export(zp, npz)
+                self.msg = f"Generación {self.gen} lista para probar"
+                self.send({"t": "x", "npz": str(npz), "zip": str(zp), "gen": self.gen})
             if m.get("stop"):
                 self.stop = True
         if changed:
@@ -282,6 +297,7 @@ def main():
     ap.add_argument("--ctrl-port", type=int, default=9002)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--watch", type=int, default=0, help="dron cuya red neuronal se manda a Blender")
+    ap.add_argument("--log-std", type=float, default=None, help="ruido de exploración inicial (log σ)")
     args = ap.parse_args()
 
     reward = dict(DEFAULT_REWARD)
@@ -308,6 +324,9 @@ def main():
                     n_steps=n_steps, batch_size=batch, n_epochs=10, learning_rate=args.lr,
                     gamma=0.99, gae_lambda=0.95, clip_range=0.2, ent_coef=args.ent, seed=args.seed, verbose=0)
 
+    if args.log_std is not None:
+        with torch.no_grad():
+            model.policy.log_std.fill_(args.log_std)
     link = LiveLink(args, reward, save_path)
     print(f"Drone Lab: {n} drones · nivel {name} · {n_steps} pasos por dron por generación", flush=True)
     try:
