@@ -7,11 +7,14 @@ Trayectoria JSON (scripts/evaluate.py) -> animación en Blender.   (Text Editor,
 """
 import json
 import math
+from pathlib import Path
 
 import bpy
 from mathutils import Vector
 
-TRAJ_PATH = r""        # ej: r"C:\Users\santi\drone-rl\trajectories\stage3_stage3_ep0.json"
+# Puede ser: el nombre de un archivo en trajectories/ del repo, una ruta absoluta,
+# o el nombre de un bloque de texto de Blender que contenga el JSON.
+TRAJ_PATH = r"demo_circuito_nivel2.json"
 
 sc = bpy.context.scene
 S = sc.unit_settings.scale_length or 1.0
@@ -57,10 +60,25 @@ def rebuild_level(level):
         o.data.materials.append(gmat)
 
 
+def read_traj(name):
+    """Busca la trayectoria: bloque de texto, ruta absoluta, o trajectories/ del repo."""
+    if name in bpy.data.texts:
+        return bpy.data.texts[name].as_string()
+    cands = [Path(bpy.path.abspath(name))]
+    me = next((t for t in bpy.data.texts if t.name.startswith("import_trajectory") and t.filepath), None)
+    if me:                                           # el script se abrió desde el repo
+        repo = Path(bpy.path.abspath(me.filepath)).resolve().parents[1]
+        cands += [repo / "trajectories" / name, repo / name]
+    for c in cands:
+        if c.is_file():
+            return c.read_text()
+    raise FileNotFoundError(f"No encontré {name}. Usa una ruta absoluta en TRAJ_PATH.")
+
+
 def main():
     if not TRAJ_PATH:
         raise RuntimeError("Pon la ruta del JSON en TRAJ_PATH (arriba del script)")
-    data = json.loads(open(TRAJ_PATH).read())
+    data = json.loads(read_traj(TRAJ_PATH))
     root = bpy.data.objects.get("Drone_Root")
     if root is None:
         raise RuntimeError("No existe Drone_Root: corre primero blender/drone_sim.py una vez (crea el padre del frame)")
