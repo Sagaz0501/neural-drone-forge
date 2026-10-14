@@ -736,7 +736,22 @@ CLASSES = [DroneLabProps, DRONELAB_OT_start, DRONELAB_OT_stop, DRONELAB_OT_pause
            DRONELAB_OT_reset_rewards, DRONELAB_OT_frame_view, DRONELAB_OT_clear, VIEW3D_PT_drone_lab]
 
 
+def _shutdown_trainer():
+    """Al cerrar Blender: pedir al trainer que guarde y termine (si no, seguiría en segundo plano)."""
+    st = S()
+    proc = st.get("proc")
+    if proc and proc.poll() is None:
+        send_ctrl({"stop": True})
+        try:
+            proc.wait(timeout=8)
+        except Exception:
+            proc.terminate()
+
+
 def register():
+    import atexit
+    atexit.unregister(_shutdown_trainer)
+    atexit.register(_shutdown_trainer)
     for c in CLASSES:
         old = getattr(bpy.types, c.__name__, None)
         if old is not None:
