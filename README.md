@@ -291,11 +291,17 @@ En Drone Lab dale **Jugar en el navegador**, o en la terminal `python scripts/ju
    ves *las manos de la IA*: las dos palancas de un control de radio, moviéndose como las mueve la
    red. Abajo a la derecha ves sus 10 sensores. Con **N** ves el cerebro (24 entradas, 128 + 128
    neuronas, 4 palancas).
-4. **Pilotear yo.** El mismo dron y la misma física, con las flechas (gas y giro) y WASD (avance y
-   lado), o con un control en modo 2.
+4. **Pilotear yo.** El mismo dron y la misma física. Las flechas son la palanca izquierda (altura y
+   giro) y WASD la derecha (moverse), o un control de videojuego en modo 2 o modo 1. Sin aros es
+   **vuelo libre**. En **Controles** (tecla H) están las ayudas *mantener altura* (despega solo a
+   1,2 m) y *frenar solo* (al soltar se queda quieto, como un dron con GPS), además de sensibilidad,
+   suavizado y la inclinación y el campo de visión de la cámara FPV. Cada ruta guarda tu mejor tiempo
+   y el de la IA.
 
-Teclas al volar: **C** cambia la cámara (persecución, FPV, libre, desde arriba), **R** otra vez,
-**E** editar la ruta, **+/−** velocidad, **P** pausa, **Esc** menú.
+Cámaras (teclas 1 a 6, o C para pasar a la siguiente): **persecución**; **FPV** (la cámara del dron,
+inclinada hacia arriba como en los drones de carreras, con horizonte artificial); **piloto** (parado
+en la salida, con zoom que lo sigue); **cine** (gira alrededor del dron); **arriba**; y **libre**.
+Además: **R** otra vez, **E** editar la ruta, **+/−** velocidad, **P** pausa, **Esc** menú.
 
 Cada vez que le das Volar, el juego vuelve a leer el modelo. Si estás entrenando, vuela con la última
 generación guardada.

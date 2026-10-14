@@ -7,6 +7,7 @@ import { OrbitControls } from "three/addons/OrbitControls.js";
 import { Level, Policy, Flight, rayDirsWorld, RAY_LEN, CONTROL_HZ } from "./sim.js";
 import { WORLDS, forestWorld, columnsWorld, fieldWorld, warehouseWorld, levelDict, treeBlocks } from "./worlds.js";
 import { V, makeMaterials, makeSky, makeLights, WorldView, RouteView, makeDrone, poseDrone, Rays, Trail } from "./scene.js";
+import { DEFAULT_CTL, ManualPilot, readGamepad } from "./pilot.js";
 
 const $ = (id) => document.getElementById(id);
 const fmt = (x, d = 1) => x.toFixed(d).replace(".", ",");
@@ -22,7 +23,9 @@ const S = {
   policy: null, meta: null, modelSource: null,
   flight: null, pilot: "ia", speed: 1, paused: false, cam: "persecucion", ended: false, acc: 0, limit: 60,
   tally: { ok: 0, n: 0 }, showBrain: false, bodega: null,
+  ctl: { ...DEFAULT_CTL, ...store.get("ctl", {}) }, records: store.get("records", {}), cineAng: 0,
 };
+S.cam = store.get("cam", "persecucion");
 
 // ---------------- Three.js ----------------
 const canvas = $("c");
@@ -252,7 +255,7 @@ function renderRouteList() {
     : "No hay aros. Haz clic en el suelo para poner el primero.";
   $("fly-ai").disabled = !S.goals.length || !S.policy;
   $("fly-ai").title = !S.policy ? "Todavía no hay modelo" : "";
-  $("fly-me").disabled = !S.goals.length;
+  $("fly-me").textContent = S.goals.length ? "Pilotear yo" : "Vuelo libre";
 }
 function updateRoute() {
   clearForGoals();
@@ -314,6 +317,8 @@ function editorSetup() {
   $("fly-ai").onclick = () => startFlight("ia");
   $("fly-me").onclick = () => startFlight("yo");
   $("to-menu").onclick = () => setMode("menu");
+  for (const id of ["open-ctl-menu", "open-ctl-edit", "open-ctl-hud"]) $(id).onclick = () => openControls(true);
+  for (const b of $("cams").querySelectorAll("button[data-c]")) b.onclick = () => setCam(b.dataset.c);
   $("again").onclick = () => startFlight(S.pilot);
   $("swap").onclick = () => startFlight(S.pilot === "ia" ? "yo" : "ia");
   $("edit").onclick = () => setMode("editor");
@@ -322,6 +327,7 @@ function editorSetup() {
 // ---------------- modos ----------------
 function setMode(m) {
   S.mode = m;
+  drone.visible = true;
   $("menu").classList.toggle("hidden", m !== "menu");
   for (const id of ["editor-top", "route", "editor-hint", "editor-bottom"]) $(id).classList.toggle("hidden", m !== "editor");
   $("hud").classList.toggle("hidden", m !== "vuelo");
@@ -347,20 +353,21 @@ window.addEventListener("keydown", (e) => {
   if (e.target.tagName === "INPUT") return;
   keys.add(e.code);
   if (S.mode === "vuelo") {
+    if (!$("controls").classList.contains("hidden")) { if (e.code === "Escape" || e.code === "KeyH") openControls(false); return; }
     if (e.code === "KeyC") cycleCam();
-    if (e.code === "Digit1") setCam("persecucion");
-    if (e.code === "Digit2") setCam("fpv");
-    if (e.code === "Digit3") setCam("libre");
-    if (e.code === "Digit4") setCam("arriba");
+    const dk = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3, Digit5: 4, Digit6: 5 }[e.code];
+    if (dk !== undefined) setCam(CAMS[dk]);
+    if (e.code === "KeyH") openControls(true);
     if (e.code === "KeyR") startFlight(S.pilot);
     if (e.code === "KeyE") setMode("editor");
     if (e.code === "KeyN") { S.showBrain = !S.showBrain; $("brain").classList.toggle("hidden", !S.showBrain || S.pilot !== "ia"); }
-    if (e.code === "KeyP") S.paused = !S.paused;
+    if (e.code === "KeyP") { S.pausedByUser = !S.pausedByUser; S.paused = S.pausedByUser; }
     if (e.key === "+" || e.code === "Equal" || e.code === "NumpadAdd") changeSpeed(1);
     if (e.key === "-" || e.code === "Minus" || e.code === "NumpadSubtract") changeSpeed(-1);
     if (e.code === "Escape") setMode("menu");
     if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].includes(e.code)) e.preventDefault();
   } else if (S.mode === "editor") {
+    if (!$("controls").classList.contains("hidden")) { if (e.code === "Escape") openControls(false); return; }
     if ((e.metaKey || e.ctrlKey) && e.code === "KeyZ") $("undo").click();
     if (e.code === "Escape") setMode("menu");
     if (e.code === "Enter" && !$("fly-ai").disabled) startFlight("ia");
@@ -376,34 +383,79 @@ function changeSpeed(d) {
   S.speed = SPEEDS[i];
   toast(`Velocidad x${fmt(S.speed, S.speed < 1 ? 2 : 0)}`, 1200);
 }
-const CAMS = ["persecucion", "fpv", "libre", "arriba"];
-const CAM_NAMES = { persecucion: "persecución", fpv: "FPV (la cámara del dron)", libre: "libre (arrastra para girar)", arriba: "desde arriba" };
-function setCam(c) {
+const CAMS = ["persecucion", "fpv", "piloto", "cine", "arriba", "libre"];
+const CAM_NAMES = { persecucion: "persecución", fpv: "FPV: la cámara del dron", piloto: "piloto: como si estuvieras parado en la salida",
+  cine: "cine: gira alrededor del dron", arriba: "desde arriba", libre: "libre: arrastra para girar" };
+function setCam(c, quiet = false) {
   S.cam = c;
-  controls.enabled = c === "libre";
-  camera.fov = c === "fpv" ? 100 : 62;
+  store.set("cam", c);
+  controls.enabled = c === "libre" && S.mode === "vuelo";
+  camera.fov = c === "fpv" ? S.ctl.fpvFov : 62;
   camera.updateProjectionMatrix();
-  if (c === "libre") controls.target.copy(drone.position);
-  toast(`Cámara ${CAM_NAMES[c]}`, 1200);
+  if (c === "libre") {
+    controls.target.copy(drone.position);
+    camera.position.copy(drone.position).add(new THREE.Vector3(-3, 2.2, 3));
+  }
+  for (const b of $("cams").querySelectorAll("button[data-c]")) b.setAttribute("aria-pressed", String(b.dataset.c === c));
+  if (!quiet) toast(`Cámara ${CAM_NAMES[c]}`, 1300);
 }
 const cycleCam = () => setCam(CAMS[(CAMS.indexOf(S.cam) + 1) % CAMS.length]);
 
-/** Tus manos: flechas = gas y giro (palanca izquierda), WASD = avance y lado (palanca derecha). */
-function manualAction() {
-  let gas = (keys.has("ArrowUp") ? 0.45 : 0) - (keys.has("ArrowDown") ? 0.45 : 0);
-  let yaw = (keys.has("ArrowLeft") ? 0.85 : 0) - (keys.has("ArrowRight") ? 0.85 : 0);
-  let pitch = (keys.has("KeyW") ? 0.55 : 0) - (keys.has("KeyS") ? 0.55 : 0);
-  let roll = (keys.has("KeyD") ? 0.55 : 0) - (keys.has("KeyA") ? 0.55 : 0);
-  const gp = navigator.getGamepads?.()[0];
-  if (gp && gp.axes.length >= 4) {                                  // control en modo 2
-    const dz = (v) => (Math.abs(v) < 0.08 ? 0 : v);
-    gas += -dz(gp.axes[1]); yaw += -dz(gp.axes[0]); roll += dz(gp.axes[2]); pitch += -dz(gp.axes[3]);
-  }
-  return [gas, roll, pitch, yaw].map((v) => Math.max(-1, Math.min(1, v)));
+/** Tus manos: flechas = altura y giro (palanca izquierda), WASD = moverse (palanca derecha), o un control. */
+const manual = new ManualPilot(S.ctl, keys);
+
+// ---------------- panel de controles ----------------
+function openControls(open) {
+  $("controls").classList.toggle("hidden", !open);
+  if (S.mode === "vuelo") S.paused = open || S.pausedByUser;
+  if (open) syncControls();
+}
+function syncControls() {
+  const c = S.ctl;
+  $("ctl-alt").checked = c.altHold;
+  $("ctl-brake").checked = c.brake;
+  $("ctl-sens").value = c.sens; $("o-sens").textContent = `${Math.round(c.sens * 100)} %`;
+  $("ctl-smooth").value = c.smooth; $("o-smooth").textContent = `${Math.round(c.smooth * 100)} %`;
+  $("ctl-tilt").value = c.fpvTilt; $("o-tilt").textContent = `${c.fpvTilt}°`;
+  $("ctl-fov").value = c.fpvFov; $("o-fov").textContent = `${c.fpvFov}°`;
+  for (const b of $("ctl-mode").children) b.setAttribute("aria-pressed", String(+b.dataset.m === c.mode));
+  $("ctl-left-help").textContent = c.altHold
+    ? "↑ ↓ suben o bajan la altura que el dron mantiene. ← → lo hacen girar sobre sí mismo."
+    : "↑ ↓ son el gas directo: al soltar, el dron sigue subiendo o bajando a la misma velocidad. ← → giran.";
+  const gp = readGamepad();
+  $("pad-status").innerHTML = gp ? `<b>Control conectado</b> (${gp.id.split("(")[0].trim().slice(0, 40)})` :
+    "Conecta un control (Xbox, PlayStation…) y mueve una palanca.";
+}
+function controlsSetup() {
+  const save = () => { store.set("ctl", S.ctl); syncControls(); };
+  $("ctl-alt").onchange = (e) => { S.ctl.altHold = e.target.checked; save(); };
+  $("ctl-brake").onchange = (e) => { S.ctl.brake = e.target.checked; save(); };
+  $("ctl-sens").oninput = (e) => { S.ctl.sens = +e.target.value; save(); };
+  $("ctl-smooth").oninput = (e) => { S.ctl.smooth = +e.target.value; save(); };
+  $("ctl-tilt").oninput = (e) => { S.ctl.fpvTilt = +e.target.value; save(); };
+  $("ctl-fov").oninput = (e) => { S.ctl.fpvFov = +e.target.value; save(); if (S.cam === "fpv") setCam("fpv", true); };
+  for (const b of $("ctl-mode").children) b.onclick = () => { S.ctl.mode = +b.dataset.m; save(); };
+  $("ctl-done").onclick = () => openControls(false);
+  $("ctl-reset").onclick = () => { Object.assign(S.ctl, DEFAULT_CTL); save(); };
+  window.addEventListener("gamepadconnected", (e) => { toast(`Control conectado: ${e.gamepad.id.split("(")[0].trim().slice(0, 40)}`); syncControls(); });
+  window.addEventListener("gamepaddisconnected", () => { toast("Se desconectó el control"); syncControls(); });
+}
+
+// botones del control: A = otra vez, B = cámara, Start = pausa
+let padPrev = [];
+function pollPadButtons() {
+  const gp = readGamepad();
+  if (!gp || S.mode !== "vuelo") { padPrev = []; return; }
+  const now = gp.buttons.map((b) => b.pressed);
+  const hit = (i) => now[i] && !padPrev[i];
+  if (hit(0) && S.ended) startFlight(S.pilot);
+  if (hit(1)) cycleCam();
+  if (hit(9)) { S.pausedByUser = !S.pausedByUser; S.paused = S.pausedByUser; }
+  padPrev = now;
 }
 
 async function startFlight(pilot) {
-  if (!S.goals.length) { toast("Pon al menos un aro"); return; }
+  if (!S.goals.length && pilot === "ia") { toast("Pon al menos un aro"); return; }
   if (pilot === "ia") {
     await loadModel(true);                    // siempre la última generación guardada
     if (!S.policy) { toast("Todavía no hay modelo: entrena en Drone Lab"); return; }
@@ -411,14 +463,18 @@ async function startFlight(pilot) {
   S.pilot = pilot;
   const L = new Level(levelDict(S.world, S.goals));
   const last = S.goals[S.goals.length - 1];
+  manual.reset();
   S.flight = new Flight(L, S.policy, {
     landOn: pilot === "ia" ? [last[0], last[1], 0] : null, wind: S.wind, seed: Math.floor(Math.random() * 1e9),
-    pilot: pilot === "ia" ? "ia" : manualAction,
+    pilot: pilot === "ia" ? "ia" : (s) => manual.act(s),
   }).reset();
-  S.limit = Math.min(15 + 8 * S.goals.length, 150);
-  S.ended = false; S.paused = false; S.acc = 0;
+  S.free = !S.goals.length;
+  S.limit = S.free ? Infinity : pilot === "ia" ? Math.min(15 + 8 * S.goals.length, 150) : Math.min(40 + 15 * S.goals.length, 300);
+  S.ended = false; S.paused = false; S.pausedByUser = false; S.acc = 0; S.cineAng = S.flight.state.yaw + Math.PI * 0.75;
   S.prev = snap(S.flight.state);
   S.radioHist = [];
+  S.ringTime = undefined;
+  drone.visible = true;
   trail.reset();
   rays.lines.visible = true;
   route.set(S.world.spawn, S.goals, pilot === "ia");
@@ -430,8 +486,12 @@ async function startFlight(pilot) {
   $("swap").textContent = pilot === "ia" ? "Pilotear yo" : "Que vuele la IA";
   $("swap").disabled = pilot !== "ia" && !S.policy;
   $("keys").textContent = pilot === "ia"
-    ? "C cámara, R otra vez, E editar la ruta, N cerebro, + y − velocidad, P pausa, Esc menú"
-    : "Flechas: gas y giro. WASD: avance y lado. C cámara, R otra vez, E editar, Esc menú";
+    ? "R otra vez, E editar la ruta, N cerebro, + y − velocidad, P pausa, Esc menú"
+    : `Flechas: ${S.ctl.altHold ? "altura" : "gas"} y giro. WASD: moverte. R otra vez, E editar, P pausa, Esc menú`;
+  setCam(S.cam, true);
+  openControls(false);
+  if (pilot !== "ia") toast(S.ctl.altHold ? "Despegando solo a 1,2 m. Usa WASD para moverte y ← → para girar." :
+    "Gas directo: ↑ para despegar.", 3500);
   const fl = S.flight;
   const g = S.goals[0];
   camera.position.copy(V(fl.state.pos[0] - Math.cos(fl.state.yaw) * 3, fl.state.pos[1] - Math.sin(fl.state.yaw) * 3, 1.4));
@@ -440,12 +500,15 @@ async function startFlight(pilot) {
 }
 
 const snap = (s) => ({ pos: s.pos.slice(), roll: s.roll, pitch: s.pitch, yaw: s.yaw });
+const routeKey = () => `${S.world.kind}|${S.world.kind === "bosque" || S.world.kind === "columnas" ? S.seed + "|" + S.density : ""}|` +
+  S.world.spawn.map((v) => v.toFixed(1)).join(",") + "|" + S.goals.map((g) => g.map((v) => v.toFixed(1)).join(",")).join(";");
 
 const WHAT = { bosque: "un árbol", columnas: "una columna", bodega: "algo de la bodega", campo: "un obstáculo" };
 function endFlight() {
   S.ended = true;
-  const fl = S.flight, n = S.goals.length, done = fl.goalIdx >= n;
+  const fl = S.flight, n = S.goals.length, done = n > 0 && fl.goalIdx >= n;
   const h = $("res-h"), p = $("res-p");
+  $("res-rec").textContent = "";
   const vmed = fl.t > 0 ? (S.pathLen || 0) / fl.t : 0;
   if (done) {
     h.textContent = fl.phase === "aterrizado" ? "¡Llegó!" : `¡Pasó los ${n} aros!`;
@@ -457,7 +520,8 @@ function endFlight() {
     h.textContent = fl.reason === "limites" ? "Se salió del área" : "Chocó";
     h.className = "bad";
     const contra = fl.reason === "suelo" ? "el suelo" : fl.reason === "limites" ? "el límite de 30 m" : WHAT[S.world.kind];
-    p.textContent = `Contra ${contra} yendo al aro ${fl.goalIdx + 1}, a los ${fmt(fl.t)} s.`;
+    p.textContent = S.free ? `Contra ${contra}, después de ${fmt(fl.t)} s de vuelo libre.`
+      : `Contra ${contra} yendo al aro ${fl.goalIdx + 1}, a los ${fmt(fl.t)} s.`;
   } else {
     h.textContent = "Se acabó el tiempo";
     h.className = "bad";
@@ -467,6 +531,20 @@ function endFlight() {
     S.tally.n++;
     if (done) S.tally.ok++;
     p.textContent += ` En esta sesión la IA llegó en ${S.tally.ok} de ${S.tally.n} vuelos.`;
+  }
+  // récords de esta ruta: tú contra la IA (tiempo hasta el último aro)
+  if (n) {
+    const key = routeKey();
+    const r = S.records[key] || {};
+    const who = S.pilot === "ia" ? "ia" : "yo";
+    if (done) {
+      const tt = S.ringTime ?? fl.t;
+      if (!r[who] || tt < r[who]) { r[who] = tt; S.records[key] = r; store.set("records", S.records); }
+    }
+    const parts = [];
+    if (r.yo) parts.push(`tu mejor tiempo ${fmt(r.yo)} s`);
+    if (r.ia) parts.push(`la IA ${fmt(r.ia)} s`);
+    if (parts.length) $("res-rec").textContent = "En esta ruta: " + parts.join(", ") + ".";
   }
   $("result").classList.remove("hidden");
 }
@@ -558,6 +636,40 @@ function drawBrain(fl) {
   });
 }
 
+/** FPV: horizonte artificial y mira, como el OSD de un dron de carreras. */
+function drawOSD(fl) {
+  const c = $("osd-c");
+  const W = window.innerWidth, H = window.innerHeight, dpr = Math.min(window.devicePixelRatio, 2);
+  if (c.width !== W * dpr) { c.width = W * dpr; c.height = H * dpr; }
+  const g = c.getContext("2d");
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, W, H);
+  if (S.cam !== "fpv") return;
+  const s = fl.state, cx = W / 2, cy = H / 2;
+  const f = (H / 2) / Math.tan((camera.fov * Math.PI) / 360);         // píxeles por unidad de tan(ángulo)
+  const elev = (S.ctl.fpvTilt * Math.PI) / 180 - s.pitch;             // cuánto mira la cámara hacia arriba
+  const yAt = (deg) => f * Math.tan(elev - (deg * Math.PI) / 180);    // dónde se ve una línea a "deg" sobre el horizonte
+  g.save();
+  g.translate(cx, cy);
+  g.rotate(-s.roll);
+  g.strokeStyle = "rgba(255,255,255,0.85)";
+  g.lineWidth = 2;
+  g.shadowColor = "rgba(0,0,0,0.8)";
+  g.shadowBlur = 3;
+  const y0 = yAt(0);
+  g.beginPath(); g.moveTo(-170, y0); g.lineTo(-40, y0); g.moveTo(40, y0); g.lineTo(170, y0); g.stroke();
+  g.globalAlpha = 0.5;
+  for (const d of [-20, -10, 10, 20]) {                              // marcas cada 10°
+    const y = yAt(d);
+    g.beginPath(); g.moveTo(-60, y); g.lineTo(-30, y); g.moveTo(30, y); g.lineTo(60, y); g.stroke();
+  }
+  g.restore();
+  g.strokeStyle = "rgba(255,122,26,0.95)";
+  g.lineWidth = 2;
+  g.beginPath(); g.moveTo(cx - 14, cy); g.lineTo(cx - 5, cy); g.moveTo(cx + 5, cy); g.lineTo(cx + 14, cy);
+  g.moveTo(cx, cy - 4); g.lineTo(cx, cy + 4); g.stroke();
+}
+
 let pathPrev = null;
 function hud(fl, now) {
   const s = fl.state, n = S.goals.length;
@@ -566,10 +678,11 @@ function hud(fl, now) {
   const w = fl.windNow ? Math.hypot(fl.windNow[0], fl.windNow[1]) : 0;
   $("sub").innerHTML = `${fmt(spd)} m/s<br>altura ${fmt(s.pos[2])} m${w > 0.05 ? `<br>viento ${fmt(w)} m/s` : ""}` +
     `${S.speed !== 1 ? `<br>x${fmt(S.speed, S.speed < 1 ? 2 : 0)}` : ""}${S.paused ? "<br>pausa" : ""}`;
-  $("ring-txt").textContent = fl.phase === "aterrizaje" ? "Aterrizando" : `Aro ${Math.min(fl.goalIdx + 1, n)} de ${n}`;
+  $("ring-txt").textContent = S.free ? "Vuelo libre" : fl.phase === "aterrizaje" ? "Aterrizando" : `Aro ${Math.min(fl.goalIdx + 1, n)} de ${n}`;
   $("time-txt").textContent = `${fmt(fl.t)} s`;
   drawRadio(fl.action);
   drawRadar(fl.rays);
+  drawOSD(fl);
   if (S.showBrain && S.pilot === "ia") drawBrain(fl);
 }
 
@@ -585,7 +698,11 @@ function updateCamera(dt, pos, yaw) {
     camera.lookAt(V(c[0], c[1], 1.5));
     return;
   }
-  if (S.mode === "editor") { controls.update(); return; }
+  if (S.mode === "editor") {
+    if (camera.fov !== 62) { camera.fov = 62; camera.updateProjectionMatrix(); }
+    controls.update();
+    return;
+  }
   if (S.cam === "persecucion") {
     const forest = S.world.kind === "bosque";
     let back = forest ? 2.6 : 3.2, up = forest ? 0.55 : 1.2;
@@ -597,10 +714,33 @@ function updateCamera(dt, pos, yaw) {
     camera.position.lerp(want, free < L ? Math.max(k, 0.5) : k);
     camera.lookAt(V(pos[0] + Math.cos(yaw) * 1.5, pos[1] + Math.sin(yaw) * 1.5, pos[2] + 0.2));
   } else if (S.cam === "fpv") {
-    camera.position.copy(p).add(new THREE.Vector3(0, 0.03, 0));
     drone.updateMatrixWorld();
     drone.getWorldQuaternion(tmpQ);
+    const fwd = new THREE.Vector3(0.07, 0.035, 0).applyQuaternion(tmpQ);           // la cámara va adelante y arriba
+    camera.position.copy(p).add(fwd);
+    FPV_Q.setFromEuler(new THREE.Euler((S.ctl.fpvTilt * Math.PI) / 180, -Math.PI / 2, 0, "YXZ"));
     camera.quaternion.copy(tmpQ).multiply(FPV_Q);
+  } else if (S.cam === "piloto") {
+    // parado detrás de la salida, a la altura de los ojos, siguiendo al dron con "zoom"
+    const sp = S.world.spawn, g0 = S.goals[0] || [sp[0] + 1, sp[1], 1];
+    const a = Math.atan2(g0[1] - sp[1], g0[0] - sp[0]);
+    const eye = V(sp[0] - Math.cos(a) * 2.5 + Math.sin(a) * 1.0, sp[1] - Math.sin(a) * 2.5 - Math.cos(a) * 1.0, 1.7);
+    camera.position.copy(eye);
+    const dist = Math.max(eye.distanceTo(p), 0.5);
+    const fov = THREE.MathUtils.clamp((2 * Math.atan(2.4 / dist) * 180) / Math.PI, 14, 62);
+    camera.fov += (fov - camera.fov) * k;
+    camera.updateProjectionMatrix();
+    S.lookAt = (S.lookAt || p.clone()).lerp(p, Math.min(1, 8 * dt));
+    camera.lookAt(S.lookAt);
+  } else if (S.cam === "cine") {
+    // da vueltas lentas alrededor del dron (y se acerca si un árbol estorba)
+    S.cineAng += 0.32 * dt;
+    let r = 4.2, up = 1.3;
+    const L = Math.hypot(r, up), dir = [Math.cos(S.cineAng) * r / L, Math.sin(S.cineAng) * r / L, up / L];
+    const free = S.flight.level.raycast(pos, [dir], L)[0];
+    if (free < L) { const f = Math.max((free - 0.35) / L, 0.2); r *= f; up *= f; }
+    camera.position.lerp(V(pos[0] + Math.cos(S.cineAng) * r, pos[1] + Math.sin(S.cineAng) * r, pos[2] + up), Math.max(k, 0.25));
+    camera.lookAt(p);
   } else if (S.cam === "libre") {
     const off = camera.position.clone().sub(controls.target);
     controls.target.lerp(p, 0.3);
@@ -636,6 +776,7 @@ function frame(now) {
         n++;
         if (n % 2 === 0) trail.push(fl.state.pos);
         route.color(fl.goalIdx);
+        if (fl.goalIdx >= S.goals.length && S.goals.length && S.ringTime === undefined) S.ringTime = fl.t;
         const over = fl.phase !== "ruta" && fl.phase !== "aterrizaje";
         if (over || fl.t >= S.limit) { endFlight(); break; }
       }
@@ -653,7 +794,10 @@ function frame(now) {
       pr.userData.blade.visible = s.throttle < 0.3 || S.paused;
     }
     rays.update(pos, rayDirsWorld(yaw), fl.rays, RAY_LEN);
+    drone.visible = S.cam !== "fpv";
+    rays.lines.visible = S.cam !== "fpv";
     hud(fl, now);
+    pollPadButtons();
   } else {
     yaw = S.world ? firstYaw() : 0;
   }
@@ -671,6 +815,7 @@ function frame(now) {
 applyQuality();
 buildMenu();
 editorSetup();
+controlsSetup();
 await buildWorld();
 await loadModel();
 setMode("menu");
