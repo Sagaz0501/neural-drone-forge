@@ -228,6 +228,7 @@ def build(stage=3, seed=None, model_npz=None, return_scene=None):
         lc.hide_viewport = True
 
     sc["prueba_stage"] = stage
+    sc["cam_atras"], sc["cam_arriba"] = 3.2, 1.7         # cámara de persecución más alta: ver los obstáculos
     sc["tiempo_max"] = {2: 20.0, 3: 30.0, 4: 45.0}.get(stage, 45.0)
     sc["prueba_seed"] = seed
     if return_scene:

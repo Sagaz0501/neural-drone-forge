@@ -117,13 +117,15 @@ def apply_pose(info, dt, spin_state):
             h.rotation_euler.z = spin_state["a"] * (1 if i % 2 else -1)
         disc = bpy.data.objects.get(f"Disco_{i}")
         if disc:
-            disc.hide_viewport = disc.hide_render = info["throttle"] < 0.05
+            disc.hide_viewport = disc.hide_render = bool(info["throttle"] < 0.05)
     # cámara de persecución: detrás y arriba del dron, con suavizado
     cam, tgt = bpy.data.objects.get("Cam_Persecucion"), bpy.data.objects.get("Cam_Objetivo")
     if cam and tgt:
         yaw = info["rot"][2]
         p = Vector(info["pos"])
-        want = p + Vector((-math.cos(yaw) * 2.2, -math.sin(yaw) * 2.2, 0.9))
+        back = float(bpy.context.scene.get("cam_atras", 2.2))
+        up = float(bpy.context.scene.get("cam_arriba", 0.9))
+        want = p + Vector((-math.cos(yaw) * back, -math.sin(yaw) * back, up))
         cam.location = cam.location.lerp(want, min(1.0, 4.0 * dt))
         tgt.location = tgt.location.lerp(p, min(1.0, 10.0 * dt))
 
@@ -255,7 +257,9 @@ class PILOTO_OT_volar(bpy.types.Operator):
         if cam:
             p = Vector(self.fl.state.pos)
             y = self.fl.state.yaw
-            cam.location = p + Vector((-math.cos(y) * 2.2, -math.sin(y) * 2.2, 0.9))
+            back = float(context.scene.get("cam_atras", 2.2))
+            up = float(context.scene.get("cam_arriba", 0.9))
+            cam.location = p + Vector((-math.cos(y) * back, -math.sin(y) * back, up))
         apply_pose(st["info"], 0.0, self.spin)
         set_camera(context, props.camara)
         ensure_handlers()

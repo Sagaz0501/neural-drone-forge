@@ -724,7 +724,7 @@ def draw_hud():
     st = S()
     if "stats" not in st and not st.get("running") and not st.get("error"):
         return
-    if st.get("scene_name") and bpy.context.scene.name != st["scene_name"]:
+    if bpy.context.scene.get("es_prueba") or (st.get("scene_name") and bpy.context.scene.name != st["scene_name"]):
         return                                   # en la escena de prueba no se dibuja el HUD del laboratorio
     ctx = bpy.context
     region, area = ctx.region, ctx.area
