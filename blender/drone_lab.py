@@ -785,9 +785,11 @@ class DRONELAB_OT_start(bpy.types.Operator):
     def execute(self, context):
         p = context.scene.drone_lab
         st = S()
-        if st.get("running"):
+        proc = st.get("proc")
+        if st.get("running") and proc and proc.poll() is None:
             self.report({'WARNING'}, "Ya está corriendo")
             return {'CANCELLED'}
+        close_sockets()                          # por si el anterior terminó y el timer no alcanzó a cerrar
         project = os.path.expanduser(bpy.path.abspath(p.project)).rstrip("/")
         python = os.path.expanduser(bpy.path.abspath(p.python))
         script = os.path.join(project, "scripts", "live_train.py")
