@@ -52,7 +52,7 @@ STAGE_NAMES = {"hover": "Hover", "goal_fixed": "Meta fija", "goal_random": "Meta
                "multi_goal": "Varias metas", "circuit": "Circuito", "forest": "Bosque", "forest_multi": "Bosque 3 aros"}
 COLORS = {"fly": (0.9, 0.9, 0.95, 1), 1: (1.0, 0.12, 0.08, 1), 2: (0.1, 1.0, 0.35, 1), 3: (1.0, 0.75, 0.1, 1)}
 REWARD_KEYS = ["progress", "goal", "crash", "time", "smooth", "tilt", "near", "clearance", "danger", "speed",
-               "stability"]
+               "stability", "heading"]
 
 
 def S():
@@ -909,6 +909,8 @@ def draw_hud():
         f"lr {p.get('lr', 0):.1e}   σ {p.get('sigma', 0):.2f}   entropía {p.get('ent', 0):.3f}   velocidad {p.get('speed', '-')}"
         + ("   [PAUSA]" if p.get("paused") else ""),
     ]
+    if s.get("front") is not None and s.get("front", 0) > 0:
+        lines.append(f"vuela de frente el {s['front'] * 100:.0f} % del tiempo (nariz hacia donde va, ±45°)")
     if s.get("spd"):
         lines.append(f"los que llegan: vel. media {s['spd']:.1f} m/s · giro medio {s.get('ang', 0):.0f}°/s"
                      + (f" · viento {p['wind']:g} m/s" if p.get("wind") else "")
@@ -1034,6 +1036,10 @@ class DroneLabProps(bpy.types.PropertyGroup):
                                        update=_on_live_change,
                                        description="Castiga ir RÁPIDO hacia algo que ve (menos de 1 s para chocar): "
                                                    "aprende a frenar o desviarse a tiempo")
+    rw_heading: bpy.props.FloatProperty(name="Ir de frente", default=1.0, min=0, max=5, update=_on_live_change,
+                                        description="Castigo por segundo por NO volar con la nariz hacia donde va: "
+                                                    "0 de frente, la mitad de lado, todo de espaldas. Evita que vuele "
+                                                    "hacia atrás o dando vueltas")
     rw_speed: bpy.props.FloatProperty(name="Premio por rapidez", default=0.3, min=0, max=10, update=_on_live_change,
                                       description="Al pasar cada aro: + esto × velocidad media del tramo (m/s). "
                                                   "Más alto = vuela más rápido (y arriesga más)")

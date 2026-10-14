@@ -76,6 +76,7 @@ class LiveLink(BaseCallback):
         self.total_eps = 0
         self.ep_succ, self.ep_crash, self.ep_rew = [], [], []
         self.ep_speed, self.ep_ang = [], []          # cómo vuelan los que llegan: rapidez y estabilidad
+        self.ep_front = []                           # qué tanto vuelan de frente (todos los intentos)
         self.density, self.wind = args.density, args.wind
         self.history = list(meta.get("historia", []))     # [gen, pasos, éxito, crash, nivel]
         self.session = {"inicio": time.strftime("%Y-%m-%d %H:%M:%S"), "nivel": args.stage, "drones": args.drones}
@@ -141,7 +142,7 @@ class LiveLink(BaseCallback):
         self.send({"t": "s", "phase": self.phase, "gen": self.gen, "steps": int(self.num_timesteps),
                    "eps": self.total_eps, "succ": mean(self.ep_succ), "crash": mean(self.ep_crash),
                    "rew": mean(self.ep_rew), "hist": self.hist_to_send(), "params": self.params(),
-                   "spd": mean(self.ep_speed), "ang": mean(self.ep_ang), "msg": self.msg})
+                   "spd": mean(self.ep_speed), "ang": mean(self.ep_ang), "front": mean(self.ep_front), "msg": self.msg})
 
     def hist_to_send(self, n=300):
         h = self.history
@@ -337,6 +338,8 @@ class LiveLink(BaseCallback):
                 st = 2 if info.get("success") else 1 if info.get("crashed") else 3
                 self.events.append([i, st] + r3(info.get("pos", (0, 0, 0))))
                 self.ep_succ.append(float(info.get("success", False)))
+                if info.get("front") is not None:
+                    self.ep_front.append(float(info["front"]))
                 if info.get("success") and "avg_speed" in info:
                     self.ep_speed.append(float(info["avg_speed"]))
                     self.ep_ang.append(float(info["ang_rate"]))

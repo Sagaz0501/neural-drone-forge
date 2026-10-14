@@ -600,6 +600,7 @@ export function makeDrone() {
   const m = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.45, ...o });
   const carbon = m(0x141518, { roughness: 0.35 }), motor = m(0x2a2c30, { metalness: 0.9, roughness: 0.3 }),
     red = m(0xb3120f, { metalness: 0.9, roughness: 0.3 }), prop = m(0xff7a1a, { roughness: 0.4 }),
+    propRear = m(0x3c4046, { roughness: 0.5 }),
     batt = m(0x15161a), label_ = m(0xf2c00c);
   const box = (sx, sy, sz, mat, x, y, z, ry = 0) => {
     const b = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), mat);
@@ -620,11 +621,13 @@ export function makeDrone() {
     cyl(0.013, 0.012, motor, x, 0.01, z);
     cyl(0.014, 0.006, red, x, 0.019, z);
     const p = new THREE.Group();
-    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.125, 0.002, 0.012), prop);
+    const front = Math.cos(a) > 0;                    // hélices de adelante naranjas, las de atrás grises
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.125, 0.002, 0.012), front ? prop : propRear);
     blade.castShadow = true;
     p.add(blade);
     const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.0635, 0.0635, 0.001, 32),
-      new THREE.MeshBasicMaterial({ color: 0xbfc4c8, transparent: true, opacity: 0.18, depthWrite: false }));
+      new THREE.MeshBasicMaterial(front ? { color: 0xff7a1a, transparent: true, opacity: 0.3, depthWrite: false }
+        : { color: 0x8a9096, transparent: true, opacity: 0.16, depthWrite: false }));
     p.add(disc);
     p.position.set(x, 0.026, z);
     p.userData = { dir: i % 2 ? -1 : 1, disc, blade };
@@ -642,6 +645,16 @@ export function makeDrone() {
   box(0.016, 0.019, 0.019, m(0x0c0c0e), 0.04, 0.016, 0);
   const lens = cyl(0.006, 0.008, m(0x050508, { roughness: 0.05 }), 0.051, 0.016, 0);
   lens.rotation.z = Math.PI / 2;
+  // la NARIZ: flecha verde encima apuntando hacia adelante y luz roja atrás (como un avión)
+  const chev = new THREE.Shape();
+  chev.moveTo(0.115, 0); chev.lineTo(0.035, 0.042); chev.lineTo(0.052, 0); chev.lineTo(0.035, -0.042); chev.lineTo(0.115, 0);
+  const nose = new THREE.Mesh(new THREE.ShapeGeometry(chev), new THREE.MeshBasicMaterial({ color: 0x47f08a, side: THREE.DoubleSide }));
+  nose.rotation.x = -Math.PI / 2;                     // plano XY -> acostado sobre el dron (X sigue siendo adelante)
+  nose.position.y = 0.066;
+  body.add(nose);
+  const tail = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.012, 0.03), new THREE.MeshBasicMaterial({ color: 0xff2a1a }));
+  tail.position.set(-0.046, 0.047, 0);
+  body.add(tail);
   // brillo para encontrarlo desde lejos
   const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.03, 12, 8), new THREE.MeshBasicMaterial({ color: 0xff7a1a }));
   beacon.position.set(0, 0.09, 0);

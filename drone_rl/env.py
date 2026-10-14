@@ -69,6 +69,8 @@ DEFAULT_REWARD = {
                          # (ojo: con 1.0 en el bosque aprende a ir a ~7 m/s y choca más; subirlo cuando ya esquive)
     "stability": 0.5,    # castigo por segundo de giros bruscos (roll/pitch) y por girar sobre sí mismo (yaw)
     "danger": 0.0,       # castigo por ir rápido hacia algo que ve (menos de 1 s para chocar)
+    "heading": 1.0,      # castigo por segundo por NO ir de frente: 0 con la nariz hacia donde va, la mitad de
+                         # lado, todo de espaldas (evita que vuele hacia atrás o girando)
 }
 ANG_RATE_REF = 4.0       # rad/s: un giro de roll/pitch así de rápido cuenta como "1" en el castigo de estabilidad
 
@@ -185,6 +187,7 @@ class DroneEnv(gym.Env):
         # para el premio de rapidez y las estadísticas del vuelo
         self.seg_start, self.seg_len = 0, self.prev_dist
         self.path_len, self.ang_sum = 0.0, 0.0
+        self.front_n, self.move_n = 0, 0          # cuánto vuela de frente (para el HUD)
         return self._obs(), {}
 
     # ------------------------------------------------------------------
@@ -235,6 +238,17 @@ class DroneEnv(gym.Env):
             reward -= rw["clearance"] * clearance_penalty(rays)          # no pasar pegado a las cosas
         if rw.get("danger", 0.0):                                        # frenar/desviarse a tiempo
             reward -= rw["danger"] * danger_penalty(rays, yaw_frame(self.state.vel, self.state.yaw))
+        vh = self.state.vel[:2]
+        sp_h = float(np.hypot(vh[0], vh[1]))
+        if sp_h > 0.3:                                                   # ¿la nariz apunta hacia donde va?
+            align = float(np.cos(np.arctan2(vh[1], vh[0]) - self.state.yaw))
+            if rw.get("heading", 0.0):
+                # solo castigo (0 de frente, -1/2 de lado, -1 de espaldas): un premio positivo le haría
+                # preferir dar vueltas de frente antes que terminar la ruta
+                reward -= rw["heading"] * self.dt * 0.5 * (1.0 - align) * min(sp_h / 1.5, 1.0)
+            if sp_h > 1.0:
+                self.move_n += 1
+                self.front_n += align > 0.707                            # ±45° = "de frente"
         if rw.get("stability", 0.0):                                     # vuelo estable: sin sacudidas ni trompos
             reward -= rw["stability"] * self.dt * ((ang_rate / ANG_RATE_REF) ** 2 + float(action[3]) ** 2)
         self.prev_dist = dist
@@ -281,4 +295,5 @@ class DroneEnv(gym.Env):
             t = self.steps * self.dt
             info["avg_speed"] = self.path_len / t
             info["ang_rate"] = float(np.degrees(self.ang_sum / self.steps))
+            info["front"] = self.front_n / self.move_n if self.move_n else None
         return self._obs(rays), float(reward), terminated, truncated, info

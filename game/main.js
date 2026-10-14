@@ -501,6 +501,7 @@ async function startFlight(pilot) {
   S.prev = snap(S.flight.state);
   S.radioHist = [];
   S.ringTime = undefined;
+  S.frontN = 0; S.moveN = 0;
   drone.visible = true;
   trail.reset();
   rays.lines.visible = true;
@@ -564,6 +565,8 @@ function endFlight() {
     if (done) S.tally.ok++;
     p.textContent += ` En esta sesión la IA llegó en ${S.tally.ok} de ${S.tally.n} vuelos.`;
   }
+  const pct = frontPct();
+  if (pct !== null) p.textContent += ` Voló de frente el ${pct} % del tiempo.`;
   // récords de esta ruta: tú contra la IA (tiempo hasta el último aro)
   if (n) {
     const key = routeKey();
@@ -612,7 +615,7 @@ function drawRadio(a) {
   }
 }
 
-function drawRadar(d) {
+function drawRadar(d, hd) {
   const c = $("radar-c"), g = c.getContext("2d");
   const W = c.width, cx = 78, cy = 86, R = 66;
   g.clearRect(0, 0, W, c.height);
@@ -633,6 +636,18 @@ function drawRadar(d) {
   }
   g.fillStyle = "#ff7a1a";
   g.beginPath(); g.moveTo(cx, cy - 8); g.lineTo(cx + 6, cy + 6); g.lineTo(cx - 6, cy + 6); g.fill();
+  // hacia dónde se MUEVE (arriba = de frente): verde de frente, amarillo de lado, rojo de espaldas
+  if (hd && hd.sp > 0.3) {
+    const ang = -Math.PI / 2 - hd.rel, len = 14 + Math.min(hd.sp / 6, 1) * (R - 18);
+    const x = cx + Math.cos(ang) * len, y = cy + Math.sin(ang) * len;
+    g.strokeStyle = g.fillStyle = hd.align > 0.707 ? "#47f08a" : hd.align < -0.707 ? "#ff5a4a" : "#ffd23f";
+    g.lineWidth = 3;
+    g.beginPath(); g.moveTo(cx + Math.cos(ang) * 10, cy + Math.sin(ang) * 10); g.lineTo(x, y); g.stroke();
+    g.beginPath(); g.moveTo(x + Math.cos(ang) * 7, y + Math.sin(ang) * 7);
+    g.lineTo(x + Math.cos(ang + 2.4) * 7, y + Math.sin(ang + 2.4) * 7); g.lineTo(x + Math.cos(ang - 2.4) * 7, y + Math.sin(ang - 2.4) * 7);
+    g.fill();
+    g.lineWidth = 1;
+  }
   // arriba / abajo
   const bars = [["arriba", d[8]], ["abajo", d[9]]];
   bars.forEach(([lab, v], i) => {
@@ -702,6 +717,14 @@ function drawOSD(fl) {
   g.moveTo(cx, cy - 4); g.lineTo(cx, cy + 4); g.stroke();
 }
 
+/** Hacia dónde va el dron comparado con hacia dónde mira su nariz. rel: 0 = de frente, + = hacia su izquierda. */
+function heading(s) {
+  const sp = Math.hypot(s.vel[0], s.vel[1]);
+  const rel = Math.atan2(Math.sin(Math.atan2(s.vel[1], s.vel[0]) - s.yaw), Math.cos(Math.atan2(s.vel[1], s.vel[0]) - s.yaw));
+  return { sp, rel, align: Math.cos(rel) };
+}
+const frontPct = () => (S.moveN > 25 ? Math.round((100 * S.frontN) / S.moveN) : null);
+
 let pathPrev = null;
 function hud(fl, now) {
   const s = fl.state, n = S.goals.length;
@@ -714,7 +737,13 @@ function hud(fl, now) {
   $("ring-txt").textContent = S.free ? "Vuelo libre" : fl.phase === "aterrizaje" ? "Aterrizando" : `Aro ${Math.min(fl.goalIdx + 1, n)} de ${n}`;
   $("time-txt").textContent = `${fmt(fl.t)} s`;
   drawRadio(fl.action);
-  drawRadar(fl.rays);
+  const hd = heading(s), el = $("dir-txt"), pct = frontPct();
+  if (hd.sp < 0.6) { el.textContent = "quieto"; el.className = "dir"; }
+  else if (hd.align > 0.707) { el.textContent = "▲ de frente"; el.className = "dir ok"; }
+  else if (hd.align < -0.707) { el.textContent = "▼ de espaldas"; el.className = "dir bad"; }
+  else { el.textContent = hd.rel > 0 ? "◀ de lado" : "de lado ▶"; el.className = "dir mid"; }
+  if (pct !== null) el.textContent += ` · ${pct} % de frente`;
+  drawRadar(fl.rays, hd);
   drawOSD(fl);
   if (S.showBrain && S.pilot === "ia") drawBrain(fl);
 }
@@ -804,6 +833,8 @@ function frame(now) {
         S.prev = snap(fl.state);
         const p0 = fl.state.pos.slice();
         fl.step();
+        const hd = heading(fl.state);
+        if (hd.sp > 1) { S.moveN++; S.frontN += hd.align > 0.707; }
         S.pathLen = (fl.t <= step + 1e-9 ? 0 : S.pathLen || 0) + Math.hypot(fl.state.pos[0] - p0[0], fl.state.pos[1] - p0[1], fl.state.pos[2] - p0[2]);
         S.acc -= step;
         n++;

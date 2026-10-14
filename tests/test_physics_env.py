@@ -1,3 +1,4 @@
+import pytest
 import numpy as np
 from gymnasium.utils.env_checker import check_env
 
@@ -202,3 +203,20 @@ def test_forest_slalom_three_rings():
         assert len(lv.goals) == 3
         assert all(abs(g[0]) <= 20 and abs(g[1]) <= 20 for g in lv.goals)
         assert not any(lv.collides(g, 0.8) for g in lv.goals)
+
+
+def test_heading_reward_prefers_nose_first():
+    from drone_rl import DEFAULT_REWARD
+    rw = {k: 0.0 for k in DEFAULT_REWARD}
+    rw["heading"] = 1.0
+    env = DroneEnv(stage=2, reward=rw)
+    rewards = {}
+    for name, yaw in (("frente", 0.0), ("espaldas", np.pi)):
+        env.reset(seed=0)
+        env.state.pos = np.array([0, 0, 2.0])
+        env.state.vel = np.array([3.0, 0, 0])
+        env.state.yaw = yaw
+        _, r, *_ = env.step(np.zeros(4))
+        rewards[name] = r
+    assert rewards["frente"] == pytest.approx(0.0, abs=1e-9)
+    assert rewards["espaldas"] < -0.015

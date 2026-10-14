@@ -88,6 +88,8 @@
   #osd-left .who { font-size: 15px; color: var(--prop); font-weight: 600; }
   #osd-left .ring { font-size: 34px; font-weight: 700; line-height: 1.05; }
   #osd-left .time { font-size: 18px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  #osd-left .dir { font-size: 15px; font-weight: 600; margin-top: 4px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  #osd-left .dir.ok { color: #47f08a; } #osd-left .dir.mid { color: #ffd23f; } #osd-left .dir.bad { color: #ff5a4a; }
   #osd-right { top: 18px; right: 22px; text-align: right; }
   #osd-right .spd { font-size: 46px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
   #osd-right .spd small { font-size: 18px; font-weight: 500; color: var(--muted); }
@@ -234,7 +236,7 @@
     <button data-c="arriba">Arriba<kbd>5</kbd></button><button data-c="libre">Libre<kbd>6</kbd></button>
     <span class="sep"></span><button id="open-ctl-hud">Controles<kbd>H</kbd></button>
   </div>
-  <div id="osd-left" class="osd"><div class="who" id="who">La IA vuela</div><div class="ring" id="ring-txt">Aro 1 de 3</div><div class="time" id="time-txt">0,0 s</div></div>
+  <div id="osd-left" class="osd"><div class="who" id="who">La IA vuela</div><div class="ring" id="ring-txt">Aro 1 de 3</div><div class="time" id="time-txt">0,0 s</div><div class="dir" id="dir-txt"></div></div>
   <div id="osd-right" class="osd"><div class="spd"><span id="spd">0</span> <small>km/h</small></div><div class="sub" id="sub"></div></div>
   <div id="keys">C cámara, R otra vez, E editar la ruta, N cerebro, + y − velocidad, P pausa, Esc menú</div>
   <div id="radio" class="panel"><div class="t" id="radio-t">Las manos de la IA</div><canvas id="radio-c" width="300" height="150"></canvas></div>
