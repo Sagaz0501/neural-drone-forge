@@ -69,7 +69,7 @@ class DroneEnv(gym.Env):
                  control_hz: int = 50, physics_substeps: int = 2, max_seconds: float | None = None,
                  goal_radius: float = 0.5, reward: dict | None = None,
                  start_anywhere: float = 0.0, spawn_jitter: float = 0.0, yaw_jitter: float = 0.0,
-                 focus_blocked: float = 1.0):
+                 focus_blocked: float = 1.0, start_speed: float = 0.0):
         super().__init__()
         self.stage = stage
         self.fixed_level = Level.load(level_path) if level_path else None
@@ -82,6 +82,7 @@ class DroneEnv(gym.Env):
         self.start_anywhere = start_anywhere   # prob. de aparecer en cualquier tramo de la ruta
         self.spawn_jitter = spawn_jitter       # +- metros de variación en la posición inicial
         self.yaw_jitter = yaw_jitter           # +- radianes de variación en la orientación inicial
+        self.start_speed = start_speed         # al aparecer a mitad de ruta: ya viene volando (m/s máx.)
         # tramos con algo en la línea recta (hay que esquivar) salen `focus_blocked` veces más seguido
         self.start_weights = None
         if self.fixed_level is not None and len(self.fixed_level.goals) > 1:
@@ -141,6 +142,12 @@ class DroneEnv(gym.Env):
                 k = int(rng.choice(len(goals), p=self.start_weights))   # aparecer en el tramo k de la ruta
                 if k > 0:
                     self.state.pos = goals[k - 1].copy()
+                    if self.start_speed and rng.random() < 0.75:
+                        # llega con la inercia del tramo anterior, como en la ruta real
+                        prev = goals[k - 2] if k >= 2 else self.level.spawn
+                        d = goals[k - 1] - prev
+                        d = d / (np.linalg.norm(d) + 1e-9)
+                        self.state.vel = d * rng.uniform(1.0, self.start_speed)
                 self.goal_idx = k
             g = goals[self.goal_idx] - self.state.pos
             self.state.yaw = float(np.arctan2(g[1], g[0])) if self.start_anywhere else 0.0

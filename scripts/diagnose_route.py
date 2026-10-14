@@ -28,6 +28,7 @@ def main():
     a = ap.parse_args()
     model = PPO.load(a.model, device="cpu")
     env = DroneEnv(level_path=a.level, max_seconds=70, focus_blocked=2.0)
+    env.reset(seed=0)
     blocked = env.start_weights > env.start_weights.min() + 1e-9
     total = 0
     for k in range(len(env.level.goals)):

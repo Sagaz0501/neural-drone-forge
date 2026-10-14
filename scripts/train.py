@@ -75,6 +75,8 @@ def main():
     ap.add_argument("--log-std", type=float, default=None,
                     help="al continuar un modelo: fijar el ruido de exploración (ej. -0.5 = más exploración)")
     ap.add_argument("--ent", type=float, default=None, help="coeficiente de entropía (premia explorar)")
+    ap.add_argument("--start-speed", type=float, default=0.0,
+                    help="con --start-anywhere: aparecer ya volando hasta N m/s (como al llegar en la ruta real)")
     ap.add_argument("--spawn-jitter", type=float, default=0.0, help="+- metros de variación al aparecer")
     ap.add_argument("--yaw-jitter", type=float, default=0.0, help="+- radianes de variación al aparecer")
     ap.add_argument("--subproc", action="store_true", help="un proceso por entorno (más rápido con muchos núcleos)")
@@ -95,7 +97,8 @@ def main():
                        env_kwargs=dict(stage=args.stage, level_path=args.level, max_seconds=args.max_seconds,
                                        reward={**DEFAULT_REWARD, **json.loads(args.reward)},
                                        start_anywhere=args.start_anywhere, spawn_jitter=args.spawn_jitter,
-                                       yaw_jitter=args.yaw_jitter, focus_blocked=args.focus_blocked),
+                                       yaw_jitter=args.yaw_jitter, focus_blocked=args.focus_blocked,
+                                       start_speed=args.start_speed),
                        vec_env_cls=SubprocVecEnv if args.subproc else DummyVecEnv)
 
     if args.init:
