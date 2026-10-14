@@ -70,6 +70,11 @@ def main():
     ap.add_argument("--max-seconds", type=float, default=None, help="duración máxima de un intento")
     ap.add_argument("--start-anywhere", type=float, default=0.0,
                     help="nivel fijo con varios aros: prob. de aparecer en cualquier tramo de la ruta")
+    ap.add_argument("--focus-blocked", type=float, default=1.0,
+                    help="con --start-anywhere: los tramos bloqueados salen N veces más seguido")
+    ap.add_argument("--log-std", type=float, default=None,
+                    help="al continuar un modelo: fijar el ruido de exploración (ej. -0.5 = más exploración)")
+    ap.add_argument("--ent", type=float, default=None, help="coeficiente de entropía (premia explorar)")
     ap.add_argument("--spawn-jitter", type=float, default=0.0, help="+- metros de variación al aparecer")
     ap.add_argument("--yaw-jitter", type=float, default=0.0, help="+- radianes de variación al aparecer")
     ap.add_argument("--subproc", action="store_true", help="un proceso por entorno (más rápido con muchos núcleos)")
@@ -90,12 +95,19 @@ def main():
                        env_kwargs=dict(stage=args.stage, level_path=args.level, max_seconds=args.max_seconds,
                                        reward={**DEFAULT_REWARD, **json.loads(args.reward)},
                                        start_anywhere=args.start_anywhere, spawn_jitter=args.spawn_jitter,
-                                       yaw_jitter=args.yaw_jitter),
+                                       yaw_jitter=args.yaw_jitter, focus_blocked=args.focus_blocked),
                        vec_env_cls=SubprocVecEnv if args.subproc else DummyVecEnv)
 
     if args.init:
         print(f"Cargando {args.init} y continuando el entrenamiento")
         model = PPO.load(args.init, env=env, tensorboard_log=tb)
+        if args.log_std is not None:
+            import torch
+            with torch.no_grad():
+                model.policy.log_std.fill_(args.log_std)      # más ruido = prueba cosas nuevas
+            print(f"ruido de exploración fijado: std = {np.exp(args.log_std):.2f}")
+        if args.ent is not None:
+            model.ent_coef = args.ent
     else:
         model = PPO(
             "MlpPolicy", env,

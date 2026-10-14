@@ -68,7 +68,8 @@ class DroneEnv(gym.Env):
     def __init__(self, stage: int = 0, level_path: str | None = None, params: QuadParams | None = None,
                  control_hz: int = 50, physics_substeps: int = 2, max_seconds: float | None = None,
                  goal_radius: float = 0.5, reward: dict | None = None,
-                 start_anywhere: float = 0.0, spawn_jitter: float = 0.0, yaw_jitter: float = 0.0):
+                 start_anywhere: float = 0.0, spawn_jitter: float = 0.0, yaw_jitter: float = 0.0,
+                 focus_blocked: float = 1.0):
         super().__init__()
         self.stage = stage
         self.fixed_level = Level.load(level_path) if level_path else None
@@ -81,6 +82,15 @@ class DroneEnv(gym.Env):
         self.start_anywhere = start_anywhere   # prob. de aparecer en cualquier tramo de la ruta
         self.spawn_jitter = spawn_jitter       # +- metros de variación en la posición inicial
         self.yaw_jitter = yaw_jitter           # +- radianes de variación en la orientación inicial
+        # tramos con algo en la línea recta (hay que esquivar) salen `focus_blocked` veces más seguido
+        self.start_weights = None
+        if self.fixed_level is not None and len(self.fixed_level.goals) > 1:
+            pts = [self.fixed_level.spawn] + list(self.fixed_level.goals)
+            w = []
+            for a, b in zip(pts[:-1], pts[1:]):
+                blocked = any(self.fixed_level.collides(a + (b - a) * u, self.p.radius) for u in np.linspace(0, 1, 120))
+                w.append(focus_blocked if blocked else 1.0)
+            self.start_weights = np.array(w) / np.sum(w)
         mission = LEVEL_MISSION if level_path else MISSIONS[stage]
         self.max_seconds = max_seconds or float(mission["tiempo"])
         self.max_steps = int(self.max_seconds * control_hz)
@@ -128,7 +138,7 @@ class DroneEnv(gym.Env):
         else:
             goals = self.level.goals
             if len(goals) > 1 and rng.random() < self.start_anywhere:
-                k = int(rng.integers(0, len(goals)))           # aparecer en el tramo k de la ruta
+                k = int(rng.choice(len(goals), p=self.start_weights))   # aparecer en el tramo k de la ruta
                 if k > 0:
                     self.state.pos = goals[k - 1].copy()
                 self.goal_idx = k
