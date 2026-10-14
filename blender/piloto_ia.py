@@ -142,9 +142,16 @@ def _shader():
     return None
 
 
+def _my_scene():
+    """El piloto solo dibuja en escenas que tienen su dron (bodega o prueba), no en el laboratorio."""
+    return "Dron" in bpy.context.scene.objects
+
+
 def draw_rays():
     st = S()
     info = st.get("info")
+    if not _my_scene():
+        return
     props = bpy.context.scene.piloto_ia
     if not info or not props.mostrar_sensores:
         return
@@ -174,7 +181,7 @@ def draw_rays():
 def draw_hud():
     st = S()
     info = st.get("info")
-    if not info:
+    if not info or not _my_scene():
         return
     f = bpy.context.preferences.system.ui_scale
     n = st.get("n_goals", 0)
