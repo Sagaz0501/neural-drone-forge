@@ -210,13 +210,17 @@ def test_heading_reward_prefers_nose_first():
     rw = {k: 0.0 for k in DEFAULT_REWARD}
     rw["heading"] = 1.0
     env = DroneEnv(stage=2, reward=rw)
-    rewards = {}
-    for name, yaw in (("frente", 0.0), ("espaldas", np.pi)):
+    out = {}
+    for name, yaw0, yaw1 in (("mirando", 0.0, 0.0), ("espaldas", np.pi, np.pi), ("girando_hacia", np.pi, np.pi / 2),
+                             ("girando_lejos", 0.0, np.pi / 2)):
         env.reset(seed=0)
-        env.state.pos = np.array([0, 0, 2.0])
-        env.state.vel = np.array([3.0, 0, 0])
-        env.state.yaw = yaw
+        env.level.goals[0] = env.state.pos + np.array([5.0, 0, 0])
+        env.state.yaw = yaw0
+        env.prev_phi = env._heading_phi()
+        env.state.yaw = yaw1                       # como si hubiera girado en este paso
+        env.state.vel = np.zeros(3)
         _, r, *_ = env.step(np.zeros(4))
-        rewards[name] = r
-    assert rewards["frente"] == pytest.approx(0.0, abs=1e-9)
-    assert rewards["espaldas"] < -0.015
+        out[name] = r
+    assert out["mirando"] == pytest.approx(0.0, abs=1e-3)
+    assert out["espaldas"] < 0                                  # cuesta cada segundo
+    assert out["girando_hacia"] > 0.4 > -0.4 > out["girando_lejos"]   # girar hacia el aro paga en el acto

@@ -112,13 +112,20 @@ porque no sabe esquivar, y ahí es donde la IA tiene que ganarle.
   inestabilidad* (giros bruscos de roll/pitch y yaw) y *castigo por peligro* (ir rápido hacia algo
   que se ve, a menos de 1 s de chocarlo). El HUD muestra la velocidad media y el giro medio de los
   que llegan.
-- **Volar de frente** (*Ir de frente*, 1.0 por defecto): el modelo de la generación ~1100 volaba de
-  frente solo el 3–7 % del tiempo (~46 % de espaldas, el resto de lado) y giraba ~120°/s. Arranca
-  mirando a cualquier lado y, como los sensores ven 360°, nada lo obligaba a voltearse. Ahora cuesta
-  hasta 1 por segundo no llevar la nariz hacia donde va (0 de frente, la mitad de lado, todo de
-  espaldas). Es solo castigo a propósito: un premio por ir de frente le haría preferir dar vueltas en
-  vez de terminar la ruta. El laboratorio muestra "vuela de frente el X %"; en el juego, la nariz es
-  la flecha verde con las hélices naranjas, y el HUD dice *de frente / de lado / de espaldas*.
+- **Volar de frente** (*Ir de frente*, 2 por defecto). El modelo de la generación ~1700 miraba al aro
+  solo el 6–10 % del tiempo (peor que al azar) y volaba de espaldas el ~48 %, girando sobre sí mismo
+  a ~105°/s. Aprendió a navegar *girando*: si se le fuerza la nariz hacia el aro, el éxito cae de 68 %
+  a 27 %. La primera versión (castigo por segundo según la velocidad, 1) no lo movió en 2.2 M pasos:
+  costaba ~2 puntos por episodio contra 45 de los aros y 30 del choque, llegaba tarde (con
+  gamma 0.99 la red ve ~2 s adelante) y el castigo de *inestabilidad* cobraba justo el giro para
+  ponerse de frente. Ahora:
+  - la referencia es **el aro que toca** (definida aun quieto: puede voltearse antes de arrancar);
+  - cuesta *Ir de frente* por segundo de espaldas (la mitad de lado);
+  - cada grado que gira hacia el aro paga en el acto (y alejarse cobra). En total esa parte suma
+    "phi final − phi inicial", así que dar vueltas no paga;
+  - *inestabilidad* ya solo castiga sacudidas de roll/pitch, no el yaw.
+  En el juego la nariz es la flecha verde con las hélices naranjas, y el HUD dice *de frente / de
+  lado / de espaldas*.
 - **Sensores en cono:** cada sensor horizontal mide 3 rayos (−15°, 0°, +15°), como un ToF real.
   Antes, un tronco delgado podía quedar escondido entre dos sensores.
 - **Experimentos** (mismo punto de partida, 2–3 M pasos en el bosque):

@@ -61,7 +61,7 @@
     "objetivo": "Cruzar un bosque hasta un aro a 9-14 m, pasando ENTRE troncos, árboles jóvenes y arbustos (las copas altas dejan ~2.6 m libres abajo).",
     "exito": "Pasar por el aro sin tocar ningún tronco, copa, arbusto ni roca.",
     "falla": "tocar un árbol o una roca, chocar con el piso a más de 4 m/s, salir del área de 30 m, o que se acabe el tiempo",
-    "premio": "+2 por metro que se acerca, +10 al pasar, + velocidad media x 'rapidez', - giros bruscos x 'estabilidad', - volar de lado/de espaldas x 'ir de frente', -10 al chocar"
+    "premio": "+2 por metro que se acerca, +10 al pasar, + velocidad media x 'rapidez', - giros bruscos x 'estabilidad', - nariz lejos del aro x 'ir de frente', -10 al chocar"
   },
   "7": {
     "nombre": "Bosque: 3 aros",
@@ -69,6 +69,6 @@
     "objetivo": "Slalom: pasar por 3 aros EN ORDEN dentro del bosque (6-9 m entre aros, con giros de hasta 70°).",
     "exito": "Pasar por los 3 aros en orden sin tocar ningún árbol, arbusto ni roca.",
     "falla": "tocar un árbol o una roca, chocar con el piso a más de 4 m/s, salir del área de 30 m, o que se acabe el tiempo",
-    "premio": "+2 por metro hacia el aro que toca, +10 por cada aro, + velocidad media x 'rapidez', - giros bruscos x 'estabilidad', - volar de lado/de espaldas x 'ir de frente', -10 al chocar"
+    "premio": "+2 por metro hacia el aro que toca, +10 por cada aro, + velocidad media x 'rapidez', - giros bruscos x 'estabilidad', - nariz lejos del aro x 'ir de frente', -10 al chocar"
   }
 }

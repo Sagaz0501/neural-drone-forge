@@ -1036,17 +1036,17 @@ class DroneLabProps(bpy.types.PropertyGroup):
                                        update=_on_live_change,
                                        description="Castiga ir RÁPIDO hacia algo que ve (menos de 1 s para chocar): "
                                                    "aprende a frenar o desviarse a tiempo")
-    rw_heading: bpy.props.FloatProperty(name="Ir de frente", default=1.0, min=0, max=5, update=_on_live_change,
-                                        description="Castigo por segundo por NO volar con la nariz hacia donde va: "
-                                                    "0 de frente, la mitad de lado, todo de espaldas. Evita que vuele "
-                                                    "hacia atrás o dando vueltas")
+    rw_heading: bpy.props.FloatProperty(name="Ir de frente", default=2.0, min=0, max=5, update=_on_live_change,
+                                        description="Nariz hacia el aro: cuesta esto por segundo de espaldas (la mitad "
+                                                    "de lado) y paga en el acto cada grado que gira hacia el aro. Evita "
+                                                    "que vuele hacia atrás o dando vueltas")
     rw_speed: bpy.props.FloatProperty(name="Premio por rapidez", default=0.3, min=0, max=10, update=_on_live_change,
                                       description="Al pasar cada aro: + esto × velocidad media del tramo (m/s). "
                                                   "Más alto = vuela más rápido (y arriesga más)")
     rw_stability: bpy.props.FloatProperty(name="Castigo por inestabilidad", default=0.5, min=0, max=10,
                                           update=_on_live_change,
-                                          description="Castiga (por segundo) los giros bruscos de roll/pitch y girar "
-                                                      "sobre sí mismo. Más alto = vuelo más suave y estable")
+                                          description="Castiga (por segundo) los giros bruscos de roll/pitch (sacudidas). "
+                                                      "Más alto = vuelo más suave. Girar sobre sí mismo lo maneja 'Ir de frente'")
     # ---- ambiente (cambia en vivo, desde el próximo intento de cada dron) ----
     densidad: bpy.props.FloatProperty(name="Densidad del bosque", default=1.0, min=0.3, max=2.5, update=_on_env_change,
                                       description="Solo para Bosque: 0.5 = claro · 1 = normal · 2 = denso")
