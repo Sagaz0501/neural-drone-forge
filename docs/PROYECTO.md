@@ -1,9 +1,10 @@
 # drone-rl: cómo funciona todo
 
-Guía completa del proyecto tal como está (14 de octubre de 2026): la idea, el modelo, el
-laboratorio en Blender, la página/juego web y todos sus mecanismos. Para el resumen operativo
-(reglas, comandos) ver [`CLAUDE.md`](../CLAUDE.md). La historia día a día está en la *Bitácora* del
-[`README.md`](../README.md).
+Guía completa de la **base** de Dron Maker (el proyecto `drone-rl`, tal como estaba el 14 de octubre
+de 2026): la idea, el modelo, el laboratorio en Blender, la página/juego web y todos sus mecanismos.
+El juego nuevo que se construye encima está en [`PLAN_JUEGO.md`](PLAN_JUEGO.md). Para el resumen
+operativo (reglas, comandos) ver [`CLAUDE.md`](../CLAUDE.md). La historia día a día está en la
+*Bitácora* de [`README_drone-rl.md`](README_drone-rl.md).
 
 ---
 

@@ -30,3 +30,6 @@ _deploy/
 models/modelo_web.json
 models/modelo_web_guardando.json
 game/_fixture/
+setup_venv.log
+jugar.log
+*.log
