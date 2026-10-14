@@ -29,7 +29,9 @@ from gymnasium import spaces
 
 from .level import Level, forest_level, random_goal, random_pillars
 from .physics import QuadParams, QuadState, Wind, step
-from .sensing import OBS_SCALE, RAY_DIRS_LOCAL, RAY_LEN, build_obs, clearance_penalty, sensor_rays  # noqa: F401
+from .physics import yaw_frame
+from .sensing import (OBS_SCALE, RAY_DIRS_LOCAL, RAY_LEN, build_obs, clearance_penalty, danger_penalty,  # noqa: F401
+                      sensor_rays)
 
 STAGES = {0: "hover", 1: "goal_fixed", 2: "goal_random", 3: "obstacles", 4: "multi_goal", 5: "circuit",
           6: "forest"}
@@ -62,8 +64,10 @@ DEFAULT_REWARD = {
     "tilt": 0.01,        # castigo por inclinarse
     "near": 0.3,         # solo hover: premio continuo por estar cerca de la meta
     "clearance": 0.0,    # castigo por pasar a menos de 1.2 m de un obstáculo (0 = apagado)
-    "speed": 1.0,        # al pasar cada aro: + esto x velocidad media del tramo (m/s). Premia llegar RÁPIDO
+    "speed": 0.3,        # al pasar cada aro: + esto x velocidad media del tramo (m/s). Premia llegar RÁPIDO
+                         # (ojo: con 1.0 en el bosque aprende a ir a ~7 m/s y choca más; subirlo cuando ya esquive)
     "stability": 0.5,    # castigo por segundo de giros bruscos (roll/pitch) y por girar sobre sí mismo (yaw)
+    "danger": 0.0,       # castigo por ir rápido hacia algo que ve (menos de 1 s para chocar)
 }
 ANG_RATE_REF = 4.0       # rad/s: un giro de roll/pitch así de rápido cuenta como "1" en el castigo de estabilidad
 
@@ -228,6 +232,8 @@ class DroneEnv(gym.Env):
         rays = self._rays()
         if rw.get("clearance", 0.0):
             reward -= rw["clearance"] * clearance_penalty(rays)          # no pasar pegado a las cosas
+        if rw.get("danger", 0.0):                                        # frenar/desviarse a tiempo
+            reward -= rw["danger"] * danger_penalty(rays, yaw_frame(self.state.vel, self.state.yaw))
         if rw.get("stability", 0.0):                                     # vuelo estable: sin sacudidas ni trompos
             reward -= rw["stability"] * self.dt * ((ang_rate / ANG_RATE_REF) ** 2 + float(action[3]) ** 2)
         self.prev_dist = dist

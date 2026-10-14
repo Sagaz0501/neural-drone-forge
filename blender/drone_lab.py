@@ -45,7 +45,8 @@ STAGE_ITEMS = [
     ("LEVEL", "Nivel JSON", "Un nivel exportado desde Blender (todos los drones en el mismo nivel)"),
 ]
 COLORS = {"fly": (0.9, 0.9, 0.95, 1), 1: (1.0, 0.12, 0.08, 1), 2: (0.1, 1.0, 0.35, 1), 3: (1.0, 0.75, 0.1, 1)}
-REWARD_KEYS = ["progress", "goal", "crash", "time", "smooth", "tilt", "near", "clearance", "speed", "stability"]
+REWARD_KEYS = ["progress", "goal", "crash", "time", "smooth", "tilt", "near", "clearance", "danger", "speed",
+               "stability"]
 
 
 def S():
@@ -954,7 +955,11 @@ class DroneLabProps(bpy.types.PropertyGroup):
     rw_near: bpy.props.FloatProperty(name="Premio cerca (hover)", default=0.3, min=0, max=5, update=_on_live_change)
     rw_clearance: bpy.props.FloatProperty(name="Castigo por cercanía", default=0.0, min=0, max=5, update=_on_live_change,
                                           description="Castiga pasar a menos de 1.2 m de un obstáculo: lo siente ANTES de chocar")
-    rw_speed: bpy.props.FloatProperty(name="Premio por rapidez", default=1.0, min=0, max=10, update=_on_live_change,
+    rw_danger: bpy.props.FloatProperty(name="Castigo por peligro", default=0.0, min=0, max=2, precision=2,
+                                       update=_on_live_change,
+                                       description="Castiga ir RÁPIDO hacia algo que ve (menos de 1 s para chocar): "
+                                                   "aprende a frenar o desviarse a tiempo")
+    rw_speed: bpy.props.FloatProperty(name="Premio por rapidez", default=0.3, min=0, max=10, update=_on_live_change,
                                       description="Al pasar cada aro: + esto × velocidad media del tramo (m/s). "
                                                   "Más alto = vuela más rápido (y arriesga más)")
     rw_stability: bpy.props.FloatProperty(name="Castigo por inestabilidad", default=0.5, min=0, max=10,

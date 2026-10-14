@@ -56,6 +56,10 @@ def S():
 def level_from_scene():
     """Arma el nivel con lo que HAY en la escena ahora (por si moviste algo)."""
     Level = lib()[0]
+    try:
+        bpy.context.view_layer.update()          # posiciones al día si la escena se acaba de armar
+    except Exception:
+        pass
     boxes, spheres, cyls = [], [], []
     col = bpy.data.collections.get("Colisiones")
     for o in (col.all_objects if col else []):

@@ -104,7 +104,7 @@ def mat_follaje(name, bump_scale=9.0, translucent=0.3):
     fac, ma, mbb, mout = _mix(nt, 'MULTIPLY')
     fac.default_value = 1.0
     vor = node(nt, "ShaderNodeTexVoronoi", Scale=bump_scale)        # racimos de hojas
-    bump = node(nt, "ShaderNodeBump", Strength=0.75)
+    bump = node(nt, "ShaderNodeBump", Strength=1.0)
     tr = nt.nodes.new("ShaderNodeBsdfTranslucent")
     mix = nt.nodes.new("ShaderNodeMixShader")
     mix.inputs["Fac"].default_value = translucent
@@ -180,8 +180,8 @@ def mat_suelo():
     tierra.color_ramp.elements[0].color = (0.07, 0.045, 0.025, 1)
     tierra.color_ramp.elements[1].color = (0.22, 0.13, 0.05, 1)    # hojas secas
     sel = nt.nodes.new("ShaderNodeValToRGB")
-    sel.color_ramp.elements[0].position = 0.47
-    sel.color_ramp.elements[1].position = 0.62
+    sel.color_ramp.elements[0].position = 0.42
+    sel.color_ramp.elements[1].position = 0.58
     fac, ma, mbb, mout = _mix(nt)
     bump = node(nt, "ShaderNodeBump", Strength=0.35)
     L = nt.links.new
@@ -273,71 +273,139 @@ def materials():
 # Constructor de mallas grandes (cientos de árboles en pocos objetos = rápido en el viewport)
 # =====================================================================
 class Malla:
-    def __init__(self, name):
-        self.name = name
-        self.bm = bmesh.new()
-        self.col = self.bm.verts.layers.float_color.new("Col")
+    """Junta cientos de piezas (esferas, conos, troncos) en UNA malla, armada con numpy:
+    pocas piezas de Python por árbol = el bosque se arma en un par de segundos."""
+    _ICO = {}
 
-    def _paint(self, verts, rgb, var=0.0, seed=0.0):
-        for v in verts:
-            k = 1.0 + var * noise.noise(v.co * 0.9 + Vector((seed, seed * 0.7, 0)))
-            v[self.col] = (rgb[0] * k, rgb[1] * k, rgb[2] * k, 1.0)
+    def __init__(self, name, smooth=True):
+        self.name, self.smooth = name, smooth
+        self.V, self.F, self.C = [], [], []
+        self.n = 0
 
+    # ---- utilidades ----
+    @classmethod
+    def ico(cls, detail):
+        """Icosfera unitaria (vértices, triángulos), hecha una sola vez con bmesh."""
+        if detail not in cls._ICO:
+            bm = bmesh.new()
+            bmesh.ops.create_icosphere(bm, subdivisions=detail, radius=1.0)
+            bm.verts.index_update()
+            v = np.array([x.co[:] for x in bm.verts], dtype=np.float32)
+            f = np.array([[x.index for x in face.verts] for face in bm.faces], dtype=np.int32)
+            bm.free()
+            cls._ICO[detail] = (v, f)
+        return cls._ICO[detail]
+
+    @staticmethod
+    def wobble(d, seed, octaves=2):
+        """Ruido suave sobre la esfera (suma de senos en direcciones al azar), ~[-1, 1]."""
+        rng = np.random.default_rng(int(abs(seed) * 1000) % (2 ** 31))
+        out = np.zeros(len(d), dtype=np.float32)
+        for o in range(octaves):
+            w = rng.normal(size=(4, 3)) * 1.6 * (2.6 ** o)
+            ph = rng.uniform(0, 2 * np.pi, 4)
+            out += np.sin(d @ w.T + ph).mean(axis=1) * (0.55 ** o) * 1.4
+        return out
+
+    def add(self, v, f, rgb, var=None):
+        v = np.asarray(v, dtype=np.float32)
+        c = np.empty((len(v), 4), dtype=np.float32)
+        c[:, :3] = rgb
+        c[:, 3] = 1.0
+        if var is not None:
+            c[:, :3] *= var[:, None]
+        self.V.append(v)
+        self.F.append(np.asarray(f, dtype=np.int32) + self.n)
+        self.C.append(c)
+        self.n += len(v)
+
+    # ---- piezas ----
     def blob(self, c, r, rgb, detail=3, seed=0.0, amp=0.09, squash=1.0, var=0.12):
-        """Copa / arbusto: esfera con bultos (ruido), del tamaño de la esfera de colisión."""
-        c = Vector(c)
-        vs = bmesh.ops.create_icosphere(self.bm, subdivisions=detail, radius=r,
-                                        matrix=Matrix.Translation(c))["verts"]
-        off = Vector((seed * 3.1, seed * 1.7, seed * 2.3))
-        for v in vs:
-            d = v.co - c
-            n = d.normalized()
-            q = n * 1.4 + off
-            k = 1.0 + amp * noise.noise(q) + amp * 0.5 * noise.noise(q * 2.7)
-            v.co = c + Vector((d.x * k, d.y * k, d.z * k * squash))
-        self._paint(vs, rgb, var, seed)
-        for f in {f for v in vs for f in v.link_faces}:
-            f.smooth = True
-        return vs
+        """Copa / arbusto / roca: esfera con bultos, del tamaño de la esfera de colisión."""
+        v0, f0 = self.ico(detail)
+        k = 1.0 + amp * self.wobble(v0, seed)
+        v = v0 * (r * k)[:, None]
+        v[:, 2] *= squash
+        self.add(v + np.asarray(c, dtype=np.float32), f0, rgb,
+                 1.0 + var * self.wobble(v0, seed + 7.7, 1) if var else None)
+
+    def clusters(self, c, r, rgb, n, seed=0.0, detail=1):
+        """Racimos de hojas sobre la copa (salen ~10 cm: siluetas menos 'pelota')."""
+        v0, f0 = self.ico(detail)
+        k = np.arange(n) + 0.5
+        zf = 1 - 2 * k / n
+        keep = zf > -0.35                                   # abajo casi no se ve
+        zf, k = zf[keep], k[keep]
+        rr = np.sqrt(1 - zf * zf)
+        th = k * np.pi * (3 - np.sqrt(5)) + seed
+        d = np.stack([rr * np.cos(th), rr * np.sin(th), zf], axis=1)
+        cr = r * (0.2 + 0.07 * np.sin(th * 3.1 + seed))
+        centers = np.asarray(c) + d * (r * 0.92 - cr * 0.55)[:, None]
+        tone = 0.9 + 0.22 * (0.5 + 0.5 * np.sin(th * 1.7 + zf * 4 + seed))
+        m = len(centers)
+        v = (v0[None] * cr[:, None, None] + centers[:, None]).reshape(-1, 3)
+        f = (f0[None] + (np.arange(m) * len(v0))[:, None, None]).reshape(-1, 3)
+        self.add(v, f, rgb, np.repeat(tone, len(v0)).astype(np.float32))
 
     def cone(self, base_c, r, h, rgb, segs=9, seed=0.0, jag=True):
         """Capa de pino: cono con la orilla dentada y caída (puntas de ramas)."""
-        c = Vector(base_c) + Vector((0, 0, h / 2))
-        res = bmesh.ops.create_cone(self.bm, cap_ends=True, cap_tris=True, segments=segs, radius1=r, radius2=0.0,
-                                    depth=h, matrix=Matrix.Translation(c) @ Matrix.Rotation(seed, 4, 'Z'))
-        vs = res["verts"]
-        if jag:
-            for i, v in enumerate(sorted((v for v in vs if v.co.z < c.z - h * 0.45), key=lambda v: math.atan2(
-                    v.co.y - c.y, v.co.x - c.x))):
-                d = Vector((v.co.x - base_c[0], v.co.y - base_c[1], 0))
-                if d.length > r * 0.5:
-                    k = 1.0 if i % 2 == 0 else 0.8
-                    v.co = Vector((base_c[0], base_c[1], base_c[2])) + d * k - Vector((0, 0, r * 0.12 * k))
-        self._paint(vs, rgb, 0.08, seed)
-        return vs
+        a = np.arange(segs) * 2 * np.pi / segs + seed
+        kk = np.where(np.arange(segs) % 2 == 0, 1.0, 0.8) if jag else np.ones(segs)
+        bx, by, bz = base_c
+        ring = np.stack([bx + np.cos(a) * r * kk, by + np.sin(a) * r * kk, bz - r * 0.12 * kk * jag], axis=1)
+        v = np.vstack([ring, [[bx, by, bz + h], [bx, by, bz]]])
+        i = np.arange(segs)
+        j = (i + 1) % segs
+        f = np.vstack([np.stack([i, j, np.full(segs, segs)], axis=1),
+                       np.stack([np.full(segs, segs + 1), j, i], axis=1)])
+        self.add(v, f, rgb)
+
+    def _frustum(self, r0, r1, h, segs, cap_top=True):
+        a = np.arange(segs) * 2 * np.pi / segs
+        lo = np.stack([np.cos(a) * r0, np.sin(a) * r0, np.zeros(segs)], axis=1)
+        hi = np.stack([np.cos(a) * r1, np.sin(a) * r1, np.full(segs, h)], axis=1)
+        v = np.vstack([lo, hi] + ([[[0, 0, h]]] if cap_top else []))
+        i = np.arange(segs)
+        j = (i + 1) % segs
+        f = [np.stack([i, j, j + segs], axis=1), np.stack([i, j + segs, i + segs], axis=1)]
+        if cap_top:
+            f.append(np.stack([i + segs, j + segs, np.full(segs, 2 * segs)], axis=1))
+        return v, np.vstack(f)
 
     def trunk(self, x, y, r, h, rgb=(1, 1, 1), top=0.55, segs=10, roots=True):
-        vs = bmesh.ops.create_cone(self.bm, cap_ends=True, cap_tris=False, segments=segs, radius1=r * 1.05,
-                                   radius2=r * top, depth=h, matrix=Matrix.Translation((x, y, h / 2)))["verts"]
+        v, f = self._frustum(r * 1.05, r * top, h, segs)
+        self.add(v + [x, y, 0], f, rgb)
         if roots and r > 0.12:
-            vs += bmesh.ops.create_cone(self.bm, cap_ends=False, cap_tris=False, segments=segs, radius1=r * 1.55,
-                                        radius2=r * 1.02, depth=0.4, matrix=Matrix.Translation((x, y, 0.2)))["verts"]
-        self._paint(vs, rgb)
-        for f in {f for v in vs for f in v.link_faces}:
-            f.smooth = True
+            v, f = self._frustum(r * 1.55, r * 1.02, 0.4, segs, cap_top=False)
+            self.add(v + [x, y, 0], f, rgb)
 
     def branch(self, a, b, r):
-        a, b = Vector(a), Vector(b)
+        a, b = np.asarray(a, dtype=float), np.asarray(b, dtype=float)
         d = b - a
-        rot = d.to_track_quat('Z', 'Y').to_matrix().to_4x4()
-        vs = bmesh.ops.create_cone(self.bm, cap_ends=False, cap_tris=False, segments=6, radius1=r, radius2=r * 0.4,
-                                   depth=d.length, matrix=Matrix.Translation((a + b) / 2) @ rot)["verts"]
-        self._paint(vs, (1, 1, 1))
+        rot = np.array(Vector(d).to_track_quat('Z', 'Y').to_matrix())
+        v, f = self._frustum(r, r * 0.4, float(np.linalg.norm(d)), 6, cap_top=False)
+        self.add(v @ rot.T + a, f, (1, 1, 1))
 
     def obj(self, col, material):
+        V = np.vstack(self.V) if self.V else np.zeros((0, 3), np.float32)
+        F = np.vstack(self.F) if self.F else np.zeros((0, 3), np.int32)
+        C = np.vstack(self.C) if self.C else np.zeros((0, 4), np.float32)
         me = bpy.data.meshes.new(self.name)
-        self.bm.to_mesh(me)
-        self.bm.free()
+        me.vertices.add(len(V))
+        me.vertices.foreach_set("co", V.ravel())
+        me.loops.add(F.size)
+        me.loops.foreach_set("vertex_index", F.ravel())
+        me.polygons.add(len(F))
+        me.polygons.foreach_set("loop_start", np.arange(0, F.size, 3, dtype=np.int32))
+        me.update(calc_edges=True)
+        me.validate()
+        try:
+            me.polygons.foreach_set("use_smooth", np.full(len(F), self.smooth, dtype=bool))
+        except (AttributeError, TypeError, RuntimeError):
+            if self.smooth:
+                me.shade_smooth()
+        ca = me.color_attributes.new("Col", 'FLOAT_COLOR', 'POINT')
+        ca.data.foreach_set("color", C.ravel())
         me.materials.append(material)
         o = bpy.data.objects.new(self.name, me)
         col.objects.link(o)
@@ -374,6 +442,9 @@ def dress_tree(t, mallas, detail=3):
         for k, (cx, cy, cz, cr) in enumerate(t["copas"]):
             mallas["hojas"].blob((cx, cy, cz), cr, rgb, detail=detail if tipo == "arbol" else max(detail - 1, 1),
                                  seed=seed + k * 1.3)
+            if detail >= 2:
+                mallas["hojas"].clusters((cx, cy, cz), cr, rgb, n=int(12 + 8 * cr), seed=seed + k * 1.3,
+                                         detail=2 if detail >= 3 else 1)
     elif tipo == "pino":
         r, h = t["tronco"]
         mallas["troncos"].trunk(x, y, r, h + 0.6, top=0.25)
@@ -393,11 +464,9 @@ def dress_tree(t, mallas, detail=3):
             for k in range(14):
                 th = (seed + k * 2.39) % (2 * math.pi)
                 ph = 0.25 + (k * 0.37 % 1.0) * 0.9
-                p = Vector((cx + cr * math.sin(ph) * math.cos(th), cy + cr * math.sin(ph) * math.sin(th),
-                            cz + cr * math.cos(ph)))
-                vs = bmesh.ops.create_icosphere(mallas["flores"].bm, subdivisions=1, radius=0.045,
-                                                matrix=Matrix.Translation(p))["verts"]
-                mallas["flores"]._paint(vs, fc)
+                p = (cx + cr * math.sin(ph) * math.cos(th), cy + cr * math.sin(ph) * math.sin(th),
+                     cz + cr * math.cos(ph))
+                mallas["flores"].blob(p, 0.045, fc, detail=1, amp=0.0, var=0.0)
     else:                                                             # roca
         cx, cy, cz, cr = t["copas"][0]
         g = 0.85 + 0.3 * u
@@ -582,10 +651,13 @@ def scatter_group(plants):
     for objs, density, smin, smax, seed in ((pasto, 4.0, 0.7, 1.5, 1), (flor, 0.25, 0.8, 1.3, 2)):
         dist = N("GeometryNodeDistributePointsOnFaces")
         dist.distribute_method = 'RANDOM'
-        dist.inputs["Density"].default_value = density
         dist.inputs["Seed"].default_value = seed
         L(gi.outputs[0], dist.inputs["Mesh"])
-        L(dens.outputs["Attribute"], dist.inputs["Density Factor"])
+        mul = N("ShaderNodeMath")                                    # densidad x atributo del suelo
+        mul.operation = 'MULTIPLY'
+        mul.inputs[1].default_value = density
+        L(dens.outputs["Attribute"], mul.inputs[0])
+        L(mul.outputs[0], dist.inputs["Density"])
         iop = N("GeometryNodeInstanceOnPoints")
         L(dist.outputs["Points"], iop.inputs["Points"])
         if len(objs) == 1:
@@ -652,6 +724,32 @@ def ground(col, mats, center, clear_spots, size=150.0, res=75):
 # =====================================================================
 # Cielo, sol y neblina
 # =====================================================================
+def fog_box(col, center, size=110.0, height=26.0, density=0.01):
+    """Neblina: un cubo de volumen alrededor del bosque. (Una neblina en el MUNDO, en Eevee,
+    es infinita y se come toda la luz del cielo y del sol: todo sale negro.)"""
+    m, new = _new_mat("Bosque_Neblina")
+    if new:
+        nt = m.node_tree
+        nt.nodes.remove(nt.nodes["Principled BSDF"])
+        vol = nt.nodes.new("ShaderNodeVolumePrincipled")
+        vol.inputs["Density"].default_value = density
+        vol.inputs["Anisotropy"].default_value = 0.55
+        vol.inputs["Color"].default_value = (0.86, 0.9, 0.95, 1)
+        nt.links.new(vol.outputs[0], nt.nodes["Material Output"].inputs["Volume"])
+    bm = bmesh.new()
+    bmesh.ops.create_cube(bm, size=1.0, matrix=Matrix.Translation((center[0], center[1], height / 2 - 1))
+                          @ Matrix.Diagonal((size, size, height, 1)))
+    me = bpy.data.meshes.new("Bosque_Neblina")
+    bm.to_mesh(me)
+    bm.free()
+    me.materials.append(m)
+    o = bpy.data.objects.new("Bosque_Neblina", me)
+    o.display_type = 'BOUNDS'
+    o.hide_select = True
+    col.objects.link(o)
+    return o
+
+
 def world_and_light(sc, col, sun_az):
     w = bpy.data.worlds.get("Bosque_Cielo") or bpy.data.worlds.new("Bosque_Cielo")
     w.use_nodes = True
@@ -671,10 +769,6 @@ def world_and_light(sc, col, sun_az):
     mr.inputs["From Max"].default_value = 1.0
     bg = nt.nodes.new("ShaderNodeBackground")
     bg.inputs["Strength"].default_value = 1.1
-    vol = nt.nodes.new("ShaderNodeVolumePrincipled")                  # neblina del bosque
-    vol.inputs["Density"].default_value = 0.012
-    vol.inputs["Anisotropy"].default_value = 0.55
-    vol.inputs["Color"].default_value = (0.85, 0.9, 0.95, 1)
     out = nt.nodes.new("ShaderNodeOutputWorld")
     L = nt.links.new
     L(tc.outputs["Generated"], sep.inputs["Vector"])
@@ -682,13 +776,12 @@ def world_and_light(sc, col, sun_az):
     L(mr.outputs["Result"], cr.inputs["Fac"])
     L(cr.outputs["Color"], bg.inputs["Color"])
     L(bg.outputs[0], out.inputs["Surface"])
-    L(vol.outputs[0], out.inputs["Volume"])
     sc.world = w
 
     sd = bpy.data.lights.new("Sol", 'SUN')
-    sd.energy = 4.5
+    sd.energy = 5.5
     sd.angle = math.radians(1.2)
-    sd.color = (1.0, 0.88, 0.70)
+    sd.color = (1.0, 0.86, 0.66)
     sun = bpy.data.objects.new("Sol", sd)
     sun.rotation_euler = (math.radians(58), 0, sun_az)                 # sol de tarde (32° sobre el horizonte)
     col.objects.link(sun)
@@ -714,7 +807,8 @@ def build(sc, lv, core, cols, seed, density):
     center = pts.mean(axis=0)
     belt = belt_trees(rng, lv, core, density)
     fondo = backdrop_trees(rng, center)
-    mallas = {k: Malla(f"Bosque_{k.capitalize()}") for k in ("troncos", "hojas", "pinos", "rocas", "flores")}
+    mallas = {k: Malla(f"Bosque_{k.capitalize()}", smooth=k not in ("pinos", "rocas"))
+              for k in ("troncos", "hojas", "pinos", "rocas", "flores")}
     for t in core:
         dress_tree(t, mallas, detail=3)
     for t in belt:
@@ -735,4 +829,5 @@ def build(sc, lv, core, cols, seed, density):
     mod.node_group = scatter_group(plants)
     sun_az = math.atan2(*(pts[-1][:2] - pts[0][:2])[::-1]) + math.radians(120)
     world_and_light(sc, cols["Camaras_Luces"], sun_az)
+    fog_box(col, center)
     return {"chocables": chocables, "fondo": len(fondo), "piezas": n_col}

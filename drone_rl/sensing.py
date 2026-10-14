@@ -66,3 +66,16 @@ def clearance_penalty(rays: np.ndarray, safe: float = 1.2) -> float:
     """0 si todo está a más de `safe` metros; crece al acercarse a algo (sin contar el piso)."""
     m = float(np.min(rays[:9]))            # 8 horizontales + arriba
     return max(0.0, 1.0 - m / safe) ** 2
+
+
+def danger_penalty(rays: np.ndarray, vel_heading: np.ndarray, horizon: float = 1.0) -> float:
+    """Peligro = ir RÁPIDO hacia algo que se ve. Para cada sensor horizontal:
+    tiempo para chocar = distancia / velocidad hacia ese lado. Si es menos de `horizon` segundos,
+    castiga (más cerca del choque = más castigo). Sin obstáculo a la vista (sensor al máximo) no cuenta.
+    Así aprende a frenar o desviarse ANTES, no solo a no pasar pegado."""
+    closing = RAY_DIRS_LOCAL[:8] @ vel_heading                 # m/s hacia cada sensor
+    seen = (rays[:8] < RAY_LEN - 1e-3) & (closing > 0.3)
+    if not seen.any():
+        return 0.0
+    ttc = float(np.min(rays[:8][seen] / closing[seen]))
+    return max(0.0, 1.0 - ttc / horizon) ** 2

@@ -91,7 +91,7 @@ def clear_scene():
             bpy.data.collections.remove(c)
     mine = ("Piso_pruebas", "Obstaculo_", "COL_obst_", "Aro_", "Plataforma_", "Dron_Cuerpo", "Helice_", "Disco_",
             "txt", "Cam_", "Sol", "Reflector_", "Bosque_Troncos", "Bosque_Hojas", "Bosque_Pinos", "Bosque_Rocas",
-            "Bosque_Flores", "Bosque_Suelo")
+            "Bosque_Flores", "Bosque_Suelo", "Bosque_Neblina")
     for block in (bpy.data.meshes, bpy.data.curves, bpy.data.cameras, bpy.data.lights):
         for d in list(block):
             if d.users == 0 and d.name.startswith(mine):      # solo lo que creó este script
@@ -255,7 +255,8 @@ def build(stage=3, seed=None, model_npz=None, return_scene=None, density=1.0, wi
     else:
         build_lights(cols["Camaras_Luces"], center)
     sc.camera = cam
-    lc = sc.view_layers[0].layer_collection.children.get("Colisiones")
+    root_lc = sc.view_layers[0].layer_collection          # (None en Blender sin ventana, ej. pruebas en 2º plano)
+    lc = root_lc.children.get("Colisiones") if root_lc else None
     if lc:
         lc.hide_viewport = True
 
