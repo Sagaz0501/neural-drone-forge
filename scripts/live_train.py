@@ -195,6 +195,8 @@ class LiveLink(BaseCallback):
                 p = self.save_path.with_name(self.save_path.stem + f"_gen{self.gen}.zip")
                 self.model.save(p)
                 self.msg = f"Modelo guardado: models/{p.name}"
+            if m.get("resend"):                     # Blender reconstruyó su vista
+                self._on_training_start()
             if m.get("export"):
                 from export_policy import export
                 zp = self.save_path.with_name(self.save_path.stem + f"_gen{self.gen}.zip")

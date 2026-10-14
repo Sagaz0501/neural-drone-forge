@@ -55,8 +55,18 @@ def S():
     return ns["drone_lab"]
 
 
+def lab_scene():
+    """La escena del laboratorio: nunca la escena de prueba (esa se regenera y borra lo suyo)."""
+    sc = bpy.data.scenes.get(S().get("scene_name") or "")
+    if sc is None or sc.get("es_prueba"):
+        sc = next((s for s in bpy.data.scenes if not s.get("es_prueba")), None)
+    if sc is None:
+        sc = bpy.data.scenes.new("Laboratorio")
+    return sc
+
+
 def to_bu():
-    return 1.0 / (bpy.context.scene.unit_settings.scale_length or 1.0)
+    return 1.0 / (lab_scene().unit_settings.scale_length or 1.0)
 
 
 # =====================================================================
@@ -125,6 +135,17 @@ def start_test(npz, stage):
         pa.fly(bpy.context)
     S()["test_msg"] = f"Escenario #{info['seed']}: {info['metas']} meta(s), {len(info['obstaculos'])} obstáculos"
     return None
+
+
+def training_stage(props):
+    params = (S().get("stats") or {}).get("params") or {}
+    if "stage" in params:
+        return int(params["stage"])
+    return 3 if props.stage == "LEVEL" else int(props.stage)
+
+
+def test_stage(props):
+    return training_stage(props) if props.prueba_tipo == "IGUAL" else int(props.prueba_tipo)
 
 
 def export_zip(props, zp):
@@ -202,7 +223,7 @@ def ensure_col(name, parent=None):
     c = bpy.data.collections.get(name)
     if c is None:
         c = bpy.data.collections.new(name)
-        (parent or bpy.context.scene.collection).children.link(c)
+        (parent or lab_scene().collection).children.link(c)
     return c
 
 
@@ -270,7 +291,7 @@ def build_proto():
     if proto:
         return proto
     proto = bpy.data.collections.new("DL_DroneProto")
-    bpy.context.scene.collection.children.link(proto)
+    lab_scene().collection.children.link(proto)
     if src_root and src_root.children:
         inv = src_root.matrix_world.inverted()
         for o in src_root.children:
@@ -284,7 +305,7 @@ def build_proto():
         k = 110
         me.from_pydata([(-k, -k, 0), (k, k, 0), (-k, k, 0), (k, -k, 0)], [(0, 1), (2, 3)], [])
         proto.objects.link(bpy.data.objects.new("DL_SimpleQuad", me))
-    lc = bpy.context.view_layer.layer_collection.children.get("DL_DroneProto")
+    lc = lab_scene().view_layers[0].layer_collection.children.get("DL_DroneProto")
     if lc:
         lc.exclude = True                   # oculta la original, las instancias sí se ven
     return proto
@@ -461,6 +482,42 @@ def flash(i, status, pos):
 # Bucle del visor (timer de Blender, ~30 Hz)
 # =====================================================================
 def tick():
+    """Envoltorio: si algo falla (ej. borraron los drones), lo dice y reconstruye en vez de morir."""
+    st = S()
+    try:
+        return _tick()
+    except ReferenceError:
+        st["error"] = ["Los drones de la vista se borraron: reconstruyendo…"]
+        try:
+            rebuild_view()
+            st["error"] = []
+        except Exception as e:
+            st["error"] = [f"No pude reconstruir la vista: {e}"]
+        return 1 / 30 if st.get("running") else None
+    except Exception as e:
+        st["error"] = [f"Error en la vista: {e!r}"[:120]]
+        return 1 / 30 if st.get("running") else None
+
+
+def rebuild_view():
+    """Vuelve a crear los drones en la escena del laboratorio sin reiniciar el entrenamiento."""
+    st = S()
+    sc = lab_scene()
+    p = sc.drone_lab
+    params = (st.get("stats") or {}).get("params") or (st.get("hello") or {}).get("params") or {}
+    n = int(params.get("drones", p.drones))
+    stage = int(params.get("stage", 0 if p.stage == "LEVEL" else int(p.stage)))
+    st["scene_name"] = sc.name
+    build_scene(p, n, stage)
+    # niveles fijos: dibujar los aros ya (por si el trainer es viejo y no reenvía nada)
+    fixed = {0: [(0, 0, 1.5)], 1: [(5, 0, 2)], 5: [(6, 0, 2), (6, 6, 3), (0, 6, 2), (0, 0, 1.5)] * 2}.get(stage)
+    if fixed and p.stage != "LEVEL":
+        for i in range(n):
+            apply_level(i, {"goals": fixed, "spawn": (0, 0, 0)})
+    send_ctrl({"resend": True})              # el trainer vuelve a mandar niveles y pesos
+
+
+def _tick():
     st = S()
     if not st.get("running"):
         return None
@@ -485,7 +542,7 @@ def tick():
             for old_id in [i for i in st["chunks"] if i < m["id"] - 20]:
                 del st["chunks"][old_id]     # pedazos perdidos de mensajes viejos
             try:
-                m = json.loads("".join(parts[k] for k in range(m["n"])))
+                m = json.loads("".join(parts[j] for j in range(m["n"])))
             except (ValueError, KeyError):
                 continue
         t = m.get("t")
@@ -857,8 +914,10 @@ class DroneLabProps(bpy.types.PropertyGroup):
         ("ARCHIVO", "Un archivo .zip", "Un modelo guardado en models/")], default="ACTUAL")
     prueba_zip: bpy.props.StringProperty(name="Archivo", subtype='FILE_PATH', default="")
     prueba_tipo: bpy.props.EnumProperty(name="Escenario", items=[
+        ("IGUAL", "Igual que el entrenamiento", "El mismo tipo de nivel que estás entrenando"),
+        ("0", "Hover", ""), ("1", "Meta fija", ""), ("2", "Una meta sin obstáculos", ""),
         ("3", "Una meta con columnas", ""), ("4", "Tres metas con columnas", ""),
-        ("2", "Una meta sin obstáculos", "")], default="3")
+        ("5", "Circuito (2 vueltas)", "")], default="IGUAL")
 
 
 class DRONELAB_OT_start(bpy.types.Operator):
@@ -912,7 +971,9 @@ class DRONELAB_OT_start(bpy.types.Operator):
         proc = subprocess.Popen(cmd, cwd=project, stdout=open(log, "w"), stderr=subprocess.STDOUT,
                                 start_new_session=True)
         st.clear()
-        st.update(running=True, proc=proc, log=log, tele_sock=tele, scene_name=context.scene.name,
+        if context.scene.get("es_prueba"):               # estabas en la prueba: volver al laboratorio
+            context.window.scene = lab_scene()
+        st.update(running=True, proc=proc, log=log, tele_sock=tele, scene_name=lab_scene().name,
                   ctrl_sock=socket.socket(socket.AF_INET, socket.SOCK_DGRAM), started=time.time())
         build_scene(p, p.drones, stage)
         # ocultar el dron y la repetición anteriores para que no estorben
@@ -1033,7 +1094,7 @@ class DRONELAB_OT_probar(bpy.types.Operator):
     def execute(self, context):
         p = context.scene.drone_lab
         st = S()
-        stage = int(p.prueba_tipo)
+        stage = test_stage(p)
         project, _ = _paths(p)
         proc = st.get("proc")
         try:
@@ -1057,6 +1118,23 @@ class DRONELAB_OT_probar(bpy.types.Operator):
             self.report({'ERROR'}, f"No pude preparar el modelo: {e}")
             return {'CANCELLED'}
         start_test(npz, stage)
+        return {'FINISHED'}
+
+
+class DRONELAB_OT_rebuild_view(bpy.types.Operator):
+    bl_idname = "dronelab.rebuild_view"
+    bl_label = "Reconstruir vista"
+    bl_description = "Vuelve a crear los drones en la escena del laboratorio (el entrenamiento sigue)"
+
+    def execute(self, context):
+        context.window.scene = lab_scene()
+        rebuild_view()
+        ns = bpy.app.driver_namespace
+        t = ns.get("dl_tick")
+        if not (t and bpy.app.timers.is_registered(t)):
+            ns["dl_tick"] = tick
+            bpy.app.timers.register(tick, first_interval=0.1)
+        bpy.ops.dronelab.frame_view()
         return {'FINISHED'}
 
 
@@ -1133,6 +1211,8 @@ class VIEW3D_PT_drone_lab(bpy.types.Panel):
         row = box.row(align=True)
         row.operator("dronelab.save", icon='FILE_TICK')
         row.operator("dronelab.frame_view", icon='ZOOM_ALL')
+        if running:
+            box.operator("dronelab.rebuild_view", icon='FILE_REFRESH')
 
         box = L.box()
         box.label(text="Probar el modelo", icon='PLAY')
@@ -1140,6 +1220,8 @@ class VIEW3D_PT_drone_lab(bpy.types.Panel):
         if p.prueba_fuente == "ARCHIVO":
             box.prop(p, "prueba_zip")
         box.prop(p, "prueba_tipo")
+        if p.prueba_tipo != "IGUAL" and int(p.prueba_tipo) != training_stage(p) and p.prueba_fuente == "ACTUAL":
+            box.label(text="Ojo: es distinto a lo que entrenas", icon='ERROR')
         row = box.row()
         row.scale_y = 1.5
         row.operator("dronelab.probar", icon='WORLD')
@@ -1169,6 +1251,7 @@ class VIEW3D_PT_drone_lab(bpy.types.Panel):
 
 CLASSES = [DroneLabProps, DRONELAB_OT_start, DRONELAB_OT_stop, DRONELAB_OT_pause, DRONELAB_OT_save,
            DRONELAB_OT_reset_rewards, DRONELAB_OT_frame_view, DRONELAB_OT_goto_watched, DRONELAB_OT_probar,
+           DRONELAB_OT_rebuild_view,
            DRONELAB_OT_clear,
            VIEW3D_PT_drone_lab]
 

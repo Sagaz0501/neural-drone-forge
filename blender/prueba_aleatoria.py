@@ -32,7 +32,9 @@ from escena_lib import (M, MB, build_chase_cameras, build_drone, collision_proxy
 
 SCENE = "Prueba IA"
 COLS = ("Prueba_Escenario", "Colisiones", "Ruta", "Ruta_Visual", "Dron", "Camaras_Luces")
-TIPOS = {2: "Una meta, sin obstáculos", 3: "Una meta con columnas", 4: "Tres metas con columnas"}
+TIPOS = {0: "Hover", 1: "Meta fija", 2: "Una meta, sin obstáculos", 3: "Una meta con columnas",
+         4: "Tres metas con columnas", 5: "Circuito (2 vueltas)"}
+CIRCUIT = [(6, 0, 2), (6, 6, 3), (0, 6, 2), (0, 0, 1.5)]      # igual que drone_rl/env.py
 
 
 # =====================================================================
@@ -42,7 +44,13 @@ def make_level(stage, rng):
     from drone_rl.level import Level, random_goal, random_pillars
     lv = Level(name=f"prueba_{stage}")
     sp = lv.spawn
-    if stage in (2, 3):
+    if stage == 0:
+        lv.goals = [sp + np.array([0, 0, 1.5])]
+    elif stage == 1:
+        lv.goals = [sp + np.array([5.0, 0.0, 2.0])]
+    elif stage == 5:
+        lv.goals = [sp + np.array(g, dtype=float) for g in CIRCUIT] * 2
+    elif stage in (2, 3):
         lv.goals = [random_goal(rng, sp)]
     else:
         g, pts = [], sp
@@ -51,7 +59,7 @@ def make_level(stage, rng):
             pts[2] = np.clip(pts[2], 1.0, 5.0)
             g.append(pts.copy())
         lv.goals = g
-    if stage >= 3:
+    if stage in (3, 4):
         lv.box_min, lv.box_max = random_pillars(rng, sp, lv.goals)
     return lv
 
@@ -63,8 +71,16 @@ def clear_scene():
     sc = bpy.data.scenes.get(SCENE)
     if sc is None:
         sc = bpy.data.scenes.new(SCENE)
-    for o in list(sc.objects):
+    mine_objs = set()
+    for name in COLS:                               # SOLO lo que creó este script
+        c = bpy.data.collections.get(name)
+        if c:
+            mine_objs |= set(c.all_objects)
+    for o in mine_objs:
         bpy.data.objects.remove(o, do_unlink=True)
+    for c in list(sc.collection.children):         # colecciones ajenas (ej. del laboratorio): solo desvincular
+        if c.name not in COLS:
+            sc.collection.children.unlink(c)
     for name in COLS:
         c = bpy.data.collections.get(name)
         if c:
@@ -229,7 +245,7 @@ def build(stage=3, seed=None, model_npz=None, return_scene=None):
 
     sc["prueba_stage"] = stage
     sc["cam_atras"], sc["cam_arriba"] = 3.2, 1.7         # cámara de persecución más alta: ver los obstáculos
-    sc["tiempo_max"] = {2: 20.0, 3: 30.0, 4: 45.0}.get(stage, 45.0)
+    sc["tiempo_max"] = {0: 15.0, 1: 15.0, 2: 20.0, 3: 30.0, 4: 45.0, 5: 60.0}.get(stage, 45.0)
     sc["prueba_seed"] = seed
     if return_scene:
         sc["volver_a"] = return_scene
@@ -239,7 +255,7 @@ def build(stage=3, seed=None, model_npz=None, return_scene=None):
         if model_npz:
             sc.piloto_ia.modelo = model_npz
         sc.piloto_ia.variacion = 0.0
-        sc.piloto_ia.variacion_yaw = 180.0         # como en el entrenamiento: sale mirando a cualquier lado
+        sc.piloto_ia.variacion_yaw = 180.0 if stage >= 2 else 0.0   # igual que en el entrenamiento
         sc.piloto_ia.camara = 'PERSECUCION'
     return {"seed": seed, "stage": stage, "metas": len(lv.goals), "obstaculos": kinds}
 

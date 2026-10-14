@@ -440,7 +440,8 @@ class VIEW3D_PT_piloto_ia(bpy.types.Panel):
             col.operator("piloto.volar", icon='PLAY')
         if context.scene.get("es_prueba") and hasattr(bpy.types, "PRUEBA_OT_otro"):
             box = L.box()
-            tipo = {2: "una meta, sin obstáculos", 3: "una meta con columnas", 4: "tres metas con columnas"}
+            tipo = {0: "hover (llegar al aro)", 1: "meta fija", 2: "una meta, sin obstáculos",
+                    3: "una meta con columnas", 4: "tres metas con columnas", 5: "circuito de 2 vueltas"}
             box.label(text=f"Escenario aleatorio #{context.scene.get('prueba_seed', 0)}", icon='WORLD')
             box.label(text=f"Tipo: {tipo.get(int(context.scene.get('prueba_stage', 3)), '')}")
             col = box.column(align=True)
