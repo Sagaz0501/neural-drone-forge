@@ -63,7 +63,8 @@ porque no sabe esquivar, y ahí es donde la IA tiene que ganarle.
 - [x] Viento con ráfagas, premios por rapidez y estabilidad, castigo por peligro
 - [x] Un solo modelo (`models/modelo.zip`) para todo: entrenamiento y pruebas 3D
 - [ ] Bosque resuelto con el modelo único
-- [ ] Video de la IA volando en Blender para el portafolio
+- [x] Juego en el navegador: menú, mundos, poner aros con el mouse, la IA o tú vuelan (`game/`)
+- [ ] Video de la IA volando para el portafolio
 
 ## Bitácora
 
@@ -127,6 +128,11 @@ porque no sabe esquivar, y ahí es donde la IA tiene que ganarle.
   (sin el bosque), así que la prueba fallaba en silencio. Ahora se recarga y, si algo falla, lo dice
   en el panel. También se arregló que los ajustes del laboratorio se leían de la escena que estabas
   viendo (la de prueba tiene los suyos), lo que hacía que "Volver al laboratorio" no volviera.
+- **De Blender a videojuego.** La prueba 3D en Blender iba a ~20 cuadros por segundo, con trabones de
+  medio segundo. Pasé la física, los sensores y la red a JavaScript (`game/sim.js`, verificado contra
+  Python) e hice un juego en el navegador con Three.js: menú, cuatro mundos, editor de aros con el
+  mouse, vuelo de la IA o manual, y un HUD con las palancas que mueve la red. El entrenador guarda el
+  modelo para el juego cada 10 generaciones.
 
 ---
 
@@ -266,7 +272,48 @@ de menos de 0.001 mm).
 Para regenerar la escena:
 `/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup --python blender/build_bodega.py -- --preview`
 
-### 6. Aprender cómo funcionan las redes neuronales
+### 6. El juego: tu modelo vuela en el navegador
+
+```
+models/modelo.zip ──(el laboratorio lo guarda cada 10 generaciones)──▶ models/modelo_web.json
+                                                                              │
+game/ (Three.js) ◀── scripts/jugar.py (servidor local, http://localhost:8765/game/) ◀──┘
+```
+
+En Drone Lab dale **Jugar en el navegador**, o en la terminal `python scripts/jugar.py`.
+
+1. **Menú.** Escoge el mundo (Bosque, Columnas, Bodega o Campo libre), la densidad del bosque, el
+   viento y la calidad gráfica.
+2. **Diseñar la ruta.** Haz clic en el suelo para poner aros, a la altura que marques. También
+   puedes mover la salida, deshacer o pedir una ruta al azar. En el bosque se quitan solos los
+   árboles que tapan un aro, como en el entrenamiento.
+3. **Volar con la IA.** Tu modelo vuela en vivo y aterriza bajo el último aro. Abajo a la izquierda
+   ves *las manos de la IA*: las dos palancas de un control de radio, moviéndose como las mueve la
+   red. Abajo a la derecha ves sus 10 sensores. Con **N** ves el cerebro (24 entradas, 128 + 128
+   neuronas, 4 palancas).
+4. **Pilotear yo.** El mismo dron y la misma física, con las flechas (gas y giro) y WASD (avance y
+   lado), o con un control en modo 2.
+
+Teclas al volar: **C** cambia la cámara (persecución, FPV, libre, desde arriba), **R** otra vez,
+**E** editar la ruta, **+/−** velocidad, **P** pausa, **Esc** menú.
+
+Cada vez que le das Volar, el juego vuelve a leer el modelo. Si estás entrenando, vuela con la última
+generación guardada.
+
+**¿Por qué no en Blender?** Blender dibuja cada cuadro como una película (neblina volumétrica,
+sombras suaves, cientos de miles de triángulos) y en la prueba 3D daba ~20 cuadros por segundo con
+trabones. El juego usa *instancing*: miles de árboles y matas de pasto en pocas llamadas a la tarjeta
+de video.
+
+**Es el mismo simulador.** `game/sim.js` es la física, los sensores y la red pasados a JavaScript.
+`game/test_sim.mjs` lo compara con Python: sensores y física iguales hasta 1e-13, y un vuelo completo
+de 15 s con aterrizaje igual a menos de 0.001 mm.
+
+```bash
+python game/make_fixture.py && node game/test_sim.mjs
+```
+
+### 7. Aprender cómo funcionan las redes neuronales
 
 Lee [`docs/redes-neuronales.md`](docs/redes-neuronales.md) y corre
 `python learn/red_neuronal_desde_cero.py`. Es una red hecha solo con numpy, con backpropagation

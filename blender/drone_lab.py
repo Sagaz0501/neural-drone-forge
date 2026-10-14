@@ -1254,6 +1254,29 @@ class DRONELAB_OT_probar(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class DRONELAB_OT_jugar(bpy.types.Operator):
+    bl_idname = "dronelab.jugar"
+    bl_label = "Jugar en el navegador"
+    bl_description = ("Abre el juego (game/) en tu navegador: escoges el mundo, pones los aros y EL modelo vuela. "
+                      "Mucho más fluido que la prueba en Blender")
+
+    def execute(self, context):
+        p = lab_scene().drone_lab
+        project, python = _paths(p)
+        st = S()
+        if st.get("running"):
+            send_ctrl({"save": True})            # que el juego tenga la generación de ahora
+        srv = st.get("game_server")
+        alive = srv is not None and srv.poll() is None
+        log = open(os.path.join(project, "jugar.log"), "w")
+        args = [python, "-u", os.path.join(project, "scripts", "jugar.py")]
+        proc = subprocess.Popen(args, cwd=project, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+        if not alive:
+            st["game_server"] = proc
+        self.report({'INFO'}, "Abriendo el juego en http://localhost:8765/game/")
+        return {'FINISHED'}
+
+
 class DRONELAB_OT_reset_model(bpy.types.Operator):
     bl_idname = "dronelab.reset_model"
     bl_label = "Empezar de cero"
@@ -1410,7 +1433,17 @@ class VIEW3D_PT_drone_lab(bpy.types.Panel):
             box.operator("dronelab.rebuild_view", icon='FILE_REFRESH')
 
         box = L.box()
-        box.label(text="Probar EL modelo en 3D", icon='PLAY')
+        box.label(text="Jugar: el modelo vuela en el navegador", icon='WORLD_DATA')
+        row = box.row()
+        row.scale_y = 1.6
+        row.operator("dronelab.jugar", icon='PLAY')
+        c = box.column(align=True)
+        c.scale_y = 0.8
+        c.label(text="Escoges el mundo y pones los aros con el mouse.")
+        c.label(text="Usa la última generación guardada (cada 10).")
+
+        box = L.box()
+        box.label(text="Probar EL modelo en 3D (Blender)", icon='PLAY')
         box.prop(p, "prueba_tipo")
         if p.prueba_tipo != "IGUAL" and int(p.prueba_tipo) != training_stage(p):
             box.label(text="Ojo: es distinto a lo que entrenas", icon='ERROR')
@@ -1453,7 +1486,7 @@ class VIEW3D_PT_drone_lab(bpy.types.Panel):
 
 CLASSES = [DroneLabProps, DRONELAB_OT_start, DRONELAB_OT_stop, DRONELAB_OT_pause, DRONELAB_OT_save,
            DRONELAB_OT_reset_rewards, DRONELAB_OT_frame_view, DRONELAB_OT_goto_watched, DRONELAB_OT_probar,
-           DRONELAB_OT_reset_model,
+           DRONELAB_OT_reset_model, DRONELAB_OT_jugar,
            DRONELAB_OT_rebuild_view,
            DRONELAB_OT_clear,
            VIEW3D_PT_drone_lab]
@@ -1462,6 +1495,9 @@ CLASSES = [DroneLabProps, DRONELAB_OT_start, DRONELAB_OT_stop, DRONELAB_OT_pause
 def _shutdown_trainer():
     """Al cerrar Blender: pedir al trainer que guarde y termine (si no, seguiría en segundo plano)."""
     st = S()
+    srv = st.get("game_server")
+    if srv and srv.poll() is None:
+        srv.terminate()
     proc = st.get("proc")
     if proc and proc.poll() is None:
         send_ctrl({"stop": True})

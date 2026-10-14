@@ -3,6 +3,7 @@ Exporta el ACTOR de un modelo PPO a un .npz con matrices numpy, para que la IA c
 Blender sin PyTorch (ver drone_rl/runtime.py).
 
     python scripts/export_policy.py models/bodega.zip            -> models/policy_bodega.npz
+    python scripts/export_policy.py models/modelo.zip --web      -> además models/modelo_web.json (para el juego)
 
 También verifica que la versión numpy decide exactamente lo mismo que el modelo original.
 """
@@ -45,9 +46,36 @@ def export(model_path, out_path=None):
     return out
 
 
+def npz_to_web(npz_path, out_path, extra_meta=None):
+    """El .npz (solo numpy) -> JSON para el juego del navegador (game/sim.js -> Policy).
+    No necesita PyTorch: Blender también lo puede llamar."""
+    d = np.load(npz_path, allow_pickle=False)
+    n = int(d["n_layers"])
+    meta = json.loads(str(d["meta"])) if "meta" in d else {}
+    meta.update(extra_meta or {})
+    layers = []
+    for i in range(n):
+        W, b = d[f"W{i}"].astype(np.float32), d[f"b{i}"].astype(np.float32)
+        layers.append({"in": int(W.shape[1]), "out": int(W.shape[0]),
+                       "W": [float(f"{x:.7g}") for x in W.ravel()], "b": [float(f"{x:.7g}") for x in b]})
+    out = Path(out_path)
+    tmp = out.with_name(out.stem + "_guardando.json")
+    tmp.write_text(json.dumps({"meta": meta, "layers": layers}, separators=(",", ":")))
+    tmp.replace(out)
+    return out
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("model")
     ap.add_argument("--out", default=None)
+    ap.add_argument("--web", action="store_true", help="además escribe <modelo>_web.json para el juego")
     a = ap.parse_args()
-    export(a.model, a.out)
+    npz = export(a.model, a.out)
+    if a.web:
+        meta_path = Path(a.model).with_suffix(".json")
+        extra = {}
+        if meta_path.exists():
+            m = json.loads(meta_path.read_text())
+            extra = {k: m.get(k) for k in ("generaciones", "pasos", "niveles", "creado", "actualizado")}
+        print(npz_to_web(npz, Path(a.model).with_name(Path(a.model).stem + "_web.json"), extra))

@@ -171,6 +171,22 @@ class LiveLink(BaseCallback):
         tmpj = self.model_path.with_name("modelo_guardando.json")
         tmpj.write_text(json.dumps(self.meta, ensure_ascii=False))
         os.replace(tmpj, self.model_path.with_suffix(".json"))
+        self.save_web()
+
+    def save_web(self):
+        """models/modelo_web.json: los pesos del actor para el juego del navegador (game/)."""
+        layers = []
+        for L in self.layers():
+            W = L.weight.detach().cpu().numpy().astype(np.float32)
+            b = L.bias.detach().cpu().numpy().astype(np.float32)
+            layers.append({"in": int(W.shape[1]), "out": int(W.shape[0]),
+                           "W": [float(f"{x:.7g}") for x in W.ravel()], "b": [float(f"{x:.7g}") for x in b]})
+        meta = {k: self.meta.get(k) for k in ("generaciones", "pasos", "niveles", "creado", "actualizado")}
+        meta["sizes"] = [layers[0]["in"]] + [L["out"] for L in layers]
+        web = self.model_path.with_name(self.model_path.stem + "_web.json")
+        tmp = self.model_path.with_name("modelo_web_guardando.json")
+        tmp.write_text(json.dumps({"meta": meta, "layers": layers}, separators=(",", ":")))
+        os.replace(tmp, web)
 
     def send_frame(self):
         d = []

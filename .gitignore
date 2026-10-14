@@ -27,3 +27,6 @@ models/anteriores/*
 !models/anteriores/bodega_v1.zip
 !models/anteriores/policy_stage3.npz
 _deploy/
+models/modelo_web.json
+models/modelo_web_guardando.json
+game/_fixture/
