@@ -87,7 +87,8 @@ function toast(msg, ms = 2600) {
 
 // ---------------- el modelo (models/modelo_web.json) ----------------
 const NIVELES = { hover: "Hover", goal_fixed: "Meta fija", goal_random: "Metas", obstacles: "Columnas", multi_goal: "Varias metas",
-  circuit: "Circuito", forest: "Bosque", forest_multi: "Bosque 3 aros", hunt: "Caza" };
+  circuit: "Circuito", forest: "Bosque", forest_multi: "Bosque 3 aros", hunt: "Caza", hunt_columns: "Caza columnas",
+  hunt_forest: "Caza bosque" };
 
 function showModel() {
   const el = $("model");
@@ -184,13 +185,16 @@ function showGoals() {
   else birdsView.hide();
 }
 
-/** Caza: n pájaros al azar en el área (a 4-10 m de la salida, de 2 a 5.5 m de alto, fuera de los obstáculos). */
+/** Altura en que vuelan los pájaros: en el bosque, DEBAJO de las copas (como en el nivel 10). */
+const birdZ = () => (S.world.kind === "bosque" ? BIRDS.Z_FOREST : [BIRDS.Z_MIN, BIRDS.Z_MAX]);
+
+/** Caza: n pájaros al azar en el área (a 4-10 m de la salida, a su altura de vuelo, lejos de los obstáculos). */
 function randomBirds(seed, n = 5) {
-  const r = makeRng(seed), sp = S.world.spawn, out = [];
-  for (let k = 0; k < 600 && out.length < n; k++) {
+  const r = makeRng(seed), sp = S.world.spawn, out = [], [z0, z1] = birdZ();
+  for (let k = 0; k < 2000 && out.length < n; k++) {
     const rad = BIRDS.AREA_R * 0.85 * Math.sqrt(r()), a = r.uniform(-Math.PI, Math.PI);
-    const p = [sp[0] + rad * Math.cos(a), sp[1] + rad * Math.sin(a), r.uniform(BIRDS.Z_MIN + 0.5, BIRDS.Z_MAX - 0.5)];
-    if (rad < 4 || Math.abs(p[0]) > 27 || Math.abs(p[1]) > 27 || insideObstacle(p, 0.5)) continue;
+    const p = [sp[0] + rad * Math.cos(a), sp[1] + rad * Math.sin(a), r.uniform(z0 + 0.5, z1 - 0.5)];
+    if (rad < 4 || Math.abs(p[0]) > 27 || Math.abs(p[1]) > 27 || insideObstacle(p, 0.8)) continue;
     out.push(p);
   }
   return out;
@@ -209,9 +213,11 @@ function clearForGoals(announce = true) {
   }
 }
 
+let obsCache = null;                          // el Level de los obstáculos del mundo (armarlo cuesta en el bosque)
 function insideObstacle(p, r = 0.6) {
-  const L = new Level(levelDict(S.world, []));
-  return L.collides(p, r);
+  const w = S.world;
+  if (!obsCache || obsCache.w !== w || obsCache.n !== w.trees.length) obsCache = { w, n: w.trees.length, L: new Level(levelDict(w, [])) };
+  return obsCache.L.collides(p, r);
 }
 
 // ---------------- menú ----------------
@@ -360,8 +366,9 @@ canvas.addEventListener("pointerup", (e) => {
     updateRoute();
     return;
   }
-  const g = [x, y, S.height];
-  if (S.world.kind !== "bosque" && insideObstacle(g)) { toast("Ese punto está dentro de un obstáculo"); return; }
+  const g = [x, y, caza() ? Math.min(Math.max(S.height, birdZ()[0]), birdZ()[1]) : S.height];
+  if (caza() && S.world.kind === "bosque" && S.height > birdZ()[1]) toast(`En el bosque los pájaros vuelan debajo de las copas: lo puse a ${fmt(g[2])} m`);
+  if ((S.world.kind !== "bosque" || caza()) && insideObstacle(g, caza() ? 0.8 : 0.6)) { toast("Ese punto está dentro de un obstáculo (o muy pegado)"); return; }
   if (caza() && Math.hypot(x - S.world.spawn[0], y - S.world.spawn[1]) > BIRDS.AREA_R)
     toast(`Los pájaros vuelan a menos de ${BIRDS.AREA_R} m de la salida: este va a volver hacia adentro`);
   pushHistory();
@@ -577,7 +584,7 @@ async function startFlight(pilot) {
   let flock = null;
   if (hunt) {                                 // los pájaros arrancan donde los pusiste, cada uno hacia un lado al azar
     const r = makeRng(seed + 7);
-    flock = new Flock(S.birdSpeed, S.world.spawn).start(S.goals, S.goals.map(() => r.uniform(-Math.PI, Math.PI)));
+    flock = new Flock(S.birdSpeed, S.world.spawn, L, birdZ()).start(S.goals, S.goals.map(() => r.uniform(-Math.PI, Math.PI)));
   }
   S.flight = new Flight(L, S.policy, {
     landOn: pilot === "ia" && !hunt ? [last[0], last[1], 0] : null, wind: S.wind, seed, flock,

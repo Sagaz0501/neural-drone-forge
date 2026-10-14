@@ -47,10 +47,13 @@ STAGE_ITEMS = [
     ("6", "Bosque", "Cruzar un bosque (troncos, árboles jóvenes, arbustos) hasta un aro a 9-14 m"),
     ("7", "Bosque: 3 aros", "Slalom de 3 aros en orden dentro del bosque"),
     ("8", "Caza: pájaros", "Pájaros que vuelan solos y huyen: cazarlos a todos (tocarlos)"),
+    ("9", "Caza entre columnas", "Cazar los pájaros en un área llena de columnas (ellos las esquivan)"),
+    ("10", "Caza en el bosque", "Cazar los pájaros debajo de las copas, entre troncos y arbustos"),
     ("LEVEL", "Nivel JSON", "Un nivel exportado desde Blender (todos los drones en el mismo nivel)"),
 ]
 STAGE_NAMES = {"hover": "Hover", "goal_fixed": "Meta fija", "goal_random": "Metas", "obstacles": "Columnas",
-               "multi_goal": "Varias metas", "circuit": "Circuito", "forest": "Bosque", "forest_multi": "Bosque 3 aros", "hunt": "Caza"}
+               "multi_goal": "Varias metas", "circuit": "Circuito", "forest": "Bosque", "forest_multi": "Bosque 3 aros", "hunt": "Caza",
+               "hunt_columns": "Caza columnas", "hunt_forest": "Caza bosque"}
 COLORS = {"fly": (0.9, 0.9, 0.95, 1), 1: (1.0, 0.12, 0.08, 1), 2: (0.1, 1.0, 0.35, 1), 3: (1.0, 0.75, 0.1, 1)}
 REWARD_KEYS = ["progress", "goal", "crash", "time", "smooth", "tilt", "near", "clearance", "danger", "speed",
                "stability", "heading"]
@@ -432,7 +435,7 @@ def build_proto():
 def cell_size(stage, fixed_level):
     if fixed_level:
         return 24.0
-    return {0: 3.0, 1: 9.0, 5: 12.0, 6: 32.0, 7: 46.0, 8: 30.0}.get(stage, 22.0)
+    return {0: 3.0, 1: 9.0, 5: 12.0, 6: 32.0, 7: 46.0, 8: 30.0, 9: 30.0, 10: 30.0}.get(stage, 22.0)
 
 
 RING_CUR = (0.1, 1.0, 0.35, 1)      # el aro que toca ahora
@@ -971,7 +974,7 @@ def draw_hud():
         f"lr {p.get('lr', 0):.1e}   σ {p.get('sigma', 0):.2f}   entropía {p.get('ent', 0):.3f}   velocidad {p.get('speed', '-')}"
         + ("   [PAUSA]" if p.get("paused") else ""),
     ]
-    if p.get("stage") == 8:
+    if p.get("stage") in (8, 9, 10):
         lines.append(f"caza: {s.get('goals', 0):.1f} de {p.get('n_birds', 5)} pájaros por intento · "
                      f"pájaros a {p.get('bird_speed', 2):g} m/s")
     if s.get("front") is not None and s.get("front", 0) > 0:
@@ -979,7 +982,7 @@ def draw_hud():
     if s.get("spd"):
         lines.append(f"los que llegan: vel. media {s['spd']:.1f} m/s · giro medio {s.get('ang', 0):.0f}°/s"
                      + (f" · viento {p['wind']:g} m/s" if p.get("wind") else "")
-                     + (f" · densidad {p.get('density', 1):g}" if p.get("stage") in (6, 7) else ""))
+                     + (f" · densidad {p.get('density', 1):g}" if p.get("stage") in (6, 7, 10) else ""))
     rw = p.get("reward", {})
     if rw:
         items = [f"{k} {v:g}" for k, v in rw.items()]
@@ -1114,7 +1117,7 @@ class DroneLabProps(bpy.types.PropertyGroup):
                                                       "Más alto = vuelo más suave. Girar sobre sí mismo lo maneja 'Ir de frente'")
     # ---- ambiente (cambia en vivo, desde el próximo intento de cada dron) ----
     densidad: bpy.props.FloatProperty(name="Densidad del bosque", default=1.0, min=0.3, max=2.5, update=_on_env_change,
-                                      description="Solo para Bosque: 0.5 = claro · 1 = normal · 2 = denso")
+                                      description="Bosque y Caza en el bosque: 0.5 = claro · 1 = normal · 2 = denso")
     pajaros: bpy.props.IntProperty(name="Pájaros", default=5, min=1, max=10, update=_on_env_change,
                                    description="Caza: cuántos pájaros hay que cazar (desde el próximo intento)")
     pajaros_vel: bpy.props.FloatProperty(name="Velocidad pájaros (m/s)", default=1.5, min=0.3, max=5.0,
@@ -1314,8 +1317,9 @@ class DRONELAB_OT_probar(bpy.types.Operator):
         p = lab_scene().drone_lab
         st = S()
         stage = self.stage if self.stage >= 0 else test_stage(p)
-        if stage == 8:                      # la caza se ve en el juego del navegador (pájaros, cámaras, etc.)
-            st["test_msg"] = "La caza se prueba en el juego: Jugar en el navegador → mundo Caza"
+        if stage >= 8:                      # la caza se ve en el juego del navegador (pájaros, cámaras, etc.)
+            st["test_msg"] = ("La caza se prueba en el juego: Jugar en el navegador → Juego: Caza "
+                              "(mundo Campo, Columnas o Bosque)")
             return bpy.ops.dronelab.jugar()
         proc = st.get("proc")
         if proc and proc.poll() is None:
@@ -1540,11 +1544,11 @@ class VIEW3D_PT_drone_lab(bpy.types.Panel):
         box = L.box()
         box.label(text="Ambiente (cambia en vivo)", icon='OUTLINER_OB_FORCE_FIELD')
         row = box.row()
-        row.active = p.stage in ("6", "7")
+        row.active = p.stage in ("6", "7", "10")
         row.prop(p, "densidad", slider=True)
         box.prop(p, "viento", slider=True)
         col = box.column()
-        col.active = p.stage == "8"
+        col.active = p.stage in ("8", "9", "10")
         col.prop(p, "pajaros", slider=True)
         col.prop(p, "pajaros_vel", slider=True)
 

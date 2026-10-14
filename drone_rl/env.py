@@ -17,6 +17,8 @@ Currículum (de fácil a difícil), parámetro `stage`:
     6 forest       : cruzar un bosque (troncos, copas, arbustos) hasta un aro a 9-14 m
     7 forest_multi : slalom de 3 aros dentro del bosque
     8 hunt         : CAZA: 5 pájaros vuelan solos (y huyen); hay que tocarlos a todos (birds.py)
+    9 hunt_columns : caza entre columnas altas (los pájaros las esquivan; el dron también tiene que)
+   10 hunt_forest  : caza en el bosque, debajo de las copas, entre troncos y arbustos
 Opciones para cualquier nivel: density (bosque más claro/denso) y wind (viento con ráfagas, m/s).
 O un nivel fijo hecho en Blender: DroneEnv(level_path="levels/mi_nivel.json")
 """
@@ -29,15 +31,17 @@ import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 
-from .birds import CATCH_R, Flock
-from .level import Level, forest_level, random_goal, random_pillars
+from .birds import CATCH_R, Z_FOREST, Z_MAX, Z_MIN, Flock
+from .level import (Level, forest_level, forest_shapes, hunt_pillars, random_forest, random_goal,
+                    random_pillars)
 from .physics import QuadParams, QuadState, Wind, step
 from .physics import yaw_frame
 from .sensing import (OBS_SCALE, RAY_DIRS_LOCAL, RAY_LEN, build_obs, clearance_penalty, danger_penalty,  # noqa: F401
                       sensor_rays)
 
 STAGES = {0: "hover", 1: "goal_fixed", 2: "goal_random", 3: "obstacles", 4: "multi_goal", 5: "circuit",
-          6: "forest", 7: "forest_multi", 8: "hunt"}
+          6: "forest", 7: "forest_multi", 8: "hunt", 9: "hunt_columns", 10: "hunt_forest"}
+HUNT_STAGES = (8, 9, 10)
 
 # Qué cuenta como éxito en cada misión (texto en drone_rl/missions.json, que también lee Blender).
 # OJO: la IA no lee esto; solo "siente" la recompensa. Esto es para nosotros.
@@ -149,8 +153,13 @@ class DroneEnv(gym.Env):
             lv.box_min, lv.box_max = random_pillars(rng, sp, lv.goals)
         if self.stage in (6, 7):
             lv, self.trees = forest_level(rng, self.density, n_goals=1 if self.stage == 6 else 3)
-        if self.stage == 8:
+        if self.stage in HUNT_STAGES:
             lv.goals = []                      # las metas son los pájaros (se crean en reset)
+        if self.stage == 9:
+            lv.box_min, lv.box_max = hunt_pillars(rng, sp)
+        if self.stage == 10:                   # bosque por toda el área de caza (radio ~13 m)
+            self.trees = random_forest(rng, sp, [], self.density, margin=13.0)
+            lv.cyl_xy, lv.cyl_r, lv.cyl_z, lv.sph_c, lv.sph_r = forest_shapes(self.trees)
         return lv
 
     def reset(self, *, seed=None, options=None):
@@ -160,8 +169,10 @@ class DroneEnv(gym.Env):
         self.goal_idx = 0
         rng = self.np_random
         self.flock, self.target = None, None
-        if self.stage == 8 and self.fixed_level is None:
-            self.flock = Flock(self.n_birds, self.bird_speed, center=self.level.spawn).reset(rng, self.state.pos, self.dt)
+        if self.stage in HUNT_STAGES and self.fixed_level is None:
+            self.flock = Flock(self.n_birds, self.bird_speed, center=self.level.spawn,
+                               level=self.level if self.stage > 8 else None,
+                               z=Z_FOREST if self.stage == 10 else (Z_MIN, Z_MAX)).reset(rng, self.state.pos, self.dt)
             self.target = self.flock.pick(self.state.pos, None)
         # pequeño yaw aleatorio para que no memorice una sola orientación
         if self.fixed_level is None:

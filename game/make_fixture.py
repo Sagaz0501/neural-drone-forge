@@ -96,6 +96,27 @@ for t in range(600):
     birds_out.append({"pos": fk.pos.tolist(), "est": fk.est_vel.tolist(), "pick": cur})
 flock_case = {"pos": start_pos, "head": start_head, "noise": noise.tolist(), "drone": drone_path, "out": birds_out}
 
+# 6b) caza en el bosque: los pájaros esquivan troncos y copas (mismo bosque que el caso 1)
+from drone_rl.birds import Z_FOREST
+fpos = []
+frng = np.random.default_rng(13)
+while len(fpos) < 6:
+    q = np.array([frng.uniform(-8, 8), frng.uniform(-8, 8), frng.uniform(1.2, 2.1)])
+    if not lv.collides(q, 0.8):
+        fpos.append(q.tolist())
+fhead = frng.uniform(-np.pi, np.pi, 6).tolist()
+ff = Flock(6, 2.5, level=lv, z=Z_FOREST).start(np.array(fpos), np.array(fhead))
+fnoise = frng.normal(size=(800, 6, 3))
+fdrone, fout, inside = [], [], 0
+for t in range(800):
+    d = np.array([5 * np.cos(t * 0.012), 5 * np.sin(t * 0.009), 1.6])
+    ff.step(0.02, fnoise[t], d)
+    inside += int(lv.collides_many(ff.pos, 0.2).sum())
+    fdrone.append(d.tolist())
+    fout.append(ff.pos.tolist())
+assert inside == 0, inside
+forest_flock = {"pos": fpos, "head": fhead, "noise": fnoise.tolist(), "drone": fdrone, "out": fout}
+
 # 7) caza completa con una red de 27 entradas (las 3 nuevas con pesos de verdad)
 import torch
 from drone_rl.upgrade import load_ppo
@@ -129,6 +150,6 @@ hunt = {"pos": start_pos, "head": start_head, "noise": hunt_noise, "traj": traj3
 (ROOT / "game" / "_fixture" / "fixture.json").write_text(json.dumps(
     {"level": level, "rays": ray_cases, "obs": obs_cases, "acts": acts.tolist(), "phys": phys,
      "flight": flight1, "open_level": open_lv.to_dict(),
-     "flight2": flight2, "flock": flock_case, "hunt": hunt}))
+     "flight2": flight2, "flock": flock_case, "hunt": hunt, "forest_flock": forest_flock}))
 print("fixture ok:", flight1["phase"], flight1["reason"], len(traj), "| abierto:", flight2["phase"], round(flight2["t"], 2),
       len(traj2), "| caza:", hunt["phase"], hunt["reason"], hunt["caught"], "pájaros en", len(traj3), "pasos")

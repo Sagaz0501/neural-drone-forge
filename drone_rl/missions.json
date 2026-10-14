@@ -78,5 +78,21 @@
     "exito": "Tocar a los 5 pájaros (pasar a menos de 0.7 m) antes de 60 s, sin chocar.",
     "falla": "chocar con el piso a más de 4 m/s, salirse del área de 30 m, o que se acabe el tiempo.",
     "premio": "+2 por metro que se acerca a su presa, +10 por cada pájaro, + velocidad media x 'rapidez', - nariz lejos de la presa x 'ir de frente', -10 al chocar"
+  },
+  "9": {
+    "nombre": "Caza entre columnas",
+    "tiempo": 60,
+    "objetivo": "Cazar a los 5 pájaros en un área llena de columnas altas (9-14, separadas al menos 1.6 m). Los pájaros vuelan solos, ESQUIVAN las columnas y huyen cuando el dron se acerca a menos de 4 m. Solo ve dónde está su presa y cómo se movió en la última décima de segundo; las columnas, con sus 10 sensores.",
+    "exito": "Tocar a los 5 pájaros (pasar a menos de 0.7 m) antes de 60 s, sin chocar con ninguna columna.",
+    "falla": "chocar con una columna o con el piso a más de 4 m/s, salirse del área de 30 m, o que se acabe el tiempo.",
+    "premio": "+2 por metro que se acerca a su presa, +10 por cada pájaro, + velocidad media x 'rapidez', - nariz lejos de la presa x 'ir de frente', -10 al chocar (incluye las columnas)"
+  },
+  "10": {
+    "nombre": "Caza en el bosque",
+    "tiempo": 60,
+    "objetivo": "Cazar a los 5 pájaros dentro del bosque: vuelan DEBAJO de las copas (de 0.9 a 2.4 m), esquivando troncos, árboles jóvenes y arbustos, y huyen del dron. El dron tiene que perseguirlos sin tocar nada.",
+    "exito": "Tocar a los 5 pájaros antes de 60 s sin tocar ningún árbol, arbusto ni roca.",
+    "falla": "tocar un árbol, arbusto o roca, chocar con el piso a más de 4 m/s, salirse del área, o que se acabe el tiempo.",
+    "premio": "+2 por metro que se acerca a su presa, +10 por cada pájaro, + velocidad media x 'rapidez', - nariz lejos de la presa x 'ir de frente', -10 al chocar (incluye los árboles)"
   }
 }

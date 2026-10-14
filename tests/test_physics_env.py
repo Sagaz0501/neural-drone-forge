@@ -101,7 +101,7 @@ def test_circuit_two_laps():
     env.reset(seed=0)
     assert len(env.level.goals) == 8                       # 4 aros x 2 vueltas
     assert len(OBS_LABELS) == env.observation_space.shape[0]
-    assert set(MISSIONS) == set(range(9))
+    assert set(MISSIONS) == set(range(11))
     assert run_pilot(5, episodes=5) == 1.0                 # el piloto PD completa las 2 vueltas
 
 
@@ -288,3 +288,18 @@ def test_widened_model_flies_exactly_like_before():
         obs, _, te, tr, _ = env.step(a_new)
         if te or tr:
             break
+
+
+def test_hunt_with_obstacles_birds_never_inside():
+    """Caza entre columnas (9) y en el bosque (10): hay obstáculos y los pájaros nunca se meten en ellos."""
+    for stage in (9, 10):
+        env = DroneEnv(stage=stage, bird_speed=3.0)
+        env.reset(seed=stage)
+        lv = env.level
+        assert len(lv.box_min) >= 5 if stage == 9 else len(lv.cyl_r) >= 20
+        if stage == 10:
+            assert env.flock.z_max < 2.6                          # debajo de las copas altas
+        assert not lv.collides(env.state.pos + np.array([0, 0, 0.3]), 0.5)   # la salida queda libre
+        for _ in range(1000):
+            env.step(np.zeros(4))
+            assert not lv.collides_many(env.flock.pos, 0.2).any()

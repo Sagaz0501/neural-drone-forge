@@ -426,7 +426,8 @@ export class Flight {
 }
 
 // ---------------- caza: los pájaros (birds.py) ----------------
-export const BIRDS = { AREA_R: 12.0, Z_MIN: 1.5, Z_MAX: 6.0, FLEE_R: 4.0, CATCH_R: 0.7, EST_STEPS: 5, SWITCH: 0.6 };
+export const BIRDS = { AREA_R: 12.0, Z_MIN: 1.5, Z_MAX: 6.0, FLEE_R: 4.0, CATCH_R: 0.7, EST_STEPS: 5, SWITCH: 0.6,
+  LOOK: 1.2, LOOK_R: 0.45, BODY_R: 0.25, Z_FOREST: [0.9, 2.4] };
 const wrapAng = (a) => a - 2 * Math.PI * Math.floor((a + Math.PI) / (2 * Math.PI));
 
 /**
@@ -434,9 +435,12 @@ const wrapAng = (a) => a - 2 * Math.PI * Math.floor((a + Math.PI) / (2 * Math.PI
  * El dron solo sabe dónde está su presa y cómo se movió en la última décima de segundo (estVel).
  */
 export class Flock {
-  constructor(speed = 1.5, center = [0, 0, 0]) {
-    this.speed = speed; this.center = center;
+  /** level: obstáculos a esquivar (null = campo abierto) · z: [mín, máx] de altura (bosque: debajo de las copas). */
+  constructor(speed = 1.5, center = [0, 0, 0], level = null, z = [BIRDS.Z_MIN, BIRDS.Z_MAX]) {
+    this.speed = speed; this.center = center; this.level = level;
+    this.zMin = z[0]; this.zMax = z[1];
   }
+  hits(p, r) { return this.level ? this.level.collides(p, r) : false; }
   /** pos: [[x,y,z], …] donde empiezan · head: rumbo inicial de cada uno (rad). */
   start(pos, head, dt = 1 / CONTROL_HZ) {
     const n = (this.n = pos.length);
@@ -464,15 +468,28 @@ export class Flock {
       const out = clip((Math.hypot(dx, dy) - 0.7 * R) / (0.3 * R), 0, 1);
       head = head + wrapAng(Math.atan2(-dy, -dx) - head) * clip(out * 3.0 * dt, 0, 1);
       const z = p[2];                                                                    // piso / techo
-      climb = climb + clip((B.Z_MIN + 0.6 - z) / 0.6, 0, 1) * 4.0 * dt - clip((z - (B.Z_MAX - 0.6)) / 0.6, 0, 1) * 4.0 * dt;
+      climb = climb + clip((this.zMin + 0.6 - z) / 0.6, 0, 1) * 4.0 * dt - clip((z - (this.zMax - 0.6)) / 0.6, 0, 1) * 4.0 * dt;
       const ax = p[0] - drone[0], ay = p[1] - drone[1], az = p[2] - drone[2];           // huir
       const dd = Math.max(Math.sqrt(ax * ax + ay * ay + az * az), 1e-6);
       const k = clip(1 - dd / B.FLEE_R, 0, 1);
       head = head + wrapAng(Math.atan2(ay, ax) - head) * clip(k * 6.0 * dt, 0, 1);
+      if (this.level) {                                                                // esquivar: mirar adelante
+        const ahead = (h) => [p[0] + Math.cos(h) * B.LOOK, p[1] + Math.sin(h) * B.LOOK, p[2]];
+        if (this.hits(ahead(head), B.LOOK_R)) {
+          const freeL = !this.hits(ahead(head + 0.9), B.LOOK_R), freeR = !this.hits(ahead(head - 0.9), B.LOOK_R);
+          head = head + (freeL ? 1.0 : freeR ? -1.0 : 1.0) * 5.0 * dt;
+        }
+      }
       const spd = this.speed * pace * (1 + 0.5 * k);
       const vd = [spd * Math.cos(head), spd * Math.sin(head), climb + k * this.speed * 0.8 * az / dd];
-      const nv = [v[0] + (vd[0] - v[0]) * f, v[1] + (vd[1] - v[1]) * f, v[2] + (vd[2] - v[2]) * f];
-      this.pos[i] = [p[0] + nv[0] * dt, p[1] + nv[1] * dt, clip(p[2] + nv[2] * dt, 0.4, B.Z_MAX + 1.0)];
+      let nv = [v[0] + (vd[0] - v[0]) * f, v[1] + (vd[1] - v[1]) * f, v[2] + (vd[2] - v[2]) * f];
+      let np = [p[0] + nv[0] * dt, p[1] + nv[1] * dt, clip(p[2] + nv[2] * dt, 0.4, this.zMax + 1.0)];
+      if (this.hits(np, B.BODY_R)) {                                                   // nunca adentro de algo: rebota
+        np = p.slice();
+        nv = nv.map((x) => -0.5 * x);
+        head = head + Math.PI;
+      }
+      this.pos[i] = np;
       this.vel[i] = nv;
       this.head[i] = wrapAng(head); this.climb[i] = climb; this.pace[i] = pace;
     }

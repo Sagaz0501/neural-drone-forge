@@ -82,6 +82,19 @@ for (const [name, lvd, fr] of [["bosque + columnas", F.level, F.flight], ["circu
   check("velocidad estimada de los pájaros", eE, 1e-7);
   check("presa elegida distinta", ePk, 0);
 }
+// 5b) caza en el bosque: esquivar troncos y copas
+{
+  const C = F.forest_flock;
+  const fk = new Flock(2.5, [0, 0, 0], lv, [0.9, 2.4]).start(C.pos, C.head, 0.02);
+  let eB = 0, inside = 0;
+  C.out.forEach((ref, t) => {
+    fk.step(0.02, C.noise[t], C.drone[t]);
+    ref.forEach((p, i) => p.forEach((x, c) => (eB = Math.max(eB, Math.abs(x - fk.pos[i][c])))));
+    fk.pos.forEach((p) => (inside += lv.collides(p, 0.2) ? 1 : 0));
+  });
+  check("pájaros en el bosque (800 pasos, esquivando)", eB, 1e-9);
+  check("pasos con un pájaro dentro de un árbol", inside, 0);
+}
 // 6) caza completa con red de 27 entradas
 {
   const H = F.hunt;

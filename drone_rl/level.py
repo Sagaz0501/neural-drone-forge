@@ -93,6 +93,21 @@ class Level:
                 return True
         return False
 
+    def collides_many(self, P: np.ndarray, radius: float) -> np.ndarray:
+        """collides() para varios puntos a la vez (los pájaros). Devuelve un bool por punto."""
+        P = np.asarray(P, dtype=float).reshape(-1, 3)
+        hit = np.zeros(len(P), dtype=bool)
+        if len(self.box_min):
+            closest = np.clip(P[:, None, :], self.box_min[None], self.box_max[None])
+            hit |= np.any(np.linalg.norm(closest - P[:, None, :], axis=2) < radius, axis=1)
+        if len(self.sph_r):
+            hit |= np.any(np.linalg.norm(self.sph_c[None] - P[:, None, :], axis=2) < self.sph_r[None] + radius, axis=1)
+        if len(self.cyl_r):
+            h = np.maximum(np.linalg.norm(self.cyl_xy[None] - P[:, None, :2], axis=2) - self.cyl_r[None], 0.0)
+            v = np.maximum(np.maximum(self.cyl_z[None, :, 0] - P[:, None, 2], P[:, None, 2] - self.cyl_z[None, :, 1]), 0.0)
+            hit |= np.any(h * h + v * v < radius * radius, axis=1)
+        return hit
+
     def out_of_bounds(self, p: np.ndarray) -> bool:
         return abs(p[0]) > self.bounds_xy or abs(p[1]) > self.bounds_xy or p[2] > self.bounds_z
 
@@ -198,6 +213,30 @@ def random_pillars(rng, spawn, goals, n=(2, 5), keep_out=1.5) -> tuple[np.ndarra
         if clear:
             mins.append(bmin)
             maxs.append(bmax)
+    return np.array(mins).reshape(-1, 3), np.array(maxs).reshape(-1, 3)
+
+
+def hunt_pillars(rng, spawn, n=(9, 14), area=12.5, gap=1.6) -> tuple[np.ndarray, np.ndarray]:
+    """Caza con columnas: columnas altas repartidas por toda el área (no solo en un camino),
+    separadas entre sí al menos `gap` m para que siempre se pueda pasar entre ellas."""
+    mins, maxs = [], []
+    target = int(rng.integers(n[0], n[1] + 1))
+    for _ in range(400):
+        if len(mins) >= target:
+            break
+        r = area * np.sqrt(rng.uniform())
+        a = rng.uniform(-np.pi, np.pi)
+        c = spawn[:2] + np.array([r * np.cos(a), r * np.sin(a)])
+        half = np.array([rng.uniform(0.25, 0.6), rng.uniform(0.25, 0.6)])
+        bmin = np.array([c[0] - half[0], c[1] - half[1], 0.0])
+        bmax = np.array([c[0] + half[0], c[1] + half[1], rng.uniform(4.0, 7.0)])
+        if np.linalg.norm(np.clip(spawn[:2], bmin[:2], bmax[:2]) - spawn[:2]) < 2.5:
+            continue
+        if any(np.linalg.norm(np.maximum(0, np.maximum(m[:2] - bmax[:2], bmin[:2] - M[:2]))) < gap
+               for m, M in zip(mins, maxs)):
+            continue
+        mins.append(bmin)
+        maxs.append(bmax)
     return np.array(mins).reshape(-1, 3), np.array(maxs).reshape(-1, 3)
 
 

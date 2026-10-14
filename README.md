@@ -65,6 +65,7 @@ porque no sabe esquivar, y ahí es donde la IA tiene que ganarle.
 - [ ] Bosque resuelto con el modelo único
 - [x] Juego en el navegador: menú, mundos, poner aros con el mouse, la IA o tú vuelan (`game/`)
 - [x] Caza (nivel 8): pájaros que vuelan solos y huyen; la red ve cómo se mueve su presa (27 entradas)
+- [x] Caza entre columnas (9) y en el bosque (10): los pájaros esquivan; el dron tiene que cazar sin chocar
 - [ ] Video de la IA volando para el portafolio
 
 ## Bitácora
@@ -174,6 +175,16 @@ porque no sabe esquivar, y ahí es donde la IA tiene que ganarle.
   laboratorio ("Velocidad pájaros") cuando ya los cace.
 - **Premios:** los mismos de siempre. Acercarse a la presa paga como acercarse a un aro, cada
   pájaro vale como un aro, e *Ir de frente* apunta la nariz a la presa.
+- **Con obstáculos (niveles 9 y 10):**
+  - Nivel 9: 9-14 columnas altas repartidas por el área, separadas al menos 1.6 m.
+  - Nivel 10: bosque por toda el área; los pájaros vuelan *debajo* de las copas (0.9-2.4 m),
+    entre troncos y arbustos.
+  - Los pájaros esquivan: miran 1.2 m adelante y giran al lado libre, y nunca entran a un obstáculo
+    (si el paso siguiente los metería, rebotan).
+  - Diagnóstico del modelo gen 679, que solo había cazado en campo abierto: 100 % en el nivel 8, pero
+    **60 % con columnas (40 % choques) y 7-17 % en el bosque (83-93 % choques)**. Choca casi igual
+    que un piloto automático que no sabe que hay obstáculos: persigue sin esquivar. Por eso existen
+    estos dos niveles.
 - **En el juego:** escoge **Caza** en el menú, pon los pájaros con el mouse (o al azar) y dale
   "Que cace la IA" o "Cazar yo". La presa es roja con una flecha encima, y la línea blanca punteada
   es lo que la red "sabe" de su movimiento: dónde estaría en 0.6 s si siguiera igual.

@@ -113,7 +113,17 @@ class LiveLink(BaseCallback):
         lv = env.level
         spheres = [r3(c) + [round(float(r), 3)] for c, r in zip(lv.sph_c, lv.sph_r)]
         cyls = [r3(c) + [round(float(r), 3)] + r3(z) for c, r, z in zip(lv.cyl_xy, lv.cyl_r, lv.cyl_z)]
-        if len(spheres) + len(cyls) > cap:
+        if env.flock is not None and len(spheres) + len(cyls) > cap:
+            # caza en el bosque: sin las copas altas (tapan a los pájaros, que vuelan debajo) y lo más cercano
+            # a la salida primero. Es solo lo que se DIBUJA: la física usa todo el bosque.
+            sp = lv.spawn[:2]
+            low = [s for s in spheres if s[2] - s[3] < 2.4]
+            ranked = sorted([(float(np.hypot(s[0] - sp[0], s[1] - sp[1])), "s", s) for s in low]
+                            + [(float(np.hypot(c[0] - sp[0], c[1] - sp[1])), "c", c) for c in cyls], key=lambda t: t[0])
+            keep = ranked[:cap + 24]
+            spheres = [t[2] for t in keep if t[1] == "s"]
+            cyls = [t[2] for t in keep if t[1] == "c"]
+        elif len(spheres) + len(cyls) > cap:
             # un bosque tiene ~100 piezas: a Blender solo le mandamos las más cercanas al camino
             path = np.array([lv.spawn] + list(lv.goals))[:, :2]
             a, ab = path[:-1], path[1:] - path[:-1]
@@ -358,7 +368,7 @@ class LiveLink(BaseCallback):
                     self.ep_speed.append(float(info["avg_speed"]))
                     self.ep_ang.append(float(info["ang_rate"]))
                 self.ep_crash.append(float(info.get("crashed", False)))
-                if envs[i].stage == 8:
+                if envs[i].stage >= 8:
                     self.ep_goals.append(float(info.get("goals_reached", 0)))
                 ep = info.get("episode")             # lo agrega el Monitor de SB3
                 if ep:
