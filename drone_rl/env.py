@@ -65,20 +65,13 @@ DEFAULT_REWARD = {
     "near": 0.3,         # solo hover: premio continuo por estar cerca de la meta
 }
 
-# Qué pasa cuando un dron falla (también compartido y editable en vivo desde Blender):
-DEFAULT_CURRICULUM = {
-    "retry": False,      # repetir el MISMO nivel (mismas columnas, misma meta) hasta pasarlo
-    "max_retries": 0,    # rendirse y pasar a un nivel nuevo después de N intentos (0 = nunca)
-    "checkpoint": True,  # con varios aros: al reintentar, arrancar desde el último aro pasado
-}
-
 
 class DroneEnv(gym.Env):
     metadata = {"render_modes": []}
 
     def __init__(self, stage: int = 0, level_path: str | None = None, params: QuadParams | None = None,
                  control_hz: int = 50, physics_substeps: int = 2, max_seconds: float | None = None,
-                 goal_radius: float = 0.5, reward: dict | None = None, curriculum: dict | None = None):
+                 goal_radius: float = 0.5, reward: dict | None = None):
         super().__init__()
         self.stage = stage
         self.fixed_level = Level.load(level_path) if level_path else None
@@ -87,11 +80,6 @@ class DroneEnv(gym.Env):
         self.substeps = physics_substeps
         self.goal_radius = goal_radius
         self.rw = reward if reward is not None else dict(DEFAULT_REWARD)
-        self.cfg = curriculum if curriculum is not None else dict(DEFAULT_CURRICULUM)
-        self.attempt = 0
-        self._failed = False          # ¿el episodio anterior terminó sin éxito?
-        self._fail_goal = 0           # en qué aro iba cuando falló
-        self._start_yaw = 0.0
         mission = LEVEL_MISSION if level_path else MISSIONS[stage]
         self.max_seconds = max_seconds or float(mission["tiempo"])
         self.max_steps = int(self.max_seconds * control_hz)
@@ -129,31 +117,12 @@ class DroneEnv(gym.Env):
 
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
-        cfg = self.cfg
-        retry = (cfg.get("retry") and self._failed and self.attempt > 0
-                 and (not cfg.get("max_retries") or self.attempt < cfg["max_retries"]))
-        start_goal = 0
-        if retry:
-            # mismo nivel que falló: mismas columnas, misma meta, misma orientación inicial
-            self.attempt += 1
-            if cfg.get("checkpoint", True):
-                start_goal = self._fail_goal          # seguir desde el último aro que pasó
-        else:
-            self.level = self._make_level()
-            self.attempt = 1
-            # orientación inicial aleatoria para que no memorice una sola
-            if self.fixed_level is None and self.stage >= 2:
-                self._start_yaw = float(self.np_random.uniform(-np.pi, np.pi))
-            else:
-                self._start_yaw = 0.0
-        self._failed = False
-        if start_goal > 0:
-            prev = self.level.goals[start_goal - 1]
-            nxt = self.level.goals[start_goal]
-            self.state = QuadState(pos=prev.copy(), yaw=float(np.arctan2(nxt[1] - prev[1], nxt[0] - prev[0])))
-        else:
-            self.state = QuadState(pos=self.level.spawn.copy(), yaw=self._start_yaw)
-        self.goal_idx = start_goal
+        self.level = self._make_level()
+        self.state = QuadState(pos=self.level.spawn.copy())
+        # pequeño yaw aleatorio para que no memorice una sola orientación
+        if self.fixed_level is None:
+            self.state.yaw = float(self.np_random.uniform(-np.pi, np.pi)) if self.stage >= 2 else 0.0
+        self.goal_idx = 0
         self.hold = 0
         self.steps = 0
         self.prev_action = np.zeros(4)
@@ -241,9 +210,6 @@ class DroneEnv(gym.Env):
             terminated = True
 
         truncated = (not terminated) and self.steps >= self.max_steps
-        if (terminated or truncated) and not success:
-            self._failed = True                     # el próximo reset puede repetir este nivel
-            self._fail_goal = self.goal_idx
         info = {
             "success": success,
             "crashed": crashed,
@@ -251,6 +217,5 @@ class DroneEnv(gym.Env):
             "goals_reached": self.goal_idx if not self.hold_steps else int(success),
             "dist": dist,
             "pos": pos.copy(),          # para ver dónde chocó (el entorno se reinicia solo)
-            "attempt": self.attempt,    # intento número N de este mismo nivel
         }
         return self._obs(), float(reward), terminated, truncated, info

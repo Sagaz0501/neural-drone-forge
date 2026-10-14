@@ -53,7 +53,6 @@ porque no sabe esquivar, y ahí es donde la IA tiene que ganarle.
 - [x] Drone Lab: entrenamiento en vivo con N drones y parámetros ajustables desde Blender
 - [x] Misiones explícitas, aros por estado y red neuronal en vivo en Blender
 - [x] Nivel 5: circuito de 2 vueltas
-- [x] Repetir el nivel fallado hasta pasarlo (+ checkpoint en el último aro)
 - [ ] Video de la IA volando en Blender para el portafolio
 
 ## Bitácora
@@ -77,12 +76,6 @@ porque no sabe esquivar, y ahí es donde la IA tiene que ganarle.
   (1.5 s contra 2.0 s en la misma meta).
 - Probé ese modelo en el nivel 3 sin entrenarlo para obstáculos: 42 % de éxito y todos los
   crashes son contra columnas. Es lo esperado, porque nunca vio una. **Siguiente paso: entrenar el nivel 3.**
-- **Drone Lab** (entrenamiento en vivo en Blender), red neuronal visible, misiones explícitas y nivel 5
-  (circuito de 2 vueltas). El modelo del nivel 2 completa el circuito sin entrenarlo para eso.
-- **Repetir el nivel fallado**: primera prueba con 20 drones en Columnas (modelo del nivel 2, 60 s):
-  1 938 reintentos, todos en el mismo nivel exacto. Un dron llegó al **intento 134** de un mismo
-  nivel, y otro **superó un nivel después de 68 intentos**. Con poca exploración, la red repite casi el
-  mismo error cada vez. Aprender a esquivar *esa* columna toma muchas actualizaciones.
 
 ---
 
@@ -93,7 +86,7 @@ git clone https://github.com/Sagaz0501/drone-rl.git
 cd drone-rl
 python3 -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-pytest -q                                                # 13 pruebas deberían pasar
+pytest -q                                                # 10 pruebas deberían pasar
 ```
 
 En Mac con Apple Silicon, PyTorch se instala solo desde pip. Para estas redes chicas la CPU es
@@ -167,18 +160,6 @@ vuelta es un poco más grande.
 cuál con "Dron observado"). Se ven las 24 entradas con su valor, las 2 capas de 128 neuronas, las
 4 palancas y las 1 312 conexiones más fuertes, iluminadas según cuánto influyen en ese instante.
 La explicación completa está en [`docs/redes-neuronales.md`](docs/redes-neuronales.md#10-las-neuronas-de-este-dron-y-cómo-verlas-en-blender).
-
-**Si un dron falla:** con **Repetir el nivel que falló** activado, un dron que choca o se queda
-sin tiempo vuelve a intentar **las mismas columnas, la misma meta y la misma orientación inicial**
-hasta pasarlas. Solo entonces le toca un nivel nuevo. Mientras repite, sus columnas se ven **rojas**,
-y el HUD cuenta cuántos drones están reintentando, el intento más alto y cuántos niveles se
-superaron después de fallar. **Rendirse después de** pone un límite (0 = nunca se rinde), y
-**Seguir desde el último aro** hace que en niveles de varios aros reaparezca en el último aro que pasó.
-
-¿Por qué ayuda? La experiencia se concentra en los casos difíciles en vez de gastarse en niveles que
-ya domina. En investigación se conoce como *level replay*. El riesgo es que, si muchos drones
-quedan atascados en niveles muy difíciles, casi toda la experiencia sale de ahí. Si ves que el éxito
-general baja, pon un límite de intentos o sube un poco la exploración.
 
 Experimentos para probar:
 - Castigo por chocar en 0: ¿qué aprende?

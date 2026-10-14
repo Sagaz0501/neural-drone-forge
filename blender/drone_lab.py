@@ -73,9 +73,7 @@ def send_ctrl(msg):
 
 def live_params(props):
     return {"lr": 10 ** props.lr_log, "ent": props.ent, "speed": props.speed,
-            "reward": {k: getattr(props, "rw_" + k) for k in REWARD_KEYS},
-            "curriculum": {"retry": props.retry_failed, "max_retries": props.max_retries,
-                           "checkpoint": props.checkpoint}}
+            "reward": {k: getattr(props, "rw_" + k) for k in REWARD_KEYS}}
 
 
 def _on_live_change(self, context):
@@ -190,26 +188,6 @@ def ring_mesh(name, R, r):
     return me
 
 
-OBS_NORMAL = (0.85, 0.42, 0.1, 1)
-OBS_RETRY = (0.95, 0.08, 0.06, 1)      # columnas de un nivel que el dron está repitiendo
-
-
-def obstacle_material():
-    m = bpy.data.materials.get("DL_ObstacleColor")
-    if m:
-        return m
-    m = bpy.data.materials.new("DL_ObstacleColor")
-    m.use_nodes = True
-    nt = m.node_tree
-    bsdf = nt.nodes.get("Principled BSDF")
-    oi = nt.nodes.new("ShaderNodeObjectInfo")
-    nt.links.new(oi.outputs["Color"], bsdf.inputs["Base Color"])
-    nt.links.new(oi.outputs["Color"], bsdf.inputs["Emission Color"])
-    bsdf.inputs["Emission Strength"].default_value = 0.35
-    m.diffuse_color = OBS_NORMAL
-    return m
-
-
 def cube_mesh():
     me = bpy.data.meshes.get("DL_Cube")
     if me:
@@ -218,7 +196,7 @@ def cube_mesh():
     v = [(x, y, z) for x in (-0.5, 0.5) for y in (-0.5, 0.5) for z in (0, 1)]
     f = [(0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)]
     me.from_pydata(v, [], f)
-    me.materials.append(obstacle_material())
+    me.materials.append(flat_material("DL_Obstacle", (0.85, 0.42, 0.1, 1)))
     return me
 
 
@@ -283,11 +261,8 @@ def build_scene(props, n, stage):
     cols = max(1, math.ceil(math.sqrt(n)))
     rows = math.ceil(n / cols)
     st = S()
-    cm = cube_mesh()                          # columnas: material con color por objeto
-    cm.materials.clear()
-    cm.materials.append(obstacle_material())
     st.update(drones=[], beacons=[], flashes=[], rings=[[] for _ in range(n)], ring_state=[None] * n,
-              n_goals=[0] * n, attempts=[1] * n,
+              n_goals=[0] * n,
               obstacles=[[] for _ in range(n)], offsets=[], flash_until=[0.0] * n, beacon_until=[0.0] * n,
               cols=cols, rows=rows, cell=cell, watch=min(props.watch, n - 1))
     for i in range(n):
@@ -362,9 +337,6 @@ def apply_level(i, msg):
     color_rings(i, 0, 0.0)
 
     # ---- obstáculos ----
-    attempt = int(msg.get("attempt", 1))
-    st.setdefault("attempts", [1] * len(st["drones"]))[i] = attempt
-    obs_color = OBS_RETRY if attempt > 1 else OBS_NORMAL
     obs = st["obstacles"][i]
     shapes = [("box", b) for b in msg.get("boxes", [])] + [("sph", s) for s in msg.get("spheres", [])]
     while len(obs) < len(shapes):
@@ -382,7 +354,6 @@ def apply_level(i, msg):
                 c, r = Vector(d[:3]), d[3]
                 o.location = (off + c - Vector((0, 0, r))) * k
                 o.scale = (2 * r * k,) * 3
-            o.color = obs_color
             o.hide_viewport = False
         else:
             o.hide_viewport = True
@@ -480,8 +451,6 @@ def tick():
             st["drones"][i].rotation_euler = d[3:6]
             if len(d) >= 8:
                 color_rings(i, int(d[6]), float(d[7]))
-            if len(d) >= 9:
-                st["attempts"][i] = int(d[8])
         if frame.get("w", st.get("watch")) != st.get("watch") and frame.get("w", 0) < n:
             set_watch(frame["w"])
     now = time.time()
@@ -717,19 +686,6 @@ def draw_hud():
     mis = st.get("hello", {}).get("mission")
     if mis:
         lines.insert(0, f"MISIÓN {mis['nombre']}: {mis['exito']}"[:110])
-    cur = p.get("curriculum", {})
-    rs = s.get("retry")
-    if cur.get("retry") and rs:
-        tope = f" (máx. {cur['max_retries']})" if cur.get("max_retries") else " (sin límite)"
-        lines.append(f"REINTENTOS{tope}: {rs['retrying']} drones repitiendo su nivel · el más terco va en el intento "
-                     f"{rs['max_attempt']}")
-        if rs["beaten"]:
-            lines.append(f"   {rs['beaten']} niveles superados después de fallar · promedio {rs['mean_attempts']:g} "
-                         f"intentos · récord {rs['max_beaten']}" + (f" · {rs['gave_up']} abandonados" if rs["gave_up"] else ""))
-    w = st.get("watch")
-    att = st.get("attempts")
-    if att and w is not None and w < len(att):
-        lines.append(f"dron #{w} (celeste): intento {att[w]} de este nivel")
     err = st.get("error", [])
 
     # ---- panel de texto, abajo a la izquierda ----
@@ -821,15 +777,6 @@ class DroneLabProps(bpy.types.PropertyGroup):
     rw_smooth: bpy.props.FloatProperty(name="Castigo brusquedad", default=0.05, min=0, max=1, precision=3, update=_on_live_change)
     rw_tilt: bpy.props.FloatProperty(name="Castigo inclinación", default=0.01, min=0, max=1, precision=3, update=_on_live_change)
     rw_near: bpy.props.FloatProperty(name="Premio cerca (hover)", default=0.3, min=0, max=5, update=_on_live_change)
-    # ---- si un dron falla (en vivo) ----
-    retry_failed: bpy.props.BoolProperty(name="Repetir el nivel que falló", default=True, update=_on_live_change,
-                                         description="Si choca o se acaba el tiempo, vuelve a intentar las MISMAS "
-                                                     "columnas y la misma meta hasta pasarlas")
-    max_retries: bpy.props.IntProperty(name="Rendirse después de", default=0, min=0, max=1000, update=_on_live_change,
-                                       description="Intentos antes de pasar a un nivel nuevo (0 = nunca se rinde)")
-    checkpoint: bpy.props.BoolProperty(name="Seguir desde el último aro", default=True, update=_on_live_change,
-                                       description="En niveles con varios aros: al reintentar, aparece en el último "
-                                                   "aro que pasó en vez de volver al inicio")
 
 
 class DRONELAB_OT_start(bpy.types.Operator):
@@ -874,9 +821,7 @@ class DRONELAB_OT_start(bpy.types.Operator):
                "--lr", repr(lp["lr"]), "--ent", repr(lp["ent"]), "--speed", lp["speed"],
                "--net", str(p.net), "--reward", json.dumps(lp["reward"]),
                "--port", str(TELE_PORT), "--ctrl-port", str(CTRL_PORT),
-               "--watch", str(min(p.watch, p.drones - 1)),
-               "--retry", str(int(p.retry_failed)), "--max-retries", str(p.max_retries),
-               "--checkpoint", str(int(p.checkpoint))]
+               "--watch", str(min(p.watch, p.drones - 1))]
         if p.stage == "LEVEL" and p.level_path:
             cmd += ["--level", os.path.expanduser(bpy.path.abspath(p.level_path))]
         if p.init_model:
@@ -1070,19 +1015,6 @@ class VIEW3D_PT_drone_lab(bpy.types.Panel):
         row = box.row(align=True)
         row.operator("dronelab.save", icon='FILE_TICK')
         row.operator("dronelab.frame_view", icon='ZOOM_ALL')
-
-        box = L.box()
-        box.label(text="Si un dron falla (cambia en vivo)", icon='LOOP_FORWARDS')
-        box.prop(p, "retry_failed")
-        sub = box.column()
-        sub.enabled = p.retry_failed
-        sub.prop(p, "max_retries")
-        sub.label(text="0 = nunca se rinde" if p.max_retries == 0 else f"después de {p.max_retries} intentos: nivel nuevo")
-        sub.prop(p, "checkpoint")
-        c = box.column(align=True)
-        c.scale_y = 0.8
-        wrapped(c, "Columnas rojas = ese dron está repitiendo un nivel que ya falló. Al pasarlo le toca uno nuevo.",
-                width)
 
         box = L.box()
         box.label(text="Aprendizaje (cambia en vivo)", icon='DRIVER')
