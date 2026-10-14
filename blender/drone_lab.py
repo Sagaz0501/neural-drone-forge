@@ -196,6 +196,10 @@ def start_test(npz, stage):
             info = pa.build(stage=stage, model_npz=npz, return_scene=lab.name, density=p.densidad, wind=p.viento)
             pa.fly(bpy.context)
         gen = (model_info(project) or {}).get("generaciones", "?")
+        pi = bpy.app.driver_namespace.get("piloto_ia")
+        if pi is not None and pi.get("tally_gen") != gen:      # marcador nuevo para cada generación probada
+            pi["tally"] = {"llegó": 0, "chocó": 0, "tiempo": 0}
+            pi["tally_gen"] = gen
         st["test_msg"] = (f"{TEST_NAMES.get(stage, stage)} #{info['seed']} · modelo gen {gen} · "
                           f"{len(info['obstaculos'])} obstáculos")
     except Exception as e:

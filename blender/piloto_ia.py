@@ -230,8 +230,9 @@ def draw_hud():
         lines.append((st["result"], 13, color))
     if bpy.context.scene.get("es_prueba") and st.get("tally"):
         t = st["tally"]
-        lines.append((f"pruebas en escenarios aleatorios:  llegó {t['llegó']}  ·  chocó {t['chocó']}  ·  "
-                      f"sin tiempo {t['tiempo']}", 12, (0.75, 0.85, 1, 1)))
+        g = st.get("tally_gen")
+        lines.append((f"pruebas{f' de la generación {g}' if g is not None else ''}:  llegó {t['llegó']}  ·  "
+                      f"chocó {t['chocó']}  ·  sin tiempo {t['tiempo']}", 12, (0.75, 0.85, 1, 1)))
     x, y = 24 * f, 30 * f + 22 * f * len(lines)
     for s, size, c in lines:
         blf.size(0, int(size * f))
@@ -261,8 +262,12 @@ def redraw():
 
 
 def result_text(fl):
+    n = len(fl.level.goals)
     if fl.phase == "aterrizado":
-        return f"Recorrido completo en {fl.t:.1f} s: {len(fl.level.goals)} puntos y aterrizaje."
+        return f"Recorrido completo en {fl.t:.1f} s: {n} puntos y aterrizaje."
+    if fl.phase == "choque" and fl.goal_idx >= n:
+        return (f"¡Pasó los {n} aros! ({fl.t:.1f} s). Después chocó al aterrizar: el aterrizaje "
+                f"lo hace el piloto PD, no la IA.")
     if fl.phase == "choque":
         return f"Chocó contra {fl.reason} en el punto {fl.goal_idx + 1} a los {fl.t:.1f} s."
     return f"Se acabó el tiempo en el punto {fl.goal_idx + 1}."
@@ -334,7 +339,8 @@ class PILOTO_OT_volar(bpy.types.Operator):
         st.update(running=False, result=msg, stop=False)
         if phase and context.scene.get("es_prueba"):          # marcador de la sesión de pruebas
             t = st.setdefault("tally", {"llegó": 0, "chocó": 0, "tiempo": 0})
-            t["llegó" if phase == "aterrizado" else "chocó" if phase == "choque" else "tiempo"] += 1
+            llego = phase == "aterrizado" or self.fl.goal_idx >= len(self.fl.level.goals)   # la IA cumplió
+            t["llegó" if llego else "chocó" if phase == "choque" else "tiempo"] += 1
         self.report({'INFO'}, msg)
         redraw()
         return {'FINISHED'}
