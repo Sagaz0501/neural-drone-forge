@@ -4,9 +4,9 @@
 // =====================================================================
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/OrbitControls.js";
-import { Level, Policy, Flight, rayDirsWorld, RAY_LEN, CONTROL_HZ } from "./sim.js";
+import { Level, Policy, Flight, Flock, BIRDS, makeRng, rayDirsWorld, RAY_LEN, CONTROL_HZ } from "./sim.js";
 import { WORLDS, forestWorld, columnsWorld, fieldWorld, warehouseWorld, levelDict, treeBlocks } from "./worlds.js";
-import { V, makeMaterials, makeSky, makeLights, WorldView, RouteView, makeDrone, poseDrone, Rays, Trail } from "./scene.js";
+import { V, makeMaterials, makeSky, makeLights, WorldView, RouteView, BirdsView, makeDrone, poseDrone, Rays, Trail } from "./scene.js";
 import { DEFAULT_CTL, ManualPilot, readGamepad } from "./pilot.js";
 
 const $ = (id) => document.getElementById(id);
@@ -24,7 +24,9 @@ const S = {
   flight: null, pilot: "ia", speed: 1, paused: false, cam: "persecucion", ended: false, acc: 0, limit: 60,
   tally: { ok: 0, n: 0 }, showBrain: false, bodega: null,
   ctl: { ...DEFAULT_CTL, ...store.get("ctl", {}) }, records: store.get("records", {}), cineAng: 0,
+  game: store.get("game", "aros"), birdSpeed: store.get("birdSpeed", 1.5),     // juego: "aros" o "caza"
 };
+const caza = () => S.game === "caza";
 S.cam = store.get("cam", "persecucion");
 
 // ---------------- Three.js ----------------
@@ -55,6 +57,7 @@ const drone = makeDrone();
 scene.add(drone);
 const rays = new Rays(scene);
 const trail = new Trail(scene);
+const birdsView = new BirdsView(scene);
 
 function applyQuality() {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, { alta: 2, media: 1.5, baja: 1 }[S.quality]));
@@ -84,7 +87,7 @@ function toast(msg, ms = 2600) {
 
 // ---------------- el modelo (models/modelo_web.json) ----------------
 const NIVELES = { hover: "Hover", goal_fixed: "Meta fija", goal_random: "Metas", obstacles: "Columnas", multi_goal: "Varias metas",
-  circuit: "Circuito", forest: "Bosque", forest_multi: "Bosque 3 aros" };
+  circuit: "Circuito", forest: "Bosque", forest_multi: "Bosque 3 aros", hunt: "Caza" };
 
 function showModel() {
   const el = $("model");
@@ -113,6 +116,8 @@ async function loadModel(quiet = false) {
     S.policy = new Policy(json);
     S.meta = json.meta || {};
     S.modelSource = "servidor";
+    const L = S.policy.layers;
+    $("brain-t").textContent = `Cerebro: ${L[0].nin} entradas, ${L.slice(0, -1).map((l) => l.nout).join(" + ")} neuronas, ${L[L.length - 1].nout} palancas`;
     if (quiet && before !== undefined && before !== S.meta.generaciones) toast(`Modelo actualizado: generación ${S.meta.generaciones}`);
   } catch {
     if (!quiet) { S.policy = null; S.meta = null; }
@@ -157,10 +162,10 @@ async function buildWorld(newSeed = false) {
   S.world = w;
   scene.fog.density = w.fog;
   worldView.build(w);
-  S.goals = (w.defaultRoute || w.randomRoute(S.seed + 1)).map((g) => g.slice());
+  S.goals = caza() ? randomBirds(S.seed + 1) : (w.defaultRoute || w.randomRoute(S.seed + 1)).map((g) => g.slice());
   S.history = [];
   clearForGoals(false);
-  route.set(w.spawn, S.goals);
+  showGoals();
   poseDrone(drone, w.spawn, 0, 0, firstYaw());
   rays.lines.visible = false;
   trail.reset();
@@ -172,10 +177,29 @@ const firstYaw = () => {
   return g ? Math.atan2(g[1] - s[1], g[0] - s[0]) : 0;
 };
 
+/** Aros: el camino y los aros. Caza: los pájaros quietos donde empiezan. */
+function showGoals() {
+  route.set(S.world.spawn, caza() ? [] : S.goals, !caza());
+  if (caza()) birdsView.place(S.goals);
+  else birdsView.hide();
+}
+
+/** Caza: n pájaros al azar en el área (a 4-10 m de la salida, de 2 a 5.5 m de alto, fuera de los obstáculos). */
+function randomBirds(seed, n = 5) {
+  const r = makeRng(seed), sp = S.world.spawn, out = [];
+  for (let k = 0; k < 600 && out.length < n; k++) {
+    const rad = BIRDS.AREA_R * 0.85 * Math.sqrt(r()), a = r.uniform(-Math.PI, Math.PI);
+    const p = [sp[0] + rad * Math.cos(a), sp[1] + rad * Math.sin(a), r.uniform(BIRDS.Z_MIN + 0.5, BIRDS.Z_MAX - 0.5)];
+    if (rad < 4 || Math.abs(p[0]) > 27 || Math.abs(p[1]) > 27 || insideObstacle(p, 0.5)) continue;
+    out.push(p);
+  }
+  return out;
+}
+
 /** En el bosque: quitar los árboles que tapan la salida o un aro (como hace el entrenamiento). */
 function clearForGoals(announce = true) {
   const w = S.world;
-  if (w.kind !== "bosque") return;
+  if (w.kind !== "bosque" || caza()) return;
   const before = w.trees.length;
   w.trees = w.trees.filter((t) => !treeBlocks(t, w.spawn, S.goals));
   const n = before - w.trees.length;
@@ -234,32 +258,80 @@ function buildMenu() {
   }
   $("to-editor").onclick = () => setMode("editor");
   $("new-world").onclick = () => buildWorld(true);
+  // juego: aros o caza
+  const modes = $("game-mode");
+  const showGame = () => {
+    for (const b of modes.children) b.setAttribute("aria-pressed", String(b.dataset.g === S.game));
+    $("row-birds").style.display = caza() ? "" : "none";
+    $("to-editor").textContent = caza() ? "Poner pájaros" : "Diseñar la ruta";
+    editorTexts();
+  };
+  for (const b of modes.children) {
+    b.onclick = () => {
+      if (S.game === b.dataset.g) return;
+      S.game = b.dataset.g;
+      store.set("game", S.game);
+      if (caza() && S.height < 2) { S.height = 3; $("height").value = 3; $("o-height").textContent = "3,0 m"; }
+      S.goals = caza() ? randomBirds(Math.floor(Math.random() * 1e6)) : (S.world.defaultRoute || S.world.randomRoute(S.seed + 1)).map((g) => g.slice());
+      S.history = [];
+      clearForGoals(false);
+      showGoals();
+      poseDrone(drone, S.world.spawn, 0, 0, firstYaw());
+      renderRouteList();
+      showGame();
+    };
+  }
+  const bs = [$("birds"), $("bspeed")];
+  const showSpeed = () => {
+    for (const el of bs) el.value = S.birdSpeed;
+    $("o-birds").textContent = $("o-bspeed").textContent = `${fmt(S.birdSpeed)} m/s`;
+  };
+  for (const el of bs) el.oninput = () => { S.birdSpeed = +el.value; store.set("birdSpeed", S.birdSpeed); showSpeed(); };
+  showSpeed();
+  showGame();
+}
+
+/** Textos del editor según el juego. */
+function editorTexts() {
+  const c = caza();
+  $("tool").children[0].textContent = c ? "Poner pájaros" : "Poner aros";
+  $("rand-route").textContent = c ? "Pájaros al azar" : "Ruta al azar";
+  $("clear").textContent = c ? "Borrar pájaros" : "Borrar aros";
+  $("route-h").textContent = c ? "Pájaros" : "Ruta";
+  $("lab-bspeed").style.display = c ? "" : "none";
+  if (S.tool !== "salida") $("editor-hint").textContent = c
+    ? "Clic en el suelo para poner un pájaro (a la altura de arriba). Arrastra para girar la vista."
+    : "Clic en el suelo para poner un aro. Arrastra para girar la vista y usa la rueda para acercar.";
 }
 
 // ---------------- editor de ruta ----------------
 function renderRouteList() {
   const ol = $("route-list");
   ol.innerHTML = "";
+  const c = caza();
   S.goals.forEach((g, i) => {
     const li = document.createElement("li");
     li.innerHTML = `<b>${i + 1}</b><span>a ${fmt(g[2])} m de altura</span>`;
     const del = document.createElement("button");
     del.textContent = "✕";
-    del.title = `Quitar el aro ${i + 1}`;
+    del.title = c ? `Quitar el pájaro ${i + 1}` : `Quitar el aro ${i + 1}`;
     del.onclick = () => { pushHistory(); S.goals.splice(i, 1); updateRoute(); };
     li.appendChild(del);
     ol.appendChild(li);
   });
-  $("route-help").textContent = S.goals.length
-    ? "La IA pasa los aros en orden y aterriza bajo el último."
-    : "No hay aros. Haz clic en el suelo para poner el primero.";
+  $("route-help").textContent = c
+    ? (S.goals.length ? `Vuelan solos a ${fmt(S.birdSpeed)} m/s y huyen cuando el dron se acerca a menos de 4 m. La IA persigue siempre al más cercano.`
+      : "No hay pájaros. Haz clic en el suelo para poner uno.")
+    : S.goals.length ? "La IA pasa los aros en orden y aterriza bajo el último."
+      : "No hay aros. Haz clic en el suelo para poner el primero.";
   $("fly-ai").disabled = !S.goals.length || !S.policy;
   $("fly-ai").title = !S.policy ? "Todavía no hay modelo" : "";
-  $("fly-me").textContent = S.goals.length ? "Pilotear yo" : "Vuelo libre";
+  $("fly-ai").textContent = c ? "Que cace la IA" : "Volar con la IA";
+  $("fly-me").textContent = S.goals.length ? (c ? "Cazar yo" : "Pilotear yo") : "Vuelo libre";
 }
 function updateRoute() {
   clearForGoals();
-  route.set(S.world.spawn, S.goals);
+  showGoals();
   poseDrone(drone, S.world.spawn, 0, 0, firstYaw());
   renderRouteList();
 }
@@ -290,6 +362,8 @@ canvas.addEventListener("pointerup", (e) => {
   }
   const g = [x, y, S.height];
   if (S.world.kind !== "bosque" && insideObstacle(g)) { toast("Ese punto está dentro de un obstáculo"); return; }
+  if (caza() && Math.hypot(x - S.world.spawn[0], y - S.world.spawn[1]) > BIRDS.AREA_R)
+    toast(`Los pájaros vuelan a menos de ${BIRDS.AREA_R} m de la salida: este va a volver hacia adentro`);
   pushHistory();
   S.goals.push(g);
   updateRoute();
@@ -300,13 +374,18 @@ function editorSetup() {
     b.onclick = () => {
       S.tool = b.dataset.t;
       for (const c of $("tool").children) c.setAttribute("aria-pressed", String(c === b));
-      $("editor-hint").textContent = S.tool === "salida" ? "Clic en el suelo para mover la salida." :
-        "Clic en el suelo para poner un aro. Arrastra para girar la vista y usa la rueda para acercar.";
+      if (S.tool === "salida") $("editor-hint").textContent = "Clic en el suelo para mover la salida.";
+      else editorTexts();
     };
   }
   const h = $("height");
   h.oninput = () => { S.height = +h.value; $("o-height").textContent = `${fmt(S.height)} m`; };
-  $("rand-route").onclick = () => { pushHistory(); S.goals = S.world.randomRoute(Math.floor(Math.random() * 1e6)).map((g) => g.slice()); updateRoute(); };
+  $("rand-route").onclick = () => {
+    pushHistory();
+    const sd = Math.floor(Math.random() * 1e6);
+    S.goals = caza() ? randomBirds(sd, Math.max(S.goals.length, 5)) : S.world.randomRoute(sd).map((g) => g.slice());
+    updateRoute();
+  };
   $("undo").onclick = () => {
     const h0 = S.history.pop();
     if (!h0) return;
@@ -336,7 +415,9 @@ function setMode(m) {
   $("result").classList.add("hidden");
   controls.enabled = m === "editor" || (m === "vuelo" && S.cam === "libre");
   route.path && (route.path.visible = m !== "vuelo");
+  if (m !== "vuelo") showGoals();
   if (m === "editor") {
+    editorTexts();
     rays.lines.visible = false;
     route.color(0);
     poseDrone(drone, S.world.spawn, 0, 0, firstYaw());
@@ -482,21 +563,32 @@ function pollPadButtons() {
 }
 
 async function startFlight(pilot) {
-  if (!S.goals.length && pilot === "ia") { toast("Pon al menos un aro"); return; }
+  if (!S.goals.length && pilot === "ia") { toast(caza() ? "Pon al menos un pájaro" : "Pon al menos un aro"); return; }
   if (pilot === "ia") {
     await loadModel(true);                    // siempre la última generación guardada
     if (!S.policy) { toast("Todavía no hay modelo: entrena en Drone Lab"); return; }
   }
   S.pilot = pilot;
-  const L = new Level(levelDict(S.world, S.goals));
+  const hunt = caza() && S.goals.length > 0;
+  const L = new Level(levelDict(S.world, hunt ? [] : S.goals));
   const last = S.goals[S.goals.length - 1];
+  const seed = Math.floor(Math.random() * 1e9);
   manual.reset();
+  let flock = null;
+  if (hunt) {                                 // los pájaros arrancan donde los pusiste, cada uno hacia un lado al azar
+    const r = makeRng(seed + 7);
+    flock = new Flock(S.birdSpeed, S.world.spawn).start(S.goals, S.goals.map(() => r.uniform(-Math.PI, Math.PI)));
+  }
   S.flight = new Flight(L, S.policy, {
-    landOn: pilot === "ia" ? [last[0], last[1], 0] : null, wind: S.wind, seed: Math.floor(Math.random() * 1e9),
+    landOn: pilot === "ia" && !hunt ? [last[0], last[1], 0] : null, wind: S.wind, seed, flock,
     pilot: pilot === "ia" ? "ia" : (s) => manual.act(s),
   }).reset();
   S.free = !S.goals.length;
-  S.limit = S.free ? Infinity : pilot === "ia" ? Math.min(15 + 8 * S.goals.length, 150) : Math.min(40 + 15 * S.goals.length, 300);
+  S.hunt = hunt;
+  S.prevBirds = flock ? flock.pos.map((p) => p.slice()) : null;
+  S.lastCaught = null;
+  S.limit = S.free ? Infinity : hunt ? (pilot === "ia" ? 60 : 120)
+    : pilot === "ia" ? Math.min(15 + 8 * S.goals.length, 150) : Math.min(40 + 15 * S.goals.length, 300);
   S.ended = false; S.paused = false; S.pausedByUser = false; S.acc = 0; S.cineAng = S.flight.state.yaw + Math.PI * 0.75;
   S.prev = snap(S.flight.state);
   S.radioHist = [];
@@ -505,13 +597,15 @@ async function startFlight(pilot) {
   drone.visible = true;
   trail.reset();
   rays.lines.visible = true;
-  route.set(S.world.spawn, S.goals, pilot === "ia");
+  route.set(S.world.spawn, hunt ? [] : S.goals, pilot === "ia" && !hunt);
   route.color(0);
+  if (!hunt) birdsView.hide();
   setMode("vuelo");
-  $("who").textContent = pilot === "ia" ? `La IA vuela (generación ${S.meta?.generaciones ?? "?"})` : "Pilotas tú";
+  $("who").textContent = pilot === "ia" ? `La IA ${hunt ? "caza" : "vuela"} (generación ${S.meta?.generaciones ?? "?"})`
+    : hunt ? "Cazas tú" : "Pilotas tú";
   $("radio-t").textContent = pilot === "ia" ? "Las manos de la IA" : "Tus manos";
   $("brain").classList.toggle("hidden", !S.showBrain || pilot !== "ia");
-  $("swap").textContent = pilot === "ia" ? "Pilotear yo" : "Que vuele la IA";
+  $("swap").textContent = pilot === "ia" ? (hunt ? "Cazar yo" : "Pilotear yo") : hunt ? "Que cace la IA" : "Que vuele la IA";
   $("swap").disabled = pilot !== "ia" && !S.policy;
   $("keys").textContent = pilot === "ia"
     ? "R otra vez, E editar la ruta, N cerebro, + y − velocidad, P pausa, Esc menú"
@@ -531,7 +625,7 @@ async function startFlight(pilot) {
 }
 
 const snap = (s) => ({ pos: s.pos.slice(), roll: s.roll, pitch: s.pitch, yaw: s.yaw });
-const routeKey = () => `${S.world.kind}|${S.world.kind === "bosque" || S.world.kind === "columnas" ? S.seed + "|" + S.density : ""}|` +
+const routeKey = () => `${S.hunt ? `caza ${S.birdSpeed}|` : ""}${S.world.kind}|${S.world.kind === "bosque" || S.world.kind === "columnas" ? S.seed + "|" + S.density : ""}|` +
   S.world.spawn.map((v) => v.toFixed(1)).join(",") + "|" + S.goals.map((g) => g.map((v) => v.toFixed(1)).join(",")).join(";");
 
 const WHAT = { bosque: "un árbol", columnas: "una columna", bodega: "algo de la bodega", campo: "un obstáculo" };
@@ -543,7 +637,24 @@ function endFlight() {
   const h = $("res-h"), p = $("res-p");
   $("res-rec").textContent = "";
   const vmed = fl.t > 0 ? (S.pathLen || 0) / fl.t : 0;
-  if (done) {
+  const ia = S.pilot === "ia";
+  if (S.hunt) {                                   // ---- caza ----
+    if (done) {
+      h.textContent = ia ? "¡Los cazó a todos!" : "¡Los cazaste a todos!";
+      h.className = "ok";
+      p.textContent = `${n === 1 ? "El pájaro" : `Los ${n} pájaros`} en ${fmt(fl.t)} s, con pájaros a ${fmt(S.birdSpeed)} m/s.`;
+    } else if (fl.phase === "choque") {
+      h.textContent = fl.reason === "limites" ? "Se salió del área" : "Chocó";
+      h.className = "bad";
+      const contra = fl.reason === "suelo" ? "el suelo" : fl.reason === "limites" ? "el límite de 30 m" : WHAT[S.world.kind];
+      p.textContent = `Contra ${contra}, con ${fl.goalIdx} de ${n} pájaros cazados, a los ${fmt(fl.t)} s.`;
+    } else {
+      h.textContent = "Se acabó el tiempo";
+      h.className = fl.goalIdx ? "ok" : "bad";
+      p.textContent = `${ia ? "Cazó" : "Cazaste"} ${fl.goalIdx} de ${n} pájaros en ${fmt(S.limit, 0)} s.` +
+        (fl.goalIdx < n ? " Si se le escapan, baja la velocidad de los pájaros o entrena más el nivel Caza." : "");
+    }
+  } else if (done) {
     h.textContent = fl.phase === "aterrizado" ? "¡Llegó!" : `¡Pasó los ${n} aros!`;
     h.className = "ok";
     p.textContent = fl.phase === "aterrizado"
@@ -563,7 +674,8 @@ function endFlight() {
   if (S.pilot === "ia") {
     S.tally.n++;
     if (done) S.tally.ok++;
-    p.textContent += ` En esta sesión la IA llegó en ${S.tally.ok} de ${S.tally.n} vuelos.`;
+    p.textContent += S.hunt ? ` En esta sesión la IA cazó a todos en ${S.tally.ok} de ${S.tally.n} intentos.`
+      : ` En esta sesión la IA llegó en ${S.tally.ok} de ${S.tally.n} vuelos.`;
   }
   const pct = frontPct();
   if (pct !== null) p.textContent += ` Voló de frente el ${pct} % del tiempo.`;
@@ -615,7 +727,7 @@ function drawRadio(a) {
   }
 }
 
-function drawRadar(d, hd) {
+function drawRadar(d, hd, hunt = null) {
   const c = $("radar-c"), g = c.getContext("2d");
   const W = c.width, cx = 78, cy = 86, R = 66;
   g.clearRect(0, 0, W, c.height);
@@ -636,6 +748,19 @@ function drawRadar(d, hd) {
   }
   g.fillStyle = "#ff7a1a";
   g.beginPath(); g.moveTo(cx, cy - 8); g.lineTo(cx + 6, cy + 6); g.lineTo(cx - 6, cy + 6); g.fill();
+  // caza: dónde está la presa (punto rojo, hasta 15 m) y para dónde se mueve (lo que "sabe" la red)
+  if (hunt) {
+    const s = hunt.state, gp = hunt.goal(), ev = hunt.goalVel();
+    const dx = gp[0] - s.pos[0], dy = gp[1] - s.pos[1], dist = Math.hypot(dx, dy);
+    const rel = Math.atan2(dy, dx) - s.yaw, r = Math.min(dist / 15, 1) * (R - 6);
+    const ang = -Math.PI / 2 - rel, bx = cx + Math.cos(ang) * r, by = cy + Math.sin(ang) * r;
+    const vrel = Math.atan2(ev[1], ev[0]) - s.yaw, vl = Math.min(Math.hypot(ev[0], ev[1]) / 4, 1) * 22;
+    g.strokeStyle = "#ffffff"; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(bx, by); g.lineTo(bx + Math.cos(-Math.PI / 2 - vrel) * vl, by + Math.sin(-Math.PI / 2 - vrel) * vl); g.stroke();
+    g.fillStyle = "#ff5a3a";
+    g.beginPath(); g.arc(bx, by, 5.5, 0, 7); g.fill();
+    g.lineWidth = 1;
+  }
   // hacia dónde se MUEVE (arriba = de frente): verde de frente, amarillo de lado, rojo de espaldas
   if (hd && hd.sp > 0.3) {
     const ang = -Math.PI / 2 - hd.rel, len = 14 + Math.min(hd.sp / 6, 1) * (R - 18);
@@ -732,9 +857,16 @@ function hud(fl, now) {
   $("spd").textContent = Math.round(spd * 3.6);
   const w = fl.windNow ? Math.hypot(fl.windNow[0], fl.windNow[1]) : 0;
   const fija = S.pilot !== "ia" && S.ctl.altHold ? ` <span style="color:var(--next)">→ ${fmt(manual.alt)} m</span>` : "";
+  let presa = "";
+  if (S.hunt && fl.phase === "ruta") {
+    const g = fl.goal(), ev = fl.goalVel();
+    presa = `<br><span style="color:#ff8a6a">presa a ${fmt(Math.hypot(g[0] - s.pos[0], g[1] - s.pos[1], g[2] - s.pos[2]))} m · ` +
+      `vuela a ${fmt(Math.hypot(...ev))} m/s</span>`;
+  }
   $("sub").innerHTML = `${fmt(spd)} m/s<br>altura ${fmt(s.pos[2])} m${fija}${w > 0.05 ? `<br>viento ${fmt(w)} m/s` : ""}` +
-    `${S.speed !== 1 ? `<br>x${fmt(S.speed, S.speed < 1 ? 2 : 0)}` : ""}${S.paused ? "<br>pausa" : ""}`;
-  $("ring-txt").textContent = S.free ? "Vuelo libre" : fl.phase === "aterrizaje" ? "Aterrizando" : `Aro ${Math.min(fl.goalIdx + 1, n)} de ${n}`;
+    `${S.speed !== 1 ? `<br>x${fmt(S.speed, S.speed < 1 ? 2 : 0)}` : ""}${S.paused ? "<br>pausa" : ""}${presa}`;
+  $("ring-txt").textContent = S.free ? "Vuelo libre" : S.hunt ? `Pájaros ${fl.goalIdx} de ${n}`
+    : fl.phase === "aterrizaje" ? "Aterrizando" : `Aro ${Math.min(fl.goalIdx + 1, n)} de ${n}`;
   $("time-txt").textContent = `${fmt(fl.t)} s`;
   drawRadio(fl.action);
   const hd = heading(s), el = $("dir-txt"), pct = frontPct();
@@ -743,7 +875,7 @@ function hud(fl, now) {
   else if (hd.align < -0.707) { el.textContent = "▼ de espaldas"; el.className = "dir bad"; }
   else { el.textContent = hd.rel > 0 ? "◀ de lado" : "de lado ▶"; el.className = "dir mid"; }
   if (pct !== null) el.textContent += ` · ${pct} % de frente`;
-  drawRadar(fl.rays, hd);
+  drawRadar(fl.rays, hd, S.hunt && fl.phase === "ruta" ? fl : null);
   drawOSD(fl);
   if (S.showBrain && S.pilot === "ia") drawBrain(fl);
 }
@@ -822,6 +954,7 @@ function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.25);
   last = now;
   if (worldView.time) worldView.time.value += dt;
+  birdsView.tick(dt);
   let pos = S.world ? S.world.spawn.slice() : [0, 0, 0], yaw = drone.rotation.y;
   if (S.mode === "vuelo" && S.flight) {
     const fl = S.flight;
@@ -831,15 +964,22 @@ function frame(now) {
       let n = 0;
       while (S.acc >= step && n < 20) {
         S.prev = snap(fl.state);
+        if (fl.flock) S.prevBirds = fl.flock.pos.map((q) => q.slice());
         const p0 = fl.state.pos.slice();
         fl.step();
+        if (fl.caught && fl.caught !== S.lastCaught) {      // ¡cazado!
+          S.lastCaught = fl.caught;
+          birdsView.burst(fl.caught.pos);
+          const left = fl.flock.n - fl.goalIdx;
+          toast(left ? `¡Cazado! Faltan ${left}` : "¡El último!", 1400);
+        }
         const hd = heading(fl.state);
         if (hd.sp > 1) { S.moveN++; S.frontN += hd.align > 0.707; }
         S.pathLen = (fl.t <= step + 1e-9 ? 0 : S.pathLen || 0) + Math.hypot(fl.state.pos[0] - p0[0], fl.state.pos[1] - p0[1], fl.state.pos[2] - p0[2]);
         S.acc -= step;
         n++;
         if (n % 2 === 0) trail.push(fl.state.pos);
-        route.color(fl.goalIdx);
+        if (!S.hunt) route.color(fl.goalIdx);
         if (fl.goalIdx >= S.goals.length && S.goals.length && S.ringTime === undefined) S.ringTime = fl.t;
         const over = fl.phase !== "ruta" && fl.phase !== "aterrizaje";
         if (over || fl.t >= S.limit) { endFlight(); break; }
@@ -858,6 +998,11 @@ function frame(now) {
       pr.userData.blade.visible = s.throttle < 0.3 || S.paused;
     }
     rays.update(pos, rayDirsWorld(yaw), fl.rays, RAY_LEN);
+    if (fl.flock) {                                        // pájaros (interpolados como el dron)
+      const F = fl.flock, pb = S.prevBirds || F.pos;
+      const bp = F.pos.map((q, i) => [0, 1, 2].map((c) => pb[i][c] + (q[c] - pb[i][c]) * a));
+      birdsView.update(bp, F.vel, F.alive, fl.target, F.estVel(fl.target), now / 1000);
+    }
     drone.visible = S.cam !== "fpv";
     rays.lines.visible = S.cam !== "fpv";
     hud(fl, now);

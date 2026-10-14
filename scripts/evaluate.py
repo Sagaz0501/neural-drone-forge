@@ -63,8 +63,8 @@ def main():
         pilot = PDPilot(env.p)
         policy, tag = (lambda o, e: pilot.act(e.state, e._goal())), "pd"
     else:
-        from stable_baselines3 import PPO
-        model = PPO.load(args.model, device="cpu")
+        from drone_rl.upgrade import load_ppo
+        model, _ = load_ppo(args.model)
         policy, tag = (lambda o, e: model.predict(o, deterministic=True)[0]), Path(args.model).stem
 
     name = Path(args.level).stem if args.level else f"stage{args.stage}"

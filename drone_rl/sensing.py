@@ -1,5 +1,5 @@
 """
-Lo que "siente" el dron: sensores de distancia y las 24 entradas de la red.
+Lo que "siente" el dron: sensores de distancia y las 27 entradas de la red.
 
 Está separado del entorno para que el entrenamiento (env.py) y Blender (runtime.py)
 usen EXACTAMENTE el mismo cálculo. Si cambiara algo aquí, la red vería el mundo distinto.
@@ -44,9 +44,13 @@ def sensor_rays(state: QuadState, level) -> np.ndarray:
     return np.concatenate([d[:8 * _NS].reshape(8, _NS).min(axis=1), d[8 * _NS:]])
 
 
+GOAL_VEL_SCALE = 5.0   # m/s de la meta (pájaros: ~1-4 m/s) -> ~[-1, 1]
+
+
 def build_obs(state: QuadState, goal: np.ndarray, rays: np.ndarray, prev_action: np.ndarray,
-              p: QuadParams) -> np.ndarray:
-    """Las 24 entradas de la red neuronal."""
+              p: QuadParams, goal_vel: np.ndarray | None = None) -> np.ndarray:
+    """Las 27 entradas de la red neuronal. Las 3 últimas (cómo se mueve la meta) valen 0 con aros quietos.
+    Van AL FINAL a propósito: un modelo viejo de 24 entradas usa obs[:24] y vuela igual que antes."""
     rel = yaw_frame(goal - state.pos, state.yaw)
     dist = np.linalg.norm(rel)
     vel_h = yaw_frame(state.vel, state.yaw)
@@ -58,6 +62,8 @@ def build_obs(state: QuadState, goal: np.ndarray, rays: np.ndarray, prev_action:
         [state.pos[2] / OBS_SCALE],                          # 1: altura
         prev_action,                                         # 4: acción anterior
         rays / RAY_LEN,                                      # 10: sensores (1 = libre)
+        np.zeros(3) if goal_vel is None                      # 3: cómo se mueve la meta (en el marco del dron)
+        else np.clip(yaw_frame(np.asarray(goal_vel, dtype=float), state.yaw) / GOAL_VEL_SCALE, -2, 2),
     ])
     return obs.astype(np.float32)
 

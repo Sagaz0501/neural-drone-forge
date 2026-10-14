@@ -1,7 +1,7 @@
 // Comprueba que game/sim.js hace EXACTAMENTE lo mismo que el Python del proyecto.
 //   python game/make_fixture.py && node game/test_sim.mjs
 import { readFileSync } from "node:fs";
-import { Level, Policy, Flight, step, newState, sensorRays, buildObs } from "./sim.js";
+import { Level, Policy, Flight, Flock, step, newState, sensorRays, buildObs } from "./sim.js";
 
 const dir = new URL("./_fixture/", import.meta.url);
 const F = JSON.parse(readFileSync(new URL("fixture.json", dir)));
@@ -36,7 +36,7 @@ for (const c of F.obs) {
   a.forEach((x, i) => (eAct = Math.max(eAct, Math.abs(x - c.act[i]))));
 }
 check("10 sensores en cono", eRay, 1e-9);
-check("24 entradas de la red", eObs, 1e-6);
+check("27 entradas de la red", eObs, 1e-6);
 check("4 salidas de la red", eAct, 1e-5);
 
 // 3) física (con viento)
@@ -64,6 +64,42 @@ for (const [name, lvd, fr] of [["bosque + columnas", F.level, F.flight], ["circu
   }
   check(`vuelo ${name} (${n} pasos, ${fl.phase}/${fr.phase})`, e, 1e-3);
   if (fl.phase !== fr.phase) { fails++; console.log("FALLA  final distinto:", fl.phase, "vs", fr.phase); }
+}
+// 5) caza: pájaros solos con el mismo ruido
+{
+  const C = F.flock;
+  const fk = new Flock(2.0).start(C.pos, C.head, 0.02);
+  let eB = 0, eE = 0, ePk = 0, cur = null;
+  C.out.forEach((ref, t) => {
+    fk.step(0.02, C.noise[t], C.drone[t]);
+    if (t === 300) fk.alive[2] = false;
+    cur = fk.pick(C.drone[t], cur);
+    ref.pos.forEach((p, i) => p.forEach((x, c) => (eB = Math.max(eB, Math.abs(x - fk.pos[i][c])))));
+    ref.est.forEach((v, i) => fk.estVel(i).forEach((x, c) => (eE = Math.max(eE, Math.abs(x - v[c])))));
+    if (cur !== ref.pick) ePk++;
+  });
+  check("pájaros (600 pasos, pasear + huir + borde)", eB, 1e-9);
+  check("velocidad estimada de los pájaros", eE, 1e-7);
+  check("presa elegida distinta", ePk, 0);
+}
+// 6) caza completa con red de 27 entradas
+{
+  const H = F.hunt;
+  const pol27 = new Policy(JSON.parse(readFileSync(new URL("policy27.json", dir))));
+  let k = 0;
+  const fk = new Flock(1.5).start(H.pos, H.head);
+  const fl = new Flight(new Level({ goals: [] }), pol27, { flock: fk, noise: () => H.noise[k++] }).reset();
+  let e = 0, n = 0, eT = 0;
+  for (const ref of H.traj) {
+    fl.step();
+    e = Math.max(e, Math.hypot(fl.state.pos[0] - ref[0], fl.state.pos[1] - ref[1], fl.state.pos[2] - ref[2]));
+    if (fl.goalIdx !== ref[3] || fl.target !== ref[4]) eT++;
+    n++;
+    if (fl.phase !== "ruta") break;
+  }
+  check(`caza con la red (${n} pasos, ${fl.goalIdx} cazados, ${fl.phase}/${H.phase})`, e, 1e-3);
+  check("presa/cazados distintos en la caza", eT, 0);
+  if (fl.phase !== H.phase) { fails++; console.log("FALLA  final distinto:", fl.phase, "vs", H.phase); }
 }
 console.log(fails ? `\n${fails} FALLAS` : "\nTodo igual que Python.");
 process.exit(fails ? 1 : 0);

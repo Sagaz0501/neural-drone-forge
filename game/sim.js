@@ -6,6 +6,7 @@
 //   drone_rl/sensing.py  -> sensorRays(), buildObs()   (sensores en cono de 3 rayos)
 //   drone_rl/controller  -> pdAct()                    (aterrizaje automático)
 //   drone_rl/runtime.py  -> Policy, Flight
+//   drone_rl/birds.py    -> Flock                      (caza: pájaros que vuelan solos y huyen)
 //
 // No usa nada del navegador: también corre en node (game/test_sim.mjs lo compara con Python).
 // Unidades SI. Eje X = frente del dron, Y = izquierda, Z = arriba (igual que en Python).
@@ -23,6 +24,7 @@ export const SPREAD_DEG = 15.0;
 export const CONTROL_HZ = 50;
 export const SUBSTEPS = 2;
 export const GOAL_RADIUS = 0.5;
+export const GOAL_VEL_SCALE = 5.0;
 
 const clip = (x, a, b) => Math.min(Math.max(x, a), b);
 const norm3 = (v) => Math.hypot(v[0], v[1], v[2]);
@@ -275,8 +277,9 @@ export function sensorRays(s, level) {
   return out;
 }
 
-/** Las 24 entradas de la red (mismo orden y escala que el entrenamiento). */
-export function buildObs(s, goal, rays, prevAction) {
+/** Las 27 entradas de la red (mismo orden y escala que el entrenamiento).
+ *  Las 3 últimas: cómo se mueve la meta (0 con aros quietos). */
+export function buildObs(s, goal, rays, prevAction, goalVel = null) {
   const rel = yawFrame([goal[0] - s.pos[0], goal[1] - s.pos[1], goal[2] - s.pos[2]], s.yaw);
   const dist = norm3(rel);
   const vh = yawFrame(s.vel, s.yaw);
@@ -288,6 +291,7 @@ export function buildObs(s, goal, rays, prevAction) {
     s.pos[2] / OBS_SCALE,
     ...prevAction,
     ...rays.map((r) => r / RAY_LEN),
+    ...(goalVel ? yawFrame(goalVel, s.yaw).map((x) => clip(x / GOAL_VEL_SCALE, -2, 2)) : [0, 0, 0]),
   ];
   return obs.map(Math.fround);                            // float32, como en Python
 }
@@ -301,7 +305,7 @@ export class Policy {
     this.hidden = [];                                     // activaciones (para dibujar el cerebro)
   }
   act(obs) {
-    let h = obs;
+    let h = obs.length > this.layers[0].nin ? obs.slice(0, this.layers[0].nin) : obs;   // modelo viejo: 24 entradas
     this.hidden = [];
     this.layers.forEach((L, li) => {
       const out = new Float32Array(L.nout);
@@ -337,31 +341,44 @@ export function pdAct(s, goal, vMax = 1.5, kp = 1.2, kv = 2.0) {
  * pilot: "ia" (la red) o una función () => [gas, roll, pitch, yaw] (teclado).
  */
 export class Flight {
-  constructor(level, policy, { landOn = null, wind = 0, seed = 1, pilot = "ia" } = {}) {
+  /** flock: caza (Flock ya con start()). noise: (n) => n x 3 normales (las pruebas lo fijan; si no, al azar). */
+  constructor(level, policy, { landOn = null, wind = 0, seed = 1, pilot = "ia", flock = null, noise = null } = {}) {
     this.level = level; this.policy = policy; this.landOn = landOn; this.pilot = pilot;
     this.dt = 1 / CONTROL_HZ;
     this.wind = new Wind(wind);
     this.rng = makeRng(seed);
+    this.flock = flock;
+    const brng = makeRng(seed + 1);
+    this.noise = noise || ((n) => Array.from({ length: n }, () => [brng.normal(), brng.normal(), brng.normal()]));
+    this.target = null;
   }
   reset(pos = null, yaw = null) {
     const start = pos || this.level.spawn;
-    const g = this.level.goals[0] || [start[0] + 1, start[1], 1];
+    this.goalIdx = 0;
+    if (this.flock) this.target = this.flock.pick(start, null);
+    const g = this.flock ? this.goal() : this.level.goals[0] || [start[0] + 1, start[1], 1];
     this.state = newState(start, yaw ?? Math.atan2(g[1] - start[1], g[0] - start[0]));
     this.goalIdx = 0; this.prevAction = [0, 0, 0, 0]; this.action = [0, 0, 0, 0];
     this.t = 0; this.phase = "ruta"; this.reason = null; this.landLow = false;
+    this.caught = null;
     this.rays = sensorRays(this.state, this.level);
     this.windNow = this.wind.reset(this.rng);
     this.obs = null;
     return this;
   }
-  goal() { return this.level.goals[Math.min(this.goalIdx, this.level.goals.length - 1)]; }
+  goal() {
+    if (this.flock) return this.flock.pos[this.target];
+    return this.level.goals[Math.min(this.goalIdx, this.level.goals.length - 1)];
+  }
+  goalVel() { return this.flock ? this.flock.estVel(this.target) : null; }
+  nGoals() { return this.flock ? this.flock.n : this.level.goals.length; }
   step() {
     if (this.phase !== "ruta" && this.phase !== "aterrizaje") return;
     const s = this.state;
     let a;
     if (this.phase === "ruta") {
       if (this.pilot === "ia") {
-        this.obs = buildObs(s, this.goal(), this.rays, this.prevAction);
+        this.obs = buildObs(s, this.goal(), this.rays, this.prevAction, this.goalVel());
         a = this.policy.act(this.obs);                  // <- la red neuronal decide
       } else {
         a = this.pilot(s);
@@ -382,17 +399,97 @@ export class Flight {
     this.prevAction = a; this.action = a;
     this.t += this.dt;
     this.rays = sensorRays(s, this.level);
-    const L = this.level;
+    const L = this.level, fl = this.flock;
+    if (fl && this.phase === "ruta") {                    // los pájaros vuelan; la presa puede cambiar
+      fl.step(this.dt, this.noise(fl.n), s.pos);
+      this.target = fl.pick(s.pos, this.target);
+    }
     const nG = L.goals.length;
+    const dGoal = () => { const g = this.goal(); return norm3([g[0] - s.pos[0], g[1] - s.pos[1], g[2] - s.pos[2]]); };
     if (groundCrash) { this.phase = "choque"; this.reason = "suelo"; }
     else if (L.collides(s.pos, P.radius)) { this.phase = "choque"; this.reason = "obstaculo"; }
     else if (L.outOfBounds(s.pos)) { this.phase = "choque"; this.reason = "limites"; }
-    else if (this.phase === "ruta" && nG && norm3([this.goal()[0] - s.pos[0], this.goal()[1] - s.pos[1], this.goal()[2] - s.pos[2]]) < GOAL_RADIUS) {
+    else if (fl && this.phase === "ruta" && dGoal() < BIRDS.CATCH_R) {      // ¡cazado!
+      fl.alive[this.target] = false;
+      this.goalIdx += 1;
+      this.caught = { i: this.target, pos: fl.pos[this.target].slice(), t: this.t };
+      if (this.goalIdx >= fl.n) this.phase = "cazado";
+      else this.target = fl.pick(s.pos, null);
+    } else if (!fl && this.phase === "ruta" && nG && dGoal() < GOAL_RADIUS) {
       this.goalIdx += 1;
       if (this.goalIdx >= nG) this.phase = this.landOn ? "aterrizaje" : "aterrizado";
     } else if (this.phase === "aterrizaje" && grounded && this.landLow) {
       this.phase = "aterrizado";
       s.throttle = 0;
     }
+  }
+}
+
+// ---------------- caza: los pájaros (birds.py) ----------------
+export const BIRDS = { AREA_R: 12.0, Z_MIN: 1.5, Z_MAX: 6.0, FLEE_R: 4.0, CATCH_R: 0.7, EST_STEPS: 5, SWITCH: 0.6 };
+const wrapAng = (a) => a - 2 * Math.PI * Math.floor((a + Math.PI) / (2 * Math.PI));
+
+/**
+ * Pájaros que pasean al azar (suave), se quedan en el área y HUYEN del dron cuando se acerca.
+ * El dron solo sabe dónde está su presa y cómo se movió en la última décima de segundo (estVel).
+ */
+export class Flock {
+  constructor(speed = 1.5, center = [0, 0, 0]) {
+    this.speed = speed; this.center = center;
+  }
+  /** pos: [[x,y,z], …] donde empiezan · head: rumbo inicial de cada uno (rad). */
+  start(pos, head, dt = 1 / CONTROL_HZ) {
+    const n = (this.n = pos.length);
+    this.pos = pos.map((p) => p.slice());
+    this.head = head.slice();
+    this.climb = new Array(n).fill(0);
+    this.pace = new Array(n).fill(1);
+    this.vel = this.head.map((h) => [this.speed * Math.cos(h), this.speed * Math.sin(h), 0]);
+    this.alive = new Array(n).fill(true);
+    this.dt = dt;
+    this.hist = [];
+    for (let k = BIRDS.EST_STEPS; k >= 0; k--) this.hist.push(this.pos.map((p, i) => [0, 1, 2].map((c) => p[c] - this.vel[i][c] * dt * k)));
+    return this;
+  }
+  /** noise: n x 3 números normales (el azar entra de afuera, igual que en Python). */
+  step(dt, noise, drone) {
+    const B = BIRDS, sq = Math.sqrt(dt), R = B.AREA_R, c = this.center, f = 1 - Math.exp(-dt / 0.35);
+    for (let i = 0; i < this.n; i++) {
+      if (!this.alive[i]) { this.vel[i] = [0, 0, 0]; continue; }
+      const p = this.pos[i], v = this.vel[i], [n0, n1, n2] = noise[i];
+      let head = this.head[i] + 1.0 * sq * n0;                                          // pasear
+      let climb = clip(this.climb[i] - this.climb[i] * dt / 1.0 + 0.7 * sq * n1, -1.2, 1.2);
+      const pace = clip(this.pace[i] - (this.pace[i] - 1.0) * dt / 2.0 + 0.35 * sq * n2, 0.6, 1.4);
+      const dx = p[0] - c[0], dy = p[1] - c[1];                                          // borde
+      const out = clip((Math.hypot(dx, dy) - 0.7 * R) / (0.3 * R), 0, 1);
+      head = head + wrapAng(Math.atan2(-dy, -dx) - head) * clip(out * 3.0 * dt, 0, 1);
+      const z = p[2];                                                                    // piso / techo
+      climb = climb + clip((B.Z_MIN + 0.6 - z) / 0.6, 0, 1) * 4.0 * dt - clip((z - (B.Z_MAX - 0.6)) / 0.6, 0, 1) * 4.0 * dt;
+      const ax = p[0] - drone[0], ay = p[1] - drone[1], az = p[2] - drone[2];           // huir
+      const dd = Math.max(Math.sqrt(ax * ax + ay * ay + az * az), 1e-6);
+      const k = clip(1 - dd / B.FLEE_R, 0, 1);
+      head = head + wrapAng(Math.atan2(ay, ax) - head) * clip(k * 6.0 * dt, 0, 1);
+      const spd = this.speed * pace * (1 + 0.5 * k);
+      const vd = [spd * Math.cos(head), spd * Math.sin(head), climb + k * this.speed * 0.8 * az / dd];
+      const nv = [v[0] + (vd[0] - v[0]) * f, v[1] + (vd[1] - v[1]) * f, v[2] + (vd[2] - v[2]) * f];
+      this.pos[i] = [p[0] + nv[0] * dt, p[1] + nv[1] * dt, clip(p[2] + nv[2] * dt, 0.4, B.Z_MAX + 1.0)];
+      this.vel[i] = nv;
+      this.head[i] = wrapAng(head); this.climb[i] = climb; this.pace[i] = pace;
+    }
+    this.hist.shift();
+    this.hist.push(this.pos.map((q) => q.slice()));
+  }
+  estVel(i) {
+    const a = this.hist[0][i], b = this.hist[this.hist.length - 1][i], T = BIRDS.EST_STEPS * this.dt;
+    return [(b[0] - a[0]) / T, (b[1] - a[1]) / T, (b[2] - a[2]) / T];
+  }
+  /** La presa: el pájaro vivo más cercano; solo cambia si otro está MUCHO más cerca. */
+  pick(drone, current) {
+    let j = -1, dj = Infinity;
+    const dist = (i) => { const p = this.pos[i]; return Math.sqrt((p[0] - drone[0]) ** 2 + (p[1] - drone[1]) ** 2 + (p[2] - drone[2]) ** 2); };
+    for (let i = 0; i < this.n; i++) if (this.alive[i]) { const d = dist(i); if (d < dj) { dj = d; j = i; } }
+    if (j < 0) return current;
+    if (current === null || current < 0 || !this.alive[current]) return j;
+    return dj < BIRDS.SWITCH * dist(current) ? j : current;
   }
 }

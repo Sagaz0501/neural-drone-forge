@@ -70,5 +70,13 @@
     "exito": "Pasar por los 3 aros en orden sin tocar ningún árbol, arbusto ni roca.",
     "falla": "tocar un árbol o una roca, chocar con el piso a más de 4 m/s, salir del área de 30 m, o que se acabe el tiempo",
     "premio": "+2 por metro hacia el aro que toca, +10 por cada aro, + velocidad media x 'rapidez', - giros bruscos x 'estabilidad', - nariz lejos del aro x 'ir de frente', -10 al chocar"
+  },
+  "8": {
+    "nombre": "Caza: 5 pájaros",
+    "tiempo": 60,
+    "objetivo": "Cazar a los 5 pájaros que vuelan solos por el área (radio 12 m, de 1.5 a 6 m de alto). Se mueven al azar y HUYEN cuando el dron se acerca a menos de 4 m. Solo dónde está su presa y cómo se movió en la última décima de segundo (3 entradas nuevas). No sabe para dónde va a ir: tiene que aprender a adelantarse.",
+    "exito": "Tocar a los 5 pájaros (pasar a menos de 0.7 m) antes de 60 s, sin chocar.",
+    "falla": "chocar con el piso a más de 4 m/s, salirse del área de 30 m, o que se acabe el tiempo.",
+    "premio": "+2 por metro que se acerca a su presa, +10 por cada pájaro, + velocidad media x 'rapidez', - nariz lejos de la presa x 'ir de frente', -10 al chocar"
   }
 }

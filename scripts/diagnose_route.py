@@ -26,7 +26,8 @@ def main():
     ap.add_argument("--level", required=True)
     ap.add_argument("--tries", type=int, default=6)
     a = ap.parse_args()
-    model = PPO.load(a.model, device="cpu")
+    from drone_rl.upgrade import load_ppo
+    model, _ = load_ppo(a.model)
     env = DroneEnv(level_path=a.level, max_seconds=70, focus_blocked=2.0)
     env.reset(seed=0)
     blocked = env.start_weights > env.start_weights.min() + 1e-9

@@ -190,8 +190,15 @@
 <canvas id="c"></canvas>
 
 <section id="menu" class="panel" aria-label="Menú">
-  <h1>Drone RL<small>Tu red neuronal vuela el dron. Escoge un mundo, pon los aros y mírala intentarlo.</small></h1>
+  <h1>Drone RL<small>Tu red neuronal vuela el dron. Escoge un juego y un mundo, pon los aros (o los pájaros) y mírala intentarlo.</small></h1>
   <div id="model" class="model none"><b>Buscando el modelo…</b><span></span></div>
+  <div class="worlds" role="group" aria-label="Juego">
+    <h2>Juego</h2>
+    <div id="game-mode" class="worlds">
+      <button class="world" data-g="aros"><i style="background:var(--gate)"></i><div><b>Aros</b><span>Pones los aros y la IA pasa por todos, en orden.</span></div></button>
+      <button class="world" data-g="caza"><i style="background:#ff5a3a"></i><div><b>Caza</b><span>Pájaros que vuelan solos y huyen. La IA no sabe para dónde van: tiene que leer cómo se mueven y cazarlos a todos.</span></div></button>
+    </div>
+  </div>
   <div class="worlds" role="group" aria-label="Mundo">
     <h2>Mundo</h2>
     <div id="world-list" class="worlds"></div>
@@ -200,6 +207,8 @@
     <h2>Condiciones</h2>
     <div class="row" id="row-dens"><span>Densidad del bosque</span><output id="o-dens">1,0</output>
       <input id="dens" type="range" min="0.4" max="2.2" step="0.1" value="1"></div>
+    <div class="row" id="row-birds"><span>Velocidad de los pájaros</span><output id="o-birds">1,5 m/s</output>
+      <input id="birds" type="range" min="0.5" max="4" step="0.25" value="1.5"></div>
     <div class="row"><span>Viento con ráfagas</span><output id="o-wind">sin viento</output>
       <input id="wind" type="range" min="0" max="6" step="0.5" value="0"></div>
     <div class="row"><span>Calidad gráfica</span>
@@ -214,12 +223,13 @@
 
 <div id="editor-top" class="panel hidden">
   <div class="seg" id="tool"><button data-t="aro" aria-pressed="true">Poner aros</button><button data-t="salida">Mover la salida</button></div>
+  <label id="lab-bspeed">Velocidad <input id="bspeed" type="range" min="0.5" max="4" step="0.25" value="1.5"><output id="o-bspeed">1,5 m/s</output></label>
   <label>Altura <input id="height" type="range" min="0.6" max="6" step="0.1" value="1.6"><output id="o-height">1,6 m</output></label>
   <button class="btn ghost small" id="rand-route">Ruta al azar</button>
   <button class="btn ghost small" id="undo">Deshacer</button>
   <button class="btn ghost small" id="clear">Borrar aros</button>
 </div>
-<aside id="route" class="panel hidden"><h3>Ruta</h3><ol id="route-list"></ol><p id="route-help"></p></aside>
+<aside id="route" class="panel hidden"><h3 id="route-h">Ruta</h3><ol id="route-list"></ol><p id="route-help"></p></aside>
 <div class="hint hidden" id="editor-hint">Clic en el suelo para poner un aro. Arrastra para girar la vista y usa la rueda para acercar.</div>
 <div id="editor-bottom" class="panel hidden">
   <button class="btn main" id="fly-ai">Volar con la IA</button>
@@ -241,7 +251,7 @@
   <div id="keys">C cámara, R otra vez, E editar la ruta, N cerebro, + y − velocidad, P pausa, Esc menú</div>
   <div id="radio" class="panel"><div class="t" id="radio-t">Las manos de la IA</div><canvas id="radio-c" width="300" height="150"></canvas></div>
   <div id="radar" class="panel"><div class="t">Sensores</div><canvas id="radar-c" width="170" height="170"></canvas></div>
-  <div id="brain" class="panel hidden"><div class="t">Cerebro: 24 entradas, 128 + 128 neuronas, 4 palancas</div><canvas id="brain-c" width="560" height="96"></canvas></div>
+  <div id="brain" class="panel hidden"><div class="t" id="brain-t">Cerebro: 27 entradas, 128 + 128 neuronas, 4 palancas</div><canvas id="brain-c" width="560" height="96"></canvas></div>
   <div id="mouse-hint" class="panel hidden">Haz clic para girar con el ratón</div>
   <div id="result" class="panel hidden" role="dialog" aria-live="polite">
     <h2 id="res-h"></h2><p id="res-p"></p><div class="records" id="res-rec"></div>

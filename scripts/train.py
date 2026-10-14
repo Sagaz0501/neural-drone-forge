@@ -105,7 +105,9 @@ def main():
 
     if args.init:
         print(f"Cargando {args.init} y continuando el entrenamiento")
-        model = PPO.load(args.init, env=env, tensorboard_log=tb)
+        from drone_rl.upgrade import load_ppo
+        model, _ = load_ppo(args.init, env=env)
+        model.tensorboard_log = tb
         if args.log_std is not None:
             import torch
             with torch.no_grad():

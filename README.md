@@ -64,6 +64,7 @@ porque no sabe esquivar, y ahí es donde la IA tiene que ganarle.
 - [x] Un solo modelo (`models/modelo.zip`) para todo: entrenamiento y pruebas 3D
 - [ ] Bosque resuelto con el modelo único
 - [x] Juego en el navegador: menú, mundos, poner aros con el mouse, la IA o tú vuelan (`game/`)
+- [x] Caza (nivel 8): pájaros que vuelan solos y huyen; la red ve cómo se mueve su presa (27 entradas)
 - [ ] Video de la IA volando para el portafolio
 
 ## Bitácora
@@ -149,6 +150,33 @@ porque no sabe esquivar, y ahí es donde la IA tiene que ganarle.
   modelo para el juego cada 10 generaciones.
 
 ---
+
+### Caza: pájaros que se mueven (nivel 8)
+
+- **Qué es:** 5 pájaros vuelan solos en un área de 12 m alrededor de la salida (de 1.5 a 6 m de
+  alto). Hay que tocarlos a todos (pasar a menos de 0.7 m) en menos de 60 s.
+- **Cómo vuela un pájaro** (`drone_rl/birds.py`):
+  - su rumbo, su subir/bajar y su rapidez cambian al azar, suave (ruido con memoria);
+  - cerca del borde, del piso o del techo gira hacia adentro;
+  - si el dron se acerca a menos de 4 m, gira para alejarse y acelera hasta 1.5x.
+- **Lo que sabe el dron:** solo dónde está su presa y cuánto se movió en la última décima de
+  segundo, igual que una cámara con un tracker. No sabe para dónde va a ir.
+  - Por eso la red pasó de 24 a 27 entradas: las 3 nuevas son la velocidad estimada de la presa, y
+    con aros quietos valen 0.
+  - El modelo de antes se **amplía solo** al darle Iniciar: 3 columnas de pesos en cero en la
+    primera capa, así que vuela exactamente igual (hay una prueba que lo comprueba). Una copia del
+    original queda en `models/anteriores/`.
+- **A quién persigue:** al pájaro vivo más cercano. Solo cambia de presa si otro queda a menos del
+  60 % de la distancia, para que no dude entre dos.
+- **¿Se puede?** Un piloto automático que va a donde el pájaro *está* los caza a todos a 2 m/s,
+  pero a 3 m/s caza 0 %. Si se *adelanta* usando esas 3 entradas, caza el 45 %. Esa es la habilidad
+  que la red tiene que aprender sola. Por eso la velocidad arranca en 1.5 m/s: súbela en el
+  laboratorio ("Velocidad pájaros") cuando ya los cace.
+- **Premios:** los mismos de siempre. Acercarse a la presa paga como acercarse a un aro, cada
+  pájaro vale como un aro, e *Ir de frente* apunta la nariz a la presa.
+- **En el juego:** escoge **Caza** en el menú, pon los pájaros con el mouse (o al azar) y dale
+  "Que cace la IA" o "Cazar yo". La presa es roja con una flecha encima, y la línea blanca punteada
+  es lo que la red "sabe" de su movimiento: dónde estaría en 0.6 s si siguiera igual.
 
 ## Instalación (macOS / Linux / Windows)
 
@@ -367,7 +395,7 @@ Es un modelo en **modo angle** (auto-nivelado), como el modo para principiantes 
 | yaw | 180 °/s | |
 | radio de colisión | 0.15 m | |
 
-### Lo que ve la IA (observación, 24 números)
+### Lo que ve la IA (observación, 27 números)
 
 | # | Qué | Por qué |
 |---|---|---|
@@ -378,6 +406,7 @@ Es un modelo en **modo angle** (auto-nivelado), como el modo para principiantes 
 | 1 | altura | no estrellarse contra el piso |
 | 4 | acción anterior | suavidad |
 | 10 | sensores de distancia: 8 horizontales cada 45°, 1 arriba, 1 abajo (alcance 5 m) | ver obstáculos, como un ToF o LiDAR de un punto |
+| 3 | cómo se mueve la meta (lo que avanzó en la última décima de segundo), en el marco del dron | caza: adelantarse a la presa. Con aros quietos vale 0 |
 
 Las posiciones y velocidades van rotadas al marco del dron. Así la IA no depende de hacia dónde
 apunta: "la meta está adelante a la izquierda" significa lo mismo mirando al norte o al sur.
@@ -407,7 +436,9 @@ drone_rl/
   env.py          entorno Gymnasium + currículum + recompensa
   missions.json   texto de cada misión (lo leen el entorno y Blender)
   controller.py   piloto PD clásico (referencia)
-  sensing.py      sensores y las 24 entradas (compartido por el entorno y Blender)
+  sensing.py      sensores y las 27 entradas (compartido por el entorno y Blender)
+  birds.py        caza: pájaros que pasean, se quedan en el área y huyen del dron
+  upgrade.py      cargar un modelo de 24 entradas ampliándolo a 27 sin cambiar lo que hace
   runtime.py      vuelo con solo numpy: la IA dentro de Blender
 scripts/
   live_train.py   entrenamiento en vivo para Drone Lab (UDP)

@@ -726,3 +726,165 @@ export class Trail {
     this.line.geometry.setDrawRange(0, this.count);
   }
 }
+
+// =====================================================================
+// CAZA: pájaros (amarillos; la presa que persigue el dron, roja con una flecha encima)
+// =====================================================================
+export class BirdsView {
+  constructor(scene) {
+    this.group = new THREE.Group();
+    scene.add(this.group);
+    this.birds = [];
+    this.bodyGeo = new THREE.SphereGeometry(1, 14, 10);
+    this.mats = {
+      body: new THREE.MeshStandardMaterial({ color: 0xffd23f, roughness: 0.55, emissive: 0x7a5200, emissiveIntensity: 0.45 }),
+      prey: new THREE.MeshStandardMaterial({ color: 0xff5a3a, roughness: 0.5, emissive: 0xff3010, emissiveIntensity: 1.0 }),
+      wing: new THREE.MeshStandardMaterial({ color: 0xfff1b8, roughness: 0.6, side: THREE.DoubleSide, emissive: 0x6b5a20, emissiveIntensity: 0.35 }),
+      beak: new THREE.MeshStandardMaterial({ color: 0xff8a1a, roughness: 0.4 }),
+    };
+    const ws = new THREE.Shape();                    // ala: triángulo hacia -Z (izquierda del pájaro)
+    ws.moveTo(0.07, 0); ws.lineTo(-0.02, 0.27); ws.lineTo(-0.11, 0.05); ws.lineTo(-0.06, 0);
+    this.wingGeo = new THREE.ShapeGeometry(ws);
+    // marcador de la presa + lo que el dron "sabe" de su movimiento (dónde estará en 0.6 s si sigue igual)
+    this.marker = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.3, 4), new THREE.MeshBasicMaterial({ color: 0xff5a3a }));
+    this.marker.rotation.x = Math.PI;
+    this.marker.visible = false;
+    this.group.add(this.marker);
+    this.lead = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
+      new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 0.12, gapSize: 0.08, transparent: true, opacity: 0.85 }));
+    this.lead.visible = false;
+    this.group.add(this.lead);
+    this.bursts = [];
+    this.extras = [];
+  }
+  makeBird() {
+    const b = new THREE.Group();
+    const body = new THREE.Mesh(this.bodyGeo, this.mats.body);
+    body.scale.set(0.16, 0.075, 0.08);
+    body.castShadow = true;
+    const head = new THREE.Mesh(this.bodyGeo, this.mats.body);
+    head.scale.setScalar(0.055);
+    head.position.set(0.14, 0.04, 0);
+    const beak = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.06, 6), this.mats.beak);
+    beak.rotation.z = -Math.PI / 2;
+    beak.position.set(0.215, 0.035, 0);
+    const tail = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.12, 4), this.mats.wing);
+    tail.rotation.z = Math.PI / 2;
+    tail.scale.set(1, 1, 0.3);
+    tail.position.set(-0.19, 0.01, 0);
+    const wl = new THREE.Group(), wr = new THREE.Group();
+    const ml = new THREE.Mesh(this.wingGeo, this.mats.wing);
+    ml.rotation.x = -Math.PI / 2;                    // el ala sale hacia -Z en el plano XZ
+    const mr = ml.clone();
+    mr.scale.y = -1;
+    wl.add(ml); wr.add(mr);
+    wl.position.set(0, 0.035, -0.04); wr.position.set(0, 0.035, 0.04);
+    ml.position.z = 0; mr.position.z = 0;
+    b.add(body, head, beak, tail, wl, wr);
+    b.rotation.order = "YZX";
+    b.scale.setScalar(1.3);
+    b.userData = { body, head, wl, wr, phase: Math.random() * 6.28 };
+    this.group.add(b);
+    return b;
+  }
+  /** Editor: pájaros quietos donde los pusiste, con su número. */
+  place(positions) {
+    this.clearExtras();
+    while (this.birds.length < positions.length) this.birds.push(this.makeBird());
+    this.birds.forEach((b, i) => {
+      b.visible = i < positions.length;
+      if (!b.visible) return;
+      const p = positions[i];
+      b.position.copy(V(...p));
+      b.rotation.set(0, Math.atan2(-p[1], -p[0]) + 1.2, 0);      // de lado, para que se vean las alas
+      this.pose(b, 0.9, false);
+      const num = label(String(i + 1), "#ffd23f");
+      num.position.copy(V(p[0], p[1], p[2] + 0.55));
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, Math.max(p[2] - 0.15, 0.01), 6),
+        new THREE.MeshBasicMaterial({ color: 0xffd23f, transparent: true, opacity: 0.3 }));
+      stem.position.copy(V(p[0], p[1], Math.max(p[2] - 0.15, 0.01) / 2));
+      this.group.add(num, stem);
+      this.extras.push(num, stem);
+    });
+    this.marker.visible = this.lead.visible = false;
+  }
+  clearExtras() {
+    for (const o of this.extras) this.group.remove(o);
+    this.extras = [];
+  }
+  hide() {
+    this.clearExtras();
+    this.birds.forEach((b) => (b.visible = false));
+    this.marker.visible = this.lead.visible = false;
+  }
+  pose(b, flap, prey) {
+    const u = b.userData;
+    u.wl.rotation.x = flap;
+    u.wr.rotation.x = -flap;
+    const m = prey ? this.mats.prey : this.mats.body;
+    if (u.body.material !== m) u.body.material = u.head.material = m;
+  }
+  /** Vuelo: pos/vel (interpoladas) de cada pájaro, vivos, cuál es la presa y lo que el dron estima. */
+  update(pos, vel, alive, prey, est, t) {
+    this.clearExtras();
+    while (this.birds.length < pos.length) this.birds.push(this.makeBird());
+    this.birds.forEach((b, i) => {
+      b.visible = i < pos.length && alive[i];
+      if (!b.visible) return;
+      const p = pos[i], v = vel[i];
+      b.position.copy(V(...p));
+      const vh = Math.hypot(v[0], v[1]);
+      if (vh > 0.05) b.rotation.set(0, Math.atan2(v[1], v[0]), Math.atan2(v[2], vh) * 0.6);
+      const sp = Math.hypot(vh, v[2]);
+      const u = b.userData;
+      u.phase += 0.016 * (9 + 5 * sp);                       // aletea más rápido cuando huye
+      this.pose(b, 0.15 + 0.75 * Math.sin(u.phase), i === prey);
+    });
+    const ok = prey !== null && prey >= 0 && alive[prey];
+    this.marker.visible = this.lead.visible = ok;
+    if (ok) {
+      const p = pos[prey];
+      this.marker.position.copy(V(p[0], p[1], p[2] + 0.55 + 0.06 * Math.sin(t * 6)));
+      const a = this.lead.geometry.attributes.position;
+      const q = V(p[0] + est[0] * 0.6, p[1] + est[1] * 0.6, p[2] + est[2] * 0.6), o = V(...p);
+      a.setXYZ(0, o.x, o.y, o.z); a.setXYZ(1, q.x, q.y, q.z);
+      a.needsUpdate = true;
+      this.lead.geometry.computeBoundingSphere();
+      this.lead.computeLineDistances();
+    }
+  }
+  /** ¡Cazado!: plumas que salen volando. */
+  burst(p) {
+    const n = 26, geo = new THREE.BufferGeometry(), arr = new Float32Array(n * 3), v = [];
+    for (let i = 0; i < n; i++) {
+      const o = V(...p);
+      arr.set([o.x, o.y, o.z], i * 3);
+      const d = new THREE.Vector3(Math.random() - 0.5, Math.random() * 0.8 - 0.2, Math.random() - 0.5).normalize().multiplyScalar(1.5 + Math.random() * 2.5);
+      v.push(d);
+    }
+    geo.setAttribute("position", new THREE.BufferAttribute(arr, 3));
+    const pts = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xfff1b8, size: 0.09, transparent: true, opacity: 1, depthWrite: false }));
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.03, 8, 40), new THREE.MeshBasicMaterial({ color: 0xffd23f, transparent: true }));
+    ring.position.copy(V(...p));
+    ring.rotation.x = Math.PI / 2;
+    this.group.add(pts, ring);
+    this.bursts.push({ pts, ring, v, t: 0 });
+  }
+  tick(dt) {
+    this.bursts = this.bursts.filter((b) => {
+      b.t += dt;
+      const a = b.pts.geometry.attributes.position;
+      b.v.forEach((v, i) => {
+        v.y -= 3.0 * dt;
+        v.multiplyScalar(1 - 1.5 * dt);
+        a.setXYZ(i, a.getX(i) + v.x * dt, a.getY(i) + v.y * dt, a.getZ(i) + v.z * dt);
+      });
+      a.needsUpdate = true;
+      b.pts.material.opacity = Math.max(0, 1 - b.t / 1.1);
+      b.ring.scale.setScalar(1 + b.t * 6);
+      b.ring.material.opacity = Math.max(0, 1 - b.t / 0.5);
+      if (b.t > 1.1) { this.group.remove(b.pts, b.ring); b.pts.geometry.dispose(); return false; }
+      return true;
+    });
+  }
+}

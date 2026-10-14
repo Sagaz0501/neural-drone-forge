@@ -46,10 +46,11 @@ STAGE_ITEMS = [
     ("5", "Circuito (2 vueltas)", "4 aros en orden, dos vueltas: cada aro se pasa 2 veces"),
     ("6", "Bosque", "Cruzar un bosque (troncos, árboles jóvenes, arbustos) hasta un aro a 9-14 m"),
     ("7", "Bosque: 3 aros", "Slalom de 3 aros en orden dentro del bosque"),
+    ("8", "Caza: pájaros", "Pájaros que vuelan solos y huyen: cazarlos a todos (tocarlos)"),
     ("LEVEL", "Nivel JSON", "Un nivel exportado desde Blender (todos los drones en el mismo nivel)"),
 ]
 STAGE_NAMES = {"hover": "Hover", "goal_fixed": "Meta fija", "goal_random": "Metas", "obstacles": "Columnas",
-               "multi_goal": "Varias metas", "circuit": "Circuito", "forest": "Bosque", "forest_multi": "Bosque 3 aros"}
+               "multi_goal": "Varias metas", "circuit": "Circuito", "forest": "Bosque", "forest_multi": "Bosque 3 aros", "hunt": "Caza"}
 COLORS = {"fly": (0.9, 0.9, 0.95, 1), 1: (1.0, 0.12, 0.08, 1), 2: (0.1, 1.0, 0.35, 1), 3: (1.0, 0.75, 0.1, 1)}
 REWARD_KEYS = ["progress", "goal", "crash", "time", "smooth", "tilt", "near", "clearance", "danger", "speed",
                "stability", "heading"]
@@ -104,7 +105,8 @@ def _on_sigma(self, context):
 
 
 def _on_env_change(self, context):
-    send_ctrl({"env": {"density": self.densidad, "wind": self.viento}})
+    send_ctrl({"env": {"density": self.densidad, "wind": self.viento,
+                       "bird_speed": self.pajaros_vel, "n_birds": self.pajaros}})
 
 
 # =====================================================================
@@ -341,6 +343,24 @@ def ring_mesh(name, R, r):
     return me
 
 
+def bird_mesh(name, k):
+    """Pájaro simple (cuerpo + 2 alas), ~0.6 m de ala a ala, mirando a +X."""
+    me = bpy.data.meshes.get(name)
+    if me:
+        return me
+    s = k
+    v = [(0.16 * s, 0, 0), (-0.14 * s, 0, 0), (0, 0.035 * s, 0.03 * s), (0, -0.035 * s, 0.03 * s), (0, 0, -0.04 * s),
+         (0.05 * s, 0.02 * s, 0.02 * s), (-0.03 * s, 0.30 * s, 0.07 * s), (-0.08 * s, 0.02 * s, 0.02 * s),
+         (0.05 * s, -0.02 * s, 0.02 * s), (-0.03 * s, -0.30 * s, 0.07 * s), (-0.08 * s, -0.02 * s, 0.02 * s),
+         (-0.14 * s, 0, 0.01 * s), (-0.22 * s, 0.06 * s, 0.02 * s), (-0.22 * s, -0.06 * s, 0.02 * s)]
+    f = [(0, 2, 4), (0, 4, 3), (0, 3, 2), (1, 4, 2), (1, 3, 4), (1, 2, 3),       # cuerpo
+         (5, 6, 7), (8, 10, 9), (11, 12, 13)]                                      # alas y cola
+    me = bpy.data.meshes.new(name)
+    me.from_pydata(v, [], f)
+    me.materials.append(glow_material("DL_Glow"))
+    return me
+
+
 def unit_cyl_mesh():
     """Tronco: cilindro de radio 1 y alto 1 con la base en el origen (se escala por objeto)."""
     me = bpy.data.meshes.get("DL_Cyl")
@@ -412,7 +432,7 @@ def build_proto():
 def cell_size(stage, fixed_level):
     if fixed_level:
         return 24.0
-    return {0: 3.0, 1: 9.0, 5: 12.0, 6: 32.0, 7: 46.0}.get(stage, 22.0)
+    return {0: 3.0, 1: 9.0, 5: 12.0, 6: 32.0, 7: 46.0, 8: 30.0}.get(stage, 22.0)
 
 
 RING_CUR = (0.1, 1.0, 0.35, 1)      # el aro que toca ahora
@@ -420,6 +440,8 @@ RING_NEXT = (0.2, 0.75, 1.0, 1)     # el siguiente
 RING_LATER = (0.3, 0.32, 0.38, 1)   # los que faltan
 RING_HOLD = (1.0, 0.9, 0.15, 1)     # hover: se llena hacia amarillo mientras aguanta 1 s
 WATCH = (0.2, 0.9, 1.0, 1)          # el dron cuya red estás viendo
+BIRD_PREY = (1.0, 0.22, 0.12, 1)    # caza: el pájaro que persigue ahora
+BIRD_OTHER = (1.0, 0.8, 0.2, 1)     # los demás pájaros
 
 
 def build_scene(props, n, stage):
@@ -494,15 +516,24 @@ def apply_level(i, msg):
     # ---- aros (metas), orientados en la dirección en que se llega a ellos ----
     goals = [Vector(g) for g in msg.get("goals", [])]
     pool = st["rings"][i]
-    ring_me = bpy.data.meshes["DL_Ring"]
+    birds = bool(msg.get("birds"))                 # caza: las metas son pájaros que se mueven
+    ring_me = bird_mesh("DL_Bird", k) if birds else bpy.data.meshes["DL_Ring"]
     while len(pool) < len(goals):
         o = bpy.data.objects.new(f"DL_Goal_{i:03d}_{len(pool)}", ring_me)
         col.objects.link(o)
         pool.append(o)
     prev = Vector(msg.get("spawn", (0, 0, 0)))
     seen = {}
+    st.setdefault("bird_prev", {})[i] = {}
     for j, o in enumerate(pool):
-        if j < len(goals):
+        if o.data != ring_me:
+            o.data = ring_me
+        if birds and j < len(goals):
+            o.rotation_euler = (0, 0, 0)
+            o.scale = (1.0, 1.0, 1.0)
+            o.location = (off + goals[j]) * k
+            o.color = BIRD_OTHER
+        elif j < len(goals):
             g = goals[j]
             d = g - prev
             hz = math.hypot(d.x, d.y)
@@ -568,6 +599,34 @@ def color_rings(i, gi, hold):
             o.color = RING_NEXT
         else:
             o.color = RING_LATER
+
+
+def update_birds(i, d):
+    """Caza: mueve los pájaros de la celda i. d = [... 8 del dron, presa, x,y,z por pájaro (z=-1: cazado)]."""
+    st = S()
+    k = to_bu()
+    off = st["offsets"][i]
+    pool = st["rings"][i]
+    prey = int(d[8])
+    prev = st.setdefault("bird_prev", {}).setdefault(i, {})
+    for j in range(min(len(pool), (len(d) - 9) // 3)):
+        x, y, z = d[9 + 3 * j: 12 + 3 * j]
+        o = pool[j]
+        if z < -0.5:                                  # cazado
+            if not o.hide_viewport:
+                o.hide_viewport = True
+            continue
+        if o.hide_viewport:
+            o.hide_viewport = False
+        p = Vector((x, y, z))
+        q = prev.get(j)
+        if q is not None and (p - q).length > 1e-3:   # que mire hacia donde vuela
+            o.rotation_euler = (0.0, 0.0, math.atan2(p.y - q.y, p.x - q.x))
+        prev[j] = p
+        o.location = (off + p) * k
+        c = BIRD_PREY if j == prey else BIRD_OTHER
+        if tuple(o.color) != c:
+            o.color = c
 
 
 def flash(i, status, pos):
@@ -678,7 +737,9 @@ def _tick():
             off = st["offsets"][i]
             st["drones"][i].location = (off + Vector(d[0:3])) * k
             st["drones"][i].rotation_euler = d[3:6]
-            if len(d) >= 8:
+            if len(d) > 8:
+                update_birds(i, d)
+            elif len(d) >= 8:
                 color_rings(i, int(d[6]), float(d[7]))
         if frame.get("w", st.get("watch")) != st.get("watch") and frame.get("w", 0) < n:
             set_watch(frame["w"])
@@ -823,7 +884,8 @@ def draw_network(sh, f, x0, y_bot, width, y_top):
     def ny(k, n):
         return top - (k + 0.5) * (top - bot) / n
 
-    titles = ["24 entradas: lo que siente", "capa 1: 128 neuronas", "capa 2: 128 neuronas", "4 salidas: palancas"]
+    titles = [f"{sizes[0]} entradas: lo que siente"] + [f"capa {c}: {n} neuronas" for c, n in enumerate(sizes[1:-1], 1)] \
+        + [f"{sizes[-1]} salidas: palancas"]
     for c, x in enumerate(xs):
         t = titles[c] if c < len(titles) else f"capa {c}"
         blf.size(0, int(11 * f))
@@ -909,6 +971,9 @@ def draw_hud():
         f"lr {p.get('lr', 0):.1e}   σ {p.get('sigma', 0):.2f}   entropía {p.get('ent', 0):.3f}   velocidad {p.get('speed', '-')}"
         + ("   [PAUSA]" if p.get("paused") else ""),
     ]
+    if p.get("stage") == 8:
+        lines.append(f"caza: {s.get('goals', 0):.1f} de {p.get('n_birds', 5)} pájaros por intento · "
+                     f"pájaros a {p.get('bird_speed', 2):g} m/s")
     if s.get("front") is not None and s.get("front", 0) > 0:
         lines.append(f"vuela de frente el {s['front'] * 100:.0f} % del tiempo (nariz hacia donde va, ±45°)")
     if s.get("spd"):
@@ -1050,6 +1115,12 @@ class DroneLabProps(bpy.types.PropertyGroup):
     # ---- ambiente (cambia en vivo, desde el próximo intento de cada dron) ----
     densidad: bpy.props.FloatProperty(name="Densidad del bosque", default=1.0, min=0.3, max=2.5, update=_on_env_change,
                                       description="Solo para Bosque: 0.5 = claro · 1 = normal · 2 = denso")
+    pajaros: bpy.props.IntProperty(name="Pájaros", default=5, min=1, max=10, update=_on_env_change,
+                                   description="Caza: cuántos pájaros hay que cazar (desde el próximo intento)")
+    pajaros_vel: bpy.props.FloatProperty(name="Velocidad pájaros (m/s)", default=1.5, min=0.3, max=5.0,
+                                         update=_on_env_change,
+                                         description="Caza: qué tan rápido vuelan los pájaros (huyendo, hasta "
+                                                     "~2x esto). Empieza lento y súbelo cuando ya los caza")
     viento: bpy.props.FloatProperty(name="Viento máx. (m/s)", default=0.0, min=0.0, max=8.0, update=_on_env_change,
                                     description="Cada intento sopla un viento al azar hasta este valor, con ráfagas. "
                                                 "Sirve en cualquier nivel: entrena la estabilidad")
@@ -1107,7 +1178,8 @@ class DRONELAB_OT_start(bpy.types.Operator):
                "--net", str(p.net), "--reward", json.dumps(lp["reward"]),
                "--port", str(TELE_PORT), "--ctrl-port", str(CTRL_PORT),
                "--watch", str(min(p.watch, p.drones - 1)), "--log-std", repr(math.log(p.sigma)),
-               "--density", repr(p.densidad), "--wind", repr(p.viento)]
+               "--density", repr(p.densidad), "--wind", repr(p.viento),
+               "--birds", str(p.pajaros), "--bird-speed", repr(p.pajaros_vel)]
         if p.stage == "LEVEL" and p.level_path:
             cmd += ["--level", os.path.expanduser(bpy.path.abspath(p.level_path))]
         cmd += ["--model", model_files(project)[0]]          # EL modelo: se continúa si existe
@@ -1242,6 +1314,9 @@ class DRONELAB_OT_probar(bpy.types.Operator):
         p = lab_scene().drone_lab
         st = S()
         stage = self.stage if self.stage >= 0 else test_stage(p)
+        if stage == 8:                      # la caza se ve en el juego del navegador (pájaros, cámaras, etc.)
+            st["test_msg"] = "La caza se prueba en el juego: Jugar en el navegador → mundo Caza"
+            return bpy.ops.dronelab.jugar()
         proc = st.get("proc")
         if proc and proc.poll() is None:
             # entrenando: el trainer guarda la generación actual en models/modelo.zip/.npz y avisa ("x")
@@ -1468,6 +1543,10 @@ class VIEW3D_PT_drone_lab(bpy.types.Panel):
         row.active = p.stage in ("6", "7")
         row.prop(p, "densidad", slider=True)
         box.prop(p, "viento", slider=True)
+        col = box.column()
+        col.active = p.stage == "8"
+        col.prop(p, "pajaros", slider=True)
+        col.prop(p, "pajaros_vel", slider=True)
 
         box = L.box()
         box.label(text="Aprendizaje (cambia en vivo)", icon='DRIVER')

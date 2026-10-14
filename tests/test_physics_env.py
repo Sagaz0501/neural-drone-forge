@@ -101,7 +101,7 @@ def test_circuit_two_laps():
     env.reset(seed=0)
     assert len(env.level.goals) == 8                       # 4 aros x 2 vueltas
     assert len(OBS_LABELS) == env.observation_space.shape[0]
-    assert set(MISSIONS) == set(range(8))
+    assert set(MISSIONS) == set(range(9))
     assert run_pilot(5, episodes=5) == 1.0                 # el piloto PD completa las 2 vueltas
 
 
@@ -115,7 +115,8 @@ def test_runtime_matches_env(tmp_path):
     from drone_rl.runtime import Flight, NumpyPolicy
     root = Path(__file__).resolve().parents[1]
     npz = export(root / "models" / "anteriores" / "stage2.zip", tmp_path / "p.npz")
-    model, npol = PPO.load(root / "models" / "anteriores" / "stage2.zip", device="cpu"), NumpyPolicy(npz)
+    from drone_rl.upgrade import load_ppo
+    model, npol = load_ppo(root / "models" / "anteriores" / "stage2.zip")[0], NumpyPolicy(npz)   # 24 -> 27
     env = DroneEnv(stage=2)
     obs, _ = env.reset(seed=3)
     fl = Flight(env.level, npol)
@@ -224,3 +225,66 @@ def test_heading_reward_prefers_nose_first():
     assert out["mirando"] == pytest.approx(0.0, abs=1e-3)
     assert out["espaldas"] < 0                                  # cuesta cada segundo
     assert out["girando_hacia"] > 0.4 > -0.4 > out["girando_lejos"]   # girar hacia el aro paga en el acto
+
+
+def test_old_24_input_obs_unchanged():
+    """Las 3 entradas nuevas van al final: con aros quietos valen 0 y las primeras 24 son las de siempre."""
+    env = DroneEnv(stage=2)
+    o, _ = env.reset(seed=3)
+    assert o.shape == (27,)
+    assert np.all(o[24:] == 0)
+
+
+def test_hunt_birds_move_flee_and_get_caught():
+    from drone_rl.birds import CATCH_R, FLEE_R, Flock
+    env = DroneEnv(stage=8)
+    env.reset(seed=4)
+    fl = env.flock
+    assert fl.n == 5 and fl.alive.all()
+    p0 = fl.pos.copy()
+    for _ in range(50):
+        env.step(np.zeros(4))
+    assert np.linalg.norm(fl.pos - p0, axis=1).min() > 0.5                        # vuelan solos
+    assert np.allclose(fl.est_vel, fl.vel, atol=0.3)                             # el estimado se parece al real
+    assert np.all(np.hypot(fl.pos[:, 0], fl.pos[:, 1]) < 13.5)                    # se quedan en el área
+    # huyen: un dron justo al lado los hace alejarse
+    f = Flock(1, 2.0).reset(np.random.default_rng(0), np.array([20.0, 0, 0]))
+    drone = f.pos[0] - np.array([1.0, 0, 0])
+    f.head[:] = np.pi                                   # peor caso: venía volando HACIA el dron
+    f.vel[:] = [-2.0, 0, 0]
+    for _ in range(50):
+        f.step(0.02, np.zeros((1, 3)), drone)
+    assert np.linalg.norm(f.pos[0] - drone) > 1.5 and np.cos(f.head[0]) > 0.5     # dio la vuelta y se aleja
+    assert np.linalg.norm(f.pos[0] - drone) < FLEE_R + 2
+    # cazar: poner el dron encima de su presa
+    env.state.pos = fl.pos[env.target].copy() + np.array([0.0, 0, 0.1])
+    t0 = env.target
+    _, r, te, *_ = env.step(np.zeros(4))
+    assert not fl.alive[t0] and env.goal_idx == 1 and r > 5 and not te and env.target != t0
+    assert CATCH_R > 0.5
+
+
+def test_widened_model_flies_exactly_like_before():
+    """Ampliar 24 -> 27 entradas no cambia nada: mismas acciones y mismo valor con las entradas nuevas en 0."""
+    import torch
+    from pathlib import Path
+    from stable_baselines3 import PPO
+    from drone_rl.upgrade import load_ppo
+    zp = Path(__file__).resolve().parents[1] / "models" / "anteriores" / "stage2.zip"
+    old = PPO.load(zp, device="cpu")
+    new, widened = load_ppo(zp)
+    assert widened and new.observation_space.shape == (27,)
+    assert new.num_timesteps == old.num_timesteps
+    env = DroneEnv(stage=2)
+    obs, _ = env.reset(seed=5)
+    for _ in range(100):
+        a_old = old.predict(obs[:24], deterministic=True)[0]
+        a_new = new.predict(obs, deterministic=True)[0]
+        assert np.allclose(a_old, a_new, atol=1e-6)
+        with torch.no_grad():
+            v_old = old.policy.predict_values(torch.as_tensor(obs[None, :24]))
+            v_new = new.policy.predict_values(torch.as_tensor(obs[None]))
+        assert torch.allclose(v_old, v_new, atol=1e-5)
+        obs, _, te, tr, _ = env.step(a_new)
+        if te or tr:
+            break

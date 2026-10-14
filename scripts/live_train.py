@@ -78,6 +78,8 @@ class LiveLink(BaseCallback):
         self.ep_speed, self.ep_ang = [], []          # cómo vuelan los que llegan: rapidez y estabilidad
         self.ep_front = []                           # qué tanto vuelan de frente (todos los intentos)
         self.density, self.wind = args.density, args.wind
+        self.bird_speed, self.n_birds = args.bird_speed, args.birds
+        self.ep_goals = []                           # caza: cuántos pájaros caza por intento
         self.history = list(meta.get("historia", []))     # [gen, pasos, éxito, crash, nivel]
         self.session = {"inicio": time.strftime("%Y-%m-%d %H:%M:%S"), "nivel": args.stage, "drones": args.drones}
         self.events = []
@@ -125,8 +127,10 @@ class LiveLink(BaseCallback):
             keep = [t for t in ranked if t[0] < 3.0][:cap]
             spheres = [t[2] for t in keep if t[1] == "s"]
             cyls = [t[2] for t in keep if t[1] == "c"]
+        fl = env.flock
         self.send({"t": "l", "i": i, "spawn": r3(lv.spawn),
-                   "goals": [r3(g) for g in lv.goals],
+                   "goals": [r3(g) for g in (fl.pos if fl is not None else lv.goals)],
+                   "birds": fl is not None,
                    "boxes": [r3(a) + r3(b) for a, b in zip(lv.box_min, lv.box_max)],
                    "spheres": spheres, "cylinders": cyls})
 
@@ -134,7 +138,7 @@ class LiveLink(BaseCallback):
         sigma = float(torch.exp(self.model.policy.log_std.detach()).mean()) if getattr(self, "model", None) is not None else 0.0
         return {"lr": self.lr, "ent": self.ent, "sigma": round(sigma, 3), "reward": self.reward, "speed": self.speed,
                 "drones": self.args.drones, "stage": self.args.stage, "paused": self.paused,
-                "density": self.density, "wind": self.wind}
+                "density": self.density, "wind": self.wind, "bird_speed": self.bird_speed, "n_birds": self.n_birds}
 
     def send_stats(self):
         w = max(2 * self.args.drones, 100)
@@ -142,7 +146,8 @@ class LiveLink(BaseCallback):
         self.send({"t": "s", "phase": self.phase, "gen": self.gen, "steps": int(self.num_timesteps),
                    "eps": self.total_eps, "succ": mean(self.ep_succ), "crash": mean(self.ep_crash),
                    "rew": mean(self.ep_rew), "hist": self.hist_to_send(), "params": self.params(),
-                   "spd": mean(self.ep_speed), "ang": mean(self.ep_ang), "front": mean(self.ep_front), "msg": self.msg})
+                   "spd": mean(self.ep_speed), "ang": mean(self.ep_ang), "front": mean(self.ep_front),
+                   "goals": mean(self.ep_goals), "msg": self.msg})
 
     def hist_to_send(self, n=300):
         h = self.history
@@ -194,7 +199,12 @@ class LiveLink(BaseCallback):
         for e in self.envs():
             s = e.state
             hold = e.hold / e.hold_steps if e.hold_steps else 0.0
-            d.append(r3(s.pos) + [round(s.roll, 3), round(s.pitch, 3), round(s.yaw, 3), e.goal_idx, round(hold, 2)])
+            row = r3(s.pos) + [round(s.roll, 3), round(s.pitch, 3), round(s.yaw, 3), e.goal_idx, round(hold, 2)]
+            if e.flock is not None:                  # caza: a quién persigue + dónde está cada pájaro (z=-1: cazado)
+                row.append(int(e.target))
+                for p, alive in zip(e.flock.pos, e.flock.alive):
+                    row += [round(float(p[0]), 2), round(float(p[1]), 2), round(float(p[2]), 2) if alive else -1]
+            d.append(row)
         self.send({"t": "f", "s": int(self.num_timesteps), "d": d, "ev": self.events, "w": self.watch})
         self.events = []
 
@@ -264,9 +274,13 @@ class LiveLink(BaseCallback):
             if "env" in m:                          # ambiente: aplica desde el próximo intento de cada dron
                 self.density = float(m["env"].get("density", self.density))
                 self.wind = float(m["env"].get("wind", self.wind))
+                self.bird_speed = float(m["env"].get("bird_speed", self.bird_speed))
+                self.n_birds = int(m["env"].get("n_birds", self.n_birds))
                 for e in self.envs():
                     e.density = self.density
                     e.wind.max_speed = self.wind
+                    e.bird_speed = self.bird_speed       # caza: la velocidad cambia ya; la cantidad, al próximo intento
+                    e.n_birds = self.n_birds
             if "watch" in m:
                 self.watch = int(m["watch"]) % self.args.drones
             if "pause" in m:
@@ -344,6 +358,8 @@ class LiveLink(BaseCallback):
                     self.ep_speed.append(float(info["avg_speed"]))
                     self.ep_ang.append(float(info["ang_rate"]))
                 self.ep_crash.append(float(info.get("crashed", False)))
+                if envs[i].stage == 8:
+                    self.ep_goals.append(float(info.get("goals_reached", 0)))
                 ep = info.get("episode")             # lo agrega el Monitor de SB3
                 if ep:
                     self.ep_rew.append(float(ep["r"]))
@@ -393,6 +409,8 @@ def main():
     ap.add_argument("--log-std", type=float, default=None, help="ruido de exploración inicial (log σ)")
     ap.add_argument("--density", type=float, default=1.0, help="bosque: 0.5 claro · 1 normal · 2 denso")
     ap.add_argument("--wind", type=float, default=0.0, help="viento máx. con ráfagas (m/s)")
+    ap.add_argument("--birds", type=int, default=5, help="caza: cuántos pájaros")
+    ap.add_argument("--bird-speed", type=float, default=1.5, help="caza: velocidad de los pájaros (m/s)")
     args = ap.parse_args()
 
     reward = dict(DEFAULT_REWARD)
@@ -401,7 +419,8 @@ def main():
     n = args.drones
     env = make_vec_env(DroneEnv, n_envs=n, seed=args.seed,
                        env_kwargs=dict(stage=args.stage, level_path=args.level, reward=reward,
-                                       density=args.density, wind=args.wind))
+                                       density=args.density, wind=args.wind,
+                                       n_birds=args.birds, bird_speed=args.bird_speed))
     n_steps = max(32, round(12_800 / n))         # ~12 800 pasos de experiencia por generación
     batch = min(1024, n_steps * n)
 
@@ -412,13 +431,22 @@ def main():
     existe = model_path.exists()
     meta = json.loads(meta_path.read_text()) if (existe and meta_path.exists()) else {}
 
+    ampliado = False
     if existe:
-        model = PPO.load(model_path, env=env, device="cpu",
-                         custom_objects={"n_steps": n_steps, "batch_size": batch,
-                                         "learning_rate": args.lr, "ent_coef": args.ent})
+        from drone_rl.upgrade import backup_before_widen, load_ppo
+        co = {"n_steps": n_steps, "batch_size": batch, "learning_rate": args.lr, "ent_coef": args.ent}
+        model, ampliado = load_ppo(model_path, env=env, custom_objects=co)
+        if ampliado:          # modelo de antes de la caza (24 entradas): +3 entradas en cero, vuela igual
+            copia = backup_before_widen(model_path)
+            meta["red"] = [int(env.observation_space.shape[0])] + list(meta.get("red", [24, 128, 128, 4]))[1:]
+            meta.setdefault("ampliaciones", []).append({"fecha": time.strftime("%Y-%m-%d %H:%M"), "de": 24,
+                                                        "a": int(env.observation_space.shape[0]),
+                                                        "copia": copia.name})
+            print(f"Modelo ampliado a {env.observation_space.shape[0]} entradas (copia del original: "
+                  f"models/anteriores/{copia.name})", flush=True)
         meta.setdefault("pasos", int(model.num_timesteps))
     else:
-        meta = {"creado": time.strftime("%Y-%m-%d %H:%M"), "red": [24, args.net, args.net, 4],
+        meta = {"creado": time.strftime("%Y-%m-%d %H:%M"), "red": [int(env.observation_space.shape[0]), args.net, args.net, 4],
                 "generaciones": 0, "pasos": 0, "historia": [], "sesiones": [], "niveles": {}}
         model = PPO("MlpPolicy", env, device="cpu",
                     policy_kwargs=dict(net_arch=dict(pi=[args.net, args.net], vf=[args.net, args.net]),
@@ -432,6 +460,8 @@ def main():
     link = LiveLink(args, reward, model_path, meta)
     estado = (f"continuando el modelo ({int(model.num_timesteps):,} pasos, generación {link.gen})" if existe
               else "modelo NUEVO (red al azar)")
+    if ampliado:
+        estado += " · ampliado a 27 entradas para la caza (vuela igual que antes)"
     print(f"Drone Lab: {n} drones · nivel {name} · {n_steps} pasos por dron por generación · {estado}", flush=True)
     try:
         model.learn(total_timesteps=args.steps, callback=link, reset_num_timesteps=not existe)

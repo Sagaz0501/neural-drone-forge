@@ -16,6 +16,7 @@ Currículum (de fácil a difícil), parámetro `stage`:
     5 circuit      : circuito de 4 aros, 2 vueltas (8 pasadas en orden)
     6 forest       : cruzar un bosque (troncos, copas, arbustos) hasta un aro a 9-14 m
     7 forest_multi : slalom de 3 aros dentro del bosque
+    8 hunt         : CAZA: 5 pájaros vuelan solos (y huyen); hay que tocarlos a todos (birds.py)
 Opciones para cualquier nivel: density (bosque más claro/denso) y wind (viento con ráfagas, m/s).
 O un nivel fijo hecho en Blender: DroneEnv(level_path="levels/mi_nivel.json")
 """
@@ -28,6 +29,7 @@ import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 
+from .birds import CATCH_R, Flock
 from .level import Level, forest_level, random_goal, random_pillars
 from .physics import QuadParams, QuadState, Wind, step
 from .physics import yaw_frame
@@ -35,7 +37,7 @@ from .sensing import (OBS_SCALE, RAY_DIRS_LOCAL, RAY_LEN, build_obs, clearance_p
                       sensor_rays)
 
 STAGES = {0: "hover", 1: "goal_fixed", 2: "goal_random", 3: "obstacles", 4: "multi_goal", 5: "circuit",
-          6: "forest", 7: "forest_multi"}
+          6: "forest", 7: "forest_multi", 8: "hunt"}
 
 # Qué cuenta como éxito en cada misión (texto en drone_rl/missions.json, que también lee Blender).
 # OJO: la IA no lee esto; solo "siente" la recompensa. Esto es para nosotros.
@@ -46,12 +48,13 @@ LEVEL_MISSION = _M["level"]
 CIRCUIT = [np.array(g, dtype=float) for g in ((6, 0, 2), (6, 6, 3), (0, 6, 2), (0, 0, 1.5))]
 CIRCUIT_LAPS = 2
 
-# Nombre de cada una de las 24 entradas de la red (para verlas en Blender)
+# Nombre de cada una de las 27 entradas de la red (para verlas en Blender)
 OBS_LABELS = ["meta adelante", "meta izquierda", "meta arriba", "distancia",
               "vel adelante", "vel izquierda", "vel arriba", "roll", "pitch", "altura",
               "gas anterior", "roll anterior", "pitch anterior", "yaw anterior",
               "sensor 0°", "sensor 45°", "sensor 90°", "sensor 135°", "sensor 180°",
-              "sensor 225°", "sensor 270°", "sensor 315°", "sensor arriba", "sensor abajo"]
+              "sensor 225°", "sensor 270°", "sensor 315°", "sensor arriba", "sensor abajo",
+              "meta se mueve adelante", "meta se mueve izquierda", "meta se mueve arriba"]
 ACT_LABELS = ["gas", "roll", "pitch", "yaw"]
 
 # Pesos de la recompensa. Se pueden cambiar en vivo desde Blender (Drone Lab):
@@ -82,9 +85,12 @@ class DroneEnv(gym.Env):
                  control_hz: int = 50, physics_substeps: int = 2, max_seconds: float | None = None,
                  goal_radius: float = 0.5, reward: dict | None = None,
                  start_anywhere: float = 0.0, spawn_jitter: float = 0.0, yaw_jitter: float = 0.0,
-                 focus_blocked: float = 1.0, start_speed: float = 0.0, density: float = 1.0, wind: float = 0.0):
+                 focus_blocked: float = 1.0, start_speed: float = 0.0, density: float = 1.0, wind: float = 0.0,
+                 n_birds: int = 5, bird_speed: float = 1.5):
         super().__init__()
         self.stage = stage
+        self.n_birds, self.bird_speed = n_birds, bird_speed   # caza: cuántos pájaros y qué tan rápido (m/s, en vivo)
+        self.flock, self.target = None, None
         self.density = density                 # bosque: 0.5 claro · 1 normal · 2 denso (se puede cambiar en vivo)
         self.wind = Wind(wind)                 # viento máx. en m/s (0 = sin viento; se puede cambiar en vivo)
         self.trees = []
@@ -114,7 +120,7 @@ class DroneEnv(gym.Env):
         self.hold_steps = int(1.0 * control_hz) if (stage == 0 and not level_path) else 0
 
         self.action_space = spaces.Box(-1.0, 1.0, shape=(4,), dtype=np.float32)
-        n_obs = 3 + 1 + 3 + 2 + 1 + 4 + len(RAY_DIRS_LOCAL)        # = 24
+        n_obs = 3 + 1 + 3 + 2 + 1 + 4 + len(RAY_DIRS_LOCAL) + 3    # = 27 (las 3 últimas: cómo se mueve la meta)
         self.observation_space = spaces.Box(-3.0, 3.0, shape=(n_obs,), dtype=np.float32)
 
     # ------------------------------------------------------------------
@@ -143,6 +149,8 @@ class DroneEnv(gym.Env):
             lv.box_min, lv.box_max = random_pillars(rng, sp, lv.goals)
         if self.stage in (6, 7):
             lv, self.trees = forest_level(rng, self.density, n_goals=1 if self.stage == 6 else 3)
+        if self.stage == 8:
+            lv.goals = []                      # las metas son los pájaros (se crean en reset)
         return lv
 
     def reset(self, *, seed=None, options=None):
@@ -151,6 +159,10 @@ class DroneEnv(gym.Env):
         self.state = QuadState(pos=self.level.spawn.copy())
         self.goal_idx = 0
         rng = self.np_random
+        self.flock, self.target = None, None
+        if self.stage == 8 and self.fixed_level is None:
+            self.flock = Flock(self.n_birds, self.bird_speed, center=self.level.spawn).reset(rng, self.state.pos, self.dt)
+            self.target = self.flock.pick(self.state.pos, None)
         # pequeño yaw aleatorio para que no memorice una sola orientación
         if self.fixed_level is None:
             self.state.yaw = float(rng.uniform(-np.pi, np.pi)) if self.stage >= 2 else 0.0
@@ -193,7 +205,16 @@ class DroneEnv(gym.Env):
 
     # ------------------------------------------------------------------
     def _goal(self) -> np.ndarray:
+        if self.flock is not None:
+            return self.flock.pos[self.target]
         return self.level.goals[min(self.goal_idx, len(self.level.goals) - 1)]
+
+    def _goal_vel(self) -> np.ndarray:
+        """Cómo se mueve la meta (estimado de la última décima de segundo). Aros: quietos = 0."""
+        return self.flock.est_vel[self.target] if self.flock is not None else np.zeros(3)
+
+    def _n_goals(self) -> int:
+        return self.flock.n if self.flock is not None else len(self.level.goals)
 
     def _goal_dist(self) -> float:
         return float(np.linalg.norm(self._goal() - self.state.pos))
@@ -215,7 +236,7 @@ class DroneEnv(gym.Env):
         """Las 24 entradas (el cálculo vive en sensing.py, compartido con Blender)."""
         if rays is None:
             rays = self._rays()
-        return build_obs(self.state, self._goal(), rays, self.prev_action, self.p)
+        return build_obs(self.state, self._goal(), rays, self.prev_action, self.p, self._goal_vel())
 
     # ------------------------------------------------------------------
     def step(self, action):
@@ -228,6 +249,14 @@ class DroneEnv(gym.Env):
             ground_crash |= info["ground_crash"]
         self.steps += 1
         ang_rate = np.hypot(self.state.roll - prev_att[0], self.state.pitch - prev_att[1]) / self.dt   # rad/s
+        if self.flock is not None:                     # los pájaros se mueven (y eligen huir) a la vez que el dron
+            self.flock.speed = self.bird_speed
+            self.flock.step(self.dt, self.np_random.normal(size=(self.flock.n, 3)), self.state.pos)
+            new = self.flock.pick(self.state.pos, self.target)
+            if new != self.target:                     # otra presa quedó mucho más cerca: la persigue a ella
+                self.target = new
+                self.prev_dist = self._goal_dist()
+                self.seg_start, self.seg_len = self.steps, self.prev_dist
         self.ang_sum += ang_rate
         self.path_len += float(np.linalg.norm(self.state.pos - prev_pos))
 
@@ -276,7 +305,7 @@ class DroneEnv(gym.Env):
         if self.hold_steps:
             # tarea de "quedarse": premio continuo por estar cerca (más cerca = más premio)
             reward += rw["near"] * np.exp(-dist)
-        if dist < self.goal_radius:
+        if dist < (CATCH_R if self.flock is not None else self.goal_radius):
             if self.hold_steps:
                 self.hold += 1
                 reward += 0.2 - 0.1 * float(np.linalg.norm(self.state.vel))   # quieto = mejor
@@ -288,7 +317,11 @@ class DroneEnv(gym.Env):
                 seg_time = (self.steps - self.seg_start) * self.dt
                 reward += rw.get("speed", 0.0) * min(self.seg_len / max(seg_time, 1e-3), 8.0)   # más rápido = más premio
                 self.goal_idx += 1
-                if self.goal_idx >= len(self.level.goals):
+                if self.flock is not None:             # cazado: desaparece y elige la presa más cercana
+                    self.flock.alive[self.target] = False
+                    nxt = self.flock.pick(self.state.pos, None)
+                    self.target = self.target if nxt is None else nxt      # el último: se queda con ese
+                if self.goal_idx >= self._n_goals():
                     terminated = success = True
                 else:
                     self.prev_dist = self._goal_dist()
