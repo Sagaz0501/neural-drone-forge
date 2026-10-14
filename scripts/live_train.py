@@ -269,6 +269,9 @@ class LiveLink(BaseCallback):
                 self.send_level(i, envs[i])
 
         now = time.perf_counter()
+        if now - getattr(self, "last_stats", 0.0) > 1.0:
+            self.send_stats()                        # HUD al día aunque la generación sea larga
+            self.last_stats = now
         if now - self.last_act > 1 / 15:
             self.send_activations(self.locals["obs_tensor"], self.locals["clipped_actions"]
                                   if "clipped_actions" in self.locals else self.locals["actions"])
