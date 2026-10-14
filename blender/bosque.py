@@ -75,11 +75,16 @@ def mat_corteza():
     cr.color_ramp.elements[0].color = (0.035, 0.022, 0.014, 1)
     cr.color_ramp.elements[1].color = (0.20, 0.14, 0.09, 1)
     bump = node(nt, "ShaderNodeBump", Strength=0.6)
+    col = _attr(nt)                                                  # tono del tronco (claro = abedul)
+    fac, ma, mbb, mout = _mix(nt, 'MULTIPLY')
+    fac.default_value = 1.0
     L = nt.links.new
     L(tc.outputs["Object"], mp.inputs["Vector"])
     L(mp.outputs["Vector"], n1.inputs["Vector"])
     L(n1.outputs["Fac"], cr.inputs["Fac"])
-    L(cr.outputs["Color"], b.inputs["Base Color"])
+    L(cr.outputs["Color"], ma)
+    L(col.outputs["Color"], mbb)
+    L(mout, b.inputs["Base Color"])
     L(n1.outputs["Fac"], bump.inputs["Height"])
     L(bump.outputs["Normal"], b.inputs["Normal"])
     m.diffuse_color = (0.12, 0.08, 0.05, 1)
@@ -320,7 +325,7 @@ class Malla:
         self.n += len(v)
 
     # ---- piezas ----
-    def blob(self, c, r, rgb, detail=3, seed=0.0, amp=0.09, squash=1.0, var=0.12):
+    def blob(self, c, r, rgb, detail=3, seed=0.0, amp=0.12, squash=1.0, var=0.14):
         """Copa / arbusto / roca: esfera con bultos, del tamaño de la esfera de colisión."""
         v0, f0 = self.ico(detail)
         k = 1.0 + amp * self.wobble(v0, seed)
@@ -339,7 +344,7 @@ class Malla:
         rr = np.sqrt(1 - zf * zf)
         th = k * np.pi * (3 - np.sqrt(5)) + seed
         d = np.stack([rr * np.cos(th), rr * np.sin(th), zf], axis=1)
-        cr = r * (0.2 + 0.07 * np.sin(th * 3.1 + seed))
+        cr = r * (0.24 + 0.08 * np.sin(th * 3.1 + seed))
         centers = np.asarray(c) + d * (r * 0.92 - cr * 0.55)[:, None]
         tone = 0.9 + 0.22 * (0.5 + 0.5 * np.sin(th * 1.7 + zf * 4 + seed))
         m = len(centers)
@@ -431,7 +436,9 @@ def dress_tree(t, mallas, detail=3):
             rgb = _pick(PAL_OTONO, u * 5) if u < 0.17 else _pick(PAL_HOJAS, u)
         if t["tronco"]:
             r, h = t["tronco"]
-            mallas["troncos"].trunk(x, y, r, h, top=0.5 if tipo == "arbol" else 0.6, roots=tipo == "arbol")
+            tono = (3.2, 3.1, 2.9) if (tipo == "arbol" and 0.17 <= u < 0.32) else (1, 1, 1)   # algunos abedules
+            mallas["troncos"].trunk(x, y, r, h, rgb=tono, top=0.5 if tipo == "arbol" else 0.6,
+                                    roots=tipo == "arbol")
             if tipo == "arbol":                                      # 2-3 ramas hacia la copa
                 cx, cy, cz, cr = t["copas"][0]
                 z0 = cz - cr * 0.55

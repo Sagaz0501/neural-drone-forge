@@ -15,6 +15,7 @@ Currículum (de fácil a difícil), parámetro `stage`:
     4 multi_goal   : 3 metas seguidas con columnas
     5 circuit      : circuito de 4 aros, 2 vueltas (8 pasadas en orden)
     6 forest       : cruzar un bosque (troncos, copas, arbustos) hasta un aro a 9-14 m
+    7 forest_multi : slalom de 3 aros dentro del bosque
 Opciones para cualquier nivel: density (bosque más claro/denso) y wind (viento con ráfagas, m/s).
 O un nivel fijo hecho en Blender: DroneEnv(level_path="levels/mi_nivel.json")
 """
@@ -34,7 +35,7 @@ from .sensing import (OBS_SCALE, RAY_DIRS_LOCAL, RAY_LEN, build_obs, clearance_p
                       sensor_rays)
 
 STAGES = {0: "hover", 1: "goal_fixed", 2: "goal_random", 3: "obstacles", 4: "multi_goal", 5: "circuit",
-          6: "forest"}
+          6: "forest", 7: "forest_multi"}
 
 # Qué cuenta como éxito en cada misión (texto en drone_rl/missions.json, que también lee Blender).
 # OJO: la IA no lee esto; solo "siente" la recompensa. Esto es para nosotros.
@@ -138,8 +139,8 @@ class DroneEnv(gym.Env):
             lv.goals = g
         if self.stage in (3, 4):
             lv.box_min, lv.box_max = random_pillars(rng, sp, lv.goals)
-        if self.stage == 6:
-            lv, self.trees = forest_level(rng, self.density)
+        if self.stage in (6, 7):
+            lv, self.trees = forest_level(rng, self.density, n_goals=1 if self.stage == 6 else 3)
         return lv
 
     def reset(self, *, seed=None, options=None):

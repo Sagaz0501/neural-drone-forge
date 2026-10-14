@@ -42,6 +42,7 @@ STAGE_ITEMS = [
     ("4", "Varias metas", "3 metas seguidas con columnas"),
     ("5", "Circuito (2 vueltas)", "4 aros en orden, dos vueltas: cada aro se pasa 2 veces"),
     ("6", "Bosque", "Cruzar un bosque (troncos, árboles jóvenes, arbustos) hasta un aro a 9-14 m"),
+    ("7", "Bosque: 3 aros", "Slalom de 3 aros en orden dentro del bosque"),
     ("LEVEL", "Nivel JSON", "Un nivel exportado desde Blender (todos los drones en el mismo nivel)"),
 ]
 COLORS = {"fly": (0.9, 0.9, 0.95, 1), 1: (1.0, 0.12, 0.08, 1), 2: (0.1, 1.0, 0.35, 1), 3: (1.0, 0.75, 0.1, 1)}
@@ -350,7 +351,7 @@ def build_proto():
 def cell_size(stage, fixed_level):
     if fixed_level:
         return 24.0
-    return {0: 3.0, 1: 9.0, 5: 12.0, 6: 32.0}.get(stage, 22.0)
+    return {0: 3.0, 1: 9.0, 5: 12.0, 6: 32.0, 7: 46.0}.get(stage, 22.0)
 
 
 RING_CUR = (0.1, 1.0, 0.35, 1)      # el aro que toca ahora
@@ -850,7 +851,7 @@ def draw_hud():
     if s.get("spd"):
         lines.append(f"los que llegan: vel. media {s['spd']:.1f} m/s · giro medio {s.get('ang', 0):.0f}°/s"
                      + (f" · viento {p['wind']:g} m/s" if p.get("wind") else "")
-                     + (f" · densidad {p.get('density', 1):g}" if p.get("stage") == 6 else ""))
+                     + (f" · densidad {p.get('density', 1):g}" if p.get("stage") in (6, 7) else ""))
     rw = p.get("reward", {})
     if rw:
         items = [f"{k} {v:g}" for k, v in rw.items()]
@@ -984,7 +985,7 @@ class DroneLabProps(bpy.types.PropertyGroup):
         ("IGUAL", "Igual que el entrenamiento", "El mismo tipo de nivel que estás entrenando"),
         ("0", "Hover", ""), ("1", "Meta fija", ""), ("2", "Una meta sin obstáculos", ""),
         ("3", "Una meta con columnas", ""), ("4", "Tres metas con columnas", ""),
-        ("5", "Circuito (2 vueltas)", ""), ("6", "Bosque", "")], default="IGUAL")
+        ("5", "Circuito (2 vueltas)", ""), ("6", "Bosque", ""), ("7", "Bosque: 3 aros", "")], default="IGUAL")
 
 
 class DRONELAB_OT_start(bpy.types.Operator):
@@ -1267,6 +1268,11 @@ class VIEW3D_PT_drone_lab(bpy.types.Panel):
             col.prop(p, "level_path")
         col.prop(p, "net")
         col.prop(p, "init_model")
+        if p.stage in ("6", "7") and not p.init_model:
+            hint = col.column(align=True)
+            hint.scale_y = 0.8
+            hint.label(text="Sugerencia: continuar desde models/stage3.zip", icon='INFO')
+            hint.label(text="(ya sabe ir a metas; desde cero tarda muchísimo)")
         col.prop(p, "layout")
         col.prop(p, "drone_scale")
         row = box.row(align=True)
@@ -1299,7 +1305,7 @@ class VIEW3D_PT_drone_lab(bpy.types.Panel):
         box = L.box()
         box.label(text="Ambiente (cambia en vivo)", icon='OUTLINER_OB_FORCE_FIELD')
         row = box.row()
-        row.active = p.stage == "6"
+        row.active = p.stage in ("6", "7")
         row.prop(p, "densidad", slider=True)
         box.prop(p, "viento", slider=True)
 

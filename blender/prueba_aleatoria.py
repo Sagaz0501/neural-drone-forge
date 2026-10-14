@@ -34,7 +34,7 @@ from escena_lib import (M, MB, build_chase_cameras, build_drone, collision_proxy
 SCENE = "Prueba IA"
 COLS = ("Prueba_Escenario", "Colisiones", "Ruta", "Ruta_Visual", "Dron", "Camaras_Luces")
 TIPOS = {0: "Hover", 1: "Meta fija", 2: "Una meta, sin obstáculos", 3: "Una meta con columnas",
-         4: "Tres metas con columnas", 5: "Circuito (2 vueltas)", 6: "Bosque"}
+         4: "Tres metas con columnas", 5: "Circuito (2 vueltas)", 6: "Bosque", 7: "Bosque: 3 aros"}
 CIRCUIT = [(6, 0, 2), (6, 6, 3), (0, 6, 2), (0, 0, 1.5)]      # igual que drone_rl/env.py
 
 
@@ -44,8 +44,8 @@ CIRCUIT = [(6, 0, 2), (6, 6, 3), (0, 6, 2), (0, 0, 1.5)]      # igual que drone_
 def make_level(stage, rng, density=1.0):
     """Devuelve (nivel, árboles). Los árboles solo existen en el bosque (nivel 6)."""
     from drone_rl.level import Level, forest_level, random_goal, random_pillars
-    if stage == 6:
-        return forest_level(rng, density)
+    if stage in (6, 7):
+        return forest_level(rng, density, n_goals=1 if stage == 6 else 3)
     lv = Level(name=f"prueba_{stage}")
     sp = lv.spawn
     if stage == 0:
@@ -234,7 +234,7 @@ def build(stage=3, seed=None, model_npz=None, return_scene=None, density=1.0, wi
         bpy.context.window.scene = sc
     cols = setup_scene(sc)
     materials()
-    if stage == 6:
+    if stage in (6, 7):
         import bosque
         importlib.reload(bosque)
         res = bosque.build(sc, lv, trees, cols, seed, density)
@@ -249,7 +249,7 @@ def build(stage=3, seed=None, model_npz=None, return_scene=None, density=1.0, wi
     cam, _ = build_chase_cameras(cols["Camaras_Luces"], drone, tuple(lv.spawn), math.atan2(g0[1], g0[0]))
     center = (np.mean([lv.spawn] + lv.goals, axis=0)).tolist()
     general_camera(cols["Camaras_Luces"], (center[0] - 11, center[1] - 11, 9), (center[0], center[1], 1.0), lens=22)
-    if stage == 6:
+    if stage in (6, 7):
         cam.data.lens = 26
         cam.data.clip_end = 250.0
     else:
@@ -261,13 +261,13 @@ def build(stage=3, seed=None, model_npz=None, return_scene=None, density=1.0, wi
         lc.hide_viewport = True
 
     sc["prueba_stage"] = stage
-    if stage == 6:      # bosque: cámara baja, debajo de las copas (si no, las hojas la tapan)
+    if stage in (6, 7):      # bosque: cámara baja, debajo de las copas (si no, las hojas la tapan)
         sc["cam_atras"], sc["cam_arriba"] = 2.6, 0.45
         sc["sombreado"] = "RENDERED"                      # verlo con luz, sombras y neblina
     else:
         sc["cam_atras"], sc["cam_arriba"] = 3.2, 1.7     # cámara de persecución más alta: ver los obstáculos
         sc["sombreado"] = "MATERIAL"
-    sc["tiempo_max"] = {0: 15.0, 1: 15.0, 2: 20.0, 3: 30.0, 4: 45.0, 5: 60.0, 6: 35.0}.get(stage, 45.0)
+    sc["tiempo_max"] = {0: 15.0, 1: 15.0, 2: 20.0, 3: 30.0, 4: 45.0, 5: 60.0, 6: 35.0, 7: 50.0}.get(stage, 45.0)
     sc["prueba_seed"] = seed
     sc["prueba_densidad"] = float(density)
     sc["viento"] = float(wind)

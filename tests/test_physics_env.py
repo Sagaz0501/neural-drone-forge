@@ -100,7 +100,7 @@ def test_circuit_two_laps():
     env.reset(seed=0)
     assert len(env.level.goals) == 8                       # 4 aros x 2 vueltas
     assert len(OBS_LABELS) == env.observation_space.shape[0]
-    assert set(MISSIONS) == set(range(7))
+    assert set(MISSIONS) == set(range(8))
     assert run_pilot(5, episodes=5) == 1.0                 # el piloto PD completa las 2 vueltas
 
 
@@ -192,3 +192,13 @@ def test_speed_reward_prefers_fast_arrival():
     env.steps, env.seg_start, env.seg_len = 400, 0, 5.4            # 5.4 m en 8 s
     _, r_slow, *_ = env.step(np.zeros(4))
     assert r_fast > r_slow + 3
+
+
+def test_forest_slalom_three_rings():
+    from drone_rl.level import forest_level
+    rng = np.random.default_rng(3)
+    for _ in range(20):
+        lv, trees = forest_level(rng, density=1.5, n_goals=3)
+        assert len(lv.goals) == 3
+        assert all(abs(g[0]) <= 20 and abs(g[1]) <= 20 for g in lv.goals)
+        assert not any(lv.collides(g, 0.8) for g in lv.goals)

@@ -292,12 +292,24 @@ def forest_shapes(trees):
             np.array(sc).reshape(-1, 3), np.array(sr))
 
 
-def forest_level(rng, density=1.0):
+def forest_level(rng, density=1.0, n_goals=1):
     """Nivel 'bosque': cruzar el bosque hasta un aro a 9-14 m, a 1.2-2.2 m de altura
-    (debajo de las copas altas). Lo usan el entrenamiento y el escenario 3D de Blender."""
-    lv = Level(name="bosque")
-    ang, dist = rng.uniform(-np.pi, np.pi), rng.uniform(9.0, 14.0)
-    lv.goals = [lv.spawn + np.array([dist * np.cos(ang), dist * np.sin(ang), rng.uniform(1.2, 2.2)])]
+    (debajo de las copas altas). Con n_goals=3: slalom de 3 aros (6-9 m entre aros, giros de
+    hasta 70°). Lo usan el entrenamiento y el escenario 3D de Blender."""
+    lv = Level(name="bosque" if n_goals == 1 else "bosque_aros")
+    ang = rng.uniform(-np.pi, np.pi)
+    if n_goals == 1:
+        dist = rng.uniform(9.0, 14.0)
+        lv.goals = [lv.spawn + np.array([dist * np.cos(ang), dist * np.sin(ang), rng.uniform(1.2, 2.2)])]
+    else:
+        p = lv.spawn.copy()
+        for k in range(n_goals):
+            if k:
+                ang += rng.uniform(-1.2, 1.2)
+            dist = rng.uniform(6.0, 9.0) if k else rng.uniform(5.0, 8.0)
+            p = np.array([p[0] + dist * np.cos(ang), p[1] + dist * np.sin(ang), rng.uniform(1.2, 2.2)])
+            p[:2] = np.clip(p[:2], -20, 20)
+            lv.goals.append(p.copy())
     trees = random_forest(rng, lv.spawn, lv.goals, density)
     lv.cyl_xy, lv.cyl_r, lv.cyl_z, lv.sph_c, lv.sph_r = forest_shapes(trees)
     return lv, trees
