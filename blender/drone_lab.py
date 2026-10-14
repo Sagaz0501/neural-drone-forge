@@ -582,13 +582,14 @@ def draw_network(sh, f, x0, y_bot, width, y_top):
     shown = sum(len(l) for l in net["l"])
 
     text(tx, y_top - 22 * f, f"RED NEURONAL del dron #{act['i']} (el de luz celeste)", int(14 * f), (0.6, 0.85, 1, 1))
-    text(tx, y_top - 40 * f, f"{shown:,} de {total:,} conexiones (las de más peso) · actualizada en la generación "
-         f"{net.get('gen', 0)} · línea naranja = empuja hacia +, azul = empuja hacia −, más brillante = influye más ahora",
+    text(tx, y_top - 38 * f, f"{shown:,} de {total:,} conexiones (las de más peso) · pesos de la generación "
+         f"{net.get('gen', 0)}", int(10 * f), (0.75, 0.78, 0.85, 1))
+    text(tx, y_top - 51 * f, "naranja = empuja hacia +   azul = empuja hacia −   más brillante = influye más ahora",
          int(10 * f), (0.75, 0.78, 0.85, 1))
 
     lab_in, lab_out = 150 * f, 190 * f
     xs = [x0 + lab_in + (width - lab_in - lab_out) * c / (len(sizes) - 1) for c in range(len(sizes))]
-    top, bot = y_top - 74 * f, y_bot + 14 * f
+    top, bot = y_top - 84 * f, y_bot + 14 * f
 
     def ny(k, n):
         return top - (k + 0.5) * (top - bot) / n
@@ -598,7 +599,7 @@ def draw_network(sh, f, x0, y_bot, width, y_top):
         t = titles[c] if c < len(titles) else f"capa {c}"
         blf.size(0, int(11 * f))
         w = blf.dimensions(0, t)[0]
-        text(x - w / 2, y_top - 62 * f, t, int(11 * f), (0.85, 0.87, 0.92, 1))
+        text(x - w / 2, y_top - 72 * f, t, int(11 * f), (0.85, 0.87, 0.92, 1))
 
     # ---- conexiones: brillo = |activación de origen × peso| ----
     buckets = 6
