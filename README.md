@@ -49,6 +49,7 @@ porque no sabe esquivar, y ahí es donde la IA tiene que ganarle.
 - [ ] Volar `levels/ejemplo.json` y un nivel propio hecho en Blender
 - [ ] Modo **acro**: control de velocidad angular, torque por motor y un PID dentro del simulador
 - [ ] Medidas reales del frame (masa, motores, hélices) en `QuadParams`
+- [x] Drone Lab: entrenamiento en vivo con N drones y parámetros ajustables desde Blender
 - [ ] Video de la IA volando en Blender para el portafolio
 
 ## Bitácora
@@ -82,7 +83,7 @@ git clone https://github.com/Sagaz0501/drone-rl.git
 cd drone-rl
 python3 -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-pytest -q                                                # 8 pruebas deberían pasar
+pytest -q                                                # 9 pruebas deberían pasar
 ```
 
 En Mac con Apple Silicon, PyTorch se instala solo desde pip. Para estas redes chicas la CPU es
@@ -124,7 +125,35 @@ Abre cada script en el **Text Editor** de Blender y córrelo con **Alt+P**.
 
 Las unidades se convierten solas: la escena está en mm y el entrenamiento usa metros.
 
-### 4. Aprender cómo funcionan las redes neuronales
+### 4. Drone Lab: ver a 50 drones aprender en vivo
+
+```
+ scripts/live_train.py  ──UDP :9001 (posiciones, estadísticas)──▶  blender/drone_lab.py
+ (PPO + N drones)       ◀──UDP :9002 (parámetros en vivo)───────   (panel + HUD + curva)
+```
+
+1. En Blender abre `blender/drone_lab.py` en el Text Editor y presiona **Alt+P**.
+2. En el viewport, tecla **N** › pestaña **Drone Lab**. Revisa que `Proyecto` y `Python` apunten
+   a esta carpeta y a `.venv/bin/python`.
+3. Elige drones, nivel y vista (cuadrícula o enjambre) y dale **Iniciar entrenamiento**.
+
+Cada **generación** es un ciclo de PPO. Primero los drones **vuelan** y juntan experiencia, y
+luego se quedan quietos mientras PPO **aprende** (actualiza la red). El HUD muestra la fase, el
+éxito y el porcentaje de crashes, y una curva por generación. Un destello **rojo** es un crash,
+**verde** es meta alcanzada y **ámbar** es que se acabó el tiempo.
+
+**En vivo, sin reiniciar:** learning rate, exploración (entropía), velocidad (tiempo real o
+máxima) y los 7 pesos de la recompensa. **Requiere reiniciar:** número de drones, nivel y
+neuronas por capa. "Detener y guardar" guarda el modelo en `models/live_*.zip`, y lo puedes usar
+en "Continuar desde" para seguir otro día.
+
+Experimentos para probar:
+- Castigo por chocar en 0: ¿qué aprende?
+- Learning rate muy alto (log10 = -2): mira cómo la curva se vuelve inestable.
+- Hover con 10 drones contra 100: ¿cuál aprende antes en tiempo real?
+- Quitar el "premio cerca": vuelve el óptimo local de quedarse en el suelo (ver bitácora).
+
+### 5. Aprender cómo funcionan las redes neuronales
 
 Lee [`docs/redes-neuronales.md`](docs/redes-neuronales.md) y corre
 `python learn/red_neuronal_desde_cero.py`. Es una red hecha solo con numpy, con backpropagation
@@ -194,9 +223,11 @@ drone_rl/
   env.py          entorno Gymnasium + currículum + recompensa
   controller.py   piloto PD clásico (referencia)
 scripts/
+  live_train.py   entrenamiento en vivo para Drone Lab (UDP)
   train.py        entrenamiento PPO
   evaluate.py     evaluación + exportar trayectorias para Blender
 blender/
+  drone_lab.py         Drone Lab: panel, N drones en vivo, HUD
   drone_sim.py         vuelo manual en el viewport
   export_level.py      Blender -> levels/*.json
   import_trajectory.py trajectories/*.json -> animación

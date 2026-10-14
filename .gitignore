@@ -8,3 +8,8 @@ trajectories/*.json
 !trajectories/demo_*.json
 *.blend1
 .pytest_cache/
+models/**/checkpoints/
+models/hover_progress/
+models/live_*.zip
+live_train.log
+install.log

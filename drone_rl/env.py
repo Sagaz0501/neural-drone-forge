@@ -32,13 +32,25 @@ RAY_DIRS_LOCAL = np.array(_H + [np.array([0, 0, 1.0]), np.array([0, 0, -1.0])])
 RAY_LEN = 5.0          # alcance del sensor (m)
 OBS_SCALE = 10.0       # metros/velocidades se dividen por esto para quedar ~[-1, 1]
 
+# Pesos de la recompensa. Se pueden cambiar en vivo desde Blender (Drone Lab):
+# todos los entornos comparten el mismo dict, así que un cambio aplica a todos los drones.
+DEFAULT_REWARD = {
+    "progress": 2.0,     # por metro que se acerca a la meta
+    "goal": 10.0,        # al llegar a una meta
+    "crash": 10.0,       # castigo al chocar (se resta)
+    "time": 0.01,        # costo por paso (apura a la IA)
+    "smooth": 0.05,      # castigo por cambios bruscos de palancas
+    "tilt": 0.01,        # castigo por inclinarse
+    "near": 0.3,         # solo hover: premio continuo por estar cerca de la meta
+}
+
 
 class DroneEnv(gym.Env):
     metadata = {"render_modes": []}
 
     def __init__(self, stage: int = 0, level_path: str | None = None, params: QuadParams | None = None,
                  control_hz: int = 50, physics_substeps: int = 2, max_seconds: float | None = None,
-                 goal_radius: float = 0.5):
+                 goal_radius: float = 0.5, reward: dict | None = None):
         super().__init__()
         self.stage = stage
         self.fixed_level = Level.load(level_path) if level_path else None
@@ -46,6 +58,7 @@ class DroneEnv(gym.Env):
         self.dt = 1.0 / control_hz
         self.substeps = physics_substeps
         self.goal_radius = goal_radius
+        self.rw = reward if reward is not None else dict(DEFAULT_REWARD)
         self.max_seconds = max_seconds or (10.0 if stage <= 1 else 15.0 if stage <= 3 else 25.0)
         self.max_steps = int(self.max_seconds * control_hz)
         self.hold_steps = int(1.0 * control_hz) if (stage == 0 and not level_path) else 0
@@ -138,27 +151,28 @@ class DroneEnv(gym.Env):
 
         dist = self._goal_dist()
         # ---------- recompensa ----------
-        reward = 2.0 * (self.prev_dist - dist)                      # avanzar hacia la meta (+2 por metro)
-        reward -= 0.05 * float(np.sum((action - self.prev_action) ** 2))   # movimientos suaves
-        reward -= 0.01                                              # el tiempo cuesta
+        rw = self.rw
+        reward = rw["progress"] * (self.prev_dist - dist)                  # avanzar hacia la meta
+        reward -= rw["smooth"] * float(np.sum((action - self.prev_action) ** 2))   # movimientos suaves
+        reward -= rw["time"]                                               # el tiempo cuesta
         tilt = abs(self.state.roll) + abs(self.state.pitch)
-        reward -= 0.01 * tilt
+        reward -= rw["tilt"] * tilt
         self.prev_dist = dist
         self.prev_action = action
 
         terminated, success = False, False
         if self.hold_steps:
             # tarea de "quedarse": premio continuo por estar cerca (más cerca = más premio)
-            reward += 0.3 * np.exp(-dist)
+            reward += rw["near"] * np.exp(-dist)
         if dist < self.goal_radius:
             if self.hold_steps:
                 self.hold += 1
                 reward += 0.2 - 0.1 * float(np.linalg.norm(self.state.vel))   # quieto = mejor
                 if self.hold >= self.hold_steps:
-                    reward += 10.0
+                    reward += rw["goal"]
                     terminated = success = True
             else:
-                reward += 10.0
+                reward += rw["goal"]
                 self.goal_idx += 1
                 if self.goal_idx >= len(self.level.goals):
                     terminated = success = True
@@ -168,7 +182,7 @@ class DroneEnv(gym.Env):
             self.hold = 0
 
         if crashed:
-            reward -= 10.0
+            reward -= rw["crash"]
             terminated = True
 
         truncated = (not terminated) and self.steps >= self.max_steps
@@ -178,5 +192,6 @@ class DroneEnv(gym.Env):
             "crash_reason": "suelo" if ground_crash else "obstaculo" if hit_obstacle else "limites" if oob else None,
             "goals_reached": self.goal_idx if not self.hold_steps else int(success),
             "dist": dist,
+            "pos": pos.copy(),          # para ver dónde chocó (el entorno se reinicia solo)
         }
         return self._obs(), float(reward), terminated, truncated, info

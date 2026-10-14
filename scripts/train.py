@@ -64,6 +64,7 @@ def main():
     ap.add_argument("--init", type=str, default=None, help="modelo previo para seguir entrenando")
     ap.add_argument("--out", type=str, default=None)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--ckpt-every", type=int, default=100_000, help="guardar una copia cada N pasos")
     ap.add_argument("--subproc", action="store_true", help="un proceso por entorno (más rápido con muchos núcleos)")
     args = ap.parse_args()
 
@@ -100,7 +101,8 @@ def main():
     print(f"Entrenando '{name}' por {args.steps:,} pasos con {args.envs} drones en paralelo...")
     model.learn(
         total_timesteps=args.steps,
-        callback=[SuccessLogger(), CheckpointCallback(100_000, str(out.parent / "checkpoints"), name_prefix=name)],
+        callback=[SuccessLogger(), CheckpointCallback(max(args.ckpt_every // args.envs, 1),   # SB3 cuenta llamadas, no pasos totales
+                                                  str(out.parent / "checkpoints"), name_prefix=name)],
         tb_log_name=name,
         reset_num_timesteps=not args.init,
         progress_bar=False,

@@ -81,3 +81,12 @@ def test_pd_pilot_solves_easy_stages():
     assert run_pilot(0) == 1.0
     assert run_pilot(1) == 1.0
     assert run_pilot(2) >= 0.9
+
+
+def test_reward_dict_shared_across_envs():
+    from stable_baselines3.common.env_util import make_vec_env
+    from drone_rl import DEFAULT_REWARD
+    rw = dict(DEFAULT_REWARD)
+    venv = make_vec_env(DroneEnv, n_envs=3, env_kwargs=dict(stage=0, reward=rw))
+    rw["crash"] = 99.0                       # cambio "en vivo"
+    assert all(e.unwrapped.rw["crash"] == 99.0 for e in venv.envs)
