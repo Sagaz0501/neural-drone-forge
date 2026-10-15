@@ -181,6 +181,10 @@ Node v22 está en `/opt/homebrew/bin/node`. Blender 5.2 en `/Applications/Blende
   reales (ESP32, STM32F405/F722/H743, ExpressLRS, BLHeli_32…), ESC que limita el empuje, radio con
   failsafe, vibración → nitidez del video, pintura y forma del chasis (impresora 3D). Los demás pedidos
   están planeados ("Próximamente"). Siguiente: concesionario (tomas bajas) y la toma **seguir** (nivel 13).
+- **Lo siguiente (docs/ROADMAP.md "⏭️ Lo siguiente"):** PBDMM 2 — más claridad al entrenar, funciones incorporadas
+  para leer el juego e imprimir en la terminal (`dron_especificaciones("…")`/`drone_specs`, `mision_info`…) y que el
+  programa revise el dron de `dron(…)` contra los requisitos de la misión (solo si hay `dron()`). Decidido: el tutorial
+  es el modo desarrollador (la demo grabada); imágenes y rendimiento se mejoran sobre la marcha.
 - **Idiomas (15-10-2026):** español (original) + inglés. `app/i18n.js`: `t("texto en español", {vars})` (la clave es el
   español), diccionarios `app/i18n/en/<parte>.json`, capas de datos `app/data/en/*.json` (se mezclan por id/k o por
   posición), `traducirHTML()` para index.html, la elección en `localStorage["dronmaker.idioma"]` (la primera vez se

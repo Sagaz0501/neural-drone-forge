@@ -48,25 +48,48 @@ Ya hecho en esta fase:
 - ✅ **Videos en el README** *(Santiago)*: 25 drones aprendiendo en Blender (GIF + MP4) y la demo del modo
   desarrollador (GIF del visor de simulaciones + MP4 de 4½ min), en `docs/media/`.
 
-Lo que falta para cerrar la Fase 1 (en orden):
+Decisiones (Santiago, 15-10-2026):
+- ✅ **El tutorial es el modo desarrollador.** El juego se enfoca en crear la IA (PBDMM + Blender); el modo normal
+  queda como la opción fácil. La demo grabada (`docs/media/demo_estudio.mp4`) es el tutorial de referencia.
+- ♻️ **Imágenes y videos: se agregan con el tiempo,** cada vez que algo mejora (por ejemplo, cuando el banco de
+  armado tenga soldadura y multímetro de verdad: fotos de los componentes, de las quemaduras, del multímetro).
+- ♻️ **Rendimiento: se mejora sobre la marcha,** en cada fase.
+
+Lo que queda abierto de la Fase 1:
 
 1. 🔜 **Arreglos que se ven en la demo:** en *Avance del modelo* el selector de modelo puede mostrar "base" aunque se
    esté viendo otro; con el juego en inglés, los nombres de los sensores de la red ("meta adelante"…) y algunos
    mensajes del servidor y de Blender siguen en español (fase 4 de los idiomas, `docs/I18N.md`).
-2. 🔜 **Tutorial de los primeros 5 minutos.** Hoy el juego explica con textos; mejor una guía en pantalla:
-   "compra el kit → ármalo → tu primer vuelo → tu primer entrenamiento → simula su prueba".
-3. 🔜 **Las misiones las cumple la IA** *(Santiago: "las misiones se prueban exclusivamente con el modelo
+2. 🔜 **Las misiones las cumple la IA** *(Santiago: "las misiones se prueban exclusivamente con el modelo
    entrenado")*. Propuesta: los pedidos se entregan solo con "Que grabe la IA"; volar tú queda para practicar,
    para los modos libres (Fase 3) y para "mostrarle a la IA" (Fase 4: aprender de tu vuelo).
    Por decidir: ¿volar tú sigue dando plata en los primeros pedidos (antes de tener IA)?
-4. 🔜 **El momento "wow" en el juego:** al terminar una generación buena, una repetición corta del mejor dron.
-   (El Avance ya muestra antes y después; falta que aparezca solo, como una celebración.)
-5. 🔜 **Más imágenes para el GitHub:** un GIF del banco (el ESC quemándose), uno corto "de caerse a grabar una casa"
-   y la imagen social del repo (GitHub → Settings → Social preview: se sube a mano).
-6. 🔜 **Pulido:** sonidos (motores según el gas, el bip del ESC, el clic del relé), transiciones de cámara, pantalla
+3. 🔜 **El momento "wow" en el juego:** al terminar una generación buena, una repetición corta del mejor dron
+   (el Avance ya muestra antes y después; falta que aparezca solo, como una celebración).
+4. 🔜 **Pulido:** sonidos (motores según el gas, el bip del ESC, el clic del relé), transiciones de cámara, pantalla
    de carga, ajustes (volumen y calidad en el mismo lugar que el idioma).
-7. 🔜 **Rendimiento:** 60 fps en una laptop sin GPU dedicada (calidad baja real), y que el juego no se trabe
-   mientras entrena en el fondo.
+
+## ⏭️ Lo siguiente · PBDMM 2: entrenar con más claridad y programas "de verdad" *(Santiago, 15-10-2026)*
+
+El modo desarrollador es el corazón del juego, así que PBDMM crece:
+
+1. **Más claro en el entrenamiento:** qué hace cada parámetro de entrenamiento, qué cambió entre generaciones, por
+   qué sube o baja el éxito. Mensajes y ayudas pensados para aprender ML mientras se juega.
+2. **Funciones incorporadas para leer el juego** (para imprimir y mostrar cosas en la terminal, como un monitor
+   serial de un microcontrolador):
+   - `dron_especificaciones("Cine (dev)")` / `drone_specs(…)`: peso, empuje/peso, motores, hélices, batería,
+     controladora, radio y su alcance, cámara, sensores, minutos de vuelo…
+   - `mision_info("grabar_postes")` / `mission_info(…)`: qué pide la misión (viento, alcance, sensores, tomas…).
+   - `modelo_info("colibri")`, `mis_drones()`, `mis_modelos()`, `piezas("motores")`… (nombres por definir).
+   - Salida "de consola" más vistosa: tablas, barras, colores (por ejemplo `tabla(...)`, `barra(valor)`).
+3. **El programa revisa al dron contra la misión,** pero **solo si el programa elige un dron con `dron(…)`** (si no
+   hay `dron()`, no se toma ningún dron y no se revisa nada). Ejemplo: entrenar para la misión del restaurante con
+   un dron sin sensores ToF, o con motores que no aguantan el viento de la finca, o con una radio ESP-NOW para una
+   misión de largo alcance → el programa avisa al revisarlo/correrlo: *"d.motores: empuje/peso 1,9 < 2,5 que pide el
+   viento de la finca"*, *"falta: sensores ToF (los postes)"*, para conseguir las piezas **antes** de entrenar.
+   Se apoya en los requisitos de cada pedido que ya existen (alcance de la radio, empuje/peso con viento,
+   protectores, cámara) y crece con la Fase 1b.
+4. Después: lo que la Fase 1b agregue (premios y castigos nuevos) llega también a PBDMM.
 
 ## Fase 1b · Premios, castigos y misiones que exigen al dron 📝 *(Santiago, 15-10-2026)*
 
