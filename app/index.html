@@ -321,7 +321,11 @@
   .es-fn, .es-lec { border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; margin: 6px 0; }
   .es-fn summary, .es-lec summary { cursor: pointer; } .es-lec summary { font-weight: 600; }
   #es-graf { width: 100%; height: auto; background: rgba(0,0,0,.25); border-radius: 10px; }
-  .es-ley { display: flex; gap: 12px; font-size: 13px; }
+  .es-ley { display: flex; gap: 12px; font-size: 13px; flex-wrap: wrap; }
+  #es-vista { margin-bottom: 6px; }
+  .es-red-ctl { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 6px 0; font-size: 14px; }
+  .es-red-ctl input { width: 64px; background: rgba(0,0,0,.3); color: var(--text); border: 1px solid var(--line); border-radius: 7px; padding: 5px 6px; font: inherit; }
+  #es-redc { width: 100%; display: block; background: rgba(0,0,0,.25); border-radius: 10px; }
   @media (max-width: 980px) {
     #estudio { inset: 0; border-radius: 0; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr) auto; overflow-y: auto; }
     #es-izq { border-right: 0; border-bottom: 1px solid var(--line); max-height: 120px; }

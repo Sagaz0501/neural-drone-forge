@@ -36,6 +36,9 @@ y entrenando.log si entrena en el fondo). slug = [a-z0-9_-], 1-40, sin "_" al in
       "accion": "guardar" = guarda ya (fondo o Blender)
       responde {"ok", "msg", "id"} (+ "modelo", "donde", "pid" en el fondo)
   GET  /api/lab  además: "fondo": [{modelo, activo, pid, puertos, pausado, ...entrenando.json}], "blender_modelo"
+  GET  /api/red?modelo=<slug>  la red del dron que mira su entrenamiento (activaciones "in"/"h"/"mu"/"act", "capas",
+                     "w" = conexiones más fuertes por capa [origen, destino, peso], "i" = qué dron, "n" = cuántos);
+                     {"ok": false} si no entrena. "watch": i en POST /api/lab (iniciar/ajustar) cambia el dron que mira
   GET  /api/modelos  {"modelos": [{slug, nombre, tiene_modelo, gen, pasos, tomas, niveles, rango_fisica, drones,
                      creado, actualizado, base_de, entrenando: bool, donde: "blender"|"fondo"|null, web}]}
   GET  /models/drones/<slug>/modelo_web.json   se re-exporta solo si su modelo.zip es más nuevo (como el base)
@@ -177,6 +180,8 @@ def lab_request(body):
         req["premios"] = {k: max(0.0, min(100.0, float(v))) for k, v in body["premios"].items() if k in REWARD_KEYS}
     if "lr" in body:                             # tasa de aprendizaje (el estudio PBDMM)
         req["lr"] = max(1e-6, min(1e-2, float(body["lr"])))
+    if "watch" in body:                          # qué dron mira (su red neuronal se ve en el juego y en Blender)
+        req["watch"] = max(0, min(199, int(body["watch"])))
     if "ent" in body:                            # exploración extra (coeficiente de entropía)
         req["ent"] = max(0.0, min(0.1, float(body["ent"])))
     capas = body.get("capas")
@@ -231,10 +236,10 @@ def lab_request(body):
             return False, f"{slug} no está entrenando en Blender"
         send_ctrl(blender_ctrl_port(), {"save": True})
         return True, "guardando el modelo…"
-    if acc == "ajustar" and any(k in req for k in ("lr", "ent")):
+    if acc == "ajustar" and any(k in req for k in ("lr", "ent", "watch")):
         b, corriendo = blender_model()
         if corriendo and b == slug:              # al entrenador de Blender, por su puerto de control
-            send_ctrl(blender_ctrl_port(), {k: req[k] for k in ("lr", "ent") if k in req})
+            send_ctrl(blender_ctrl_port(), {k: req[k] for k in ("lr", "ent", "watch") if k in req})
     write_json(ROOT / "models" / "lab_pedido.json", req)
     lab_request.last_id = req["id"]
     return True, "pedido enviado a Blender"
@@ -326,6 +331,22 @@ def training_where(slug, state=None):
         return "fondo"
     b, corriendo = blender_model(state)
     return "blender" if corriendo and b == slug else None
+
+
+def red_vivo(slug):
+    """La red neuronal del dron que mira el entrenador de ese modelo (activaciones + conexiones más fuertes), de
+    <estado>_red.json: el del fondo (models/drones/<slug>/entrenando_red.json) o el de Blender (models/entrenando_red.json)."""
+    if slug in fondo_procs():
+        p = model_dir(slug) / "entrenando_red.json"
+    else:
+        b, corriendo = blender_model()
+        if not (corriendo and b == slug):
+            return None
+        p = ROOT / "models" / "entrenando_red.json"
+    red = read_json(p)
+    if not red or time.time() - float(red.get("t", 0)) > 30:      # viejo: ese entrenamiento ya no escribe
+        return None
+    return red
 
 
 def list_models():
@@ -556,7 +577,7 @@ def fondo_live(req):
         msg["env"] = {"wind": req["viento"]}
     if req.get("velocidad"):
         msg["speed"] = req["velocidad"]
-    for k in ("lr", "ent"):
+    for k in ("lr", "ent", "watch"):
         if k in req:
             msg[k] = req[k]
     return msg
@@ -747,6 +768,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return self.send_json({"modelos": list_models()})
         if path == "/api/stl":
             return self.send_json({"stl": stl_index()})
+        if path == "/api/red":
+            q = parse_qs(urlparse(self.path).query)
+            try:
+                red = red_vivo(check_slug((q.get("modelo") or ["base"])[0]))
+            except ValueError as e:
+                return self.send_json({"ok": False, "msg": str(e)}, 400)
+            return self.send_json(dict(red, ok=True) if red else {"ok": False, "msg": "ese modelo no está entrenando"})
         m = re.fullmatch(r"/models/drones/([a-z0-9][a-z0-9_-]{0,39})/modelo_web\.json", path)
         if path == "/models/modelo_web.json" or m:
             try:                         # si el laboratorio guardó una generación nueva, exportarla

@@ -210,3 +210,18 @@ def test_modelo_inicial_clon_nuevo(tmp_path, monkeypatch):
     (tmp_path / "models" / "modelo.zip").write_bytes(b"MIO")
     jugar.modelo_inicial()
     assert (tmp_path / "models" / "modelo.zip").read_bytes() == b"MIO"
+
+
+def test_red_vivo_y_watch(root, monkeypatch):
+    """GET /api/red: la red del dron que mira el entrenamiento del fondo; watch va en vivo al entrenador."""
+    import time as _t
+    d = root / "models" / "drones" / "halcon"
+    d.mkdir(parents=True)
+    monkeypatch.setattr(jugar, "fondo_procs", lambda: {"halcon": {"pid": 1, "ctrl": 9032, "port": 9031}})
+    assert jugar.red_vivo("halcon") is None                       # todavía no escribe
+    (d / "entrenando_red.json").write_text(json.dumps({"t": _t.time(), "i": 7, "n": 50, "capas": [38, 64, 64, 4]}))
+    assert jugar.red_vivo("halcon")["i"] == 7
+    (d / "entrenando_red.json").write_text(json.dumps({"t": _t.time() - 60, "i": 7}))
+    assert jugar.red_vivo("halcon") is None                       # viejo
+    assert jugar.red_vivo("otro") is None
+    assert jugar.fondo_live({"watch": 17}) == {"watch": 17}

@@ -10,6 +10,7 @@ Protocolo (UDP en localhost, mensajes JSON, como telemetría de un dron real). P
 (Dron Maker usa 9011/9012; drone-rl, el otro proyecto, 9001/9002):
     trainer -> Blender  "h" hola + misión · "f" posiciones · "l" nivel de un dron · "s" estadísticas
                         "a" activaciones de la red del dron observado · "w" conexiones más fuertes
+                        (lo mismo, 4 veces por segundo, en <estado>_red.json: el estudio PBDMM del juego lo dibuja)
     Blender -> trainer  {"lr":…, "ent":…, "log_std":…, "reward":{…}, "speed":"real|rapido", "pause":bool,
                          "env": {"density":…, "wind":…}, "watch": i, "save":true, "export":true, "stop":true}
     Grabar (nivel 11):  "l" lleva "film": {"subject": [x,y,z], "band": [d_min, d_max, z_min, z_max],
@@ -107,6 +108,7 @@ def merge_range(a, b):
     return {k: [round(min(a[k][0], b[k][0]), 3), round(max(a[k][1], b[k][1]), 3)] for k in b}
 
 TOP_K = (300, 500, 512)        # conexiones a mandar por capa (las de mayor |peso|)
+RED_K = 160                    # las que ve el juego por capa (archivo <estado>_red.json)
 CHUNK = 6000                   # bytes por datagrama (macOS: máximo ~9216)
 
 
@@ -143,6 +145,9 @@ class LiveLink(BaseCallback):
         self.next_tick = time.perf_counter()
         self.last_send = 0.0
         self.last_act = 0.0
+        self.last_red = 0.0
+        self.red_w = []                                    # conexiones más fuertes de cada capa (para el juego)
+        self.red_path = Path(args.estado).with_name(Path(args.estado).stem + "_red.json")
         self.watch = args.watch % args.drones
         self.msg = ""
 
@@ -338,6 +343,13 @@ class LiveLink(BaseCallback):
             j, i = np.unravel_index(idx, w.shape)            # i = neurona origen, j = destino
             out.append([[int(a), int(b), round(float(w[b, a]), 4)] for a, b in zip(i, j)])
         self.send({"t": "w", "gen": self.gen, "l": out})
+        self.red_w = []                                    # para el juego: TODAS las capas (la red puede tener 1-4 ocultas)
+        for layer in self.layers():
+            w = layer.weight.detach().cpu().numpy()
+            k = min(RED_K, w.size)
+            idx = np.argpartition(-np.abs(w).ravel(), k - 1)[:k]
+            j, i = np.unravel_index(idx, w.shape)
+            self.red_w.append([[int(a), int(b), round(float(w[b, a]), 3)] for a, b in zip(i, j)])
 
     def send_activations(self, obs_tensor, actions):
         x = obs_tensor[self.watch:self.watch + 1].float()
@@ -350,8 +362,21 @@ class LiveLink(BaseCallback):
                     hidden.append(h[0].cpu().numpy())
             mu = self.model.policy.action_net(h)[0].cpu().numpy()
         r = lambda v: [round(float(a), 3) for a in v]
-        self.send({"t": "a", "i": self.watch, "in": r(x[0].cpu().numpy()), "h": [r(a) for a in hidden],
-                   "mu": r(np.clip(mu, -1, 1)), "act": r(np.clip(actions[self.watch], -1, 1))})
+        msg = {"t": "a", "i": self.watch, "in": r(x[0].cpu().numpy()), "h": [r(a) for a in hidden],
+               "mu": r(np.clip(mu, -1, 1)), "act": r(np.clip(actions[self.watch], -1, 1))}
+        self.send(msg)
+        now = time.time()
+        if now - self.last_red > 0.25:                     # el juego (estudio PBDMM) lo lee de un archivo junto al progreso
+            self.last_red = now
+            red = dict(msg, t=now, gen=self.gen, n=self.args.drones, modelo=self.model_path.parent.name,
+                       capas=[int(x.shape[1])] + [len(a) for a in hidden] + [len(mu)], w=self.red_w,
+                       in_lbl=OBS_LABELS[:int(x.shape[1])], act_lbl=ACT_LABELS)
+            try:
+                tmp = self.red_path.with_name(self.red_path.name + ".tmp")
+                tmp.write_text(json.dumps(red, separators=(",", ":")))
+                os.replace(tmp, self.red_path)
+            except OSError:
+                pass
 
     # ---------------- control desde Blender ----------------
     def poll_control(self):

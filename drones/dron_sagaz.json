@@ -1,0 +1,42 @@
+{
+ "nombre": "dron_sagaz",
+ "piezas": {
+  "extras": [
+   "gancho",
+   "luces",
+   "tof"
+  ],
+  "estilo": {
+   "color": "#2a2c30",
+   "acento": "#e8e8e8",
+   "forma": "x"
+  },
+  "canopy": null,
+  "visuales": {},
+  "chasis": "carbono5",
+  "motores": "m2207",
+  "helices": "h3",
+  "esc": "esc55",
+  "bateria": "b4s3000",
+  "controladora": "fc_ia",
+  "radio": "rx_elrs900",
+  "camara": "cam_gimbal",
+  "montaje": "mt_tpu"
+ },
+ "fisica": {
+  "mass": 0.916,
+  "twr": 1.6703,
+  "drag": 0.038,
+  "max_angle_deg": 35.0,
+  "yaw_rate_deg": 169.2,
+  "att_resp": 9.35,
+  "crash_speed": 5.0,
+  "radius": 0.15
+ },
+ "juego": {
+  "masa_g": 916,
+  "minutos": 9.42,
+  "precio": 1262,
+  "dron": "Sagaz"
+ }
+}

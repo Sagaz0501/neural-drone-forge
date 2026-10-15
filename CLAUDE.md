@@ -178,7 +178,9 @@ Node v22 está en `/opt/homebrew/bin/node`. Blender 5.2 en `/Applications/Blende
   elegida para que lo recomendado quede en ~4); `pbdmm.js` realDe/nivelDe/recomendados. El backend sigue en valores reales, `aprendizaje(lr, exploracion)` + hooks; terminal: correr, estado,
   modelos, info, pausar/seguir/detener, copiar/renombrar/borrar, blender, volar. Backend: `/api/lab` acepta `lr`,
   `ent`, `capas` (-> info.json; `live_train.py --capas` o la lee de ahí) y `accion: "guardar"`; `/api/modelos` trae
-  `red`, `ultimo` (última fila de la historia) y `mejor_exito`. "Que grabe la IA" ya no se bloquea: vuela con la IA
+  `red`, `ultimo` (última fila de la historia) y `mejor_exito`. La red EN VIVO (Gráfica → Red neuronal): live_train escribe
+  `<estado>_red.json` (4/s: activaciones del dron que mira + conexiones fuertes por capa), `GET /api/red?modelo=`,
+  y `watch: i` en `/api/lab` cambia el dron que mira (fondo o Blender). "Que grabe la IA" ya no se bloquea: vuela con la IA
   del dron (o la base), se carga sola, y si no entrega el video cuesta 2 de reputación.
 - **Nivel 12 · Grabar entre postes**: como el 11 con postes a 1,5 m de la ruta (`level.film_posts`).
 - **Nivel 11 · Grabar: tomas con ruta** (`env.py`, `tomas.py`, `missions.json`, Drone Lab): una casa al azar y

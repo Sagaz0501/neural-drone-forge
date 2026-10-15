@@ -19,7 +19,7 @@ export function initEstudio(ctx) {
   const { $, esc, api, toast } = ctx;
   const ES = { data: null, archivos: leerLS(ARCH, null), abierto: leerLS(ABIERTO, null), tab: "ayuda", hist: [], hi: -1,
     run: null, poll: 0, graf: null, grafSlug: null, modelos: [], errLinea: null, tema: null,
-    ac: { items: [], sel: 0, cx: null, abierto: false } };
+    ac: { items: [], sel: 0, cx: null, abierto: false }, vista: "curvas", red: null, redPoll: 0 };
 
   async function cargarData() {
     if (ES.data) return ES.data;
@@ -57,7 +57,7 @@ export function initEstudio(ctx) {
     sondear(true);
     $("es-src").focus();
   }
-  function cerrar() { sondear(!!ES.run); ctx.irTaller(); }
+  function cerrar() { sondear(!!ES.run); redSondear(false); ctx.irTaller(); }
 
   // ---------------- editor ----------------
   const KWS = /\b(def|return|if|elif|else|for|in|and|or|not|is|global|pass|break|continue)\b/;
@@ -502,6 +502,7 @@ export function initEstudio(ctx) {
     const esc_ = ctx.ent.escala_premios, al = Object.fromEntries(Object.entries(ES.data.alias_premios).map(([a, k]) => [k, a]));
     const tipo = (k) => ctx.ent.premios.find((p) => p.k === k)?.tipo || "premio";
     const parte = (t) => Object.entries(reales).filter(([k]) => tipo(k) === t).map(([k, v]) => `${al[k] || k}=${String(nivelDe(k, v, esc_)).replace(".", ",")}`).join(" ");
+    if (!Object.keys(reales).length) return "premios y castigos: los de siempre del entrenador (ponlos con premios() y castigos())";
     return `premios: ${parte("premio") || "—"} · castigos: ${parte("castigo") || "—"} (de 0 a 10)`;
   }
   /** Lo que dice el servidor de un modelo: {tr, activo}. */
@@ -557,7 +558,7 @@ export function initEstudio(ctx) {
       ES.grafActivo = activo;
       ES.grafTr = tr;
     }
-    if (ES.tab === "grafica") dibujarGrafica();
+    if (ES.tab === "grafica" && ES.vista !== "red") dibujarGrafica();
     renderRun();
   }
   function sondear(on) {
@@ -604,11 +605,123 @@ export function initEstudio(ctx) {
       }
       box.insertAdjacentHTML("beforeend", `<div class="es-red" aria-label="La red: 38 entradas, capas ocultas, 4 palancas">${redSVG()}</div>`);
     } else {
-      box.innerHTML = `<p class="muted" id="es-graf-t"></p><canvas id="es-graf" width="560" height="300" aria-label="Gráfica del entrenamiento"></canvas>` +
-        `<p class="es-ley"><span style="color:var(--gate)">■ éxito</span> <span style="color:var(--crash)">■ choque</span> <span style="color:var(--next)">■ calidad (grabar)</span></p>` +
-        `<p class="muted">Muestra el modelo que está corriendo, o el último que miraste con <code>info &lt;modelo&gt;</code>. Cada punto es una generación.</p>`;
-      dibujarGrafica();
+      box.innerHTML = `<div class="seg" id="es-vista"><button data-v="curvas">Curvas</button><button data-v="red">Red neuronal</button></div>`;
+      box.querySelectorAll("#es-vista button").forEach((b) => {
+        b.setAttribute("aria-pressed", String(b.dataset.v === ES.vista));
+        b.onclick = () => { ES.vista = b.dataset.v; renderDer(); };
+      });
+      if (ES.vista === "red") {
+        box.insertAdjacentHTML("beforeend", `<p class="muted" id="es-red-t">Buscando la red…</p>` +
+          `<div class="es-red-ctl"><button class="btn ghost small" id="es-red-ant" aria-label="Dron anterior">◀</button><label>Dron <input type="number" id="es-red-i" min="1" value="1"></label><span id="es-red-n" class="muted"></span>` +
+          `<button class="btn ghost small" id="es-red-sig" aria-label="Dron siguiente">▶</button><button class="btn ghost small" id="es-red-azar">Al azar</button></div>` +
+          `<canvas id="es-redc" aria-label="La red neuronal del dron, en vivo"></canvas>` +
+          `<p class="es-ley"><span style="color:#ff9e5e">■ positivo</span> <span style="color:#3ccbff">■ negativo</span> <span class="muted">· más brillante = más activo · las líneas son las conexiones más fuertes</span></p>` +
+          `<p id="es-red-top" class="muted"></p>`);
+        const ir = (i) => mirarDron(i);
+        $("es-red-ant").onclick = () => ir((ES.red?.i ?? 0) - 1);
+        $("es-red-sig").onclick = () => ir((ES.red?.i ?? 0) + 1);
+        $("es-red-azar").onclick = () => ir(Math.floor(Math.random() * (ES.red?.n || 50)));
+        $("es-red-i").onchange = (ev) => ir(Number(ev.target.value) - 1);
+        redSondear(true);
+        dibujarRed();
+      } else {
+        redSondear(false);
+        box.insertAdjacentHTML("beforeend", `<p class="muted" id="es-graf-t"></p><canvas id="es-graf" width="560" height="300" aria-label="Gráfica del entrenamiento"></canvas>` +
+          `<p class="es-ley"><span style="color:var(--gate)">■ éxito</span> <span style="color:var(--crash)">■ choque</span> <span style="color:var(--next)">■ calidad (grabar)</span></p>` +
+          `<p class="muted">Muestra el modelo que está corriendo, o el último que miraste con <code>info &lt;modelo&gt;</code>. Cada punto es una generación.</p>`);
+        dibujarGrafica();
+      }
     }
+    if (ES.tab !== "grafica" || ES.vista !== "red") redSondear(false);
+  }
+
+  // ---------------- la red neuronal en vivo (de un dron de los que entrenan) ----------------
+  function redSondear(on) {
+    clearInterval(ES.redPoll);
+    ES.redPoll = 0;
+    if (on) { ES.redPoll = setInterval(leerRed, 400); leerRed(); }
+  }
+  async function leerRed() {
+    if (G_screen() !== "estudio" || ES.tab !== "grafica" || ES.vista !== "red") return redSondear(false);
+    const slug = ES.grafSlug;
+    if (!slug) { ES.red = null; return dibujarRed(); }
+    const r = await api(`/api/red?modelo=${encodeURIComponent(slug)}`);
+    ES.red = r.ok ? r : null;
+    dibujarRed();
+  }
+  const G_screen = () => ctx.G.screen;
+  async function mirarDron(i) {
+    const R = ES.red, slug = ES.grafSlug;
+    if (!R || !slug) return;
+    const n = R.n || 1, k = ((Math.round(i) % n) + n) % n;
+    if (!ES.modelos.length) await cargarModelos();
+    const donde = ES.run?.cfg.modelo === slug ? ES.run.cfg.donde : ES.modelos.find((m) => m.slug === slug)?.donde || "fondo";
+    const r = await api("/api/lab", { accion: "ajustar", modelo: slug, donde, watch: k });
+    if (!r.ok) linea("No pude cambiar de dron: " + (r.msg || "?"), "bad");
+    ES.red = { ...R, i: k, pidiendo: k };
+    dibujarRed();
+  }
+  function dibujarRed() {
+    const cv = $("es-redc"), R = ES.red;
+    if (!cv) return;
+    const t = $("es-red-t");
+    if (!R) {
+      t.textContent = ES.grafSlug ? `"${ES.grafSlug}" no está entrenando: la red se ve en vivo mientras entrena (en el fondo o en Blender).` : "Corre un programa (o escribe info <modelo> de uno que esté entrenando) para ver su red.";
+      cv.getContext("2d").clearRect(0, 0, cv.width, cv.height);
+      $("es-red-n").textContent = ""; $("es-red-top").textContent = "";
+      return;
+    }
+    t.innerHTML = `"${esc(R.modelo || ES.grafSlug)}" · mirando el dron <b>${R.i + 1}</b> de ${R.n} · generación ${R.gen ?? "?"} · red ${R.capas.join(" → ")}`;
+    const inp = $("es-red-i");
+    if (document.activeElement !== inp) { inp.value = R.i + 1; inp.max = R.n; }
+    $("es-red-n").textContent = `de ${R.n}`;
+    // tamaño real del canvas (nítido en pantallas retina)
+    const dpr = window.devicePixelRatio || 1, W = cv.clientWidth || 340, H = Math.max(360, Math.min(520, R.capas[0] * 12 + 20));
+    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); cv.style.height = H + "px"; }
+    const g = cv.getContext("2d");
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, W, H);
+    const capas = R.capas, act = [R.in, ...R.h, R.mu], L = capas.length;
+    const izq = 92, der = 74, xs = capas.map((_, i) => izq + (i * (W - izq - der)) / (L - 1));
+    const ys = capas.map((n) => Array.from({ length: n }, (_, j) => 12 + ((j + 0.5) * (H - 24)) / n));
+    const col = (v, a) => (v >= 0 ? `rgba(255,158,94,${a})` : `rgba(60,203,255,${a})`);
+    const clip = (v) => Math.max(-1, Math.min(1, v || 0));
+    // conexiones: más fuertes donde pasa más señal (|peso × activación de origen|)
+    (R.w || []).forEach((conns, l) => {
+      if (l >= L - 1) return;
+      const flujo = conns.map(([a, , w]) => Math.abs(w * clip(act[l][a])));
+      const max = Math.max(1e-6, ...flujo);
+      conns.forEach(([a, b, w], k) => {
+        const f = flujo[k] / max;
+        if (f < 0.05) return;
+        g.strokeStyle = col(w, 0.06 + 0.5 * f); g.lineWidth = 0.5 + 1.5 * f;
+        g.beginPath(); g.moveTo(xs[l], ys[l][a]); g.lineTo(xs[l + 1], ys[l + 1][b]); g.stroke();
+      });
+    });
+    // neuronas
+    capas.forEach((n, l) => {
+      const r = Math.max(1.2, Math.min(5, (H - 24) / n / 2 - 0.4));
+      ys[l].forEach((y, j) => {
+        const v = clip(act[l][j]);
+        g.fillStyle = col(v, 0.15 + 0.85 * Math.abs(v));
+        g.beginPath(); g.arc(xs[l], y, r, 0, Math.PI * 2); g.fill();
+      });
+    });
+    // nombres: sensores a la izquierda, palancas a la derecha (con su valor)
+    g.font = "10px ui-monospace, Menlo, monospace"; g.textBaseline = "middle";
+    const lbl = R.in_lbl || [];
+    if (capas[0] <= 48) ys[0].forEach((y, j) => { g.fillStyle = Math.abs(clip(R.in[j])) > 0.5 ? "#eaf2ef" : "#7d938a"; g.textAlign = "right"; g.fillText(String(lbl[j] || j).slice(0, 14), izq - 8, y); });
+    (R.act_lbl || ["gas", "roll", "pitch", "yaw"]).forEach((nombre, j) => {
+      const y = ys[L - 1][j], v = clip(R.mu[j]);
+      g.textAlign = "left"; g.fillStyle = "#eaf2ef"; g.fillText(`${nombre} ${v >= 0 ? "+" : ""}${v.toFixed(2)}`, xs[L - 1] + 9, y);
+    });
+    g.textAlign = "center"; g.fillStyle = "#7d938a";
+    capas.forEach((n, l) => g.fillText(l === 0 ? "38 sensores" : l === L - 1 ? "palancas" : String(n), xs[l], H - 4));
+    // lo que más está mirando ahora
+    // (un sensor de distancia en 1 = no ve nada cerca: no cuenta)
+    const top = R.in.map((v, j) => [Math.abs(v), j, v]).filter(([, j, v]) => !(/^sensor/.test(lbl[j] || "") && v >= 0.98)).sort((a, b) => b[0] - a[0]).slice(0, 4);
+    $("es-red-top").textContent = "Lo que más siente ahora: " + top.map(([, j, v]) => `${lbl[j] || j} ${v >= 0 ? "+" : ""}${v.toFixed(2)}`).join(" · ") +
+      `. Cada capa oculta tiene sus neuronas (los números de abajo); las palancas son lo que decide.`;
   }
   /** " · normal 4" para los parámetros de premios() y castigos() (lo que recomiendan las misiones, de 0 a 10). */
   function rec(f, k) {
