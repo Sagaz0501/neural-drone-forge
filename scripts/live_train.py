@@ -466,13 +466,14 @@ class LiveLink(BaseCallback):
                 g.final(infos[i].get("pos", (0, 0, 0)), acts[i])
                 ep = infos[i].get("episode")
                 premio = float(ep["r"]) if ep else g.premio
-                cual = self.avance.candidato(e.stage, premio)
-                if cual and time.time() - self.avance_t > 1.0 and g.n > 5:
+                cuales = self.avance.candidatos(e.stage, premio) if g.n > 5 else []
+                if cuales and time.time() - self.avance_t > 1.0:
                     self.avance_t = time.time()
-                    rep = g.armar(cual, self.args.modelo_slug, self.gen, e.stage, self.args.dron_nombre, infos[i],
+                    rep = g.armar(cuales[0], self.args.modelo_slug, self.gen, e.stage, self.args.dron_nombre, infos[i],
                                   self.red_de, self.capas_red())
                     rep["resultado"]["premio"] = round(premio, 2)
-                    self.avance.guardar(cual, rep)
+                    for cual in cuales:            # el mismo intento puede ser el primero, el mejor y el último
+                        self.avance.guardar(cual, dict(rep, tipo=cual))
                 self.grab[i] = SIM.Grabacion(SIM.inicio(e), e.dt)     # el entorno ya empezó el intento siguiente
         except Exception as ex:                      # grabar nunca debe tumbar el entrenamiento
             if not getattr(self, "grab_error", None):

@@ -49,3 +49,13 @@ def test_avance_mejor_y_peor(tmp_path):
     assert av.candidato(11, 4.0) is None and av.candidato(11, 9.0) == "mejor" and av.candidato(11, -1.0) == "peor"
     assert S.Avance(tmp_path / "avance.json").candidato(11, 4.0) is None   # lo recuerda al reabrir
     assert av.candidato(12, 0.0) == "mejor"                                  # cada nivel por separado
+
+
+def test_avance_primero_y_ultimo(tmp_path):
+    av = S.Avance(tmp_path / "avance.json")
+    assert av.candidatos(11, 1.0, ahora=1000) == ["primero", "mejor", "ultimo"]
+    for c in ("primero", "mejor", "ultimo"):
+        av.guardar(c, {"stage": 11, "t": 1000, "resultado": {"premio": 1.0}})
+    assert av.candidatos(11, 0.5, ahora=1030) == ["peor"]                 # el último se renueva cada minuto
+    assert av.candidatos(11, 0.8, ahora=1100) == ["peor", "ultimo"]
+    assert "primero" not in av.candidatos(11, 9.0, ahora=1100)             # el primero no se reemplaza nunca

@@ -335,6 +335,8 @@
   #sim-top { position: fixed; left: 12px; right: 12px; top: 12px; border-radius: 14px; padding: 10px 14px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; z-index: 3; }
   #sim-top h2 { margin: 0; font-size: 20px; } #sim-sub { font-size: 13px; } .sim-sp { flex: 1; }
   #sim-tabs:empty { display: none; }
+  .sim-lista { display: flex; flex-direction: column; gap: 6px; max-height: 60vh; overflow-y: auto; }
+  .sim-lista .card { text-align: left; }
   .sim-sel { background: var(--moss-solid); color: var(--text); border: 0; padding: 6px 8px; font: inherit; font-size: 14px; }
   #sim-der { position: fixed; right: 12px; top: 92px; bottom: 76px; width: min(390px, calc(100vw - 24px)); border-radius: 14px; padding: 12px 14px; overflow-y: auto; z-index: 3; }
   #sim-der h4 { margin: 12px 0 6px; font-size: 12.5px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); }
@@ -428,8 +430,10 @@
 <div id="sim" class="hidden">
   <header class="panel" id="sim-top">
     <div><h2 id="sim-h">Simulación</h2><div id="sim-sub" class="muted"></div></div>
+    <label class="muted" style="font-size:13px">Modelo <select id="sim-modelo" class="sim-sel" aria-label="Qué modelo"></select></label>
     <div id="sim-tabs" class="seg"></div>
     <div class="sim-sp"></div>
+    <button class="btn ai small hidden" id="sim-ahora-b" title="Una prueba nueva con la generación de este momento">Ahora</button>
     <button class="btn ai small hidden" id="sim-otra">Otra prueba</button>
     <button class="btn ghost small" id="sim-cerrar">Cerrar</button>
   </header>
@@ -540,6 +544,13 @@
   <div class="muted" style="font-size:13px;letter-spacing:1.2px;text-transform:uppercase">La historia</div>
   <h2 id="hist-h"></h2><p id="hist-p"></p>
   <div class="go"><button class="btn main" id="b-hist">¡Vamos!</button></div>
+</section>
+
+<section id="sim-elegir" class="modal panel hidden" role="dialog" aria-labelledby="sim-elegir-h">
+  <h2 id="sim-elegir-h">¿Con qué IA?</h2>
+  <p class="muted" style="margin:0 0 8px">Tus modelos guardados, con la generación que tienen guardada (se guarda sola cada 10 generaciones).</p>
+  <div id="sim-elegir-l" class="sim-lista"></div>
+  <div class="go"><button class="btn ghost" id="sim-elegir-no">Cancelar</button></div>
 </section>
 
 <section id="aviso-ia" class="modal panel hidden" role="alertdialog" aria-labelledby="aviso-ia-h">

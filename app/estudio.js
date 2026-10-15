@@ -496,6 +496,10 @@ export function initEstudio(ctx) {
       dron = d && ctx.dronParaEntrenar(d);
       if (!dron) { linea(`✗ "${c.dron.hangar}" no está armado completo: no tengo su física.`, "bad"); return; }
     }
+    if (typeof c.dron === "object") {                // ese dron del hangar queda con esta IA (si no tenía una)
+      const d = ctx.P().drones.find((x) => x.nombre === c.dron.hangar);
+      if (d && !d.modelo) { d.modelo = c.modelo; ctx.guardar(); linea(`  "${d.nombre}" ahora tiene la IA "${c.modelo}" (sus botones Avance y Simular la usan).`, "muted"); }
+    }
     const body = pedidoDe(c, () => dron);
     linea(`Enviando el pedido (${c.donde === "blender" ? "a Blender" : "al fondo"})…`);
     const r = await api("/api/lab", body);

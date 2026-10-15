@@ -117,7 +117,7 @@ const sabeGrabar = (ia, tipos = ["fija", "orbita", "revelar"]) => !!(ia?.policy 
 
 // ---------------- pantallas ----------------
 const PANELS = { inicio: ["inicio"], taller: ["taller-izq", "taller-der", "taller-top"], banco: ["banco-izq", "banco-der"], vuelo: ["hud"], estudio: ["estudio"], sim: ["sim"] };
-const MODALES = ["aviso-ia", "tablero", "brief", "videos", "controles", "pausa", "resultado", "lab", "historia", "tienda", "inventario", "nuevo-dron", "cableado"];
+const MODALES = ["sim-elegir", "aviso-ia", "tablero", "brief", "videos", "controles", "pausa", "resultado", "lab", "historia", "tienda", "inventario", "nuevo-dron", "cableado"];
 function show(screen) {
   G.screen = screen;
   for (const ids of Object.values(PANELS)) ids.forEach((id) => $(id).classList.add("hidden"));
@@ -375,8 +375,8 @@ function renderEditor() {
   btn(p.modo === "dev" ? "Entrenar en el Estudio" : "Entrenar su IA", "ai small", () => { LAB.drone = d.id; abrirLab(); });
   // los tres botones de la IA: cómo va (mejor y peor intento), una prueba ahora (sin pedido), y los pedidos
   const alDron = () => { show("taller"); G.izq = "dron"; verDron(); renderTaller(); };   // al cerrar, de vuelta a este dron
-  btn("Avance del modelo", "ghost small", () => sim.abrirAvance(d.modelo || "base", alDron)).title = "El mejor y el peor intento que ha tenido entrenando";
-  btn("Simular prueba", "ghost small", () => sim.abrirSimular(d.modelo || "base", alDron)).title = "Una prueba al azar como las del entrenamiento, con la última generación (no da plata ni daña el dron)";
+  btn("Avance del modelo", "ghost small", () => sim.abrirAvance(d.modelo || null, alDron, { preguntar: true })).title = "El mejor y el peor intento que ha tenido entrenando";
+  btn("Simular prueba", "ghost small", () => sim.abrirSimular(d.modelo || null, alDron, { preguntar: true })).title = "Una prueba al azar como las del entrenamiento, con la última generación (no da plata ni daña el dron)";
   btn("Pedidos", "main small", () => { P().activo = d.id; guardar(); $("b-pedidos").click(); });
   const rep = PT.costoReparar(p, cat, d);
   if (rep > 0) btn(rep > p.plata && PT.rotas(p, d).length ? "Arreglo casero (gratis)" : `Reparar ($${rep})`, "ghost small", () => repararDron(d));
@@ -691,8 +691,8 @@ function renderLab() {
     mb.innerHTML = `<div class="card" style="cursor:default"><b>"${esc(d.modelo)}"</b> <span class="muted" style="font-size:12.5px">${m?.tiene_modelo ? `generación ${m.gen ?? 0} · ${(m.pasos || 0).toLocaleString("es")} pasos · tomas: ${(m.tomas || []).join(", ") || "ninguna"}` : "todavía sin entrenar"}</span>` +
       `<small>${d.modelo === "base" ? "Es la IA base (models/modelo.zip): la que venías entrenando. Solo entrena en Blender." : `Vive en models/drones/${esc(d.modelo)}/. Cada vez que entrenes "${esc(d.nombre)}" sigue desde aquí.`}</small>` +
       `<div class="row" style="justify-content:flex-start;gap:6px;margin-top:6px"><button class="btn ghost small" id="lab-avance">Avance del modelo</button><button class="btn ai small" id="lab-simular">Simular prueba</button></div></div>`;
-    $("lab-avance").onclick = () => { modal("lab", false); labPoll(false); sim.abrirAvance(d.modelo, () => { irTaller(); abrirLab(); }); };
-    $("lab-simular").onclick = () => { modal("lab", false); labPoll(false); sim.abrirSimular(d.modelo, () => { irTaller(); abrirLab(); }); };
+    $("lab-avance").onclick = () => { modal("lab", false); labPoll(false); sim.abrirAvance(d.modelo, () => { irTaller(); abrirLab(); }, { preguntar: true }); };
+    $("lab-simular").onclick = () => { modal("lab", false); labPoll(false); sim.abrirSimular(d.modelo, () => { irTaller(); abrirLab(); }, { preguntar: true }); };
   } else {
     const otros = G.modelos.filter((m) => m.tiene_modelo !== false);
     mb.innerHTML = `<div class="card" style="cursor:default"><small style="margin:0">"${esc(d.nombre)}" todavía no tiene IA. Al empezar a entrenar se crea la suya: <b>"${slugDe(d.nombre)}"</b>.</small>` +

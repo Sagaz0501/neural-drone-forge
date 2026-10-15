@@ -11,6 +11,8 @@
   línea de tiempo.
 - **Pedidos al azar:** cada intento las tomas cambian (dentro de rangos como los del entrenamiento y sin chocar).
 - **Aviso antes de que vuele una IA que no está lista** (nunca bloquea).
+- **Avance completo:** primer intento, peor, mejor, último (cada minuto) y "Ahora"; los botones preguntan con qué IA
+  (cada modelo con su generación guardada). Un dron sin IA propia ya no cae en la IA base.
 - **El primer video:** 25 drones aprendiendo en Blender (GIF en el README, MP4 en `docs/media/`).
 - Arreglado: la red neuronal en vivo del Estudio no se dibujaba (un nombre repetido la tapaba) y, al recargar la
   página, no sabía qué modelo mirar: ahora muestra sola el que está entrenando y tiene un selector de modelo.

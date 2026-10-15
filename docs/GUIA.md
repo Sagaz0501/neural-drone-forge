@@ -105,9 +105,12 @@ Cada dron (en el hangar → abrirlo), el Laboratorio y el Estudio tienen tres bo
 
 | Botón | Qué muestra |
 |---|---|
-| **Avance del modelo** | El **mejor** y el **peor** intento que ha tenido entrenando (el entrenador los guarda solos, por nivel). Ves de dónde salió y a dónde llegó. |
+| **Avance del modelo** | La historia del entrenamiento en pestañas ordenadas por generación: el **primer intento** guardado, el **peor**, el **mejor**, el **último** (se renueva cada minuto) y **Ahora** (una prueba nueva con la generación de este momento). El entrenador los guarda solos, por nivel. |
 | **Simular prueba** | Una prueba **nueva al azar**, igual a las que hacen los 50 drones, volada con la **última generación guardada**. No detiene el entrenamiento, no da plata, no gasta batería ni daña el dron. *Otra prueba* para otra. |
 | **Pedidos** | Los clientes de verdad (cada intento, una ruta distinta). |
+
+Al tocar cualquiera de los dos te pregunta **con qué IA**: cada modelo guardado con su generación, su éxito y cuándo se
+guardó (sugiere la del dron, la que está entrenando o la última que entrenaste).
 
 En las simulaciones: el recorrido (naranja), la ruta de la cámara (celeste), tres cámaras (*persecución*, *la del
 dron*, *desde arriba*), la red neuronal en cada instante, gráficas (altura, velocidad, premio, calidad) y una línea de

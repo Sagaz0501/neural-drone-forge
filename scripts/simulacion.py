@@ -211,8 +211,12 @@ def simular(carpeta: Path, web_path: Path, modelo: str, entrenando: dict | None 
 
 
 # ---------------------------------------------------------------- el mejor y el peor (live_train.py)
+CADA_ULTIMO = 60.0       # el "último intento" se renueva como mucho una vez por minuto
+
+
 class Avance:
-    """Guarda el mejor y el peor intento de cada nivel en <carpeta>/avance.json (por premio total del intento)."""
+    """La historia de un modelo en <carpeta>/avance.json, por nivel: el PRIMER intento que se guardó, el PEOR y el
+    MEJOR (por premio total) y el ÚLTIMO (se renueva cada minuto): así se ve de dónde salió y a dónde llegó."""
 
     def __init__(self, path: Path):
         self.path = Path(path)
@@ -225,7 +229,7 @@ class Avance:
                        for k, v in self.datos.items() if isinstance(v, dict)}
 
     def candidato(self, stage, premio) -> str | None:
-        """'mejor', 'peor' o None: si este intento entra al avance."""
+        """'mejor', 'peor' o None: si este intento entra al avance (por premio)."""
         mejor, peor = self.marcas.get(str(stage), (None, None))
         if mejor is None or premio > mejor:
             return "mejor"
@@ -233,12 +237,27 @@ class Avance:
             return "peor"
         return None
 
+    def candidatos(self, stage, premio, ahora=None) -> list:
+        """Todo lo que este intento debería ser: 'primero' (si el nivel no tiene), 'mejor'/'peor', 'ultimo' (cada minuto)."""
+        ahora = time.time() if ahora is None else ahora
+        nv = self.datos.get(str(stage)) or {}
+        out = []
+        if "primero" not in nv:
+            out.append("primero")
+        c = self.candidato(stage, premio)
+        if c:
+            out.append(c)
+        if ahora - (nv.get("ultimo") or {}).get("t", 0) > CADA_ULTIMO:
+            out.append("ultimo")
+        return out
+
     def guardar(self, cual: str, rep: dict):
         st = str(rep["stage"])
         self.datos.setdefault(st, {})[cual] = rep
-        m = list(self.marcas.get(st, (None, None)))
-        m[0 if cual == "mejor" else 1] = rep["resultado"]["premio"]
-        self.marcas[st] = tuple(m)
+        if cual in ("mejor", "peor"):
+            m = list(self.marcas.get(st, (None, None)))
+            m[0 if cual == "mejor" else 1] = rep["resultado"]["premio"]
+            self.marcas[st] = tuple(m)
         tmp = self.path.with_name(self.path.name + ".tmp")
         tmp.write_text(json.dumps(self.datos, separators=(",", ":")))
         tmp.replace(self.path)

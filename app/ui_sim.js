@@ -9,10 +9,57 @@ export function initSim(ctx) {
   const { $, esc, api, toast } = ctx;
   const SM = { lista: [], k: 0, slug: null, modo: null, volver: null, conex: {}, tRed: 0, arrastrando: false, niveles: null, stage: null };
 
-  /** Avance del modelo: el mejor y el peor intento que ha tenido (en el nivel que entrena o entrenó por último). */
-  async function abrirAvance(slug, volver) {
+  /**
+   * Preguntar con qué IA: todos los modelos guardados con su generación (los que entrenan y los que tienen avance,
+   * marcados). sugerido = el que sale primero (la IA del dron o la que entrena). Devuelve el slug o null (cancelar).
+   */
+  async function preguntarModelo(titulo, sugerido, paraAvance) {
+    const ms = ((await api("/api/modelos")).modelos || []).filter((m) => m.tiene_modelo);
+    if (!ms.length) { toast("No hay modelos guardados todavía.", 4000); return null; }
+    // sugerido: la IA del dron; si no, la que entrena; si no, la que entrenaste por última vez
+    const reciente = [...ms].sort((a, b) => String(b.actualizado || "").localeCompare(String(a.actualizado || "")))[0];
+    const pref = sugerido || ms.find((m) => m.entrenando)?.slug || reciente?.slug;
+    ms.sort((a, b) => (b.slug === pref) - (a.slug === pref) || b.entrenando - a.entrenando || String(b.actualizado || "").localeCompare(String(a.actualizado || "")));
+    $("sim-elegir-h").textContent = titulo;
+    const box = $("sim-elegir-l");
+    box.innerHTML = "";
+    return new Promise((listo) => {
+      for (const m of ms) {
+        const b = document.createElement("button");
+        b.className = "card";
+        const tags = [m.entrenando ? `<span class="tag ok">entrenando (${m.donde})</span>` : "", m.slug === pref ? `<span class="tag">sugerido</span>` : "",
+          paraAvance ? (m.avance ? `<span class="tag">con avance</span>` : `<span class="tag muted">sin avance</span>`) : ""].join(" ");
+        const ult = m.ultimo ? ` · éxito ${Math.round((m.ultimo[2] || 0) * 100)} % en el nivel ${m.ultimo[4]}` : "";
+        b.innerHTML = `<b>${esc(m.slug)}</b> ${tags}<small>generación guardada <b>${m.gen ?? 0}</b>${ult}${m.red ? ` · red ${m.red.join("→")}` : ""}${m.actualizado ? ` · guardado ${esc(m.actualizado)}` : ""}</small>`;
+        b.onclick = () => { ctx.modal("sim-elegir", false); listo(m.slug); };
+        box.appendChild(b);
+      }
+      $("sim-elegir-no").onclick = () => { ctx.modal("sim-elegir", false); listo(null); };
+      ctx.modal("sim-elegir");
+    });
+  }
+
+  /** Si no se sabe qué IA mirar (un dron sin IA propia): la que está entrenando ahora, o la base. */
+  async function resolver(slug) {
+    if (slug) return slug;
+    const s = await api("/api/lab");
+    const b = s.blender || {};
+    if (s.blender_modelo && b.abierto && (b.corriendo || s.entrenador?.activo)) return s.blender_modelo;
+    const f = (s.fondo || []).find((x) => x.activo);
+    return f ? f.modelo : "base";
+  }
+
+  /** Avance del modelo: de dónde salió y a dónde llegó (primer intento, peor, mejor, último) + "Ahora" (una prueba nueva). */
+  async function abrirAvance(slug, volver, { preguntar = false } = {}) {
+    if (preguntar) { slug = await preguntarModelo("¿El avance de qué IA?", slug, true); if (!slug) return; }
+    slug = await resolver(slug);
     const r = await api(`/api/avance?modelo=${encodeURIComponent(slug)}`);
-    if (!r.ok) { toast(r.msg || "No hay intentos guardados todavía.", 5000); return; }
+    if (!r.ok) {
+      const ms = (await api("/api/modelos")).modelos || [];
+      const con = ms.filter((m) => m.avance).map((m) => `"${m.slug}"`);
+      toast(`"${esc(slug)}": ${r.msg || "no hay intentos guardados todavía."}${con.length ? ` Tienen avance: ${con.join(", ")}.` : ""}`, 6000);
+      return;
+    }
     SM.niveles = r.niveles;
     const stages = Object.keys(r.niveles).filter((s) => r.niveles[s].mejor || r.niveles[s].peor);
     if (!stages.length) { toast("Todavía no hay intentos guardados: entrénalo un rato.", 4000); return; }
@@ -22,15 +69,36 @@ export function initSim(ctx) {
     elegirNivel(SM.stage);
   }
   const ultimo = (nv) => Math.max(nv.mejor?.t || 0, nv.peor?.t || 0);
+  const TITULO = { primero: "Primer intento", peor: "El peor", mejor: "El mejor", ultimo: "El último" };
   function elegirNivel(st) {
     SM.stage = st;
     const nv = SM.niveles[st];
-    SM.lista = [["Mejor intento", nv.mejor], ["Peor intento", nv.peor]].filter(([, rep]) => rep).map(([titulo, rep]) => ({ titulo, rep }));
-    mostrar(0);
+    // en orden de generación (el mismo intento puede ser el primero y el peor: una sola pestaña)
+    const items = [];
+    for (const k of ["primero", "peor", "mejor", "ultimo"]) {
+      const rep = nv[k];
+      if (!rep) continue;
+      const igual = items.find((x) => x.rep.t === rep.t);
+      if (igual) igual.titulo += ` = ${TITULO[k].toLowerCase()}`;
+      else items.push({ titulo: TITULO[k], rep });
+    }
+    SM.lista = items.sort((a, b) => (a.rep.gen ?? 0) - (b.rep.gen ?? 0) || a.rep.t - b.rep.t);
+    mostrar(SM.lista.length - 1);
+  }
+  /** "Ahora": una prueba nueva con la generación de este momento, como última pestaña del avance. */
+  async function ahora() {
+    toast("Simulando una prueba con la generación de ahora…", 1500);
+    const r = await api("/api/simular", { modelo: SM.slug });
+    if (!r.ok) { toast(r.msg || "No pude simular.", 5000); return; }
+    SM.lista = SM.lista.filter((x) => !x.ahora);
+    SM.lista.push({ titulo: "Ahora", rep: r, ahora: true });
+    mostrar(SM.lista.length - 1);
   }
 
   /** Simular prueba: una prueba nueva al azar con la última generación guardada (no detiene el entrenamiento). */
-  async function abrirSimular(slug, volver) {
+  async function abrirSimular(slug, volver, { preguntar = false } = {}) {
+    if (preguntar) { slug = await preguntarModelo("¿Con qué IA simulo la prueba?", slug, false); if (!slug) return; }
+    slug = await resolver(slug);
     toast("Simulando una prueba…", 1500);
     const r = await api("/api/simular", { modelo: slug });
     if (!r.ok) { toast(r.msg || "No pude simular.", 5000); return; }
@@ -44,7 +112,16 @@ export function initSim(ctx) {
     SM.slug = slug; SM.modo = modo; SM.volver = volver || null;
     ctx.show("sim");
     $("sim-otra").classList.toggle("hidden", modo !== "prueba");
+    $("sim-ahora-b").classList.toggle("hidden", modo !== "avance");
     cargarConexiones(slug);
+    selectorModelos();
+  }
+  /** Qué modelo mirar: todos los guardados (los que tienen avance, marcados). */
+  async function selectorModelos() {
+    const sel = $("sim-modelo"), ms = ((await api("/api/modelos")).modelos || []).filter((m) => m.tiene_modelo);
+    sel.innerHTML = "";
+    for (const m of ms) sel.add(new Option(`${m.slug}${m.entrenando ? " · entrenando" : ""}${SM.modo === "avance" && !m.avance ? " (sin avance)" : ""}`, m.slug, false, m.slug === SM.slug));
+    sel.onchange = () => (SM.modo === "avance" ? abrirAvance(sel.value, SM.volver) : abrirSimular(sel.value, SM.volver));
   }
   async function cargarConexiones(slug) {
     if (SM.conex[slug]) return;
@@ -63,11 +140,11 @@ export function initSim(ctx) {
     const rep = it.rep;
     $("sim-h").textContent = SM.modo === "avance" ? "Avance del modelo" : "Simular prueba";
     $("sim-sub").innerHTML = `IA <b>"${esc(SM.slug)}"</b> · ${esc(rep.mision || `nivel ${rep.stage}`)} · generación ${rep.gen ?? "?"} · dron ${esc(rep.dron || "estándar")}` +
-      (SM.modo === "avance" ? ` · ${hace(rep.t)}` : " · la última generación guardada · no es un pedido: no da plata ni daña nada");
+      (SM.modo === "avance" && !it.ahora ? ` · ${hace(rep.t)}` : " · la última generación guardada · no es un pedido: no da plata ni daña nada");
     // pestañas (mejor / peor) y, si entrenó en varios niveles, cuál
     const tabs = $("sim-tabs");
     tabs.innerHTML = "";
-    if (SM.lista.length > 1) SM.lista.forEach((x, i) => {
+    if (SM.lista.length > 1 || SM.modo === "avance") SM.lista.forEach((x, i) => {
       const b = document.createElement("button");
       b.textContent = `${x.titulo} · gen ${x.rep.gen ?? "?"}`;
       b.setAttribute("aria-pressed", String(i === k));
@@ -131,6 +208,7 @@ export function initSim(ctx) {
   $("sim-t").addEventListener("input", (ev) => { SM.arrastrando = true; if (ctx.G.sim) { ctx.G.sim.t = Number(ev.target.value); } });
   $("sim-t").addEventListener("change", () => { SM.arrastrando = false; });
   $("sim-otra").onclick = () => abrirSimular(SM.slug, SM.volver);
+  $("sim-ahora-b").onclick = () => ahora();
   $("sim-cerrar").onclick = cerrar;
 
   /** Teclas en la pantalla de simulación: Espacio pausa, ← → 2 s, C cambia la cámara, Esc cierra. */

@@ -399,6 +399,7 @@ def list_models():
                     "rango_fisica": m.get("rango_fisica"), "creado": m.get("creado"),
                     "actualizado": m.get("actualizado"), "base_de": info.get("base_de"),
                     "entrenando": donde is not None, "donde": donde, "red": m.get("red"),
+                    "avance": (d / "avance.json").exists(),
                     "ultimo": (m.get("historia") or [None])[-1],      # [gen, pasos, éxito, choque, nivel, calidad]
                     "mejor_exito": max((h[2] for h in m.get("historia") or [] if len(h) > 2), default=None),
                     "web": ("/models/modelo_web.json" if slug == "base" else f"/models/drones/{slug}/modelo_web.json")})
