@@ -53,4 +53,4 @@ respaldos/
 models/avance.json
 
 # los videos originales (pesados): las versiones para el repo van en docs/media/
-media/
+/media/
