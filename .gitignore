@@ -51,3 +51,6 @@ partida.json
 respaldos/
 # el mejor y el peor intento de la IA base (live_train)
 models/avance.json
+
+# los videos originales (pesados): las versiones para el repo van en docs/media/
+media/

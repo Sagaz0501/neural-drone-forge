@@ -10,7 +10,10 @@ Blender**: 50 drones probando a la vez y la red neuronal encendiéndose mientras
 
 [Jugar](#jugar-en-2-minutos) · [Modos](#dos-formas-de-jugar) · [Cómo aprende](#cómo-aprende-la-ia) · [PBDMM](#pbdmm-el-lenguaje-para-crear-ias) · [Roadmap](docs/ROADMAP.md) · [Documentación](#documentación)
 
-![El Estudio PBDMM: código, terminal y la red neuronal en vivo](docs/img/red_neuronal.jpg)
+![25 drones aprendiendo a grabar casas en el Drone Lab de Blender](docs/media/blender_entrenamiento.gif)
+
+*25 drones aprendiendo a la vez en el Drone Lab de Blender: el cono de cada cámara pasa de rojo a verde cuando la
+toma es buena. [Ver el minuto completo (MP4)](docs/media/blender_entrenamiento.mp4).*
 
 *Demo jugable · en español · 100 % local (tu compu entrena, nada sale a internet) · MIT*
 
@@ -64,6 +67,8 @@ La primera vez se copia la IA publicada (`models/publico/`, generación 3560) co
 tenga con qué volar desde el primer minuto. La [guía del jugador](docs/GUIA.md) explica todo paso a paso.
 
 ## Cómo aprende la IA
+
+![El Estudio PBDMM: código, terminal y la red neuronal en vivo](docs/img/red_neuronal.jpg)
 
 ```
    38 sensores                    tu red neuronal                 4 palancas
@@ -165,7 +170,7 @@ que solo la IA puede cumplir, video con varios drones…) está en el **[Roadmap
 ```bash
 python -m pytest -q                                     # simulador + servidor
 python game/make_fixture.py && node game/test_sim.mjs   # el simulador de JS == el de Python
-node app/test_parts.mjs && node app/test_banco.mjs && node app/test_pbdmm.mjs
+node app/test_parts.mjs && node app/test_banco.mjs && node app/test_pbdmm.mjs && node app/test_modulos.mjs
 ```
 
 Corren solas en cada push ([GitHub Actions](.github/workflows/pruebas.yml)).

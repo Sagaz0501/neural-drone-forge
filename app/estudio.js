@@ -8,7 +8,7 @@
 // =====================================================================
 import { compilar, pedidoDe, estadoE, ErrorPB, repr, nivelDe, recomendados } from "./pbdmm.js";
 import { contexto, opciones, delPrograma } from "./autocompletar.js";
-import { dibujarRed } from "./redviz.js";
+import { dibujarRed as pintarRed } from "./redviz.js";
 
 const ARCH = "dronmaker.pbdmm.archivos", ABIERTO = "dronmaker.pbdmm.abierto";
 const leerLS = (k, d) => { try { const s = localStorage.getItem(k); return s ? JSON.parse(s) : d; } catch { return d; } };
@@ -417,7 +417,7 @@ export function initEstudio(ctx) {
     const hs = (h?.historia || []).slice(-60);
     if (hs.length) linea(`  éxito (últimas ${hs.length} gen.): ${chispa(hs.map((x) => x[2]))}  ${pct(hs.at(-1)[2])}`);
     linea(`  ${m.entrenando ? `entrenando en ${m.donde}` : "quieto"} · para graficarlo: pestaña Gráfica`, "muted");
-    ES.grafSlug = slug; ES.graf = hs; if (ES.tab === "grafica") renderDer();
+    ES.grafSlug = slug; ES.grafFijo = true; ES.graf = hs; if (ES.tab === "grafica") renderDer();
   }
   async function estado() {
     const s = await api("/api/lab");
@@ -540,9 +540,23 @@ export function initEstudio(ctx) {
       ES.run = null; renderRun();
     }
   }
+  /** Los modelos que están entrenando ahora (Blender y el fondo): para mirarlos aunque recargues la página. */
+  function entrenandoAhora(s) {
+    const out = [];
+    const b = s.blender || {};
+    if (s.blender_modelo && b.abierto && (b.corriendo || s.entrenador?.activo)) out.push({ slug: s.blender_modelo, donde: "Blender" });
+    for (const f of s.fondo || []) if (f.activo && !out.some((x) => x.slug === f.modelo)) out.push({ slug: f.modelo, donde: "fondo" });
+    return out;
+  }
   async function tick() {
     const s = await api("/api/lab");
     if (s.ok === false) return;
+    ES.entrenando = entrenandoAhora(s);
+    // sin un modelo elegido (o el elegido ya no entrena y hay otro que sí): mirar el que está entrenando
+    if (ES.entrenando.length && (!ES.grafSlug || (!ES.grafFijo && !ES.entrenando.some((x) => x.slug === ES.grafSlug)))) {
+      ES.grafSlug = ES.entrenando[0].slug;
+      if (ES.tab === "grafica") renderDer();
+    }
     const R = ES.run;
     if (R) {
       const { tr, activo } = trDe(s, R.cfg.modelo);
@@ -623,7 +637,15 @@ export function initEstudio(ctx) {
       box.insertAdjacentHTML("beforeend", `<div class="es-red" aria-label="La red: 38 entradas, capas ocultas, 4 palancas">${redSVG()}</div>`);
     } else {
       box.innerHTML = `<div class="seg" id="es-vista"><button data-v="curvas">Curvas</button><button data-v="red">Red neuronal</button></div>` +
-        `<div class="es-red-ctl"><button class="btn ghost small" id="es-avance">Avance del modelo</button><button class="btn ai small" id="es-simular">Simular prueba</button></div>`;
+        `<div class="es-red-ctl"><label>Modelo <select id="es-graf-m" class="sim-sel" aria-label="Qué modelo mirar"></select></label>` +
+        `<button class="btn ghost small" id="es-avance">Avance del modelo</button><button class="btn ai small" id="es-simular">Simular prueba</button></div>`;
+      const sel = box.querySelector("#es-graf-m");
+      const modelosVer = [...(ES.entrenando || []).map((x) => [x.slug, `${x.slug} · entrenando (${x.donde})`]),
+        ...ES.modelos.filter((m) => m.tiene_modelo && !(ES.entrenando || []).some((x) => x.slug === m.slug)).map((m) => [m.slug, m.slug])];
+      if (ES.grafSlug && !modelosVer.some(([v]) => v === ES.grafSlug)) modelosVer.unshift([ES.grafSlug, ES.grafSlug]);
+      if (!modelosVer.length) modelosVer.push(["", "(ningún modelo)"]);
+      for (const [v, t] of modelosVer) sel.add(new Option(t, v, false, v === ES.grafSlug));
+      sel.onchange = () => { ES.grafSlug = sel.value; ES.grafFijo = true; ES.graf = []; ES.red = null; renderDer(); };
       const m = () => ES.grafSlug || ES.run?.cfg.modelo;
       box.querySelector("#es-avance").onclick = () => (m() ? comando("avance " + m()) : linea("Corre un programa o escribe info <modelo> primero.", "bad"));
       box.querySelector("#es-simular").onclick = () => (m() ? comando("simular " + m()) : linea("Corre un programa o escribe info <modelo> primero.", "bad"));
@@ -664,6 +686,7 @@ export function initEstudio(ctx) {
   }
   async function leerRed() {
     if (G_screen() !== "estudio" || ES.tab !== "grafica" || ES.vista !== "red") return redSondear(false);
+    if (!ES.grafSlug) await tick();                 // recién abierto: buscar qué está entrenando
     const slug = ES.grafSlug;
     if (!slug) { ES.red = null; return dibujarRed(); }
     const r = await api(`/api/red?modelo=${encodeURIComponent(slug)}`);
@@ -696,7 +719,7 @@ export function initEstudio(ctx) {
     const inp = $("es-red-i");
     if (document.activeElement !== inp) { inp.value = R.i + 1; inp.max = R.n; }
     $("es-red-n").textContent = `de ${R.n}`;
-    const top = dibujarRed(cv, R);
+    const top = pintarRed(cv, R);
     $("es-red-top").textContent = "Lo que más siente ahora: " + top.join(" · ") +
       `. Cada capa oculta tiene sus neuronas (los números de abajo); las palancas son lo que decide.`;
   }

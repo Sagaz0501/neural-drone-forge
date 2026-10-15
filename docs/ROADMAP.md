@@ -46,7 +46,8 @@ Ya hecho en esta fase:
 
 Lo que falta:
 
-1. 🔜 **Fotos y videos para el GitHub** *(Santiago)*: con el Modo video de Blender y las simulaciones ya se pueden grabar. Un GIF del Drone Lab (50 drones aprendiendo), uno de la red
+1. 🔜 **Fotos y videos para el GitHub** *(Santiago)*: ✅ el primer video (25 drones aprendiendo en Blender, en el
+   README como GIF + MP4 en `docs/media/`). Faltan: Un GIF del Drone Lab (50 drones aprendiendo), uno de la red
    neuronal encendiéndose, uno del banco (el ESC quemándose) y un video corto "de caerse a grabar una casa".
    La imagen social del repo (Settings → Social preview).
 2. 🔜 **Tutorial de los primeros 5 minutos.** Hoy el juego explica con textos; mejor una guía en pantalla:
