@@ -6,7 +6,7 @@
 // mientras entrena, el estudio lee el progreso (GET /api/lab) y llama las funciones del programa (cada_generacion…).
 // El lenguaje vive en pbdmm.js; la ayuda en data/pbdmm.json.
 // =====================================================================
-import { compilar, pedidoDe, estadoE, ErrorPB, repr } from "./pbdmm.js";
+import { compilar, pedidoDe, estadoE, ErrorPB, repr, nivelDe, recomendados } from "./pbdmm.js";
 import { contexto, opciones } from "./autocompletar.js";
 
 const ARCH = "dronmaker.pbdmm.archivos", ABIERTO = "dronmaker.pbdmm.abierto";
@@ -39,6 +39,7 @@ export function initEstudio(ctx) {
     ...ES.data, misiones: ctx.ent.misiones, drones: ctx.P().drones.map((d) => d.nombre),
     premiosValidos: [...new Set([...ctx.ent.premios.map((p) => p.k), "near"])],
     tiposPremio: { ...Object.fromEntries(ctx.ent.premios.map((p) => [p.k, p.tipo])), near: "premio" },
+    escala: ctx.ent.escala_premios,
   });
 
   // ---------------- abrir / cerrar ----------------
@@ -127,7 +128,7 @@ export function initEstudio(ctx) {
     data: ES.data, misiones: ctx.ent.misiones, nombresNiveles: ES.data.nombres_niveles,
     drones: ctx.P().drones.map((d) => d.nombre), modelos: ES.modelos,
     premios: [...ctx.ent.premios, { k: "near", tipo: "premio", desc: "Por estar cerca de la meta (niveles de metas y hover)." }]
-      .map((p) => ({ ...p, alias: Object.entries(ES.data.alias_premios).find(([, k]) => k === p.k)?.[0] })),
+      .map((p) => ({ ...p, alias: Object.entries(ES.data.alias_premios).find(([, k]) => k === p.k)?.[0], rec: recomendados(ctx.ent.misiones, ctx.ent.escala_premios)[p.k] })),
   });
   let anchoLetra = 0;
   function autocompletar(forzar) {
@@ -470,7 +471,7 @@ export function initEstudio(ctx) {
     linea(`✓ ${ES.abierto}.pbd está bien.`, "ok");
     linea(`  modelo "${c.modelo}" (${c.desde === "cero" ? `red nueva${c.capas ? " " + c.capas.join("×") : " 128×128"}` : c.desde === "base" ? "desde la IA base" : `desde "${c.desde}"`}) · nivel ${c.nivel} ${niv} · ` +
       `${typeof c.dron === "object" ? `tu dron "${c.dron.hangar}"` : c.dron === "AZAR" ? "drones al azar" : "dron estándar"} · ${c.drones} drones · en ${c.donde === "blender" ? "Blender" : "el fondo"} (${c.velocidad})`);
-    linea(`  premios: ${Object.entries(c.premiosFinal).map(([k, v]) => `${k}=${v}`).join(" ")}${c.viento ? ` · viento ${c.viento} m/s` : ""}${c.lr !== undefined ? ` · lr ${c.lr}` : ""}${c.ent !== undefined ? ` · exploración ${c.ent}` : ""}`, "muted");
+    linea(`  ${valoresTxt(c.premiosFinal)}${c.viento ? ` · viento ${c.viento} m/s` : ""}${c.lr !== undefined ? ` · lr ${c.lr}` : ""}${c.ent !== undefined ? ` · exploración ${c.ent}` : ""}`, "muted");
     linea(`  funciones: ${prog.hooks.length ? prog.hooks.join(", ") : "ninguna (solo entrena; párala con detener " + c.modelo + ")"}`, "muted");
     if (soloRevisar) return;
     let dron = null;
@@ -496,6 +497,13 @@ export function initEstudio(ctx) {
     sondear(true);
   }
 
+  /** Los valores reales del entrenador -> "premios: grabar=4 … · castigos: chocar=3 …" (escala 0-10, en español). */
+  function valoresTxt(reales) {
+    const esc_ = ctx.ent.escala_premios, al = Object.fromEntries(Object.entries(ES.data.alias_premios).map(([a, k]) => [k, a]));
+    const tipo = (k) => ctx.ent.premios.find((p) => p.k === k)?.tipo || "premio";
+    const parte = (t) => Object.entries(reales).filter(([k]) => tipo(k) === t).map(([k, v]) => `${al[k] || k}=${String(nivelDe(k, v, esc_)).replace(".", ",")}`).join(" ");
+    return `premios: ${parte("premio") || "—"} · castigos: ${parte("castigo") || "—"} (de 0 a 10)`;
+  }
   /** Lo que dice el servidor de un modelo: {tr, activo}. */
   function trDe(s, slug) {
     const f = (s.fondo || []).find((x) => x.modelo === slug);
@@ -526,15 +534,15 @@ export function initEstudio(ctx) {
           R.empezo = true; R.ses.gen0 = tr.gen ?? 0; R.ultGen = tr.gen ?? 0;
           linea(`▶ "${R.cfg.modelo}" está entrenando (generación ${tr.gen ?? 0}).`, "ok");
           if (R.lrPend) { R.lrPend = false; hostDe(() => R).ajustar({ lr: R.cfg.lr, ent: R.cfg.ent }); }
-          llamarHook(R, "al_empezar", estadoE(tr, R.ses));
+          llamarHook(R, "al_empezar", estadoE(tr, R.ses, ctx.ent.escala_premios));
         } else if ((tr.gen ?? 0) > R.ultGen) {
           R.ultGen = tr.gen;
           if (typeof tr.succ === "number") R.ses.mejor = Math.max(R.ses.mejor ?? 0, tr.succ);
-          if (ES.run === R) llamarHook(R, "cada_generacion", estadoE(tr, R.ses));
+          if (ES.run === R) llamarHook(R, "cada_generacion", estadoE(tr, R.ses, ctx.ent.escala_premios));
         }
       } else if (R.empezo) {
         linea(`■ "${R.cfg.modelo}" dejó de entrenar (generación ${tr?.gen ?? R.ultGen}).`, "warn");
-        llamarHook(R, "al_terminar", estadoE(tr || {}, R.ses));
+        llamarHook(R, "al_terminar", estadoE(tr || {}, R.ses, ctx.ent.escala_premios));
         ES.run = null; renderRun();
       } else if (Date.now() - R.t0 > 120000 && !R.avisoLento) {
         R.avisoLento = true;
@@ -575,7 +583,7 @@ export function initEstudio(ctx) {
         const d = document.createElement("details");
         d.className = "es-fn";
         d.innerHTML = `<summary><code>${esc(f.firma)}</code><span class="muted"> · ${{ arriba: "arriba", "función": "en una función", "las dos": "arriba o en una función" }[f.donde] || ""}</span></summary>` +
-          `<p>${esc(f.desc)}</p>${f.params.length ? `<ul>${f.params.map(([k, t]) => `<li><code>${esc(k)}</code> ${esc(t)}</li>`).join("")}</ul>` : ""}` +
+          `<p>${esc(f.desc)}</p>${f.params.length ? `<ul>${f.params.map(([k, t]) => `<li><code>${esc(k)}</code> ${esc(t)}${rec(f, k)}</li>`).join("")}</ul>` : ""}` +
           `<pre>${esc(f.ejemplo)}</pre>`;
         const b = document.createElement("button");
         b.className = "btn ghost small"; b.textContent = "insertar";
@@ -601,6 +609,12 @@ export function initEstudio(ctx) {
         `<p class="muted">Muestra el modelo que está corriendo, o el último que miraste con <code>info &lt;modelo&gt;</code>. Cada punto es una generación.</p>`;
       dibujarGrafica();
     }
+  }
+  /** " · normal 4" para los parámetros de premios() y castigos() (lo que recomiendan las misiones, de 0 a 10). */
+  function rec(f, k) {
+    if (f.nombre !== "premios" && f.nombre !== "castigos") return "";
+    const r = recomendados(ctx.ent.misiones, ctx.ent.escala_premios)[k.split(" / ")[0]];
+    return r ? ` <b class="warn">· normal ${esc(r)}</b>` : "";
   }
   /** Un dibujito de la red: 38 -> capas -> 4. */
   function redSVG() {

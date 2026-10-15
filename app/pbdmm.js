@@ -547,11 +547,25 @@ const BASICOS = {
 };
 
 // =====================================================================
+// La escala de premios y castigos: en el juego van de 0 a 10 (0 = apagado, ~4 = lo normal, 10 = al máximo);
+// el entrenador recibe el valor real: real = nivel / 10 × escala[k] (escala = data/entrenamiento.json escala_premios).
+// =====================================================================
+export const realDe = (k, nivel, escala) => Math.round((nivel / 10) * (escala?.[k] ?? 10) * 1e6) / 1e6;
+export const nivelDe = (k, real, escala) => Math.round(((real * 10) / (escala?.[k] ?? 10)) * 2) / 2;   // de a medio punto
+/** Lo recomendado de cada premio/castigo (0-10) según las misiones: {k: "4"} o {k: "2-4"} si cambia de misión a misión. */
+export function recomendados(misiones, escala) {
+  const out = {};
+  for (const m of misiones) for (const [k, v] of Object.entries(m.premios || {})) (out[k] = out[k] || new Set()).add(nivelDe(k, v, escala));
+  const f = (x) => String(x).replace(".", ",");
+  return Object.fromEntries(Object.entries(out).map(([k, set]) => { const xs = [...set].sort((a, b) => a - b); return [k, xs.length === 1 ? f(xs[0]) : `${f(xs[0])}-${f(xs.at(-1))}`]; }));
+}
+
+// =====================================================================
 // El "compilador" de PBDMM: programa -> pedido de entrenamiento + las funciones que reaccionan
 // =====================================================================
 
 /**
- * Prepara un programa. data = app/data/pbdmm.json + {misiones (entrenamiento.json), premiosValidos, tiposPremio
+ * Prepara un programa. data = app/data/pbdmm.json + {misiones (entrenamiento.json), premiosValidos, escala (0-10 -> real), tiposPremio
  * ({clave: "premio"|"castigo"}: premios() solo acepta premios y castigos() solo castigos), drones (los del
  * hangar: nombres)}. host = { print(txt), avisar(txt), ajustar(cambios), pausar(), seguir(), detener(), guardar() }
  * Devuelve { cfg, interp, hooks: [...nombres], reaccionar(nombre, e) -> lista de acciones hechas }.
@@ -586,7 +600,12 @@ export function compilar(src, data, host = {}) {
     else if (a.length) throw new ErrorPB(`${ej}: cada ${tipo} con su nombre`, n);
     if (!Object.keys(k).length) throw new ErrorPB(`${fn}() necesita al menos uno, por ejemplo ${ej}`, n);
     const c = {};
-    for (const [kk, v] of Object.entries(k)) c[premioKey(kk, n, tipo)] = rango(v, 0, 100, `${tipo} ${kk}`, n);
+    for (const [kk, v] of Object.entries(k)) {
+      num(v, fn, n);
+      if (v < 0 || v > 10) throw new ErrorPB(`${kk}=${repr(v)}: los ${fn} van de 0 a 10 (0 = apagado, 4 = lo normal, 10 = al máximo)`, n);
+      const key = premioKey(kk, n, tipo);
+      c[key] = realDe(key, v, data.escala);                 // el entrenador recibe el valor real
+    }
     if (fase === "arriba") Object.assign(cfg.premios, c);
     else { cfg.premiosVivos = { ...(cfg.premiosVivos || cfg.premiosFinal || {}), ...c }; accion({ [fn]: c }); host.ajustar?.({ premios: cfg.premiosVivos }); }
   };
@@ -714,8 +733,8 @@ export function pedidoDe(cfg, dronFisica) {
   return body;
 }
 
-/** e: cómo va el entrenamiento, para los hooks. tr = entrenando.json; ses = {gen0, t0, mejor}. */
-export function estadoE(tr, ses = {}) {
+/** e: cómo va el entrenamiento, para los hooks. tr = entrenando.json; ses = {gen0, t0, mejor}; escala: e.premios de 0 a 10. */
+export function estadoE(tr, ses = {}, escala = null) {
   const h = tr.hist || [], ult = h.at(-1) || [];
   const p = tr.params || {};
   const val = (x) => (typeof x === "number" && Number.isFinite(x) ? Math.round(x * 10000) / 10000 : null);
@@ -732,7 +751,7 @@ export function estadoE(tr, ses = {}) {
     minutos: ses.t0 ? Math.round((Date.now() - ses.t0) / 600) / 100 : 0,
     pausado: !!p.paused,
     lr: val(p.lr), exploracion: val(p.ent), ruido: val(p.sigma), viento: val(p.wind),
-    premios: Object.freeze({ ...(p.reward || {}) }),
+    premios: Object.freeze(Object.fromEntries(Object.entries(p.reward || {}).map(([k, v]) => [k, escala ? nivelDe(k, v, escala) : v]))),
     historia_exito: h.slice(-20).map((x) => val(x[2])),
   });
 }

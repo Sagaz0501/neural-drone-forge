@@ -20,7 +20,7 @@ mision("grabar_postes")
 dron("azar")
 entrenar_en("fondo")
 
-castigos(chocar=30)     # fase 1: no chocar es lo que más importa
+castigos(chocar=8)     # fase 1: no chocar es lo que más importa
 premios(grabar=1)
 fase = 1
 
@@ -28,8 +28,8 @@ def cada_generacion(e):
     global fase
     if fase == 1 and e.choque is not None and e.choque < 0.1:
         fase = 2
-        castigos(chocar=15)   # fase 2: ahora, grabar bien
-        premios(grabar=4)
+        castigos(chocar=3)    # fase 2: ahora, grabar bien
+        premios(grabar=6)
         avisar("Fase 2: ya no choca, ahora a grabar")
     if fase == 2 and e.exito >= 0.85:
         detener()
@@ -159,9 +159,9 @@ aprendizaje(lr=0.0003, exploracion=0.005)
 
 ### Premios y castigos
 
-#### `premios(grabar=4, mirar=2, …)`
+#### `premios(grabar=4, mirar=4, …)`
 
-*Arriba o dentro de una función.* Lo que le PAGAS a cada dron por hacer algo bien. ES lo que aprende: hará lo que más pague. Solo acepta premios (los castigos van en castigos()). Cada nombre en español o en inglés (como el entrenador). Los que no pongas quedan como los recomienda la misión. Dentro de una función los cambia mientras entrena.
+*Arriba o dentro de una función.* Lo que le PAGAS a cada dron por hacer algo bien, de 0 a 10 (0 = apagado, 4 = lo normal, 10 = al máximo). ES lo que aprende: hará lo que más pague. Solo acepta premios (los castigos van en castigos()). Los que no pongas quedan como los recomienda la misión. El juego los traduce a los valores que usa el entrenador. Dentro de una función los cambia mientras entrena.
 
 - `film / grabar`: premio por cada segundo grabado, según la calidad de la imagen
 - `heading / mirar`: premio por mirar al sujeto con la nariz (la cámara)
@@ -171,12 +171,12 @@ aprendizaje(lr=0.0003, exploracion=0.005)
 - `speed / rapidez`: premio por llegar rápido a un aro
 
 ```python
-premios(grabar=4, mirar=2)
+premios(grabar=6, mirar=4)
 ```
 
-#### `castigos(chocar=15, sacudidas=1, …)`
+#### `castigos(chocar=3, sacudidas=4, …)`
 
-*Arriba o dentro de una función.* Lo que le COBRAS a cada dron por hacer algo mal. Aprende a evitarlo, pero ojo: si castigas demasiado, prefiere no hacer nada. Solo acepta castigos (los premios van en premios()). Los que no pongas quedan como los recomienda la misión. Dentro de una función los cambia mientras entrena.
+*Arriba o dentro de una función.* Lo que le COBRAS a cada dron por hacer algo mal, de 0 a 10 (0 = apagado, 4 = lo normal, 10 = al máximo). Aprende a evitarlo, pero ojo: si castigas demasiado, prefiere no hacer nada. Solo acepta castigos (los premios van en premios()). Los que no pongas quedan como los recomienda la misión. El juego los traduce a los valores que usa el entrenador. Dentro de una función los cambia mientras entrena.
 
 - `crash / chocar`: castigo al chocar
 - `stability / sacudidas`: castigo por giros bruscos (video que tiembla)
@@ -187,7 +187,7 @@ premios(grabar=4, mirar=2)
 - `time / tiempo`: castigo pequeño cada paso (que no se demore)
 
 ```python
-castigos(chocar=20, sacudidas=1.5)
+castigos(chocar=5, sacudidas=6)
 ```
 
 ### Mientras entrena
@@ -253,23 +253,27 @@ for capa in [32, 64]:
     print(capa * 2)
 ```
 
-## Premios y castigos (lo que el entrenador entiende)
+## Premios y castigos: de 0 a 10
 
-| nombre | en español | tipo | qué hace |
-|---|---|---|---|
-| `film` | `grabar` | premio | Por cada segundo grabado, según la calidad de imagen (0 a 1): la casa al centro del cuadro × pegado al punto de cámara × a su ritmo × sin sacudidas. Es EL premio de grabar. |
-| `heading` | `mirar` | premio | La nariz (la cámara) hacia la casa: paga en el acto cada grado que gira hacia ella y cobra por segundo si mira para otro lado. Sin esto llega a la zona mirando a cualquier lado. |
-| `progress` | `acercarse` | premio | Por cada metro que se acerca al punto de cámara (primero el inicio de la ruta, después el punto que avanza). |
-| `goal` | `meta` | premio | Al terminar la ruta: este premio × la calidad media de la toma. Una toma mala casi no paga. |
-| `stability` | `sacudidas` | castigo | Por cada segundo de giros bruscos de roll/pitch. Un video que tiembla no sirve: súbelo si ves que la imagen se sacude. |
-| `smooth` | `brusco` | castigo | Por cambiar las palancas de golpe. Ojo: también cobra el ruido con el que explora; muy alto y deja de probar cosas. |
-| `crash` | `chocar` | castigo | Al chocar con la casa, el piso o salirse del área. En el juego un choque cuesta plata: que le duela. |
-| `clearance` | `pegado` | castigo | Por pasar a menos de 1,2 m de algo. Lo siente ANTES de chocar con el techo o las paredes. |
-| `danger` | `peligro` | castigo | Por ir hacia un obstáculo con menos de 1 s para chocar. Aprende a frenar a tiempo. |
-| `tilt` | `inclinar` | castigo | Por andar inclinado. Un poco ayuda a que no haga maniobras exageradas. |
-| `time` | `tiempo` | castigo | Un poquito cada paso: que no se demore en llegar. |
-| `speed` | `rapidez` | premio | Al pasar un aro, más premio si llegó rápido. Para grabar no sirve (va en 0). |
-| `near` | `cerca` | premio | Por estar cerca de la meta (niveles de metas y hover). |
+Todos van de **0 a 10**: 0 = apagado, **4 = lo normal**, 10 = al máximo. Lo que importa es cuánto pesa uno contra otro.
+El juego los traduce al valor que usa el entrenador (`real = nivel / 10 × escala`, con `escala_premios` de `app/data/entrenamiento.json`).
+Lo que no pongas queda como lo recomienda la misión.
+
+| en PBDMM | tipo | qué hace | grabar | grabar_viento | grabar_postes | repaso_metas | repaso_columnas | 10 = (real) |
+|---|---|---|---|---|---|---|---|---|
+| `grabar` (film) | premio | Por cada segundo grabado, según la calidad de imagen (0 a 1): la casa al centro del cuadro × pegado al punto de cámara × a su ritmo × sin sacudidas. Es EL premio de grabar. | 4 | 4 | 4 | 3 | 3 | 10 |
+| `mirar` (heading) | premio | La nariz (la cámara) hacia la casa: paga en el acto cada grado que gira hacia ella y cobra por segundo si mira para otro lado. Sin esto llega a la zona mirando a cualquier lado. | 4 | 4 | 4 | 4 | 4 | 5 |
+| `acercarse` (progress) | premio | Por cada metro que se acerca al punto de cámara (primero el inicio de la ruta, después el punto que avanza). | 4 | 4 | 4 | 4 | 4 | 5 |
+| `meta` (goal) | premio | Al terminar la ruta: este premio × la calidad media de la toma. Una toma mala casi no paga. | 4 | 4 | 4 | 4 | 4 | 25 |
+| `rapidez` (speed) | premio | Al pasar un aro, más premio si llegó rápido. Para grabar no sirve (va en 0). | 0 | 0 | 0 | 4 | 4 | 0.75 |
+| `cerca` (near) | premio | Por estar cerca de la meta (niveles de metas y hover). | 4 | 4 | 4 | 4 | 4 | 0.75 |
+| `sacudidas` (stability) | castigo | Por cada segundo de giros bruscos de roll/pitch. Un video que tiembla no sirve: súbelo si ves que la imagen se sacude. | 4 | 5 | 4 | 2 | 2 | 2.5 |
+| `brusco` (smooth) | castigo | Por cambiar las palancas de golpe. Ojo: también cobra el ruido con el que explora; muy alto y deja de probar cosas. | 4 | 4 | 4 | 4 | 4 | 0.125 |
+| `chocar` (crash) | castigo | Al chocar con la casa, el piso o salirse del área. En el juego un choque cuesta plata: que le duela. | 3 | 3 | 3 | 2 | 2 | 50 |
+| `pegado` (clearance) | castigo | Por pasar a menos de 1,2 m de algo. Lo siente ANTES de chocar con el techo o las paredes. | 2 | 2 | 4 | 0 | 2 | 1.5 |
+| `peligro` (danger) | castigo | Por ir hacia un obstáculo con menos de 1 s para chocar. Aprende a frenar a tiempo. | 4 | 4 | 6 | 0 | 4 | 0.5 |
+| `inclinar` (tilt) | castigo | Por andar inclinado. Un poco ayuda a que no haga maniobras exageradas. | 4 | 4 | 4 | 4 | 4 | 0.025 |
+| `tiempo` (time) | castigo | Un poquito cada paso: que no se demore en llegar. | 4 | 4 | 4 | 4 | 4 | 0.025 |
 
 ## Misiones
 
@@ -298,7 +302,7 @@ Con `nivel(n)`: 0 Hover (quedarse quieto) · 1 Meta fija · 2 Metas al azar · 3
 - `e.nivel`: el nivel del Drone Lab
 - `e.pausado`: True si está en pausa
 - `e.lr, e.exploracion, e.ruido, e.viento`: cómo está entrenando ahora (ruido = cuánto tiembla al explorar, baja solo con el tiempo)
-- `e.premios`: los valores de ahora, premios y castigos juntos (diccionario: e.premios["crash"])
+- `e.premios`: los valores de ahora, premios y castigos juntos, de 0 a 10 (diccionario: e.premios["crash"])
 
 ## La terminal del estudio
 
@@ -329,7 +333,7 @@ La IA es una red neuronal: una función con miles de números adentro (los pesos
 
 ### 2 · Cómo aprende: premios
 
-Nadie le dice qué palanca mover. Se llama aprendizaje por refuerzo: el dron prueba, y tú le pagas puntos por lo bueno (acercarse, grabar bien) y se los cobras por lo malo (chocar, temblar). La red se ajusta para hacer más de lo que pagó. Por eso los premios SON el programa: si pagas mucho por acercarse y poco por no chocar, aprenderá a acercarse chocando. Pensar los premios es el trabajo del desarrollador. En PBDMM: premios(grabar=4) paga, castigos(chocar=15) cobra.
+Nadie le dice qué palanca mover. Se llama aprendizaje por refuerzo: el dron prueba, y tú le pagas puntos por lo bueno (acercarse, grabar bien) y se los cobras por lo malo (chocar, temblar). La red se ajusta para hacer más de lo que pagó. Por eso los premios SON el programa: si pagas mucho por acercarse y poco por no chocar, aprenderá a acercarse chocando. Pensar los premios es el trabajo del desarrollador. En PBDMM: premios(grabar=6) paga, castigos(chocar=3) cobra. Todo va de 0 a 10: 4 es lo normal; súbelo si quieres que le importe más, bájalo si le importa demasiado. Lo que importa es cuánto pesa uno contra otro.
 
 ### 3 · Generaciones, PPO y lr
 
@@ -366,8 +370,9 @@ dron("estandar")
 drones(50)
 entrenar_en("fondo")
 
-premios(cerca=1.0)
-castigos(chocar=10, inclinar=0.05, brusco=0.05)
+# todo va de 0 a 10: 0 = apagado, 4 = lo normal, 10 = al máximo
+premios(cerca=8)
+castigos(chocar=4, inclinar=8, brusco=4)
 
 def cada_generacion(e):
     print(f"gen {e.generacion}: éxito {e.exito:.0%}, choque {e.choque:.0%}")
@@ -389,7 +394,7 @@ entrenar_en("fondo")
 aprendizaje(lr=0.0003)
 
 # los premios y castigos de la misión, con más castigo a las sacudidas
-castigos(sacudidas=1.5)
+castigos(sacudidas=6)     # lo normal es 4
 
 def cada_generacion(e):
     if e.generacion % 10 == 0:
@@ -410,7 +415,7 @@ mision("grabar_postes")
 dron("azar")
 entrenar_en("fondo")
 
-castigos(chocar=30)     # fase 1: no chocar es lo que más importa
+castigos(chocar=8)     # fase 1: no chocar es lo que más importa
 premios(grabar=1)
 fase = 1
 
@@ -418,8 +423,8 @@ def cada_generacion(e):
     global fase
     if fase == 1 and e.choque is not None and e.choque < 0.1:
         fase = 2
-        castigos(chocar=15)   # fase 2: ahora, grabar bien
-        premios(grabar=4)
+        castigos(chocar=3)    # fase 2: ahora, grabar bien
+        premios(grabar=6)
         avisar("Fase 2: ya no choca, ahora a grabar")
     if fase == 2 and e.exito >= 0.85:
         detener()
@@ -461,8 +466,8 @@ modelo("mini_16", desde="cero")
 red(capas=[16])
 nivel(0)
 entrenar_en("fondo")
-premios(cerca=1.0)
-castigos(chocar=10, inclinar=0.05)
+premios(cerca=8)
+castigos(chocar=4, inclinar=8)
 
 def cada_generacion(e):
     if e.generaciones_sesion >= 300:

@@ -107,7 +107,7 @@ function expandir(v, d, F) {
     case "$niveles": return Object.entries(F.nombresNiveles || {}).map(([k, n]) => ({ txt: k, label: k, det: n }));
     case "$modelos": return (F.modelos || []).filter((m) => m.slug !== "base").map((m) => ({ txt: q(m.slug), label: q(m.slug), det: `ya existe: sigue entrenándolo (gen ${m.gen ?? 0})` }));
     case "$modelos_texto": return (F.modelos || []).filter((m) => m.slug !== "base" && m.tiene_modelo).map((m) => ({ txt: q(m.slug), label: q(m.slug), det: `parte de tu modelo (gen ${m.gen ?? 0})` }));
-    case "$premios": case "$castigos": return (F.premios || []).filter((p) => (p.tipo || "premio") === (v === "$castigos" ? "castigo" : "premio")).map((p) => ({ txt: (p.alias || p.k) + "=", label: (p.alias || p.k) + "=", det: `${p.alias ? p.k + ": " : ""}${corto(p.desc)}` }));
+    case "$premios": case "$castigos": return (F.premios || []).filter((p) => (p.tipo || "premio") === (v === "$castigos" ? "castigo" : "premio")).map((p) => ({ txt: (p.alias || p.k) + "=", label: (p.alias || p.k) + "=", det: `${p.rec !== undefined ? `normal ${p.rec} · ` : ""}${p.alias ? p.k + ": " : ""}${corto(p.desc)}` }));
     default: return [{ txt: v, label: v, det: d }];
   }
 }

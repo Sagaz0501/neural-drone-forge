@@ -42,13 +42,19 @@ for (const f of orden) {
   p(); p("```python"); p(f.ejemplo); p("```");
 }
 p();
-p("## Premios y castigos (lo que el entrenador entiende)");
+p("## Premios y castigos: de 0 a 10");
 p();
-p("| nombre | en español | tipo | qué hace |");
-p("|---|---|---|---|");
-const inv = Object.fromEntries(Object.entries(D.alias_premios).map(([a, k]) => [k, a]));
-for (const r of E.premios) p(`| \`${r.k}\` | \`${inv[r.k] || ""}\` | ${r.tipo} | ${r.desc} |`);
-p(`| \`near\` | \`cerca\` | premio | Por estar cerca de la meta (niveles de metas y hover). |`);
+p("Todos van de **0 a 10**: 0 = apagado, **4 = lo normal**, 10 = al máximo. Lo que importa es cuánto pesa uno contra otro.");
+p("El juego los traduce al valor que usa el entrenador (`real = nivel / 10 × escala`, con `escala_premios` de `app/data/entrenamiento.json`).");
+p("Lo que no pongas queda como lo recomienda la misión.");
+p();
+const { nivelDe } = await import("./pbdmm.js");
+const ESC = E.escala_premios, inv = Object.fromEntries(Object.entries(D.alias_premios).map(([a, k]) => [k, a]));
+const filas = [...E.premios, { k: "near", tipo: "premio", desc: "Por estar cerca de la meta (niveles de metas y hover)." }];
+p(`| en PBDMM | tipo | qué hace | ${E.misiones.map((m) => m.id).join(" | ")} | 10 = (real) |`);
+p(`|---|---|---|${E.misiones.map(() => "---").join("|")}|---|`);
+for (const t of ["premio", "castigo"]) for (const r of filas.filter((x) => x.tipo === t))
+  p(`| \`${inv[r.k] || r.k}\` (${r.k}) | ${r.tipo} | ${r.desc} | ${E.misiones.map((m) => String(nivelDe(r.k, m.premios[r.k] ?? 0, ESC)).replace(".", ",")).join(" | ")} | ${ESC[r.k]} |`);
 p();
 p("## Misiones");
 p();

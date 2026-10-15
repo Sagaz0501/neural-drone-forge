@@ -18,6 +18,7 @@ import { cargarSTL } from "./stl.js";
 import { initTienda } from "./tienda.js";
 import { initBanco } from "./ui_banco.js";
 import { initEstudio } from "./estudio.js";
+import { realDe, nivelDe } from "./pbdmm.js";
 
 const $ = (id) => document.getElementById(id);
 const fmt = (x, d = 1) => x.toFixed(d).replace(".", ",");
@@ -662,12 +663,14 @@ function renderLab() {
     const nv = misionLab().nivel, v = LAB.premios[pr.k] ?? 0, off = (pr.solo && !pr.solo.includes(nv)) || (pr.no && pr.no.includes(nv));
     const row = document.createElement("div");
     row.className = "pr" + (off ? " off" : "");
-    const step = pr.paso ?? (pr.max > 10 ? 1 : 0.1);
-    row.innerHTML = `<b class="${pr.tipo}">${pr.tipo === "premio" ? "+" : "−"} ${pr.nombre}</b><input type="range" min="0" max="${pr.max}" step="${step}" value="${v}" aria-label="${pr.nombre}"><output>${fmt(v, step < 0.1 ? 2 : 1)}</output><small>${pr.desc}${off ? " (no se usa en esta misión)" : ""}</small>`;
+    // de 0 a 10 (4 = lo normal); el entrenador recibe el valor real (escala_premios de entrenamiento.json)
+    const nv10 = Math.min(10, nivelDe(pr.k, v, ent.escala_premios)), rec = nivelDe(pr.k, misionLab().premios[pr.k] ?? 0, ent.escala_premios);
+    row.innerHTML = `<b class="${pr.tipo}">${pr.tipo === "premio" ? "+" : "−"} ${pr.nombre}</b><input type="range" min="0" max="10" step="0.5" value="${nv10}" aria-label="${pr.nombre} (0 a 10)"><output>${fmt(nv10, nv10 % 1 ? 1 : 0)}</output><small>${pr.desc} <span class="muted">Recomendado: ${fmt(rec, rec % 1 ? 1 : 0)}.</span>${off ? " (no se usa en esta misión)" : ""}</small>`;
     const inp = row.querySelector("input"), out = row.querySelector("output");
     inp.oninput = () => {
-      LAB.premios[pr.k] = Number(inp.value);
-      out.textContent = fmt(Number(inp.value), step < 0.1 ? 2 : 1);
+      const n10 = Number(inp.value);
+      LAB.premios[pr.k] = realDe(pr.k, n10, ent.escala_premios);
+      out.textContent = fmt(n10, n10 % 1 ? 1 : 0);
       saveLab();
       clearTimeout(LAB.debounce);                       // entrenando: los cambios llegan en vivo
       LAB.debounce = setTimeout(() => { const t = trainerDe(labDron()?.modelo); if (t?.activo) api("/api/lab", { accion: "ajustar", premios: LAB.premios, donde: t.donde, modelo: labDron().modelo }); }, 400);

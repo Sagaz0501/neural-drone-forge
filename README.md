@@ -53,8 +53,8 @@ red(capas=[64, 64])                  # el tamaño del cerebro: 38 sensores -> 64
 nivel(0)                             # qué aprende: 0 = quedarse quieto en el aire
 drones(50)                           # 50 drones practicando a la vez
 entrenar_en("fondo")                 # o "blender" para verlo en el Drone Lab
-premios(cerca=1.0)                   # lo que le pagas…
-castigos(chocar=10, inclinar=0.05)  # …y lo que le cobras
+premios(cerca=8)                     # lo que le pagas… (todo de 0 a 10: 4 = lo normal)
+castigos(chocar=4, inclinar=8)       # …y lo que le cobras
 
 def cada_generacion(e):              # el juego la llama mientras entrena
     print(f"gen {e.generacion}: éxito {e.exito:.0%}")

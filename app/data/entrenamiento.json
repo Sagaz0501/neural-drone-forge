@@ -221,5 +221,21 @@
       ],
       "desc": "Al pasar un aro, más premio si llegó rápido. Para grabar no sirve (va en 0)."
     }
-  ]
+  ],
+  "escala_premios": {
+    "film": 10,
+    "heading": 5,
+    "progress": 5,
+    "goal": 25,
+    "near": 0.75,
+    "speed": 0.75,
+    "crash": 50,
+    "stability": 2.5,
+    "smooth": 0.125,
+    "clearance": 1.5,
+    "danger": 0.5,
+    "tilt": 0.025,
+    "time": 0.025
+  },
+  "_nota_escala": "En el juego los premios y castigos van de 0 a 10 (0 = apagado, ~4 = lo normal, 10 = al máximo). escala_premios = el valor REAL que recibe el entrenador cuando pones 10 (lineal: real = nivel / 10 × escala). Los 'premios' de cada misión siguen en valores reales (los del entrenador)."
 }

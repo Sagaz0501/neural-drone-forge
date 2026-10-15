@@ -416,10 +416,10 @@
     },
     {
       "nombre": "premios",
-      "firma": "premios(grabar=4, mirar=2, …)",
+      "firma": "premios(grabar=4, mirar=4, …)",
       "donde": "las dos",
       "grupo": "Premios y castigos",
-      "desc": "Lo que le PAGAS a cada dron por hacer algo bien. ES lo que aprende: hará lo que más pague. Solo acepta premios (los castigos van en castigos()). Cada nombre en español o en inglés (como el entrenador). Los que no pongas quedan como los recomienda la misión. Dentro de una función los cambia mientras entrena.",
+      "desc": "Lo que le PAGAS a cada dron por hacer algo bien, de 0 a 10 (0 = apagado, 4 = lo normal, 10 = al máximo). ES lo que aprende: hará lo que más pague. Solo acepta premios (los castigos van en castigos()). Los que no pongas quedan como los recomienda la misión. El juego los traduce a los valores que usa el entrenador. Dentro de una función los cambia mientras entrena.",
       "params": [
         [
           "film / grabar",
@@ -446,7 +446,7 @@
           "premio por llegar rápido a un aro"
         ]
       ],
-      "ejemplo": "premios(grabar=4, mirar=2)",
+      "ejemplo": "premios(grabar=6, mirar=4)",
       "opciones": {
         "0": [
           [
@@ -461,10 +461,10 @@
     },
     {
       "nombre": "castigos",
-      "firma": "castigos(chocar=15, sacudidas=1, …)",
+      "firma": "castigos(chocar=3, sacudidas=4, …)",
       "donde": "las dos",
       "grupo": "Premios y castigos",
-      "desc": "Lo que le COBRAS a cada dron por hacer algo mal. Aprende a evitarlo, pero ojo: si castigas demasiado, prefiere no hacer nada. Solo acepta castigos (los premios van en premios()). Los que no pongas quedan como los recomienda la misión. Dentro de una función los cambia mientras entrena.",
+      "desc": "Lo que le COBRAS a cada dron por hacer algo mal, de 0 a 10 (0 = apagado, 4 = lo normal, 10 = al máximo). Aprende a evitarlo, pero ojo: si castigas demasiado, prefiere no hacer nada. Solo acepta castigos (los premios van en premios()). Los que no pongas quedan como los recomienda la misión. El juego los traduce a los valores que usa el entrenador. Dentro de una función los cambia mientras entrena.",
       "params": [
         [
           "crash / chocar",
@@ -495,7 +495,7 @@
           "castigo pequeño cada paso (que no se demore)"
         ]
       ],
-      "ejemplo": "castigos(chocar=20, sacudidas=1.5)",
+      "ejemplo": "castigos(chocar=5, sacudidas=6)",
       "opciones": {
         "0": [
           [
@@ -646,7 +646,7 @@
     ],
     [
       "e.premios",
-      "los valores de ahora, premios y castigos juntos (diccionario: e.premios[\"crash\"])"
+      "los valores de ahora, premios y castigos juntos, de 0 a 10 (diccionario: e.premios[\"crash\"])"
     ]
   ],
   "comandos": [
@@ -714,7 +714,7 @@
     },
     {
       "titulo": "2 · Cómo aprende: premios",
-      "texto": "Nadie le dice qué palanca mover. Se llama aprendizaje por refuerzo: el dron prueba, y tú le pagas puntos por lo bueno (acercarse, grabar bien) y se los cobras por lo malo (chocar, temblar). La red se ajusta para hacer más de lo que pagó. Por eso los premios SON el programa: si pagas mucho por acercarse y poco por no chocar, aprenderá a acercarse chocando. Pensar los premios es el trabajo del desarrollador. En PBDMM: premios(grabar=4) paga, castigos(chocar=15) cobra."
+      "texto": "Nadie le dice qué palanca mover. Se llama aprendizaje por refuerzo: el dron prueba, y tú le pagas puntos por lo bueno (acercarse, grabar bien) y se los cobras por lo malo (chocar, temblar). La red se ajusta para hacer más de lo que pagó. Por eso los premios SON el programa: si pagas mucho por acercarse y poco por no chocar, aprenderá a acercarse chocando. Pensar los premios es el trabajo del desarrollador. En PBDMM: premios(grabar=6) paga, castigos(chocar=3) cobra. Todo va de 0 a 10: 4 es lo normal; súbelo si quieres que le importe más, bájalo si le importa demasiado. Lo que importa es cuánto pesa uno contra otro."
     },
     {
       "titulo": "3 · Generaciones, PPO y lr",
@@ -738,11 +738,11 @@
     }
   ],
   "ejemplos": {
-    "hover": "# Mi primer modelo: quedarse quieto en el aire.\n# Una red chica, desde cero. Mira cómo pasa de caerse a flotar.\n\nmodelo(\"colibri\", desde=\"cero\")\nred(capas=[64, 64])\nnivel(0)                 # hover: quedarse en un punto\ndron(\"estandar\")\ndrones(50)\nentrenar_en(\"fondo\")\n\npremios(cerca=1.0)\ncastigos(chocar=10, inclinar=0.05, brusco=0.05)\n\ndef cada_generacion(e):\n    print(f\"gen {e.generacion}: éxito {e.exito:.0%}, choque {e.choque:.0%}\")\n    if e.exito >= 0.95:\n        avisar(\"¡Colibrí ya flota!\")\n        detener()\n",
-    "grabar": "# Grabar casas: parte de la IA de la campaña (ya sabe volar)\n# y la especializa en grabar con tu dron.\n\nmodelo(\"camarografo\", desde=\"base\")\nmision(\"grabar\")\ndron(\"azar\")             # cambia por el nombre de un dron de tu hangar\nentrenar_en(\"fondo\")\naprendizaje(lr=0.0003)\n\n# los premios y castigos de la misión, con más castigo a las sacudidas\ncastigos(sacudidas=1.5)\n\ndef cada_generacion(e):\n    if e.generacion % 10 == 0:\n        print(f\"gen {e.generacion}: éxito {e.exito:.0%} · calidad {e.calidad}\")\n    if e.exito >= 0.8:\n        aprendizaje(lr=0.0001)   # ya casi: ajustes finos\n    if e.exito >= 0.9:\n        detener()\n",
-    "curriculum": "# Currículum: primero que no choque, después que grabe bien.\n\nmodelo(\"aprendiz\", desde=\"base\")\nmision(\"grabar_postes\")\ndron(\"azar\")\nentrenar_en(\"fondo\")\n\ncastigos(chocar=30)     # fase 1: no chocar es lo que más importa\npremios(grabar=1)\nfase = 1\n\ndef cada_generacion(e):\n    global fase\n    if fase == 1 and e.choque is not None and e.choque < 0.1:\n        fase = 2\n        castigos(chocar=15)   # fase 2: ahora, grabar bien\n        premios(grabar=4)\n        avisar(\"Fase 2: ya no choca, ahora a grabar\")\n    if fase == 2 and e.exito >= 0.85:\n        detener()\n\ndef al_terminar(e):\n    print(\"terminó en la fase\", fase, \"con éxito\", e.exito)\n",
+    "hover": "# Mi primer modelo: quedarse quieto en el aire.\n# Una red chica, desde cero. Mira cómo pasa de caerse a flotar.\n\nmodelo(\"colibri\", desde=\"cero\")\nred(capas=[64, 64])\nnivel(0)                 # hover: quedarse en un punto\ndron(\"estandar\")\ndrones(50)\nentrenar_en(\"fondo\")\n\n# todo va de 0 a 10: 0 = apagado, 4 = lo normal, 10 = al máximo\npremios(cerca=8)\ncastigos(chocar=4, inclinar=8, brusco=4)\n\ndef cada_generacion(e):\n    print(f\"gen {e.generacion}: éxito {e.exito:.0%}, choque {e.choque:.0%}\")\n    if e.exito >= 0.95:\n        avisar(\"¡Colibrí ya flota!\")\n        detener()\n",
+    "grabar": "# Grabar casas: parte de la IA de la campaña (ya sabe volar)\n# y la especializa en grabar con tu dron.\n\nmodelo(\"camarografo\", desde=\"base\")\nmision(\"grabar\")\ndron(\"azar\")             # cambia por el nombre de un dron de tu hangar\nentrenar_en(\"fondo\")\naprendizaje(lr=0.0003)\n\n# los premios y castigos de la misión, con más castigo a las sacudidas\ncastigos(sacudidas=6)     # lo normal es 4\n\ndef cada_generacion(e):\n    if e.generacion % 10 == 0:\n        print(f\"gen {e.generacion}: éxito {e.exito:.0%} · calidad {e.calidad}\")\n    if e.exito >= 0.8:\n        aprendizaje(lr=0.0001)   # ya casi: ajustes finos\n    if e.exito >= 0.9:\n        detener()\n",
+    "curriculum": "# Currículum: primero que no choque, después que grabe bien.\n\nmodelo(\"aprendiz\", desde=\"base\")\nmision(\"grabar_postes\")\ndron(\"azar\")\nentrenar_en(\"fondo\")\n\ncastigos(chocar=8)     # fase 1: no chocar es lo que más importa\npremios(grabar=1)\nfase = 1\n\ndef cada_generacion(e):\n    global fase\n    if fase == 1 and e.choque is not None and e.choque < 0.1:\n        fase = 2\n        castigos(chocar=3)    # fase 2: ahora, grabar bien\n        premios(grabar=6)\n        avisar(\"Fase 2: ya no choca, ahora a grabar\")\n    if fase == 2 and e.exito >= 0.85:\n        detener()\n\ndef al_terminar(e):\n    print(\"terminó en la fase\", fase, \"con éxito\", e.exito)\n",
     "postes": "# El restaurante: grabar entre postes, mirándolo en Blender.\n\nmodelo(\"entre_postes\", desde=\"base\")\nmision(\"grabar_postes\")\ndron(\"azar\")\ndrones(50)\nentrenar_en(\"blender\")      # ábrelo con el comando: blender\nvelocidad(\"real\")\n\ndef al_empezar(e):\n    print(\"arranca en la generación\", e.generacion)\n\ndef cada_generacion(e):\n    # si se estanca 20 generaciones, que explore un poco más\n    h = e.historia_exito\n    if len(h) == 20 and max(h) - min(h) < 0.02:\n        aprendizaje(exploracion=0.005)\n        print(\"estancado: más exploración\")\n",
-    "cerebro_chico": "# ¿Cuánto cerebro hace falta? El mismo hover con 2 tamaños.\n# Corre este, después cambia el nombre y las capas, y compáralos con: modelos éxito\n\nmodelo(\"mini_16\", desde=\"cero\")\nred(capas=[16])\nnivel(0)\nentrenar_en(\"fondo\")\npremios(cerca=1.0)\ncastigos(chocar=10, inclinar=0.05)\n\ndef cada_generacion(e):\n    if e.generaciones_sesion >= 300:\n        print(f\"300 generaciones: éxito {e.exito:.0%}\")\n        detener()\n"
+    "cerebro_chico": "# ¿Cuánto cerebro hace falta? El mismo hover con 2 tamaños.\n# Corre este, después cambia el nombre y las capas, y compáralos con: modelos éxito\n\nmodelo(\"mini_16\", desde=\"cero\")\nred(capas=[16])\nnivel(0)\nentrenar_en(\"fondo\")\npremios(cerca=8)\ncastigos(chocar=4, inclinar=8)\n\ndef cada_generacion(e):\n    if e.generaciones_sesion >= 300:\n        print(f\"300 generaciones: éxito {e.exito:.0%}\")\n        detener()\n"
   },
   "_nota_opciones": "opciones de cada función para el autocompletado del estudio: \"0\" = primer argumento, \"desde\"/\"lr\"… = el valor de ese argumento con nombre, \"_kw\" = argumentos con nombre. $drones, $misiones, $niveles, $modelos, $modelos_texto $premios y $castigos se llenan con lo que hay en tu juego."
 }

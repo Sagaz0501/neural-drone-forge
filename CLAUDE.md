@@ -173,7 +173,9 @@ Node v22 está en `/opt/homebrew/bin/node`. Blender 5.2 en `/Applications/Blende
   (todo abierto, $99999, 2 drones armados: "Madera (dev)" y "Cine (dev)"; `PT.nuevaPartidaDev`). El desarrollador
   crea modelos con el **Estudio PBDMM**: `modelo(…, desde=)`, `red(capas=)`, `mision/nivel`, `dron`, `drones`,
   `entrenar_en("fondo"|"blender")`, `premios(grabar=…)` y `castigos(chocar=…)` (separados: cada uno solo
-  acepta los suyos, según "tipo" en entrenamiento.json; al entrenador le llegan juntos), `aprendizaje(lr, exploracion)` + hooks; terminal: correr, estado,
+  acepta los suyos, según "tipo" en entrenamiento.json; al entrenador le llegan juntos). En el juego (PBDMM y el
+  Laboratorio) premios y castigos van de 0 a 10 (4 = lo normal): real = nivel/10 × `escala_premios` (entrenamiento.json,
+  elegida para que lo recomendado quede en ~4); `pbdmm.js` realDe/nivelDe/recomendados. El backend sigue en valores reales, `aprendizaje(lr, exploracion)` + hooks; terminal: correr, estado,
   modelos, info, pausar/seguir/detener, copiar/renombrar/borrar, blender, volar. Backend: `/api/lab` acepta `lr`,
   `ent`, `capas` (-> info.json; `live_train.py --capas` o la lee de ahí) y `accion: "guardar"`; `/api/modelos` trae
   `red`, `ultimo` (última fila de la historia) y `mejor_exito`. "Que grabe la IA" ya no se bloquea: vuela con la IA
