@@ -9,8 +9,9 @@
 //   funciones que llama el juego:   def al_empezar(e) · def cada_generacion(e) · def al_terminar(e)
 //                                   e = cómo va (e.generacion, e.exito, e.choque, e.premio, e.calidad …)
 //
-// El subconjunto de Python: números, textos (y f"..{x}.."), True/False/None, listas, diccionarios, variables,
-// + - * / // % **, == != < <= > >= in, and/or/not, if/elif/else, for x in …, def/return, global, pass,
+// El subconjunto de Python: números, textos (y f"..{x}.."), True/False/None, listas, tuplas, diccionarios, variables,
+// + - * / // % **, == != < <= > >= in is, and/or/not, x if c else y, if/elif/else, for x in … (y for k, v in …),
+// [x for x in … if …], def/return (valores por defecto), f(*lista, **dicc), a, b = 1, 2, global, pass,
 // break/continue, comentarios #. Sin while ni import (un programa no puede colgar ni tocar tu compu).
 // Docs para el jugador: app/data/pbdmm.json. Pruebas: node app/test_pbdmm.mjs
 // =====================================================================
@@ -139,7 +140,7 @@ export function parsear(src) {
     }
     if (kw("for")) {
       sig();
-      const v = pedir("NAME", undefined, "después de for va el nombre de la variable").v;
+      const v = nombresFor();
       pedir("KW", "in", 'falta "in" (for x in lista:)');
       return { k: "for", v, it: expr(), body: bloque(), n };
     }
@@ -155,23 +156,46 @@ export function parsear(src) {
     if (kw("pass")) { sig(); return { k: "pass", n }; }
     if (kw("break")) { sig(); return { k: "break", n }; }
     if (kw("continue")) { sig(); return { k: "continue", n }; }
-    if (kw("return")) { sig(); return { k: "return", e: es("NL") || es("EOF") ? null : expr(), n }; }
+    if (kw("return")) { sig(); return { k: "return", e: es("NL") || es("EOF") ? null : tuplaO(expr), n }; }
     if (kw("global")) {
       sig(); const nombres = [pedir("NAME").v];
       while (op(",")) { sig(); nombres.push(pedir("NAME").v); }
       return { k: "global", nombres, n };
     }
-    const e = expr();
+    const e = tuplaO(expr);
     if (op("=") || op("+=") || op("-=") || op("*=") || op("/=") || op("//=") || op("**=")) {
       const o = sig().v;
-      if (!["name", "attr", "idx"].includes(e.k)) throw new ErrorPB("a la izquierda del = va un nombre de variable", n);
-      return { k: "asig", obj: e, op: o === "=" ? null : o.slice(0, -1), e: expr(), n };
+      const ok = (x) => ["name", "attr", "idx"].includes(x.k);
+      if (!(ok(e) || (o === "=" && e.k === "list" && e.tupla && e.xs.every(ok)))) throw new ErrorPB("a la izquierda del = va un nombre de variable (o varios: a, b = 1, 2)", n);
+      return { k: "asig", obj: e, op: o === "=" ? null : o.slice(0, -1), e: tuplaO(expr), n };
     }
     return { k: "expr", e, n };
   }
+  /** a, b, c (sin paréntesis) -> una tupla (lista); si hay uno solo, ese. */
+  function tuplaO(f) {
+    const n = ver().n, a = f();
+    if (!op(",")) return a;
+    const xs = [a];
+    while (op(",")) { sig(); if (es("NL") || es("EOF") || op("=") || op(")")) break; xs.push(f()); }
+    return { k: "list", xs, tupla: true, n };
+  }
+  /** for x in … · for k, v in … */
+  function nombresFor() {
+    const xs = [pedir("NAME", undefined, "después de for va el nombre de la variable").v];
+    while (op(",")) { sig(); xs.push(pedir("NAME", undefined, "después de la coma va otro nombre").v); }
+    return xs.length === 1 ? xs[0] : xs;
+  }
 
   // expresiones (de menor a mayor precedencia)
-  function expr() { return o_(); }
+  function expr() {
+    const a = o_();
+    if (kw("if")) {                                  // a if cond else b
+      const n = sig().n, c = o_();
+      pedir("KW", "else", 'falta "else" (x if condición else y)');
+      return { k: "ternario", c, a, b: expr(), n };
+    }
+    return a;
+  }
   function o_() { let a = y_(); while (kw("or")) { const n = sig().n; a = { k: "or", a, b: y_(), n }; } return a; }
   function y_() { let a = no_(); while (kw("and")) { const n = sig().n; a = { k: "and", a, b: no_(), n }; } return a; }
   function no_() { if (kw("not")) { const n = sig().n; return { k: "not", a: no_(), n }; } return comp(); }
@@ -197,7 +221,9 @@ export function parsear(src) {
       if (op("(")) {
         const n = sig().n, args = [], kws = [];
         while (!op(")")) {
-          if (es("NAME") && T[p + 1]?.t === "OP" && T[p + 1].v === "=") { const k = sig().v; sig(); kws.push([k, expr()]); }
+          if (op("**")) { sig(); kws.push([null, expr()]); }                     // **diccionario
+          else if (op("*")) { sig(); args.push({ k: "spread", e: expr(), n: ver().n }); }   // *lista
+          else if (es("NAME") && T[p + 1]?.t === "OP" && T[p + 1].v === "=") { const k = sig().v; sig(); kws.push([k, expr()]); }
           else { if (kws.length) throw new ErrorPB("los argumentos con nombre (x=1) van después de los demás", ver().n); args.push(expr()); }
           if (!op(")")) pedir("OP", ",", `en la llamada falta "," o ")" (encontré ${desc(ver())})`);
         }
@@ -215,9 +241,28 @@ export function parsear(src) {
     if (t.t === "FSTR") { sig(); return { k: "fstr", partes: fstring(t.v, t.n), n: t.n }; }
     if (t.t === "NAME") { sig(); return { k: "name", v: t.v, n: t.n }; }
     if (t.t === "KW" && (t.v === "True" || t.v === "False" || t.v === "None")) { sig(); return { k: "const", v: t.v === "True" ? true : t.v === "False" ? false : null, n: t.n }; }
-    if (op("(")) { sig(); const e = expr(); pedir("OP", ")"); return e; }
+    if (op("(")) {
+      sig();
+      if (op(")")) { sig(); return { k: "list", xs: [], tupla: true, n: t.n }; }
+      const e = tuplaO(expr); pedir("OP", ")"); return e;
+    }
     if (op("[")) {
       sig(); const xs = [];
+      if (!op("]")) {
+        const a = expr();
+        if (kw("for")) {                               // [x * 2 for x in lista if x > 0]
+          sig();
+          const v = nombresFor();
+          pedir("KW", "in", 'falta "in" ([x for x in lista])');
+          const it = o_();
+          let c = null;
+          if (kw("if")) { sig(); c = o_(); }
+          pedir("OP", "]");
+          return { k: "comp", e: a, v, it, c, n: t.n };
+        }
+        xs.push(a);
+        if (!op("]")) pedir("OP", ",");
+      }
       while (!op("]")) { xs.push(expr()); if (!op("]")) pedir("OP", ","); }
       sig(); return { k: "list", xs, n: t.n };
     }
@@ -338,12 +383,9 @@ export class Interprete {
         return s.otro ? this.bloque(s.otro, loc) : undefined;
       }
       case "for": {
-        let it = this.ev(s.it, loc);
-        if (typeof it === "string") it = [...it];
-        else if (tipoDe(it) === "dict") it = Object.keys(it);
-        if (!Array.isArray(it)) throw new ErrorPB(`no se puede recorrer con for un ${tipoDe(it)}`, s.n);
+        const it = this.iterable(this.ev(s.it, loc), s.n);
         for (const x of it) {
-          this.poner(s.v, x, loc, s.n);
+          this.ponerVarios(s.v, x, loc, s.n);
           const r = this.bloque(s.body, loc);
           if (r === CORTE.break) break;
           if (r === CORTE.continue) continue;
@@ -354,6 +396,11 @@ export class Interprete {
       case "asig": {
         let v = this.ev(s.e, loc);
         if (s.op) v = binaria(s.op, this.ev(s.obj, loc), v, s.n);
+        if (s.obj.k === "list") {                            // a, b = 1, 2
+          if (!Array.isArray(v) || v.length !== s.obj.xs.length) throw new ErrorPB(`a la izquierda hay ${s.obj.xs.length} nombres y a la derecha ${Array.isArray(v) ? v.length : "un " + tipoDe(v)}`, s.n);
+          s.obj.xs.forEach((t, i) => this.sent({ k: "asig", obj: t, op: null, e: { k: "const", v: v[i], n: s.n }, n: s.n }, loc));
+          return;
+        }
         if (s.obj.k === "name") this.poner(s.obj.v, v, loc, s.n);
         else if (s.obj.k === "idx") {
           const o = this.ev(s.obj.a, loc), i = this.ev(s.obj.i, loc);
@@ -369,6 +416,18 @@ export class Interprete {
       }
     }
     throw new ErrorPB("sentencia desconocida", s.n);
+  }
+  iterable(it, n) {
+    if (typeof it === "string") return [...it];
+    if (tipoDe(it) === "dict") return Object.keys(it);
+    if (!Array.isArray(it)) throw new ErrorPB(`no se puede recorrer con for un ${tipoDe(it)}`, n);
+    return it;
+  }
+  /** for x in … / for k, v in …: pone una o varias variables. */
+  ponerVarios(v, x, loc, n) {
+    if (typeof v === "string") return this.poner(v, x, loc, n);
+    if (!Array.isArray(x) || x.length !== v.length) throw new ErrorPB(`for ${v.join(", ")}: cada elemento tiene que traer ${v.length} cosas`, n);
+    v.forEach((nombre, i) => this.poner(nombre, x[i], loc, n));
   }
   poner(nombre, v, loc, n) {
     if (nombre in this.builtins && !(loc && loc.vars.has(nombre))) throw new ErrorPB(`"${nombre}" es una función de PBDMM: usa otro nombre para tu variable`, n);
@@ -388,6 +447,16 @@ export class Interprete {
       case "fstr": return e.partes.map((x) => (typeof x === "string" ? x : formato(this.ev(x.e, loc), x.fmt))).join("");
       case "name": return this.leer(e.v, loc, e.n);
       case "list": return e.xs.map((x) => this.ev(x, loc));
+      case "ternario": return verdad(this.ev(e.c, loc)) ? this.ev(e.a, loc) : this.ev(e.b, loc);
+      case "comp": {                                   // su propio espacio: sus variables no se escapan
+        const sub = { vars: new Map(loc ? loc.vars : []), globals: new Set() }, out = [];
+        for (const x of this.iterable(this.ev(e.it, loc), e.n)) {
+          this.ponerVarios(e.v, x, sub, e.n);
+          if (!e.c || verdad(this.ev(e.c, sub))) out.push(this.ev(e.e, sub));
+          if (out.length > 100000) throw new ErrorPB("la lista es demasiado larga", e.n);
+        }
+        return out;
+      }
       case "dict": { const o = {}; for (const [k, v] of e.pares) o[String(this.ev(k, loc))] = this.ev(v, loc); return o; }
       case "not": return !verdad(this.ev(e.a, loc));
       case "and": { const a = this.ev(e.a, loc); return verdad(a) ? this.ev(e.b, loc) : a; }
@@ -421,8 +490,18 @@ export class Interprete {
       }
       case "call": {
         const f = this.ev(e.f, loc);
-        const args = e.args.map((x) => this.ev(x, loc));
-        const kws = e.kws.map(([k, x]) => [k, this.ev(x, loc)]);
+        const args = e.args.flatMap((x) => {
+          if (x.k !== "spread") return [this.ev(x, loc)];
+          const v = this.ev(x.e, loc);
+          if (!Array.isArray(v)) throw new ErrorPB(`*${tipoDe(v)}: el * va con una lista`, e.n);
+          return v;
+        });
+        const kws = e.kws.flatMap(([k, x]) => {
+          if (k !== null) return [[k, this.ev(x, loc)]];
+          const v = this.ev(x, loc);
+          if (tipoDe(v) !== "dict") throw new ErrorPB(`**${tipoDe(v)}: el ** va con un diccionario`, e.n);
+          return Object.entries(v);
+        });
         return this.invocar(f, args, kws, e.n);
       }
     }
@@ -700,6 +779,17 @@ export function compilar(src, data, host = {}) {
   cfg.velocidad = cfg.velocidad || (cfg.donde === "blender" ? "real" : "rapido");
   if (cfg.viento === undefined && cfg.vientoMision !== undefined) cfg.viento = cfg.vientoMision;
   delete cfg.vientoMision;
+  // desde="otro": tiene que existir (si no, el servidor arrancaría con una red al azar sin avisar)
+  if (data.modelos && cfg.desde !== "base" && cfg.desde !== "cero") {
+    const src = data.modelos.find((m) => m.slug === cfg.desde);
+    if (!src || !src.tiene_modelo) {
+      const tuyos = data.modelos.filter((m) => m.slug !== "base" && m.tiene_modelo).map((m) => `"${m.slug}"`);
+      throw new ErrorPB(`no tienes un modelo "${cfg.desde}" guardado para empezar desde él${sugerir(cfg.desde, data.modelos.map((m) => m.slug))}. ${tuyos.length ? `Tus modelos: ${tuyos.join(", ")}` : "Todavía no tienes modelos propios"} (o "base" / "cero")`, cfg.lineas.modelo);
+    }
+    if (cfg.desde === cfg.modelo) throw new ErrorPB("un modelo no puede empezar desde sí mismo", cfg.lineas.modelo);
+  }
+  const yaExiste = data.modelos?.find((m) => m.slug === cfg.modelo && m.tiene_modelo);
+  cfg.yaExiste = yaExiste ? { gen: yaExiste.gen ?? 0 } : null;           // entonces desde= no cuenta: sigue el suyo
   if (cfg.capas && cfg.desde !== "cero") throw new ErrorPB('red(capas=…) solo sirve con modelo(…, desde="cero"): una red que ya existe no cambia de tamaño', cfg.lineas.red);
   if (cfg.donde === "fondo" && cfg.modelo === "base") throw new ErrorPB("el modelo base solo se entrena en Blender");
   const premiosMision = cfg.mision ? data.misiones.find((x) => x.id === cfg.mision)?.premios || {} : {};

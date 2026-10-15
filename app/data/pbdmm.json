@@ -65,10 +65,10 @@
         ],
         [
           "desde",
-          "\"base\" (copia la IA de la campaña: ya sabe volar), \"cero\" (red nueva al azar: aprende todo desde cero) o el nombre de otro modelo tuyo. Solo cuenta la primera vez."
+          "\"base\" (copia la IA de la campaña: ya sabe volar), \"cero\" (red nueva al azar: aprende todo desde cero) o el nombre de otro modelo TUYO ya entrenado, por ejemplo desde=\"colibri\" (parte de lo que ese ya aprendió; el original no se toca). Solo cuenta al crearlo: si el modelo ya existe, sigue entrenando el suyo."
         ]
       ],
-      "ejemplo": "modelo(\"halcon\", desde=\"cero\")",
+      "ejemplo": "modelo(\"camarografo\", desde=\"colibri\")   # parte del colibrí, que ya sabe volar",
       "opciones": {
         "0": [
           [
@@ -568,13 +568,43 @@
       "ejemplo": "print(\"generación\", e.generacion, \"éxito\", e.exito)"
     },
     {
-      "nombre": "python",
-      "firma": "if / for / def / listas / f\"…\"",
+      "nombre": "variables",
+      "firma": "nombre = valor",
       "donde": "las dos",
       "grupo": "Python",
-      "desc": "Lo que sí hay de Python: números, textos y f\"{x:.2f}\", True/False/None, listas [ ] y diccionarios { }, + - * / // % **, comparaciones, and/or/not, in, if/elif/else, for x in …, def/return, global, pass, break/continue. Funciones: print, str, int, float, round, abs, min, max, sum, len, range, list, type; listas .append() .pop(); textos .upper() .lower() .split(). No hay while ni import: un programa no puede colgar el juego ni tocar tu compu.",
+      "desc": "Guarda un valor con un nombre para usarlo después: un texto, un número, una lista o un diccionario. Ponlas arriba del archivo (la configuración en un solo lugar) y pásalas a las funciones: modelo(model_test). Dentro de def, para CAMBIAR una variable de arriba escribe global nombre. El autocompletado te ofrece tus variables donde sirven (las de texto en modelo(, las listas en capas=, los diccionarios en premios(…).",
+      "params": [
+        [
+          "texto",
+          "model_test = \"colibri\"   ·   nombre = f\"{BASE}_v{VERSION}\""
+        ],
+        [
+          "número",
+          "N = 32   ·   META = 0.85"
+        ],
+        [
+          "lista",
+          "CAPAS = [64, 64]   ·   [16 * i for i in range(1, 4)]"
+        ],
+        [
+          "diccionario",
+          "P = {\"grabar\": 6, \"mirar\": 4}   ->   premios(**P)"
+        ],
+        [
+          "varias",
+          "a, b = 1, 2   ·   for k, v in P.items():"
+        ]
+      ],
+      "ejemplo": "model_test = \"colibri\"\nCAPAS = [64, 64]\nmodelo(model_test, desde=\"cero\")\nred(capas=CAPAS)"
+    },
+    {
+      "nombre": "python",
+      "firma": "if / for / def / listas / f\"…\" / [x for x in …]",
+      "donde": "las dos",
+      "grupo": "Python",
+      "desc": "Lo que sí hay de Python: números, textos y f\"{x:.2f}\", True/False/None, listas [ ], tuplas ( ), diccionarios { }, variables, + - * / // % **, comparaciones, and/or/not, in, is, x if condición else y, if/elif/else, for x in … (y for k, v in d.items()), listas por comprensión [x * 2 for x in xs if x > 0], def/return (con valores por defecto y varios valores: return a, b), f(*lista, **diccionario), a, b = 1, 2, global, pass, break/continue. Funciones: print, str, int, float, round, abs, min, max, sum, len, range, list, type; listas .append() .pop(); diccionarios .get() .keys() .values() .items(); textos .upper() .lower() .split(). No hay while ni import: un programa no puede colgar el juego ni tocar tu compu.",
       "params": [],
-      "ejemplo": "for capa in [32, 64]:\n    print(capa * 2)"
+      "ejemplo": "CAPAS = [16 * i for i in range(1, 4)]   # [16, 32, 48]\nfor k, v in {\"grabar\": 6, \"mirar\": 4}.items():\n    print(k, v)"
     }
   ],
   "hooks_doc": [
@@ -742,7 +772,8 @@
     "grabar": "# Grabar casas: parte de la IA de la campaña (ya sabe volar)\n# y la especializa en grabar con tu dron.\n\nmodelo(\"camarografo\", desde=\"base\")\nmision(\"grabar\")\ndron(\"azar\")             # cambia por el nombre de un dron de tu hangar\nentrenar_en(\"fondo\")\naprendizaje(lr=0.0003)\n\n# los premios y castigos de la misión, con más castigo a las sacudidas\ncastigos(sacudidas=6)     # lo normal es 4\n\ndef cada_generacion(e):\n    if e.generacion % 10 == 0:\n        print(f\"gen {e.generacion}: éxito {e.exito:.0%} · calidad {e.calidad}\")\n    if e.exito >= 0.8:\n        aprendizaje(lr=0.0001)   # ya casi: ajustes finos\n    if e.exito >= 0.9:\n        detener()\n",
     "curriculum": "# Currículum: primero que no choque, después que grabe bien.\n\nmodelo(\"aprendiz\", desde=\"base\")\nmision(\"grabar_postes\")\ndron(\"azar\")\nentrenar_en(\"fondo\")\n\ncastigos(chocar=8)     # fase 1: no chocar es lo que más importa\npremios(grabar=1)\nfase = 1\n\ndef cada_generacion(e):\n    global fase\n    if fase == 1 and e.choque is not None and e.choque < 0.1:\n        fase = 2\n        castigos(chocar=3)    # fase 2: ahora, grabar bien\n        premios(grabar=6)\n        avisar(\"Fase 2: ya no choca, ahora a grabar\")\n    if fase == 2 and e.exito >= 0.85:\n        detener()\n\ndef al_terminar(e):\n    print(\"terminó en la fase\", fase, \"con éxito\", e.exito)\n",
     "postes": "# El restaurante: grabar entre postes, mirándolo en Blender.\n\nmodelo(\"entre_postes\", desde=\"base\")\nmision(\"grabar_postes\")\ndron(\"azar\")\ndrones(50)\nentrenar_en(\"blender\")      # ábrelo con el comando: blender\nvelocidad(\"real\")\n\ndef al_empezar(e):\n    print(\"arranca en la generación\", e.generacion)\n\ndef cada_generacion(e):\n    # si se estanca 20 generaciones, que explore un poco más\n    h = e.historia_exito\n    if len(h) == 20 and max(h) - min(h) < 0.02:\n        aprendizaje(exploracion=0.005)\n        print(\"estancado: más exploración\")\n",
-    "cerebro_chico": "# ¿Cuánto cerebro hace falta? El mismo hover con 2 tamaños.\n# Corre este, después cambia el nombre y las capas, y compáralos con: modelos éxito\n\nmodelo(\"mini_16\", desde=\"cero\")\nred(capas=[16])\nnivel(0)\nentrenar_en(\"fondo\")\npremios(cerca=8)\ncastigos(chocar=4, inclinar=8)\n\ndef cada_generacion(e):\n    if e.generaciones_sesion >= 300:\n        print(f\"300 generaciones: éxito {e.exito:.0%}\")\n        detener()\n"
+    "cerebro_chico": "# ¿Cuánto cerebro hace falta? El mismo hover con 2 tamaños.\n# Corre este, después cambia el nombre y las capas, y compáralos con: modelos éxito\n\nmodelo(\"mini_16\", desde=\"cero\")\nred(capas=[16])\nnivel(0)\nentrenar_en(\"fondo\")\npremios(cerca=8)\ncastigos(chocar=4, inclinar=8)\n\ndef cada_generacion(e):\n    if e.generaciones_sesion >= 300:\n        print(f\"300 generaciones: éxito {e.exito:.0%}\")\n        detener()\n",
+    "variables": "# Variables: la configuración arriba, en un solo lugar, y el resto la usa.\nNOMBRE = \"halcon\"\nVERSION = 2\nmodel_test = f\"{NOMBRE}_v{VERSION}\"      # \"halcon_v2\"\nCAPAS = [64, 64]\nMI_DRON = \"azar\"                         # o el nombre de un dron de tu hangar\nMETA = 0.85\n\nmodelo(model_test, desde=\"cero\")\nred(capas=CAPAS)\nmision(\"grabar\")\ndron(MI_DRON)\nentrenar_en(\"fondo\")\n\n# las fases del entrenamiento en una lista: para agregar una, agrega un diccionario\nFASES = [\n    {\"nombre\": \"no chocar\", \"premios\": {\"grabar\": 2}, \"castigos\": {\"chocar\": 8}, \"hasta\": 0.3},\n    {\"nombre\": \"grabar bien\", \"premios\": {\"grabar\": 6, \"mirar\": 5}, \"castigos\": {\"chocar\": 3}, \"hasta\": META},\n]\nfase = 0\npremios(**FASES[0][\"premios\"])\ncastigos(**FASES[0][\"castigos\"])\n\ndef cambiar_fase():\n    global fase\n    fase += 1\n    f = FASES[fase]\n    premios(**f[\"premios\"])\n    castigos(**f[\"castigos\"])\n    avisar(f\"Fase {fase + 1}: {f['nombre']}\")\n\ndef cada_generacion(e):\n    if e.exito is None:\n        return\n    if e.exito >= FASES[fase][\"hasta\"]:\n        if fase + 1 < len(FASES):\n            cambiar_fase()\n        else:\n            print(f\"{model_test} llegó a {e.exito:.0%}: listo\")\n            detener()\n"
   },
   "_nota_opciones": "opciones de cada función para el autocompletado del estudio: \"0\" = primer argumento, \"desde\"/\"lr\"… = el valor de ese argumento con nombre, \"_kw\" = argumentos con nombre. $drones, $misiones, $niveles, $modelos, $modelos_texto $premios y $castigos se llenan con lo que hay en tu juego."
 }

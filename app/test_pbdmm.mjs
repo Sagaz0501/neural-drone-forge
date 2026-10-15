@@ -28,6 +28,26 @@ ok(salida[0] === "2", "global");
 corre("print(1 < 2 < 3 and not False or 0)");
 ok(salida[0] === "True", "comparación encadenada and/or/not");
 
+// 1b) variables y Python "de verdad": tuplas, comprensiones, ternario, *lista, **dicc
+corre('model_test = "colibri"\nprint(model_test)');
+ok(salida[0] === "colibri", "una variable con un texto");
+corre("a, b = 1, 2\na, b = b, a\nprint(a, b)");
+ok(salida[0] === "2 1", "a, b = b, a");
+corre('d = {"x": 1, "y": 2}\nfor k, v in d.items():\n    print(k, v)');
+ok(salida.join("|") === "x 1|y 2", "for k, v in d.items()");
+corre("print([i * i for i in range(5) if i % 2 == 0])");
+ok(salida[0] === "[0, 4, 16]", "comprensión con if: " + salida[0]);
+corre('x = 3\nprint("grande" if x > 2 else "chico", [1, 2][0] if x else 9)');
+ok(salida[0] === "grande 1", "ternario");
+corre("def f(a, b=10, c=100):\n    return a + b + c\nxs = [1, 2]\nkw = {\"c\": 0}\nprint(f(*xs, **kw))");
+ok(salida[0] === "3", "f(*lista, **dicc): " + salida[0]);
+corre("def par():\n    return 1, 2\nu, v = par()\nprint(u + v, (7, 8)[1], ())");
+ok(salida[0] === "3 8 []", "return a, b y tuplas con paréntesis: " + salida[0]);
+corre("i = 5\nys = [i for i in range(3)]\nprint(i)");
+ok(salida[0] === "5", "la variable de la comprensión no se escapa");
+{ const e = falla(() => corre("a, b = 1, 2, 3"));
+ok(/2 nombres y a la derecha 3/.test(e?.message || ""), "a, b = 3 valores: " + e?.message); }
+
 // 2) errores claros, con línea
 let e = falla(() => corre("x = 1\nif x > 0\n    print(x)"));
 ok(e?.linea === 2 && /":"/.test(e.message), "falta los dos puntos: " + e?.message);
@@ -70,7 +90,25 @@ ok(body.base_de === "cero" && body.capas.join() === "64,64" && body.nivel === 0 
 const b2 = pedidoDe(compilar('modelo("v3x")\nmision("grabar")\ndron("sagaz_dron_v3")', D, host).cfg, (n) => ({ nombre: n, fisica: {} }));
 ok(b2.dron?.nombre === "Sagaz_Dron_V3", "dron del hangar (sin importar mayúsculas)");
 for (const [k, src] of Object.entries(data.ejemplos)) ok(!falla(() => compilar(src, D, host)), `el ejemplo "${k}" compila`);
+{
+  const Pv = compilar('NOMBRE = "halcon"\nV = 2\nN = 32\nmodelo(f"{NOMBRE}_v{V}", desde="cero")\nred(capas=[N * 2, N])\nMI_DRON = "Sagaz_Dron_V3"\ndron(MI_DRON)\nP = {"grabar": 6, "mirar": 4}\nmision("grabar")\npremios(**P)\ncastigos(**{"chocar": 3})', D, host);
+  const Pf = compilar(data.ejemplos.variables, D, host);
+  ok(Pf.cfg.modelo === "halcon_v2" && Pf.cfg.premiosFinal.film === 2 && Pf.cfg.premiosFinal.crash === 40, "el ejemplo variables: fase 1");
+  let af = Pf.reaccionar("cada_generacion", estadoE({ succ: 0.4, gen: 9 }, {}));
+  ok(af.some((x) => x.premios?.film === 6) && af.some((x) => x.castigos?.crash === 15), "pasa a la fase 2 con sus premios y castigos");
+  af = Pf.reaccionar("cada_generacion", estadoE({ succ: 0.9, gen: 10 }, {}));
+  ok(af.some((x) => x.detener), "llega a la META y se detiene");
+  ok(Pv.cfg.modelo === "halcon_v2" && Pv.cfg.capas.join() === "64,32" && Pv.cfg.dron.hangar === "Sagaz_Dron_V3" && Pv.cfg.premiosFinal.film === 6 && Pv.cfg.premiosFinal.crash === 15, "un programa con variables: " + JSON.stringify({ m: Pv.cfg.modelo, c: Pv.cfg.capas }));
+}
 
+{
+  const DM = { ...D, modelos: [{ slug: "base", tiene_modelo: true, gen: 1 }, { slug: "colibri", tiene_modelo: true, gen: 30 }, { slug: "camarografo", tiene_modelo: true, gen: 5 }] };
+  ok(compilar('modelo("cam2", desde="colibri")\nmision("grabar")', DM, host).cfg.desde === "colibri", "desde=\"colibri\" (tu modelo entrenado)");
+  const ee = falla(() => compilar('modelo("cam2", desde="colibr")\nmision("grabar")', DM, host));
+  ok(/no tienes un modelo "colibr".*quisiste decir "colibri"/.test(ee?.message || "") && ee.linea === 1, "desde= con un modelo que no existe: " + ee?.message);
+  ok(compilar('modelo("camarografo", desde="colibri")\nmision("grabar")', DM, host).cfg.yaExiste?.gen === 5, "avisa si el modelo ya existe (desde= no cuenta)");
+  ok(!falla(() => compilar('modelo("x", desde="colibr")\nmision("grabar")', D, host)), "sin la lista de modelos no revisa (no bloquea)");
+}
 e = falla(() => compilar('mision("grabar")', D, host));
 ok(/falta modelo/.test(e?.message || ""), "sin modelo(): " + e?.message);
 e = falla(() => compilar('modelo("x")\nmision("volar_rapido")', D, host));
@@ -146,6 +184,27 @@ ok(/no tienes un dron/.test(e?.message || ""), "dron que no está en el hangar")
   ok(o[0]?.txt === "dron(" || o.some((x) => x.txt === "drones("), "dentro de print( completa nombres");
   o = op("red(");
   ok(o[0]?.txt.startsWith("capas="), "red( -> capas=[…]");
+  {
+    const { delPrograma } = await import("./autocompletar.js");
+    const src = 'model_test = "colibri"\nN = 32\nCAPAS = [N, N]\nP = {"grabar": 6}\na, b = 1, 2\ndef ayudante(e):\n    x = 3\n';
+    const F2 = { ...F, programa: delPrograma(src) };
+    const op2 = (antes) => opciones(contexto(antes), F2);
+    ok(F2.programa.vars.map((v) => v.nombre).join() === "model_test,N,CAPAS,P,a,b" && F2.programa.fns.join() === "ayudante", "lee tus variables (solo las de arriba) y tus funciones");
+    o = op2("modelo(");
+    ok(o.some((x) => x.txt === "model_test" && x.det.includes('"colibri"')) && !o.some((x) => x.txt === "N"), "modelo( -> tus variables con texto (no los números)");
+    o = op2("drones(");
+    ok(o.some((x) => x.txt === "N") && !o.some((x) => x.txt === "model_test"), "drones( -> tus variables con números");
+    o = op2("red(capas=");
+    ok(o.some((x) => x.txt === "CAPAS"), "capas= -> tus listas");
+    o = op2("premios(");
+    ok(o.some((x) => x.txt === "P") && o.some((x) => x.txt === "grabar="), "premios( -> tus diccionarios y los premios");
+    o = op2("mod");
+    ok(o[0].txt === "model_test" && o.some((x) => x.txt === "modelo("), "mod -> tu variable primero, después modelo(");
+    o = op2("ayu");
+    ok(o[0]?.txt === "ayudante(", "tus funciones");
+    o = op2('dron("');
+    ok(!o.some((x) => x.det?.startsWith("tu variable")), "dentro de comillas no ofrece variables");
+  }
   o = op("x = [1, 2");
   ok(o.length === 0, "dentro de una lista no molesta");
 }

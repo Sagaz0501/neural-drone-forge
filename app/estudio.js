@@ -7,7 +7,7 @@
 // El lenguaje vive en pbdmm.js; la ayuda en data/pbdmm.json.
 // =====================================================================
 import { compilar, pedidoDe, estadoE, ErrorPB, repr, nivelDe, recomendados } from "./pbdmm.js";
-import { contexto, opciones } from "./autocompletar.js";
+import { contexto, opciones, delPrograma } from "./autocompletar.js";
 
 const ARCH = "dronmaker.pbdmm.archivos", ABIERTO = "dronmaker.pbdmm.abierto";
 const leerLS = (k, d) => { try { const s = localStorage.getItem(k); return s ? JSON.parse(s) : d; } catch { return d; } };
@@ -40,6 +40,7 @@ export function initEstudio(ctx) {
     premiosValidos: [...new Set([...ctx.ent.premios.map((p) => p.k), "near"])],
     tiposPremio: { ...Object.fromEntries(ctx.ent.premios.map((p) => [p.k, p.tipo])), near: "premio" },
     escala: ctx.ent.escala_premios,
+    modelos: ES.modelos.length ? ES.modelos : null,     // para revisar desde="otro" (si no hay lista, no se revisa)
   });
 
   // ---------------- abrir / cerrar ----------------
@@ -126,7 +127,7 @@ export function initEstudio(ctx) {
   // ---------------- autocompletado: dron( -> "estandar", "azar", tus drones… ----------------
   const fuentesAC = () => ({
     data: ES.data, misiones: ctx.ent.misiones, nombresNiveles: ES.data.nombres_niveles,
-    drones: ctx.P().drones.map((d) => d.nombre), modelos: ES.modelos,
+    drones: ctx.P().drones.map((d) => d.nombre), modelos: ES.modelos, programa: delPrograma($("es-src").value),
     premios: [...ctx.ent.premios, { k: "near", tipo: "premio", desc: "Por estar cerca de la meta (niveles de metas y hover)." }]
       .map((p) => ({ ...p, alias: Object.entries(ES.data.alias_premios).find(([, k]) => k === p.k)?.[0], rec: recomendados(ctx.ent.misiones, ctx.ent.escala_premios)[p.k] })),
   });
@@ -139,6 +140,10 @@ export function initEstudio(ctx) {
     if (!forzar && cx?.tipo === "nombre" && cx.parcial.length < 2) items = [];
     if (items.length === 1 && cx && items[0].txt.replace(/[(=:]$/, "") === t.value.slice(cx.desde, t.selectionStart)) items = [];   // ya está escrito
     const fn = cx?.tipo === "arg" ? ES.data.funciones.find((f) => f.nombre === cx.fn) : null;
+    if (fn?.nombre === "modelo" && Date.now() - (ES.modelosT || 0) > 3000) {      // modelos nuevos (recién entrenados)
+      ES.modelosT = Date.now();
+      cargarModelos().then(() => { if (ES.ac.abierto && ES.ac.fn?.nombre === "modelo") autocompletar(forzar); });
+    }
     if (!items.length && !fn) return cerrarAC();
     Object.assign(A, { items, cx, fn, sel: 0, abierto: true });
     pintarAC();
@@ -371,7 +376,7 @@ export function initEstudio(ctx) {
 
   async function cargarModelos() {
     const r = await api("/api/modelos");
-    ES.modelos = r.modelos || [];
+    if (r.modelos) { ES.modelos = r.modelos; ES.modelosT = Date.now(); }
     return ES.modelos;
   }
   async function modelos(orden = "exito") {
@@ -458,6 +463,7 @@ export function initEstudio(ctx) {
     };
   }
   async function correr(nombre, soloRevisar) {
+    await cargarModelos();                         // la lista de modelos al día (desde="colibri" recién entrenado)
     let R = null;
     const host = hostDe(() => R);
     let prog;
@@ -469,6 +475,8 @@ export function initEstudio(ctx) {
     ES.errLinea = null; pintar();
     const c = prog.cfg, niv = ES.data.nombres_niveles[c.nivel] || "";
     linea(`✓ ${ES.abierto}.pbd está bien.`, "ok");
+    if (c.yaExiste && c.desde !== "base") linea(`  ojo: "${c.modelo}" ya existe (generación ${c.yaExiste.gen}): sigue entrenando el suyo; desde="${c.desde}" solo cuenta al crearlo. Para partir de "${c.desde}", usa otro nombre en modelo(…).`, "warn");
+    else if (c.yaExiste) linea(`  "${c.modelo}" ya existe (generación ${c.yaExiste.gen}): sigue entrenando desde ahí.`, "muted");
     linea(`  modelo "${c.modelo}" (${c.desde === "cero" ? `red nueva${c.capas ? " " + c.capas.join("×") : " 128×128"}` : c.desde === "base" ? "desde la IA base" : `desde "${c.desde}"`}) · nivel ${c.nivel} ${niv} · ` +
       `${typeof c.dron === "object" ? `tu dron "${c.dron.hangar}"` : c.dron === "AZAR" ? "drones al azar" : "dron estándar"} · ${c.drones} drones · en ${c.donde === "blender" ? "Blender" : "el fondo"} (${c.velocidad})`);
     linea(`  ${valoresTxt(c.premiosFinal)}${c.viento ? ` · viento ${c.viento} m/s` : ""}${c.lr !== undefined ? ` · lr ${c.lr}` : ""}${c.ent !== undefined ? ` · exploración ${c.ent}` : ""}`, "muted");
@@ -544,6 +552,7 @@ export function initEstudio(ctx) {
       } else if (R.empezo) {
         linea(`■ "${R.cfg.modelo}" dejó de entrenar (generación ${tr?.gen ?? R.ultGen}).`, "warn");
         llamarHook(R, "al_terminar", estadoE(tr || {}, R.ses, ctx.ent.escala_premios));
+        setTimeout(cargarModelos, 3000);           // ya guardó: que aparezca en desde= y en modelos
         ES.run = null; renderRun();
       } else if (Date.now() - R.t0 > 120000 && !R.avisoLento) {
         R.avisoLento = true;

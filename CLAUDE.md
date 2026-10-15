@@ -180,7 +180,10 @@ Node v22 está en `/opt/homebrew/bin/node`. Blender 5.2 en `/Applications/Blende
   `ent`, `capas` (-> info.json; `live_train.py --capas` o la lee de ahí) y `accion: "guardar"`; `/api/modelos` trae
   `red`, `ultimo` (última fila de la historia) y `mejor_exito`. La red EN VIVO (Gráfica → Red neuronal): live_train escribe
   `<estado>_red.json` (4/s: activaciones del dron que mira + conexiones fuertes por capa), `GET /api/red?modelo=`,
-  y `watch: i` en `/api/lab` cambia el dron que mira (fondo o Blender). "Que grabe la IA" ya no se bloquea: vuela con la IA
+  y `watch: i` en `/api/lab` cambia el dron que mira (fondo o Blender).
+  PBDMM también tiene variables, tuplas, `[x for x in …]`, `x if c else y`, `f(*lista, **dicc)`; el autocompletado ofrece
+  tus variables donde sirven. `desde="otro"` se revisa contra `/api/modelos` (si no existe, error: el servidor
+  arrancaría con una red al azar); el estudio recarga esa lista al correr y al pedir opciones de `modelo(`. "Que grabe la IA" ya no se bloquea: vuela con la IA
   del dron (o la base), se carga sola, y si no entrega el video cuesta 2 de reputación.
 - **Nivel 12 · Grabar entre postes**: como el 11 con postes a 1,5 m de la ruta (`level.film_posts`).
 - **Nivel 11 · Grabar: tomas con ruta** (`env.py`, `tomas.py`, `missions.json`, Drone Lab): una casa al azar y

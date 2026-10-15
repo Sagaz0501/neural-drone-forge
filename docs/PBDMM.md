@@ -56,10 +56,10 @@ En el estudio, al escribir te salen las opciones de cada función (por ejemplo `
 *Arriba del archivo.* El modelo que entrena este programa. Se guarda con ese nombre en models/drones/<nombre>/ (modelo.zip, modelo.json con su historia, modelo_web.json para volar en el juego). Si ya existe, sigue entrenando desde donde quedó.
 
 - `nombre`: texto: letras, números, _ y -. "Halcón 1" queda como halcon_1
-- `desde`: "base" (copia la IA de la campaña: ya sabe volar), "cero" (red nueva al azar: aprende todo desde cero) o el nombre de otro modelo tuyo. Solo cuenta la primera vez.
+- `desde`: "base" (copia la IA de la campaña: ya sabe volar), "cero" (red nueva al azar: aprende todo desde cero) o el nombre de otro modelo TUYO ya entrenado, por ejemplo desde="colibri" (parte de lo que ese ya aprendió; el original no se toca). Solo cuenta al crearlo: si el modelo ya existe, sigue entrenando el suyo.
 
 ```python
-modelo("halcon", desde="cero")
+modelo("camarografo", desde="colibri")   # parte del colibrí, que ya sabe volar
 ```
 
 #### `red(capas=[128, 128])`
@@ -244,13 +244,31 @@ avisar(f"¡Ya graba! éxito {e.exito:.0%}")
 print("generación", e.generacion, "éxito", e.exito)
 ```
 
-#### `if / for / def / listas / f"…"`
+#### `nombre = valor`
 
-*Arriba o dentro de una función.* Lo que sí hay de Python: números, textos y f"{x:.2f}", True/False/None, listas [ ] y diccionarios { }, + - * / // % **, comparaciones, and/or/not, in, if/elif/else, for x in …, def/return, global, pass, break/continue. Funciones: print, str, int, float, round, abs, min, max, sum, len, range, list, type; listas .append() .pop(); textos .upper() .lower() .split(). No hay while ni import: un programa no puede colgar el juego ni tocar tu compu.
+*Arriba o dentro de una función.* Guarda un valor con un nombre para usarlo después: un texto, un número, una lista o un diccionario. Ponlas arriba del archivo (la configuración en un solo lugar) y pásalas a las funciones: modelo(model_test). Dentro de def, para CAMBIAR una variable de arriba escribe global nombre. El autocompletado te ofrece tus variables donde sirven (las de texto en modelo(, las listas en capas=, los diccionarios en premios(…).
+
+- `texto`: model_test = "colibri"   ·   nombre = f"{BASE}_v{VERSION}"
+- `número`: N = 32   ·   META = 0.85
+- `lista`: CAPAS = [64, 64]   ·   [16 * i for i in range(1, 4)]
+- `diccionario`: P = {"grabar": 6, "mirar": 4}   ->   premios(**P)
+- `varias`: a, b = 1, 2   ·   for k, v in P.items():
 
 ```python
-for capa in [32, 64]:
-    print(capa * 2)
+model_test = "colibri"
+CAPAS = [64, 64]
+modelo(model_test, desde="cero")
+red(capas=CAPAS)
+```
+
+#### `if / for / def / listas / f"…" / [x for x in …]`
+
+*Arriba o dentro de una función.* Lo que sí hay de Python: números, textos y f"{x:.2f}", True/False/None, listas [ ], tuplas ( ), diccionarios { }, variables, + - * / // % **, comparaciones, and/or/not, in, is, x if condición else y, if/elif/else, for x in … (y for k, v in d.items()), listas por comprensión [x * 2 for x in xs if x > 0], def/return (con valores por defecto y varios valores: return a, b), f(*lista, **diccionario), a, b = 1, 2, global, pass, break/continue. Funciones: print, str, int, float, round, abs, min, max, sum, len, range, list, type; listas .append() .pop(); diccionarios .get() .keys() .values() .items(); textos .upper() .lower() .split(). No hay while ni import: un programa no puede colgar el juego ni tocar tu compu.
+
+```python
+CAPAS = [16 * i for i in range(1, 4)]   # [16, 32, 48]
+for k, v in {"grabar": 6, "mirar": 4}.items():
+    print(k, v)
 ```
 
 ## Premios y castigos: de 0 a 10
@@ -323,7 +341,7 @@ Con `nivel(n)`: 0 Hover (quedarse quieto) · 1 Meta fija · 2 Metas al azar · 3
 
 ## Python que sí hay
 
-Lo que sí hay de Python: números, textos y f"{x:.2f}", True/False/None, listas [ ] y diccionarios { }, + - * / // % **, comparaciones, and/or/not, in, if/elif/else, for x in …, def/return, global, pass, break/continue. Funciones: print, str, int, float, round, abs, min, max, sum, len, range, list, type; listas .append() .pop(); textos .upper() .lower() .split(). No hay while ni import: un programa no puede colgar el juego ni tocar tu compu.
+Lo que sí hay de Python: números, textos y f"{x:.2f}", True/False/None, listas [ ], tuplas ( ), diccionarios { }, variables, + - * / // % **, comparaciones, and/or/not, in, is, x if condición else y, if/elif/else, for x in … (y for k, v in d.items()), listas por comprensión [x * 2 for x in xs if x > 0], def/return (con valores por defecto y varios valores: return a, b), f(*lista, **diccionario), a, b = 1, 2, global, pass, break/continue. Funciones: print, str, int, float, round, abs, min, max, sum, len, range, list, type; listas .append() .pop(); diccionarios .get() .keys() .values() .items(); textos .upper() .lower() .split(). No hay while ni import: un programa no puede colgar el juego ni tocar tu compu.
 
 ## Aprende: cómo se entrena una IA
 
@@ -473,6 +491,51 @@ def cada_generacion(e):
     if e.generaciones_sesion >= 300:
         print(f"300 generaciones: éxito {e.exito:.0%}")
         detener()
+```
+
+### variables
+
+```python
+# Variables: la configuración arriba, en un solo lugar, y el resto la usa.
+NOMBRE = "halcon"
+VERSION = 2
+model_test = f"{NOMBRE}_v{VERSION}"      # "halcon_v2"
+CAPAS = [64, 64]
+MI_DRON = "azar"                         # o el nombre de un dron de tu hangar
+META = 0.85
+
+modelo(model_test, desde="cero")
+red(capas=CAPAS)
+mision("grabar")
+dron(MI_DRON)
+entrenar_en("fondo")
+
+# las fases del entrenamiento en una lista: para agregar una, agrega un diccionario
+FASES = [
+    {"nombre": "no chocar", "premios": {"grabar": 2}, "castigos": {"chocar": 8}, "hasta": 0.3},
+    {"nombre": "grabar bien", "premios": {"grabar": 6, "mirar": 5}, "castigos": {"chocar": 3}, "hasta": META},
+]
+fase = 0
+premios(**FASES[0]["premios"])
+castigos(**FASES[0]["castigos"])
+
+def cambiar_fase():
+    global fase
+    fase += 1
+    f = FASES[fase]
+    premios(**f["premios"])
+    castigos(**f["castigos"])
+    avisar(f"Fase {fase + 1}: {f['nombre']}")
+
+def cada_generacion(e):
+    if e.exito is None:
+        return
+    if e.exito >= FASES[fase]["hasta"]:
+        if fase + 1 < len(FASES):
+            cambiar_fase()
+        else:
+            print(f"{model_test} llegó a {e.exito:.0%}: listo")
+            detener()
 ```
 
 ## Por dentro

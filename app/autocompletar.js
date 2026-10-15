@@ -8,6 +8,22 @@
 // $misiones, $niveles, $modelos, $premios) salen de F.
 // =====================================================================
 
+/** Qué tipo de valor espera cada argumento: así ofrece tus variables que sirven ahí. */
+const ESPERA = { modelo: "str", mision: "str", dron: "str", entrenar_en: "str", velocidad: "str", desde: "str", nivel: "num", drones: "num",
+  viento: "num", lr: "num", exploracion: "num", capas: "list", red: "list", premios: "dict", castigos: "dict" };
+const tipoValor = (prev) => (/^[fF]?["']/.test(prev) ? "str" : /^-?[\d.]/.test(prev) ? "num" : /^\[/.test(prev) ? "list" : /^\{/.test(prev) ? "dict" : "?");
+
+/** Tus variables (las de arriba del archivo, con lo que valen) y tus funciones, leídas del texto. */
+export function delPrograma(src) {
+  const vars = new Map(), fns = new Set();
+  for (const m of src.matchAll(/^([A-Za-z_]\w*(?:\s*,\s*[A-Za-z_]\w*)*)\s*=(?!=)\s*(.*)$/gm)) {
+    const nombres = m[1].split(",").map((x) => x.trim()), prev = m[2].replace(/\s+#.*$/, "").trim();
+    nombres.forEach((n) => vars.set(n, nombres.length > 1 ? "?" : prev));
+  }
+  for (const m of src.matchAll(/^\s*def\s+([A-Za-z_]\w*)\s*\(/gm)) fns.add(m[1]);
+  return { vars: [...vars].map(([nombre, prev]) => ({ nombre, prev })), fns: [...fns] };
+}
+
 const UN_ARG = new Set(["dron", "mision", "nivel", "drones", "entrenar_en", "velocidad", "viento"]);
 const PY = [["print(", "escribe en la terminal"], ["range(", "números del 0 a n-1"], ["len(", "cuántos hay"], ["round(", "redondear"],
   ["str(", "a texto"], ["min(", "el menor"], ["max(", "el mayor"], ["abs(", "valor absoluto"], ["sum(", "suma una lista"]];
@@ -66,8 +82,12 @@ export function opciones(cx, F) {
   if (!cx) return [];
   const D = F.data, fns = D.funciones.filter((f) => f.nombre !== "python");
   let out = [];
+  const mios = F.programa || { vars: [], fns: [] };
+  const misVars = (tipo) => mios.vars.filter((v) => !tipo || tipo === "?" || tipoValor(v.prev) === tipo || tipoValor(v.prev) === "?")
+    .map((v) => ({ txt: v.nombre, label: v.nombre, det: `tu variable = ${v.prev.slice(0, 40)}${v.prev.length > 40 ? "…" : ""}` }));
   if (cx.tipo === "nombre") {
-    out = [...fns.map((f) => ({ txt: f.nombre + "(", label: f.firma, det: corto(f.desc), fn: true })),
+    out = [...misVars(null), ...mios.fns.filter((n) => !D.hooks.includes(n)).map((n) => ({ txt: n + "(", label: n + "()", det: "tu función", fn: true })),
+      ...fns.map((f) => ({ txt: f.nombre + "(", label: f.firma, det: corto(f.desc), fn: true })),
       ...PY.map(([t, d]) => ({ txt: t, label: t + ")", det: d, fn: true })),
       ...KWS.map(([t, d]) => ({ txt: t, label: t.trim(), det: d }))];
   } else if (cx.tipo === "def") {
@@ -83,6 +103,10 @@ export function opciones(cx, F) {
     if (!cx.kw && O._kw && (cx.idx > 0 || cx.fn === "premios" || cx.fn === "castigos")) {
       const kws = O._kw.flatMap((k) => (k.startsWith("$") ? expandir(k, "", F) : [{ txt: k + "=", label: k + "=", det: "" }]));
       out = [...out, ...kws.filter((k) => !out.some((o) => o.txt === k.txt))];
+    }
+    if (!cx.enTexto) {                               // tus variables que sirven en ese lugar
+      const tipo = ESPERA[cx.kw || cx.fn] || null;
+      if (tipo && (cx.kw || cx.idx === 0)) out = [...out, ...misVars(tipo).filter((v) => !out.some((o) => o.txt === v.txt))];
     }
     if (UN_ARG.has(cx.fn) && !cx.kw) out = out.map((o) => ({ ...o, cerrar: true }));
   }
