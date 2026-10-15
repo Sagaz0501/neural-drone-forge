@@ -1,5 +1,17 @@
 # Cambios
 
+## v0.2 · Fase 1, primera parte
+
+- **Blender = la pantalla del entrenamiento:** el panel Drone Lab ya no tiene controles; muestra qué entrena y tiene
+  **Modo video** (sin menús, grilla ni gizmos, a pantalla completa) para grabar. El panel viejo: `DRONMAKER_LAB_AVANZADO=1`.
+- **Avance del modelo:** el entrenador guarda solo el mejor y el peor intento de cada nivel (`avance.json`).
+- **Simular prueba:** una prueba al azar como las del entrenamiento, con la última generación, sin detenerlo y sin
+  tocar la partida (`POST /api/simular`).
+- **Visor de simulaciones:** recorrido, ruta de la cámara, tres cámaras, red neuronal en cada instante, gráficas y
+  línea de tiempo.
+- **Pedidos al azar:** cada intento las tomas cambian (dentro de rangos como los del entrenamiento y sin chocar).
+- **Aviso antes de que vuele una IA que no está lista** (nunca bloquea).
+
 ## v0.1 · La demo (octubre de 2026)
 
 **El juego**

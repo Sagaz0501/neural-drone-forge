@@ -72,6 +72,7 @@ except ImportError:
 from drone_rl import ACT_LABELS, DEFAULT_REWARD, MISSIONS, OBS_LABELS, STAGES, DroneEnv
 from drone_rl.env import FILM_STAGES, HUNT_STAGES, LEVEL_MISSION
 from drone_rl.physics import QuadParams
+import simulacion as SIM                       # noqa: E402  (scripts/simulacion.py: las grabaciones del Avance)
 
 STANDARD_RANGE = {"twr": [2.3, 2.7], "masa_kg": [0.55, 0.65]}     # el dron de siempre (0.6 kg, 2.5)
 
@@ -148,6 +149,9 @@ class LiveLink(BaseCallback):
         self.last_red = 0.0
         self.red_w = []                                    # conexiones más fuertes de cada capa (para el juego)
         self.red_path = Path(args.estado).with_name(Path(args.estado).stem + "_red.json")
+        self.grab = None                                   # una Grabacion por dron (scripts/simulacion.py)
+        self.avance = SIM.Avance(Path(model_path).parent / "avance.json")
+        self.avance_t = 0.0
         self.watch = args.watch % args.drones
         self.msg = ""
 
@@ -441,6 +445,56 @@ class LiveLink(BaseCallback):
             self.send_stats()
 
     # ---------------- ciclo de PPO ----------------
+    # ---------------- el avance: grabar cada intento y guardar el mejor y el peor ----------------
+    def grabar(self, envs):
+        """Graba el intento de cada dron (cuadros a 25 Hz, lo que ve cada 0,2 s). Al terminar, si es el mejor o el
+        peor de ese nivel, lo guarda con su red en <carpeta del modelo>/avance.json (el juego lo muestra)."""
+        if self.args.level:                          # un nivel fijo del editor: no es la prueba de una misión
+            return
+        try:
+            if self.grab is None:
+                self.grab = [SIM.Grabacion(SIM.inicio(e), e.dt) for e in envs]
+            obs = self.locals["obs_tensor"].detach().cpu().numpy()
+            acts = self.locals["clipped_actions"] if "clipped_actions" in self.locals else self.locals["actions"]
+            rews, dones, infos = self.locals["rewards"], self.locals["dones"], self.locals["infos"]
+            for i, e in enumerate(envs):
+                g = self.grab[i]
+                if not dones[i]:
+                    g.paso(e, acts[i], rews[i], obs[i])
+                    continue
+                g.premio += float(rews[i])
+                g.final(infos[i].get("pos", (0, 0, 0)), acts[i])
+                ep = infos[i].get("episode")
+                premio = float(ep["r"]) if ep else g.premio
+                cual = self.avance.candidato(e.stage, premio)
+                if cual and time.time() - self.avance_t > 1.0 and g.n > 5:
+                    self.avance_t = time.time()
+                    rep = g.armar(cual, self.args.modelo_slug, self.gen, e.stage, self.args.dron_nombre, infos[i],
+                                  self.red_de, self.capas_red())
+                    rep["resultado"]["premio"] = round(premio, 2)
+                    self.avance.guardar(cual, rep)
+                self.grab[i] = SIM.Grabacion(SIM.inicio(e), e.dt)     # el entorno ya empezó el intento siguiente
+        except Exception as ex:                      # grabar nunca debe tumbar el entrenamiento
+            if not getattr(self, "grab_error", None):
+                self.grab_error = repr(ex)
+                print("Avance: no pude grabar los intentos:", ex, flush=True)
+            self.grabar = lambda envs: None
+
+    def capas_red(self):
+        return [int(self.layers()[0].weight.shape[1])] + [int(l.weight.shape[0]) for l in self.layers()]
+
+    def red_de(self, X):
+        """Las activaciones de la red para muchas observaciones: (ocultas [[n, k]...], mu [n, 4])."""
+        hidden = []
+        with torch.no_grad():
+            h = torch.as_tensor(X, dtype=torch.float32)
+            for m in self.model.policy.mlp_extractor.policy_net:
+                h = m(h)
+                if not isinstance(m, torch.nn.Linear):
+                    hidden.append(h.cpu().numpy())
+            mu = self.model.policy.action_net(h).cpu().numpy()
+        return hidden, np.clip(mu, -1, 1)
+
     def _on_training_start(self):
         mission = LEVEL_MISSION if self.args.level else MISSIONS[self.args.stage]
         self.steps0 = getattr(self, "steps0", int(self.num_timesteps))
@@ -490,6 +544,7 @@ class LiveLink(BaseCallback):
             return False
 
         envs = self.envs()
+        self.grabar(envs)                            # el "Avance del modelo": el mejor y el peor intento (simulacion.py)
         for i, (info, done) in enumerate(zip(self.locals["infos"], self.locals["dones"])):
             if done:
                 st = 2 if info.get("success") else 1 if info.get("crashed") else 3

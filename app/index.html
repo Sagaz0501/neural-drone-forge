@@ -331,6 +331,20 @@
     #es-izq { border-right: 0; border-bottom: 1px solid var(--line); max-height: 120px; }
     #es-centro { min-height: 70vh; } #es-dercol { border-left: 0; border-top: 1px solid var(--line); max-height: 60vh; }
   }
+  /* ---------------- simulaciones ---------------- */
+  #sim-top { position: fixed; left: 12px; right: 12px; top: 12px; border-radius: 14px; padding: 10px 14px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; z-index: 3; }
+  #sim-top h2 { margin: 0; font-size: 20px; } #sim-sub { font-size: 13px; } .sim-sp { flex: 1; }
+  #sim-tabs:empty { display: none; }
+  .sim-sel { background: var(--moss-solid); color: var(--text); border: 0; padding: 6px 8px; font: inherit; font-size: 14px; }
+  #sim-der { position: fixed; right: 12px; top: 92px; bottom: 76px; width: min(390px, calc(100vw - 24px)); border-radius: 14px; padding: 12px 14px; overflow-y: auto; z-index: 3; }
+  #sim-der h4 { margin: 12px 0 6px; font-size: 12.5px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); }
+  #sim-res { font-size: 15px; line-height: 1.5; } #sim-ahora { font-size: 13px; margin-top: 4px; }
+  #sim-graf, #sim-red { width: 100%; display: block; background: rgba(0,0,0,.25); border-radius: 10px; }
+  #sim-red-top { font-size: 12.5px; }
+  #sim-barra { position: fixed; left: 12px; right: 12px; bottom: 12px; border-radius: 14px; padding: 8px 12px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; z-index: 3; }
+  #sim-t { flex: 1; min-width: 160px; accent-color: var(--prop); }
+  #sim-tt { font-variant-numeric: tabular-nums; font-size: 13px; min-width: 92px; }
+  @media (max-width: 860px) { #sim-der { top: auto; bottom: 120px; height: 38vh; } }
 </style>
 <script>
   window.showFatal = function (title, html) {
@@ -409,6 +423,31 @@
   </div>
   <aside id="es-dercol"><div id="es-tabs" class="seg"><button data-t="ayuda">Ayuda</button><button data-t="aprende">Aprende</button><button data-t="grafica">Gráfica</button></div><div id="es-der"></div></aside>
 </section>
+
+<!-- ============ SIMULACIONES (Avance del modelo · Simular prueba) ============ -->
+<div id="sim" class="hidden">
+  <header class="panel" id="sim-top">
+    <div><h2 id="sim-h">Simulación</h2><div id="sim-sub" class="muted"></div></div>
+    <div id="sim-tabs" class="seg"></div>
+    <div class="sim-sp"></div>
+    <button class="btn ai small hidden" id="sim-otra">Otra prueba</button>
+    <button class="btn ghost small" id="sim-cerrar">Cerrar</button>
+  </header>
+  <aside class="panel" id="sim-der" aria-label="Datos de la simulación">
+    <div id="sim-res"></div>
+    <div id="sim-ahora" class="muted"></div>
+    <h4>Gráficas</h4><canvas id="sim-graf" aria-label="Altura, velocidad, premio y calidad en el tiempo"></canvas>
+    <h4>La red neuronal en este instante</h4><canvas id="sim-red" aria-label="La red neuronal del dron en este instante"></canvas>
+    <p id="sim-red-top" class="muted"></p>
+  </aside>
+  <div class="panel" id="sim-barra">
+    <button class="btn main small" id="sim-play" aria-label="Pausa">⏸</button>
+    <input type="range" id="sim-t" min="0" max="10" step="0.02" value="0" aria-label="Tiempo">
+    <span id="sim-tt" class="muted"></span>
+    <div class="seg" id="sim-vel" aria-label="Velocidad"><button data-v="0.5">½×</button><button data-v="1">1×</button><button data-v="2">2×</button><button data-v="4">4×</button></div>
+    <div class="seg" id="sim-cam" aria-label="Cámara"><button data-v="persecucion">Persecución</button><button data-v="dron">Cámara del dron</button><button data-v="arriba">Desde arriba</button></div>
+  </div>
+</div>
 
 <!-- ============ PEDIDOS ============ -->
 <section id="tablero" class="modal panel hidden" role="dialog" aria-label="Pedidos">
@@ -501,6 +540,13 @@
   <div class="muted" style="font-size:13px;letter-spacing:1.2px;text-transform:uppercase">La historia</div>
   <h2 id="hist-h"></h2><p id="hist-p"></p>
   <div class="go"><button class="btn main" id="b-hist">¡Vamos!</button></div>
+</section>
+
+<section id="aviso-ia" class="modal panel hidden" role="alertdialog" aria-labelledby="aviso-ia-h">
+  <h2 id="aviso-ia-h">¿La IA está lista?</h2>
+  <p class="muted" style="margin:0">Puedes intentarlo igual, pero ojo:</p>
+  <div id="aviso-ia-p"></div>
+  <div class="go"><button class="btn ai" id="b-aviso-ia-si">Intentar igual</button><button class="btn ghost" id="b-aviso-ia-no">Volver</button></div>
 </section>
 
 <section id="videos" class="modal panel hidden" role="dialog" aria-label="Mis videos">

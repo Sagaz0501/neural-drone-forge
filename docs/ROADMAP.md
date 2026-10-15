@@ -32,7 +32,21 @@ aprende en Blender o salir a volar por gusto con un mando.
 
 El objetivo: que alguien que llega al GitHub entienda en 10 segundos qué es y quiera probarlo.
 
-1. 🔜 **Fotos y videos para el GitHub** *(Santiago)*: un GIF del Drone Lab (50 drones aprendiendo), uno de la red
+Ya hecho en esta fase:
+- ✅ **Blender = la pantalla del entrenamiento** *(Santiago)*: el panel Drone Lab ya no tiene controles (todo se
+  maneja desde el juego); solo muestra qué entrena y tiene **Modo video** (sin menús ni grilla, pantalla completa)
+  para grabar los 50 drones aprendiendo.
+- ✅ **Tres botones por IA** *(Santiago)*: **Avance del modelo** (el mejor y el peor intento que ha tenido, que el
+  entrenador guarda solo), **Simular prueba** (una prueba al azar como las del entrenamiento, con la última
+  generación y sin detenerlo; no da plata ni daña nada) y **Pedidos**. Las simulaciones muestran el recorrido, la red
+  neuronal en cada instante, gráficas y tres cámaras, con línea de tiempo.
+- ✅ **Pedidos al azar** *(Santiago)*: cada intento las tomas cambian (ángulo, distancia, altura, sentido de la órbita).
+- ✅ **La IA nunca se bloquea** *(Santiago)*: con una IA sin entrenar sale un aviso (reputación y daños) y puedes
+  intentarlo igual.
+
+Lo que falta:
+
+1. 🔜 **Fotos y videos para el GitHub** *(Santiago)*: con el Modo video de Blender y las simulaciones ya se pueden grabar. Un GIF del Drone Lab (50 drones aprendiendo), uno de la red
    neuronal encendiéndose, uno del banco (el ESC quemándose) y un video corto "de caerse a grabar una casa".
    La imagen social del repo (Settings → Social preview).
 2. 🔜 **Tutorial de los primeros 5 minutos.** Hoy el juego explica con textos; mejor una guía en pantalla:
@@ -114,7 +128,9 @@ Entrenar toma minutos u horas. Que ese tiempo también sea juego.
 
 ## Deuda técnica y cosas conocidas
 
-- El panel del Drone Lab en Blender muestra la info del modelo base aunque entrene el de un dron.
+- El Avance del modelo empieza a guardarse en los entrenamientos que arrancan después de actualizar (el que ya
+  corría sigue con el entrenador viejo hasta que lo detengas y lo vuelvas a empezar).
+- Pedidos al azar: se mueven las tomas, no la casa (los modelos 3D de la casa, la finca y el restaurante son fijos).
 - Los entrenamientos en segundo plano siguen corriendo si cierras `jugar.py`: hay que detenerlos desde el juego.
 - Los programas `.pbd` viven en el navegador (localStorage): si borras los datos del sitio, se pierden.
   Descárgalos (botón *Descargar .pbd*) o espera la Fase 4 (guardar en disco).

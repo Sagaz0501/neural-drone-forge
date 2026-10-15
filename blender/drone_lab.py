@@ -1824,6 +1824,54 @@ class DRONELAB_OT_clear(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class DRONELAB_OT_modo_video(bpy.types.Operator):
+    """Esconde los menús, barras, la grilla y los gizmos de Blender y deja la vista 3D a pantalla completa:
+    para grabar el video de los drones entrenando. Otra vez = vuelve a como estaba."""
+    bl_idname = "dronelab.modo_video"
+    bl_label = "Modo video"
+
+    def execute(self, context):
+        st = S()
+        on = not st.get("modo_video", False)
+        for w in context.window_manager.windows:
+            for a in w.screen.areas:
+                if a.type != 'VIEW_3D':
+                    continue
+                sp = a.spaces.active
+                if on:
+                    st["modo_video_antes"] = {"header": sp.show_region_header, "tool": sp.show_region_toolbar,
+                                              "ui": sp.show_region_ui, "gizmo": sp.show_gizmo,
+                                              "floor": sp.overlay.show_floor, "x": sp.overlay.show_axis_x,
+                                              "y": sp.overlay.show_axis_y, "cursor": sp.overlay.show_cursor,
+                                              "origins": sp.overlay.show_object_origins,
+                                              "text": sp.overlay.show_text, "stats": sp.overlay.show_stats}
+                ant = st.get("modo_video_antes") or {}
+                sp.show_region_header = ant.get("header", True) if not on else False
+                sp.show_region_toolbar = ant.get("tool", True) if not on else False
+                sp.show_region_ui = ant.get("ui", True) if not on else False
+                sp.show_gizmo = ant.get("gizmo", True) if not on else False
+                for prop, k in (("show_floor", "floor"), ("show_axis_x", "x"), ("show_axis_y", "y"),
+                                ("show_cursor", "cursor"), ("show_object_origins", "origins"),
+                                ("show_text", "text"), ("show_stats", "stats")):
+                    setattr(sp.overlay, prop, ant.get(k, True) if not on else False)
+                region = next((r for r in a.regions if r.type == 'WINDOW'), None)
+                try:                                   # pantalla completa (sin las otras áreas ni la barra de arriba)
+                    with context.temp_override(window=w, area=a, region=region):
+                        bpy.ops.screen.screen_full_area(use_hide_panels=True)
+                except RuntimeError:
+                    pass
+                break
+        st["modo_video"] = on
+        if on:
+            self.report({'INFO'}, "Modo video: Ctrl+Alt+Espacio o el botón otra vez para salir (N muestra el panel)")
+        return {'FINISHED'}
+
+
+def _avanzado():
+    """El panel viejo con todos los controles: solo con DRONMAKER_LAB_AVANZADO=1 (lo normal es manejar todo desde el juego)."""
+    return os.environ.get("DRONMAKER_LAB_AVANZADO") == "1"
+
+
 class VIEW3D_PT_drone_lab(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -1831,6 +1879,72 @@ class VIEW3D_PT_drone_lab(bpy.types.Panel):
     bl_label = "Drone Lab"
 
     def draw(self, context):
+        if _avanzado():
+            return self.draw_avanzado(context)
+        return self.draw_pantalla(context)
+
+    def draw_pantalla(self, context):
+        """Blender es la PANTALLA del entrenamiento: muestra, no controla. Todo se maneja desde el juego."""
+        p = lab_scene().drone_lab
+        st = S()
+        L = self.layout
+        width = max(24, int(context.region.width / (7.2 * context.preferences.system.ui_scale)))
+        lb = LAB()
+        est = lab_status(lb, st)
+        icon = {"entrenando": 'PLAY', "iniciando": 'TIME', "deteniendo": 'TIME', "error": 'ERROR'}.get(est, 'CHECKMARK')
+        box = L.box()
+        box.label(text=f"Entrenamiento: {ESTADO_TXT.get(est, est)}", icon=icon)
+        c = box.column(align=True)
+        c.scale_y = 0.85
+        s = st.get("stats") or {}
+        zp = str(lb.get("modelo") or "")             # la ruta del zip: models/drones/<nombre>/modelo.zip o models/modelo.zip
+        modelo = os.path.basename(os.path.dirname(zp)) if "/drones/" in zp.replace(os.sep, "/") else "base"
+        if st.get("running"):
+            c.label(text=f"Modelo \"{modelo}\" · generación {s.get('gen', '?')}")
+            if s.get("succ") is not None:
+                c.label(text=f"Éxito {s.get('succ', 0) * 100:.0f} % · choque {s.get('crash', 0) * 100:.0f} %")
+            mis = (st.get("hello") or {}).get("mission")
+            if mis:
+                wrapped(c, f"Misión: {mis['nombre']} · éxito = {mis['exito']}", width)
+        else:
+            wrapped(c, "Esperando: empieza a entrenar desde el juego (Laboratorio de IA o Estudio PBDMM, "
+                       "con \"Blender\" como lugar).", width)
+        if lb.get("error_txt"):
+            r = c.column(align=True)
+            r.alert = True
+            wrapped(r, "Error: " + lb["error_txt"], width)
+
+        box = L.box()
+        box.label(text="Ver", icon='HIDE_OFF')
+        row = box.row()
+        row.scale_y = 1.5
+        row.operator("dronelab.modo_video", icon='FULLSCREEN_ENTER',
+                     text="Salir del modo video" if st.get("modo_video") else "Modo video (para grabar)")
+        row = box.row(align=True)
+        row.operator("dronelab.frame_view", icon='ZOOM_ALL')
+        row.operator("dronelab.goto_watched", text="Dron observado", icon='VIEWZOOM')
+        box.prop(p, "show_net")
+        box.prop(p, "watch")
+        c = box.column(align=True)
+        c.scale_y = 0.8
+        if p.stage in ("11", "12") or (st.get("hello") or {}).get("stage") in (11, 12):
+            wrapped(c, "Casa = el sujeto · anillo celeste = la zona del cliente · aro = punto de cámara (se llena "
+                       "de verde mientras graba) · cono = lo que ve la cámara: rojo mala imagen → verde buena. "
+                       "Destellos: verde toma lograda · rojo choque · amarillo se acabó el tiempo.", width)
+        else:
+            wrapped(c, "Aros: verde = el que toca · celeste = el siguiente · gris = después · amarillo = "
+                       "aguantando (hover).", width)
+
+        project, python = _paths(p)
+        if not os.path.isdir(os.path.join(project, "drone_rl")) or not os.path.isfile(python):
+            box = L.box()                          # solo si las rutas están mal: si no, ni se ven
+            box.alert = True
+            box.label(text="Rutas del proyecto", icon='ERROR')
+            box.prop(p, "project")
+            box.prop(p, "python")
+        L.label(text="Todo se controla desde el juego.", icon='INFO')
+
+    def draw_avanzado(self, context):
         p = lab_scene().drone_lab               # los ajustes del laboratorio, aunque estés viendo la prueba
         st = S()
         running = st.get("running", False)
@@ -2003,7 +2117,7 @@ CLASSES = [DroneLabProps, DRONELAB_OT_start, DRONELAB_OT_stop, DRONELAB_OT_pause
            DRONELAB_OT_reset_rewards, DRONELAB_OT_frame_view, DRONELAB_OT_goto_watched, DRONELAB_OT_probar,
            DRONELAB_OT_reset_model, DRONELAB_OT_jugar,
            DRONELAB_OT_rebuild_view,
-           DRONELAB_OT_clear,
+           DRONELAB_OT_clear, DRONELAB_OT_modo_video,
            VIEW3D_PT_drone_lab]
 
 

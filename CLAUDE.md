@@ -69,6 +69,9 @@ app/               EL JUEGO (Dron Maker): usa los módulos de game/
   garaje.js        la escena del garaje + el banco: impresora 3D, portátil con USB, animaciones (instalar, chispas,
                    humo, motores girando, prueba atada, la caja del pedido) y los sonidos (sintetizados)
   vuelo.js         un vuelo: física del dron armado, batería, cámara del dron, grabar, calificar, IA
+  simulacion.js    el visor de grabaciones (Avance del modelo / Simular prueba): escena, recorrido, cámaras, gráficas
+  ui_sim.js        su pantalla (pestañas mejor/peor, línea de tiempo, cámaras, red del instante)
+  redviz.js        dibujar una red neuronal en un canvas (Estudio y visor)
   casa.js          la casa (mismas cajas que level.py house_boxes), las rutas de las tomas (RutasView, tomasPedido)
   lugares.js       los lugares de los pedidos: casa, finca (viento), restaurante (postes): colisiones + cómo se ven
   data/            piezas.json (catálogo con ESC, radio, montaje, extras, herramientas, estilo), misiones.json
@@ -106,6 +109,7 @@ drone_rl/          el simulador en Python (lo usan el entrenamiento y Blender)
   level.py, sensing.py, env.py, birds.py, runtime.py, upgrade.py, controller.py, missions.json
 scripts/
   jugar.py         servidor local: http://localhost:8765/app/ (el juego) · --arena: /game/
+  simulacion.py    grabaciones de pruebas: simular() (Simular prueba) y Avance (el mejor y el peor, desde live_train)
   live_train.py    el entrenador del Drone Lab (PPO + UDP con Blender) · --dron drones/madera.json | azar
   export_policy.py, evaluate.py, train.py
 blender/           drone_lab.py (laboratorio de IA), laboratorio.blend, bodega.blend, escenas 3D
@@ -175,6 +179,13 @@ Node v22 está en `/opt/homebrew/bin/node`. Blender 5.2 en `/Applications/Blende
   reales (ESP32, STM32F405/F722/H743, ExpressLRS, BLHeli_32…), ESC que limita el empuje, radio con
   failsafe, vibración → nitidez del video, pintura y forma del chasis (impresora 3D). Los demás pedidos
   están planeados ("Próximamente"). Siguiente: concesionario (tomas bajas) y la toma **seguir** (nivel 13).
+- **Fase 1 (15-10-2026):** Blender solo MUESTRA (panel de solo lectura + Modo video; el panel viejo con
+  `DRONMAKER_LAB_AVANZADO=1`). Tres botones por IA: **Avance del modelo** (mejor y peor intento por nivel: live_train
+  `LiveLink.grabar` -> `<carpeta del modelo>/avance.json`, `GET /api/avance`), **Simular prueba** (`POST /api/simular`:
+  `scripts/simulacion.py` corre la misma prueba del entrenamiento con modelo_web.json en numpy) y Pedidos. Visor:
+  `app/simulacion.js` + `app/ui_sim.js` (pantalla "sim"); la red se dibuja con `app/redviz.js` (también el Estudio).
+  Pedidos al azar: `pedido.variante` (semilla nueva en cada intento) -> `lugares.js tomasVariante` + `rutaLibre`.
+  "Que grabe la IA" avisa (`riesgosIA`) pero nunca bloquea.
 - **Cada modo con su herramienta:** en modo desarrollador no se ve el Laboratorio (todo `abrirLab()` abre el
   Estudio) y en modo normal el Estudio no abre. Lo siguiente está en `docs/ROADMAP.md` (Fase 1: GIFs y videos,
   tutorial, misiones solo con la IA; Fase 2 📝: soldar, multímetro, piezas dañadas; Fase 3 📝: mando de PS5,

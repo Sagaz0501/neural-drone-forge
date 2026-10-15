@@ -90,11 +90,28 @@ de hélice, radio que llegue, empuje con viento) y con qué dron vas.
 
 - **Volar yo:** pilotas tú. Cada toma es una **ruta** (la línea celeste): ve al aro del inicio, ahí empieza a
   grabar sola, y sigue el punto blanco pegado, con el sujeto al centro, a su ritmo y sin sacudidas.
-- **Que grabe la IA:** vuela la IA de ese dron (o la base si todavía no tiene). Si no entrega el video (le faltan
-  tomas, se estrella o se queda sin batería) el cliente se queja: **−2 de reputación**.
+- **Que grabe la IA:** vuela la IA de ese dron (o la base si todavía no tiene). Si no está lista (es nueva, no
+  entrenó esas tomas o no conoce un dron así) te avisa y decides si intentarlo igual. Si no entrega el video (le
+  faltan tomas, se estrella o se queda sin batería) el cliente se queja: **−2 de reputación**, y si choca hay que
+  reparar el dron.
+- **Cada intento es distinto:** las tomas cambian de ángulo, distancia y altura (el número de ruta sale en el pedido).
 
 Cada toma se califica: **encuadre × en la ruta × ritmo × estable**. Al final: estrellas, plata, reputación, daños
 (se reparan en el taller) y el video `.webm` para descargar.
+
+## Ver cómo va tu IA: Avance y Simular prueba
+
+Cada dron (en el hangar → abrirlo), el Laboratorio y el Estudio tienen tres botones:
+
+| Botón | Qué muestra |
+|---|---|
+| **Avance del modelo** | El **mejor** y el **peor** intento que ha tenido entrenando (el entrenador los guarda solos, por nivel). Ves de dónde salió y a dónde llegó. |
+| **Simular prueba** | Una prueba **nueva al azar**, igual a las que hacen los 50 drones, volada con la **última generación guardada**. No detiene el entrenamiento, no da plata, no gasta batería ni daña el dron. *Otra prueba* para otra. |
+| **Pedidos** | Los clientes de verdad (cada intento, una ruta distinta). |
+
+En las simulaciones: el recorrido (naranja), la ruta de la cámara (celeste), tres cámaras (*persecución*, *la del
+dron*, *desde arriba*), la red neuronal en cada instante, gráficas (altura, velocidad, premio, calidad) y una línea de
+tiempo. Teclas: **Espacio** pausa, **← →** 2 segundos, **C** cambia la cámara, **Esc** cierra.
 
 ## Entrenar la IA (Laboratorio)
 
@@ -142,8 +159,9 @@ La referencia completa del lenguaje está en [PBDMM.md](PBDMM.md).
 
 Con Blender instalado: Laboratorio → **Abrir Blender** (o en el Estudio: `blender`). Se abre
 `blender/laboratorio.blend` con el **Drone Lab**: los drones volando, el cono de la cámara (rojo → verde según la
-calidad de la toma), la red neuronal del dron que miras y las curvas. El juego le manda los pedidos; Blender los
-toma solo.
+calidad de la toma), la red neuronal del dron que miras y las curvas. Blender **solo muestra**: el entrenamiento se
+maneja desde el juego. En su panel (tecla N, pestaña *Drone Lab*): **Modo video** esconde los menús y la grilla y deja
+la vista a pantalla completa para grabar; *Encuadrar drones* y *Dron observado* mueven la vista.
 
 - La primera vez, en el panel **Drone Lab**, revisa que *Proyecto* y *Python* apunten a esta carpeta y a su `.venv`.
 - Si actualizas el juego con Blender abierto, ciérralo (*Detener y guardar*) y ábrelo otra vez.

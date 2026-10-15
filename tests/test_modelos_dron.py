@@ -225,3 +225,14 @@ def test_red_vivo_y_watch(root, monkeypatch):
     assert jugar.red_vivo("halcon") is None                       # viejo
     assert jugar.red_vivo("otro") is None
     assert jugar.fondo_live({"watch": 17}) == {"watch": 17}
+
+
+def test_api_simular_y_avance(root, monkeypatch):
+    import shutil
+    d = root / "models" / "drones" / "halcon"
+    d.mkdir(parents=True)
+    shutil.copy(Path(__file__).resolve().parents[1] / "models" / "publico" / "modelo_web.json", d / "modelo_web.json")
+    monkeypatch.setattr(jugar, "fresh_web_model", lambda **kw: None)
+    rep, msg = jugar.simular_prueba("halcon")
+    assert rep and rep["modelo"] == "halcon" and rep["cuadros"]["pos"], msg
+    assert jugar.simular_prueba("nadie")[0] is None

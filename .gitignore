@@ -49,3 +49,5 @@ partida.json
 
 # respaldos locales de la partida
 respaldos/
+# el mejor y el peor intento de la IA base (live_train)
+models/avance.json

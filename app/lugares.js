@@ -223,10 +223,57 @@ const restaurante = {
 
 export const LUGARES = { casa, finca, restaurante };
 
+/**
+ * Un pedido distinto en cada intento: con pedido.variante (una semilla) cada toma se mueve dentro de rangos
+ * parecidos a los del entrenamiento (drone_rl/tomas.py random_toma): otro ángulo, otra distancia, otra altura,
+ * la órbita en un sentido o en el otro. La casa queda igual. Devuelve las tomas del pedido (en grados, como en
+ * misiones.json) para esa variante.
+ */
+export function tomasVariante(tomas, seed) {
+  const rng = makeRng(seed), U = (a, b) => rng.uniform(a, b), cl = (x, a, b) => Math.max(a, Math.min(b, x));
+  return tomas.map((t) => {
+    const v = { ...t };
+    if (t.tipo === "fija") {
+      v.az = t.az + U(-40, 40); v.d = cl(t.d * U(0.85, 1.2), 6.5, 12); v.z = cl(t.z + U(-0.7, 0.9), 1.6, 7);
+    } else if (t.tipo === "orbita") {
+      if (rng.uniform(0, 1) < 0.5) { v.a0 = t.a0 + t.sweep; v.sweep = -t.sweep; }      // el mismo arco, al revés
+      v.a0 = v.a0 + U(-25, 25); v.sweep = v.sweep * U(0.85, 1.15);
+      v.r = cl(t.r * U(0.88, 1.15), 7, 13); v.z = cl(t.z + U(-0.6, 0.8), 1.8, 8); v.vel = cl(t.vel * U(0.85, 1.15), 1, 2);
+    } else {
+      v.az = t.az + U(-35, 35); v.d0 = cl(t.d0 * U(0.9, 1.1), 5.5, 8); v.d1 = v.d0 + (t.d1 - t.d0) * U(0.85, 1.15);
+      v.z0 = cl(t.z0 + U(-0.5, 0.5), 1.6, 6); v.z1 = cl(t.z1 + U(-0.8, 0.8), v.z0 + 1.5, 9);
+    }
+    return v;
+  });
+}
+
+/** ¿La ruta queda a más de 1,2 m de todo, dentro del área y sobre el piso? (como drone_rl: CLEAR 1,2 m, |x|,|y| < 26) */
+function rutaLibre(shots, L) {
+  const CLEAR = 1.2;
+  for (const t of shots) for (const [x, y, z] of t.path(40)) {
+    if (Math.abs(x) > 26 || Math.abs(y) > 26 || z < 1.2) return false;
+    for (const b of L.boxes || []) {
+      const dx = Math.max(b.min[0] - x, 0, x - b.max[0]), dy = Math.max(b.min[1] - y, 0, y - b.max[1]), dz = Math.max(b.min[2] - z, 0, z - b.max[2]);
+      if (Math.hypot(dx, dy, dz) < CLEAR) return false;
+    }
+    for (const c of L.cylinders || []) {                     // [x, y, r, z0, z1]
+      if (z > c[3] - CLEAR && z < c[4] + CLEAR && Math.hypot(x - c[0], y - c[1]) - c[2] < CLEAR) return false;
+    }
+    for (const sp of L.spheres || []) if (Math.hypot(x - sp[0], y - sp[1], z - sp[2]) - sp[3] < CLEAR) return false;
+  }
+  return true;
+}
+
 /** El mundo de un pedido: el lugar armado + las tomas del pedido + todo lo de colisión para el vuelo. */
 export function mundoLugar(id, pedido) {
   const L = (LUGARES[id] || casa).build();
-  const shots = tomasPedido(pedido, L.subject, L.frente);
+  let shots = tomasPedido(pedido, L.subject, L.frente);
+  if (pedido && pedido.variante != null && pedido.tomas?.length) {
+    for (let k = 0; k < 40; k++) {                           // una variante que no choque con nada (si no, la original)
+      const cand = tomasPedido({ ...pedido, tomas: tomasVariante(pedido.tomas, pedido.variante + k * 7919) }, L.subject, L.frente);
+      if (rutaLibre(cand, L)) { shots = cand; break; }
+    }
+  }
   const world = { kind: "campo", spawn: [0, 0, 0], trees: L.trees, backdrop: [], boxes: [], columns: [], fog: 0.008 };
   return { ...L, world, shots };
 }

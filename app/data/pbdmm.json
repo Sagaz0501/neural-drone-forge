@@ -729,6 +729,10 @@
       "abre Blender con el Drone Lab (si lo tienes instalado)"
     ],
     [
+      "avance <modelo> · simular <modelo>",
+      "el mejor y el peor intento que ha tenido entrenando · una prueba al azar ahora, con su última generación (sin detener el entrenamiento): con el recorrido, la red, gráficas y cámaras"
+    ],
+    [
       "volar <modelo>",
       "pone ese modelo en el dron activo del hangar para probarlo en un pedido"
     ],

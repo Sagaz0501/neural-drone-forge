@@ -8,6 +8,7 @@
 // =====================================================================
 import { compilar, pedidoDe, estadoE, ErrorPB, repr, nivelDe, recomendados } from "./pbdmm.js";
 import { contexto, opciones, delPrograma } from "./autocompletar.js";
+import { dibujarRed } from "./redviz.js";
 
 const ARCH = "dronmaker.pbdmm.archivos", ABIERTO = "dronmaker.pbdmm.abierto";
 const leerLS = (k, d) => { try { const s = localStorage.getItem(k); return s ? JSON.parse(s) : d; } catch { return d; } };
@@ -306,6 +307,12 @@ export function initEstudio(ctx) {
         case "revisar": case "check": return correr(a0, true);
         case "parar": if (!ES.run) return linea("No hay un programa escuchando.", "muted"); linea(`Dejé de escuchar "${ES.run.cfg.modelo}" (sigue entrenando: detener ${ES.run.cfg.modelo} para pararlo).`, "warn"); ES.run = null; renderRun(); return;
         case "estado": return estado();
+        case "avance": case "simular": {
+          const m = a0 || ES.run?.cfg.modelo || ES.grafSlug;
+          if (!m) return linea(`${cmd} <modelo>`, "bad");
+          linea(cmd === "avance" ? `Abriendo el mejor y el peor intento de "${m}"…` : `Simulando una prueba de "${m}" con su última generación…`, "muted");
+          return cmd === "avance" ? ctx.abrirAvance(m, () => abrir()) : ctx.abrirSimular(m, () => abrir());
+        }
         case "modelos": case "ls": return modelos(a0);
         case "info": return info(a0);
         case "pausar": return control(a0, "pausar", { pausa: true });
@@ -615,7 +622,11 @@ export function initEstudio(ctx) {
       }
       box.insertAdjacentHTML("beforeend", `<div class="es-red" aria-label="La red: 38 entradas, capas ocultas, 4 palancas">${redSVG()}</div>`);
     } else {
-      box.innerHTML = `<div class="seg" id="es-vista"><button data-v="curvas">Curvas</button><button data-v="red">Red neuronal</button></div>`;
+      box.innerHTML = `<div class="seg" id="es-vista"><button data-v="curvas">Curvas</button><button data-v="red">Red neuronal</button></div>` +
+        `<div class="es-red-ctl"><button class="btn ghost small" id="es-avance">Avance del modelo</button><button class="btn ai small" id="es-simular">Simular prueba</button></div>`;
+      const m = () => ES.grafSlug || ES.run?.cfg.modelo;
+      box.querySelector("#es-avance").onclick = () => (m() ? comando("avance " + m()) : linea("Corre un programa o escribe info <modelo> primero.", "bad"));
+      box.querySelector("#es-simular").onclick = () => (m() ? comando("simular " + m()) : linea("Corre un programa o escribe info <modelo> primero.", "bad"));
       box.querySelectorAll("#es-vista button").forEach((b) => {
         b.setAttribute("aria-pressed", String(b.dataset.v === ES.vista));
         b.onclick = () => { ES.vista = b.dataset.v; renderDer(); };
@@ -685,52 +696,8 @@ export function initEstudio(ctx) {
     const inp = $("es-red-i");
     if (document.activeElement !== inp) { inp.value = R.i + 1; inp.max = R.n; }
     $("es-red-n").textContent = `de ${R.n}`;
-    // tamaño real del canvas (nítido en pantallas retina)
-    const dpr = window.devicePixelRatio || 1, W = cv.clientWidth || 340, H = Math.max(360, Math.min(520, R.capas[0] * 12 + 20));
-    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); cv.style.height = H + "px"; }
-    const g = cv.getContext("2d");
-    g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    g.clearRect(0, 0, W, H);
-    const capas = R.capas, act = [R.in, ...R.h, R.mu], L = capas.length;
-    const izq = 92, der = 74, xs = capas.map((_, i) => izq + (i * (W - izq - der)) / (L - 1));
-    const ys = capas.map((n) => Array.from({ length: n }, (_, j) => 12 + ((j + 0.5) * (H - 24)) / n));
-    const col = (v, a) => (v >= 0 ? `rgba(255,158,94,${a})` : `rgba(60,203,255,${a})`);
-    const clip = (v) => Math.max(-1, Math.min(1, v || 0));
-    // conexiones: más fuertes donde pasa más señal (|peso × activación de origen|)
-    (R.w || []).forEach((conns, l) => {
-      if (l >= L - 1) return;
-      const flujo = conns.map(([a, , w]) => Math.abs(w * clip(act[l][a])));
-      const max = Math.max(1e-6, ...flujo);
-      conns.forEach(([a, b, w], k) => {
-        const f = flujo[k] / max;
-        if (f < 0.05) return;
-        g.strokeStyle = col(w, 0.06 + 0.5 * f); g.lineWidth = 0.5 + 1.5 * f;
-        g.beginPath(); g.moveTo(xs[l], ys[l][a]); g.lineTo(xs[l + 1], ys[l + 1][b]); g.stroke();
-      });
-    });
-    // neuronas
-    capas.forEach((n, l) => {
-      const r = Math.max(1.2, Math.min(5, (H - 24) / n / 2 - 0.4));
-      ys[l].forEach((y, j) => {
-        const v = clip(act[l][j]);
-        g.fillStyle = col(v, 0.15 + 0.85 * Math.abs(v));
-        g.beginPath(); g.arc(xs[l], y, r, 0, Math.PI * 2); g.fill();
-      });
-    });
-    // nombres: sensores a la izquierda, palancas a la derecha (con su valor)
-    g.font = "10px ui-monospace, Menlo, monospace"; g.textBaseline = "middle";
-    const lbl = R.in_lbl || [];
-    if (capas[0] <= 48) ys[0].forEach((y, j) => { g.fillStyle = Math.abs(clip(R.in[j])) > 0.5 ? "#eaf2ef" : "#7d938a"; g.textAlign = "right"; g.fillText(String(lbl[j] || j).slice(0, 14), izq - 8, y); });
-    (R.act_lbl || ["gas", "roll", "pitch", "yaw"]).forEach((nombre, j) => {
-      const y = ys[L - 1][j], v = clip(R.mu[j]);
-      g.textAlign = "left"; g.fillStyle = "#eaf2ef"; g.fillText(`${nombre} ${v >= 0 ? "+" : ""}${v.toFixed(2)}`, xs[L - 1] + 9, y);
-    });
-    g.textAlign = "center"; g.fillStyle = "#7d938a";
-    capas.forEach((n, l) => g.fillText(l === 0 ? "38 sensores" : l === L - 1 ? "palancas" : String(n), xs[l], H - 4));
-    // lo que más está mirando ahora
-    // (un sensor de distancia en 1 = no ve nada cerca: no cuenta)
-    const top = R.in.map((v, j) => [Math.abs(v), j, v]).filter(([, j, v]) => !(/^sensor/.test(lbl[j] || "") && v >= 0.98)).sort((a, b) => b[0] - a[0]).slice(0, 4);
-    $("es-red-top").textContent = "Lo que más siente ahora: " + top.map(([, j, v]) => `${lbl[j] || j} ${v >= 0 ? "+" : ""}${v.toFixed(2)}`).join(" · ") +
+    const top = dibujarRed(cv, R);
+    $("es-red-top").textContent = "Lo que más siente ahora: " + top.join(" · ") +
       `. Cada capa oculta tiene sus neuronas (los números de abajo); las palancas son lo que decide.`;
   }
   /** " · normal 4" para los parámetros de premios() y castigos() (lo que recomiendan las misiones, de 0 a 10). */

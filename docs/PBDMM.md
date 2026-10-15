@@ -336,6 +336,7 @@ Con `nivel(n)`: 0 Hover (quedarse quieto) · 1 Meta fija · 2 Metas al azar · 3
 - `archivos · nuevo <nombre> · abrir <nombre> · eliminar [nombre]`: tus programas .pbd (se guardan en este navegador; descarga con el botón). eliminar sin nombre = el abierto; también con la × de la lista
 - `ejemplo <nombre>`: abre un ejemplo: hover, grabar, curriculum, postes, cerebro_chico
 - `blender`: abre Blender con el Drone Lab (si lo tienes instalado)
+- `avance <modelo> · simular <modelo>`: el mejor y el peor intento que ha tenido entrenando · una prueba al azar ahora, con su última generación (sin detener el entrenamiento): con el recorrido, la red, gráficas y cámaras
 - `volar <modelo>`: pone ese modelo en el dron activo del hangar para probarlo en un pedido
 - `limpiar`: borra la terminal
 

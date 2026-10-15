@@ -18,6 +18,7 @@ import { cargarSTL } from "./stl.js";
 import { initTienda } from "./tienda.js";
 import { initBanco } from "./ui_banco.js";
 import { initEstudio } from "./estudio.js";
+import { initSim } from "./ui_sim.js";
 import { realDe, nivelDe } from "./pbdmm.js";
 
 const $ = (id) => document.getElementById(id);
@@ -115,8 +116,8 @@ const infoModelo = (slug) => G.modelos.find((m) => m.slug === slug) || null;
 const sabeGrabar = (ia, tipos = ["fija", "orbita", "revelar"]) => !!(ia?.policy && ia.policy.layers[0].nin >= 38 && tipos.every((t) => (ia.meta?.tomas || []).includes(t)));
 
 // ---------------- pantallas ----------------
-const PANELS = { inicio: ["inicio"], taller: ["taller-izq", "taller-der", "taller-top"], banco: ["banco-izq", "banco-der"], vuelo: ["hud"], estudio: ["estudio"] };
-const MODALES = ["tablero", "brief", "videos", "controles", "pausa", "resultado", "lab", "historia", "tienda", "inventario", "nuevo-dron", "cableado"];
+const PANELS = { inicio: ["inicio"], taller: ["taller-izq", "taller-der", "taller-top"], banco: ["banco-izq", "banco-der"], vuelo: ["hud"], estudio: ["estudio"], sim: ["sim"] };
+const MODALES = ["aviso-ia", "tablero", "brief", "videos", "controles", "pausa", "resultado", "lab", "historia", "tienda", "inventario", "nuevo-dron", "cableado"];
 function show(screen) {
   G.screen = screen;
   for (const ids of Object.values(PANELS)) ids.forEach((id) => $(id).classList.add("hidden"));
@@ -372,6 +373,11 @@ function renderEditor() {
   btn(e.listo ? "Banco de armado ✓" : "Banco de armado", "main", () => abrirBanco());
   btn("Vuelo de prueba", "ghost small", () => startVuelo(null, "yo"));
   btn(p.modo === "dev" ? "Entrenar en el Estudio" : "Entrenar su IA", "ai small", () => { LAB.drone = d.id; abrirLab(); });
+  // los tres botones de la IA: cómo va (mejor y peor intento), una prueba ahora (sin pedido), y los pedidos
+  const alDron = () => { show("taller"); G.izq = "dron"; verDron(); renderTaller(); };   // al cerrar, de vuelta a este dron
+  btn("Avance del modelo", "ghost small", () => sim.abrirAvance(d.modelo || "base", alDron)).title = "El mejor y el peor intento que ha tenido entrenando";
+  btn("Simular prueba", "ghost small", () => sim.abrirSimular(d.modelo || "base", alDron)).title = "Una prueba al azar como las del entrenamiento, con la última generación (no da plata ni daña el dron)";
+  btn("Pedidos", "main small", () => { P().activo = d.id; guardar(); $("b-pedidos").click(); });
   const rep = PT.costoReparar(p, cat, d);
   if (rep > 0) btn(rep > p.plata && PT.rotas(p, d).length ? "Arreglo casero (gratis)" : `Reparar ($${rep})`, "ghost small", () => repararDron(d));
   btn("Desarmar", "ghost small", () => {
@@ -464,6 +470,10 @@ const ctx = { G, cat, PT, BA, $, fmt, esc, toast, descr, api, guardar, modal, sh
 const banco = initBanco(ctx);
 ctx.ent = ent; ctx.P = () => P(); ctx.dronParaEntrenar = (d) => dronParaEntrenar(d);
 const estudio = initEstudio(ctx);
+ctx.renderer = renderer; ctx.urlModelo = urlModelo;
+const sim = initSim(ctx);
+ctx.abrirAvance = (slug, volver) => sim.abrirAvance(slug, volver);
+ctx.abrirSimular = (slug, volver) => sim.abrirSimular(slug, volver);
 $("b-estudio").onclick = () => estudio.abrir();
 ctx.esDev = () => P()?.modo === "dev";
 const tienda = initTienda(ctx);
@@ -532,7 +542,9 @@ function requisitos(pe, st, shots, d) {
   return req;
 }
 
-async function openBrief(pe) {
+const nuevaVariante = () => 1 + Math.floor(Math.random() * 999999);   // cada intento, otra ruta (lugares.js tomasVariante)
+async function openBrief(pe, mismaRuta = false) {
+  if (!mismaRuta || pe.variante == null) pe.variante = nuevaVariante();
   G.pedido = pe;
   const p = P(), d = D();
   $("br-cliente").textContent = pe.cliente;
@@ -544,9 +556,10 @@ async function openBrief(pe) {
   $("br-desc").innerHTML = sel + (pe.historia ? `<i class="muted">${pe.historia}</i><br>` : "") +
     `Quiere un video en <b>${shots.length} tomas</b>, en orden. Cada toma es una ruta (la línea celeste): ve al aro del inicio, ` +
     `ahí arranca a grabar sola y el punto blanco avanza; síguelo <b>pegado</b>, con el sujeto <b>al centro</b> del cuadro, a su ritmo y sin sacudidas. ` +
-    `Una toma con menos de ${Math.round(TOMA_OK * 100)} % no sirve.${M.wind ? ` <b>Viento: ${fmt(M.wind)} m/s con ráfagas.</b>` : ""} Paga <span class="money">$${pe.pago}</span> con ★★, más con ★★★.` +
+    `Una toma con menos de ${Math.round(TOMA_OK * 100)} % no sirve. <span class="muted">Ruta n.º ${pe.variante}: cada intento las tomas cambian (otro ángulo, otra distancia, otra altura).</span> ` +
+    `${M.wind ? ` <b>Viento: ${fmt(M.wind)} m/s con ráfagas.</b>` : ""} Paga <span class="money">$${pe.pago}</span> con ★★, más con ★★★.` +
     `<ol style="margin:8px 0 0;padding-left:20px;line-height:1.5">${shots.map((t) => `<li><b>${t.nombre}</b> <span class="muted">(${({ fija: "fija", orbita: "órbita", revelar: "revelar" })[t.tipo]}, ${fmt(t.dur, 0)} s) · ${t.desc}</span></li>`).join("")}</ol>`;
-  $("br-desc").querySelectorAll("[data-d]").forEach((b) => (b.onclick = () => { p.activo = b.dataset.d; guardar(); verDron(); openBrief(pe); }));
+  $("br-desc").querySelectorAll("[data-d]").forEach((b) => (b.onclick = () => { p.activo = b.dataset.d; guardar(); verDron(); openBrief(pe, true); }));
   const a = d && PT.dronArmado(p, cat, d), st = a?.stats;
   const req = requisitos(pe, st, shots, d);
   $("br-req").innerHTML = req.map(([c, t]) => `<li class="${c}">${t}</li>`).join("");
@@ -573,7 +586,33 @@ async function openBrief(pe) {
 $("b-cerrar-brief").onclick = () => modal("brief", false);
 $("b-brief-lab").onclick = () => { modal("brief", false); abrirLab(); };
 $("b-volar").onclick = () => startVuelo(G.pedido, "yo");
-$("b-volar-ia").onclick = async () => { const d = D(); if (d?.modelo) await loadModel(d.modelo); if (!G.ias[slugIA(d)]) await loadModel("base"); startVuelo(G.pedido, "ia"); };
+$("b-volar-ia").onclick = async () => {
+  const d = D();
+  if (d?.modelo) await loadModel(d.modelo);
+  if (!G.ias[slugIA(d)]) await loadModel("base");
+  const riesgos = riesgosIA(d, G.pedido);
+  if (!riesgos.length) return startVuelo(G.pedido, "ia");
+  // nunca se bloquea: se avisa y el jugador decide
+  $("aviso-ia-p").innerHTML = `<ul>${riesgos.map((r) => `<li>${r}</li>`).join("")}</ul>` +
+    `<p>Si la IA no entrega el video, <b>pierdes ${REP_FALLA_IA} de reputación</b>; si choca, <b>el dron se daña</b> y hay que repararlo en el taller.</p>`;
+  modal("aviso-ia");
+};
+$("b-aviso-ia-si").onclick = () => { modal("aviso-ia", false); startVuelo(G.pedido, "ia"); };
+$("b-aviso-ia-no").onclick = () => modal("aviso-ia", false);
+/** Por qué la IA de este dron podría fallar este pedido (vacío = está lista). */
+function riesgosIA(d, pe) {
+  const out = [], slug = slugIA(d), I = G.ias[slug];
+  if (!I) return ["No encontré ninguna IA para este dron."];
+  if (slug === "base" && d?.modelo) out.push(`La IA "${esc(d.modelo)}" todavía no tiene un modelo guardado: vuela la IA base, que no conoce este dron.`);
+  else if (slug === "base") out.push("Este dron no tiene IA propia: vuela la IA base, que no conoce este dron.");
+  else if (!(I.meta.generaciones > 0)) out.push(`La IA "${esc(slug)}" es completamente nueva (sin entrenar).`);
+  const tipos = pe ? [...new Set(mundoLugar(pe.lugar, pe).shots.map((t) => t.tipo))] : [];
+  if (tipos.length && !sabeGrabar(I, tipos)) out.push(`Todavía no entrenó estas tomas (${tipos.join(", ")}).`);
+  const st = PT.dronArmado(P(), cat, d)?.stats, rango = rangoModelo(I.meta);
+  if (st && !(st.twr >= rango.twr[0] && st.twr <= rango.twr[1] && st.mass >= rango.masa_kg[0] && st.mass <= rango.masa_kg[1]))
+    out.push(`No conoce un dron como este (empuje/peso ${fmt(st.twr, 2)}, ${fmt(st.mass, 2)} kg).`);
+  return out;
+}
 
 // ---------------- laboratorio de IA (cada dron con su modelo; en Blender o en segundo plano) ----------------
 const LAB = {
@@ -650,7 +689,10 @@ function renderLab() {
   else if (d.modelo) {
     const m = infoModelo(d.modelo);
     mb.innerHTML = `<div class="card" style="cursor:default"><b>"${esc(d.modelo)}"</b> <span class="muted" style="font-size:12.5px">${m?.tiene_modelo ? `generación ${m.gen ?? 0} · ${(m.pasos || 0).toLocaleString("es")} pasos · tomas: ${(m.tomas || []).join(", ") || "ninguna"}` : "todavía sin entrenar"}</span>` +
-      `<small>${d.modelo === "base" ? "Es la IA base (models/modelo.zip): la que venías entrenando. Solo entrena en Blender." : `Vive en models/drones/${esc(d.modelo)}/. Cada vez que entrenes "${esc(d.nombre)}" sigue desde aquí.`}</small></div>`;
+      `<small>${d.modelo === "base" ? "Es la IA base (models/modelo.zip): la que venías entrenando. Solo entrena en Blender." : `Vive en models/drones/${esc(d.modelo)}/. Cada vez que entrenes "${esc(d.nombre)}" sigue desde aquí.`}</small>` +
+      `<div class="row" style="justify-content:flex-start;gap:6px;margin-top:6px"><button class="btn ghost small" id="lab-avance">Avance del modelo</button><button class="btn ai small" id="lab-simular">Simular prueba</button></div></div>`;
+    $("lab-avance").onclick = () => { modal("lab", false); labPoll(false); sim.abrirAvance(d.modelo, () => { irTaller(); abrirLab(); }); };
+    $("lab-simular").onclick = () => { modal("lab", false); labPoll(false); sim.abrirSimular(d.modelo, () => { irTaller(); abrirLab(); }); };
   } else {
     const otros = G.modelos.filter((m) => m.tiene_modelo !== false);
     mb.innerHTML = `<div class="card" style="cursor:default"><small style="margin:0">"${esc(d.nombre)}" todavía no tiene IA. Al empezar a entrenar se crea la suya: <b>"${slugDe(d.nombre)}"</b>.</small>` +
@@ -925,7 +967,11 @@ function renderVideos() {
 }
 
 $("b-res-taller").onclick = () => endVuelo();
-$("b-res-otra").onclick = () => { const l = G.last; endVuelo(); P().activo = l.dron; const why = puedeVolar(D(), l.piloto === "ia"); if (!why) startVuelo(l.pedido, l.piloto); else toast(why, 4000); };
+$("b-res-otra").onclick = () => {
+  const l = G.last; endVuelo(); P().activo = l.dron;
+  if (l.pedido) l.pedido.variante = nuevaVariante();                 // otra vez = otra ruta
+  const why = puedeVolar(D(), l.piloto === "ia"); if (!why) startVuelo(l.pedido, l.piloto); else toast(why, 4000);
+};
 $("b-seguir").onclick = () => setPause(false);
 $("b-reintentar").onclick = () => { const l = G.last; endVuelo(); startVuelo(l.pedido, l.piloto); };
 $("b-abandonar").onclick = () => endVuelo();
@@ -947,6 +993,7 @@ function setPause(on) {
 
 // ---------------- teclado, ratón y control ----------------
 addEventListener("keydown", (e) => {
+  if (G.screen === "sim" && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || "")) { sim.tecla(e); return; }
   if (G.screen !== "vuelo") {
     if (e.code === "Escape") { for (const id of ["tablero", "brief", "videos", "controles", "lab", "historia", "tienda", "inventario", "nuevo-dron"]) modal(id, false); labPoll(false); }
     return;
@@ -1042,7 +1089,11 @@ function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min((now - last) / 1000, 0.1);
   last = now;
-  if (G.screen === "vuelo" && G.vuelo) {
+  if (G.screen === "sim" && G.sim) {
+    G.sim.update(dt);
+    G.sim.render(dt);
+    sim.tick(dt);
+  } else if (G.screen === "vuelo" && G.vuelo) {
     pollPad();
     G.vuelo.update(dt);
     G.vuelo.render(dt, now);
@@ -1068,5 +1119,5 @@ show("inicio");
 renderInicio();
 loadModelos();
 window.__gameReady = true;
-window.__dm = { G, PT, BA, cat, mis, garaje: () => garaje };   // para probar desde la consola del navegador
+window.__dm = { G, PT, BA, cat, mis, mundoLugar, garaje: () => garaje };   // para probar desde la consola del navegador
 requestAnimationFrame(frame);

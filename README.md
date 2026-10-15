@@ -140,6 +140,9 @@ de éxito. El juego le manda los pedidos y Blender los toma solo. Sin Blender se
 - ✅ 3 pedidos jugables (casa, finca con viento, restaurante entre postes) con tomas calificadas y video.
 - ✅ Una IA por dron, entrenable en segundo plano o en Blender; "Que grabe la IA" en cada pedido.
 - ✅ Modo desarrollador: Estudio PBDMM con autocompletado, terminal, gráficas y la red neuronal en vivo.
+- ✅ **Avance del modelo** (su mejor y su peor intento) y **Simular prueba** (la misma prueba del entrenamiento, con
+  la última generación): recorrido, red neuronal, gráficas y cámaras. Pedidos distintos en cada intento.
+- ✅ Blender como pantalla del entrenamiento, con **Modo video** para grabar.
 
 Lo que viene (soldar con cautín, más fallas en el banco, mando de PS5, mapas de freestyle y FPV, misiones
 que solo la IA puede cumplir, video con varios drones…) está en el **[Roadmap](docs/ROADMAP.md)**.

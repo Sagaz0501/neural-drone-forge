@@ -36,6 +36,9 @@ y entrenando.log si entrena en el fondo). slug = [a-z0-9_-], 1-40, sin "_" al in
       "accion": "guardar" = guarda ya (fondo o Blender)
       responde {"ok", "msg", "id"} (+ "modelo", "donde", "pid" en el fondo)
   GET  /api/lab  además: "fondo": [{modelo, activo, pid, puertos, pausado, ...entrenando.json}], "blender_modelo"
+  POST /api/simular {"modelo"}  una prueba al azar del nivel que entrena, volada con su última generación (no toca nada)
+                     -> la grabación (formato en scripts/simulacion.py)
+  GET  /api/avance?modelo=<slug>  {"niveles": {"11": {"mejor": grabación, "peor": grabación}}} (lo guarda live_train)
   GET  /api/red?modelo=<slug>  la red del dron que mira su entrenamiento (activaciones "in"/"h"/"mu"/"act", "capas",
                      "w" = conexiones más fuertes por capa [origen, destino, peso], "i" = qué dron, "n" = cuántos);
                      {"ok": false} si no entrena. "watch": i en POST /api/lab (iniciar/ajustar) cambia el dron que mira
@@ -331,6 +334,32 @@ def training_where(slug, state=None):
         return "fondo"
     b, corriendo = blender_model(state)
     return "blender" if corriendo and b == slug else None
+
+
+def simular_prueba(slug):
+    """POST /api/simular: una prueba al azar del nivel que entrena (o entrenó) ese modelo, volada con su última
+    generación guardada (modelo_web.json). No toca el entrenamiento ni la partida. -> (grabación, msg)."""
+    d = model_dir(slug)
+    if not (d / "modelo.zip").exists() and not (d / "modelo_web.json").exists():
+        return None, f"{slug} todavía no tiene un modelo guardado"
+    try:
+        fresh_web_model(folder=d if slug != "base" else None)
+    except Exception as e:                       # sin PyTorch: se usa el modelo_web.json que haya
+        print("No pude exportar el modelo:", e, flush=True)
+    if not (d / "modelo_web.json").exists():
+        return None, f"{slug} no tiene modelo_web.json"
+    tr = None
+    st = lab_state()
+    for f in st.get("fondo", []):
+        if f.get("modelo") == slug and f.get("stage") is not None:
+            tr = f
+    if tr is None and st.get("blender_modelo") == slug and (st.get("entrenador") or {}).get("stage") is not None:
+        tr = st["entrenador"]
+    import simulacion                            # numpy + drone_rl (sin PyTorch)
+    try:
+        return simulacion.simular(d, d / "modelo_web.json", slug, tr), "ok"
+    except Exception as e:
+        return None, f"no pude simular: {e}"
 
 
 def red_vivo(slug):
@@ -751,6 +780,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 ok, msg = stl_delete(body.get("id"))
             elif path == "/api/abrir_blender":
                 ok, msg = open_blender()
+            elif path == "/api/simular":
+                rep, msg = simular_prueba(check_slug(body.get("modelo") or "base"))
+                return self.send_json(dict(rep, ok=True) if rep else {"ok": False, "msg": msg}, 200 if rep else 400)
             elif path == "/api/partida":
                 write_json(ROOT / "partida.json", body)
                 ok, msg = True, "guardada"
@@ -768,6 +800,15 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return self.send_json({"modelos": list_models()})
         if path == "/api/stl":
             return self.send_json({"stl": stl_index()})
+        if path == "/api/avance":
+            q = parse_qs(urlparse(self.path).query)
+            try:
+                d = model_dir(check_slug((q.get("modelo") or ["base"])[0]))
+            except ValueError as e:
+                return self.send_json({"ok": False, "msg": str(e)}, 400)
+            av = read_json(d / "avance.json")
+            return self.send_json({"ok": True, "niveles": av} if av else
+                                  {"ok": False, "msg": "todavía no hay intentos guardados: entrénalo un rato (el mejor y el peor se guardan solos)"})
         if path == "/api/red":
             q = parse_qs(urlparse(self.path).query)
             try:

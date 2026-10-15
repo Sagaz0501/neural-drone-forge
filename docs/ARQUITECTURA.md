@@ -72,9 +72,19 @@ Documentada en el docstring de [`scripts/jugar.py`](../scripts/jugar.py). Resume
 | `POST /api/lab` | `accion`: iniciar, ajustar, pausar, detener, guardar · `modelo`, `base_de`, `donde` (blender/fondo), `nivel`, `dron`, `drones`, `velocidad`, `viento`, `premios` (valores reales), `lr`, `ent`, `capas`, `watch` |
 | `GET /api/lab` | el estado de Blender, del entrenador y de los del fondo |
 | `GET /api/red?modelo=` | la red en vivo del dron que mira |
+| `POST /api/simular` | **Simular prueba**: una prueba al azar del nivel que entrena el modelo, volada con su `modelo_web.json` (`scripts/simulacion.py`, numpy + `drone_rl`, sin PyTorch) → una grabación |
+| `GET /api/avance?modelo=` | **Avance del modelo**: el mejor y el peor intento por nivel (`<carpeta>/avance.json`, lo escribe `live_train.py`) |
 | `GET /api/modelos` · `POST /api/modelo` | listar · copiar, renombrar, borrar (a la papelera) |
 | `POST /api/stl` · `GET /api/stl` | los STL que importa el jugador (`stl/`) |
 | `POST /api/partida` | una copia de la partida del navegador en `partida.json` (para revisarla afuera) |
+
+## Simulaciones (Avance y Simular prueba)
+
+`scripts/simulacion.py` define una **grabación**: el nivel (`Level.to_dict()`), la toma, cuadros a 25 Hz (posición,
+actitud, palancas, calidad, avance de la toma, premio acumulado), la red cada 0,2 s (entradas, capas ocultas, salida)
+y el resultado. Dos productores: `simular()` (para `POST /api/simular`: la misma prueba que entrena, con la red en
+numpy) y `live_train.py` (`LiveLink.grabar`: graba cada intento de cada dron y guarda el mejor y el peor por premio
+total en `avance.json`). Un consumidor: `app/simulacion.js` (el visor 3D) + `app/ui_sim.js` (la pantalla).
 
 ## Premios y castigos
 
@@ -107,5 +117,6 @@ escala), `pbdmm.json` (el lenguaje).
 | `node app/test_parts.mjs` | piezas → física (masa, empuje/peso, batería) |
 | `node app/test_banco.mjs` | banco de armado, partida v3, modo desarrollador |
 | `node app/test_pbdmm.mjs` | el lenguaje, sus errores, compilar los ejemplos, el autocompletado |
+| `tests/test_simulacion.py` | la red en numpy, simular una prueba, el mejor y el peor |
 
 GitHub Actions las corre en cada push (`.github/workflows/pruebas.yml`).
