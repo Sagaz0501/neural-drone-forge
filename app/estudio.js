@@ -348,19 +348,80 @@ export function initEstudio(ctx) {
           const r = await api("/api/abrir_blender", {});
           return linea(r.msg || (r.ok ? "Abriendo Blender…" : "No pude abrir Blender"), r.ok ? "ok" : "bad");
         }
-        case "volar": {
-          if (!a0) return linea("volar <modelo>", "bad");
-          await cargarModelos();
-          const m = ES.modelos.find((x) => x.slug === a0);
-          if (!m?.tiene_modelo) return linea(`"${a0}" no tiene un modelo guardado todavía`, "bad");
-          const d = ctx.D();
-          if (!d) return linea("No tienes un dron activo en el hangar", "bad");
-          d.modelo = a0; ctx.guardar();
-          return linea(`"${d.nombre}" ahora vuela con "${a0}". Ve a Pedidos y dale "Que grabe la IA".`, "ok");
-        }
+        case "cargar": case "volar": return cargar(c.trim().slice(cmd.length).trim());
         default: linea(`No conozco "${cmd}". Escribe ayuda.`, "bad");
       }
     } catch (err) { linea("Error: " + err.message, "bad"); }
+  }
+
+  // ---------------- cargar <modelo> <dron>: la última generación, al dron (con animación de "subida") ----------------
+  const normal = (x) => String(x).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "");
+  const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
+  /** Una línea de la terminal que se puede ir cambiando (barras de progreso). */
+  function lineaViva(txt, cls = "") { linea(txt, cls); const el = $("es-out").lastElementChild; return (t, c) => { el.textContent = t; if (c !== undefined) el.className = c; }; }
+  function buscarDron(txt) {
+    const ds = ctx.P().drones;
+    if (!txt) return { d: ctx.D() };
+    const q = normal(txt);
+    const exacto = ds.find((d) => normal(d.nombre) === q);
+    if (exacto) return { d: exacto };
+    const parecidos = ds.filter((d) => normal(d.nombre).startsWith(q) || normal(d.nombre).includes(q));
+    if (parecidos.length === 1) return { d: parecidos[0] };
+    return { error: parecidos.length ? `"${txt}" puede ser ${parecidos.map((d) => `"${d.nombre}"`).join(" o ")}: escribe más del nombre` : `no tienes un dron "${txt}". Tus drones: ${ds.map((d) => `"${d.nombre}"`).join(", ")}` };
+  }
+  async function cargar(resto) {
+    const args = [...resto.matchAll(/"([^"]+)"|'([^']+)'|(\S+)/g)].map((m) => m[1] || m[2] || m[3]);
+    const slug = args[0] || ES.run?.cfg.modelo || ES.grafSlug;
+    if (!slug) return linea("cargar <modelo> [dron]: escribe qué modelo (modelos para verlos)", "bad");
+    const { d, error } = buscarDron(args.slice(1).join(" "));
+    if (error) return linea("✗ " + error, "bad");
+    if (!d) return linea("✗ No tienes un dron activo: elige uno en el hangar o escribe cargar <modelo> <dron>", "bad");
+    let m = (await cargarModelos()).find((x) => x.slug === slug);
+    if (!m) return linea(`✗ No hay un modelo "${slug}" (modelos para verlos)`, "bad");
+    // 1) si está entrenando: que guarde la generación de AHORA y esperar a que quede en disco
+    if (m.entrenando) {
+      const gen0 = m.gen ?? 0, set = lineaViva(`⟳ "${slug}" está entrenando (${m.donde}): guardando la generación de ahora…`, "muted");
+      const r = await api("/api/lab", { accion: "guardar", modelo: slug, donde: m.donde });
+      if (!r.ok) set(`  (no pude pedir el guardado: ${r.msg || "?"}; cargo la última guardada)`, "warn");
+      for (let i = 0; i < 24 && r.ok; i++) {
+        await dormir(500);
+        m = (await cargarModelos()).find((x) => x.slug === slug) || m;
+        if ((m.gen ?? 0) > gen0 || i === 23) break;
+        set(`⟳ "${slug}" está entrenando (${m.donde}): guardando la generación de ahora${".".repeat((i % 3) + 1)}`, "muted");
+      }
+      if (r.ok) set((m.gen ?? 0) > gen0 ? `✓ guardada la generación ${m.gen} de "${slug}"` : `✓ "${slug}" ya tenía guardada la generación ${m.gen ?? 0}`, "ok");
+      else set(`  no pude pedir el guardado (${r.msg || "?"}): cargo la última guardada, la generación ${m.gen ?? 0}`, "warn");
+    }
+    if (!m.tiene_modelo) return linea(`✗ "${slug}" todavía no tiene un modelo guardado: entrénalo un rato`, "bad");
+    // 2) los pesos (el servidor los exporta si el zip es más nuevo)
+    let web, texto;
+    try { const r = await fetch(ctx.urlModelo(slug), { cache: "no-store" }); texto = await r.text(); web = JSON.parse(texto); }
+    catch { return linea(`✗ No pude leer los pesos de "${slug}" (modelo_web.json)`, "bad"); }
+    const gen = web.meta?.generaciones ?? m.gen ?? 0, kb = Math.max(1, Math.round(texto.length / 1024));
+    const capas = [web.layers[0].in, ...web.layers.map((L) => L.out)], params = web.layers.reduce((a, L) => a + L.in * L.out + L.out, 0);
+    const fc = (ctx.cat.controladoras || []).find((x) => x.id === ctx.PT.build(ctx.P(), d).controladora);
+    // 3) la "subida" al dron
+    linea(`› conectando con "${d.nombre}" por USB${fc ? ` (${fc.nombre})` : ""}…`, "cmd");
+    await dormir(350);
+    linea(`  red ${capas.join(" → ")} · ${params.toLocaleString("es")} pesos · ${kb} KB · generación ${gen}`, "muted");
+    const bar = lineaViva("", "");
+    const N = 28;
+    for (let i = 0; i <= N; i++) {
+      const k = Math.round((i / N) * 24), pct = Math.round((i / N) * 100);
+      bar(`  subiendo [${"█".repeat(k)}${"░".repeat(24 - k)}] ${String(pct).padStart(3)} %  ${Math.round((kb * i) / N)}/${kb} KB`, i === N ? "ok" : "");
+      await dormir(55 + (i % 7 === 3 ? 120 : 0));
+    }
+    let h = 2166136261;                                     // una "firma" de los pesos para verificar (FNV-1a)
+    for (let i = 0; i < texto.length; i += 97) { h ^= texto.charCodeAt(i); h = Math.imul(h, 16777619); }
+    const ver = lineaViva("  verificando los pesos…", "muted");
+    await dormir(450);
+    ver(`  verificando los pesos… ok (firma ${(h >>> 0).toString(16).padStart(8, "0")})`, "muted");
+    d.modelo = slug;
+    d.banco = d.banco || {};
+    d.banco.ia = { modelo: slug, gen };
+    ctx.guardar();
+    ctx.verDron?.();
+    linea(`✓ "${d.nombre}" ahora vuela con la IA "${slug}", generación ${gen}. Pruébala: Pedidos → "Que grabe la IA", o simular ${slug}.`, "ok");
   }
 
   function ayuda(tema) {

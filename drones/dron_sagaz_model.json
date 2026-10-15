@@ -1,0 +1,46 @@
+{
+ "nombre": "dron_sagaz_model",
+ "piezas": {
+  "extras": [
+   "protectores",
+   "tof",
+   "luces"
+  ],
+  "estilo": {
+   "color": "#b07a45",
+   "acento": "#ff7a1a",
+   "forma": "x"
+  },
+  "canopy": null,
+  "visuales": {},
+  "chasis": "aluminio",
+  "motores": "m2306",
+  "helices": "h7",
+  "esc": "esc45",
+  "bateria": "b4s2200",
+  "controladora": "fc_gps",
+  "radio": "rx_elrs24",
+  "camara": "cam_4k",
+  "montaje": "mt_gomas",
+  "diseno": {
+   "tipo": "forma",
+   "forma": "x"
+  }
+ },
+ "fisica": {
+  "mass": 0.85,
+  "twr": 5.5681,
+  "drag": 0.042,
+  "max_angle_deg": 35.0,
+  "yaw_rate_deg": 216.0,
+  "att_resp": 7.5855,
+  "crash_speed": 4.5,
+  "radius": 0.19
+ },
+ "juego": {
+  "masa_g": 850,
+  "minutos": 11.25,
+  "precio": 681,
+  "dron": "Cine (dev)"
+ }
+}

@@ -337,7 +337,7 @@ Con `nivel(n)`: 0 Hover (quedarse quieto) · 1 Meta fija · 2 Metas al azar · 3
 - `ejemplo <nombre>`: abre un ejemplo: hover, grabar, curriculum, postes, cerebro_chico
 - `blender`: abre Blender con el Drone Lab (si lo tienes instalado)
 - `avance <modelo> · simular <modelo>`: el mejor y el peor intento que ha tenido entrenando · una prueba al azar ahora, con su última generación (sin detener el entrenamiento): con el recorrido, la red, gráficas y cámaras
-- `volar <modelo>`: pone ese modelo en el dron activo del hangar para probarlo en un pedido
+- `cargar [modelo] [dron]`: sube la ÚLTIMA generación del modelo al dron (si está entrenando, primero la guarda). Sin dron: el activo; sin modelo: el que estás mirando. Ej: cargar sagaz_model cine · cargar sagaz_model "Cine (dev)" (volar = lo mismo)
 - `limpiar`: borra la terminal
 
 ## Python que sí hay
