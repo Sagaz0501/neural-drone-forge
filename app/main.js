@@ -208,6 +208,7 @@ function renderTaller() {
   $("rep").textContent = p.rep;
   $("etapa").textContent = p.modo === "dev" ? "Desarrollador" : `Etapa ${PT.etapa(p)}`;
   $("b-estudio").classList.toggle("hidden", p.modo !== "dev");
+  $("b-lab").classList.toggle("hidden", p.modo === "dev");          // modo desarrollador: solo el Estudio (IDE + consola)
   if (G.izq === "dron" && D()) renderEditor(); else renderHangar();
   renderStats();
 }
@@ -370,7 +371,7 @@ function renderEditor() {
   const e = estadoDe(d);
   btn(e.listo ? "Banco de armado ✓" : "Banco de armado", "main", () => abrirBanco());
   btn("Vuelo de prueba", "ghost small", () => startVuelo(null, "yo"));
-  btn("Entrenar su IA", "ai small", () => { LAB.drone = d.id; abrirLab(); });
+  btn(p.modo === "dev" ? "Entrenar en el Estudio" : "Entrenar su IA", "ai small", () => { LAB.drone = d.id; abrirLab(); });
   const rep = PT.costoReparar(p, cat, d);
   if (rep > 0) btn(rep > p.plata && PT.rotas(p, d).length ? "Arreglo casero (gratis)" : `Reparar ($${rep})`, "ghost small", () => repararDron(d));
   btn("Desarmar", "ghost small", () => {
@@ -464,6 +465,7 @@ const banco = initBanco(ctx);
 ctx.ent = ent; ctx.P = () => P(); ctx.dronParaEntrenar = (d) => dronParaEntrenar(d);
 const estudio = initEstudio(ctx);
 $("b-estudio").onclick = () => estudio.abrir();
+ctx.esDev = () => P()?.modo === "dev";
 const tienda = initTienda(ctx);
 function abrirBanco() { if (!D()) return; show("banco"); verDron(); banco.abrir(); }
 ctx.abrirBanco = abrirBanco;
@@ -606,7 +608,11 @@ function trainerDe(slug) {
   return f ? { ...f, donde: "fondo" } : (e.entrenador?.modelo || "base") === slug ? { ...e.entrenador, donde: "blender" } : null;
 }
 
-async function abrirLab() { LAB.drone = LAB.drone || P().activo; await loadModelos(); renderLab(); modal("lab"); labPoll(true); }
+async function abrirLab() {
+  // cada modo con su herramienta: el desarrollador entrena con código (Estudio PBDMM), el normal con el Laboratorio
+  if (P()?.modo === "dev") { estudio.abrir(); return; }
+  LAB.drone = LAB.drone || P().activo; await loadModelos(); renderLab(); modal("lab"); labPoll(true);
+}
 
 function renderLab() {
   const box = $("lab-misiones");

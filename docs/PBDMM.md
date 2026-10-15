@@ -2,7 +2,7 @@
 
 > Versión 1.0. Este archivo se genera desde `app/data/pbdmm.json` con `node app/doc_pbdmm.mjs`: no lo edites a mano.
 
-PBDMM es el lenguaje del **modo desarrollador** de Dron Maker. Un programa describe **cómo se entrena** la IA de un dron:
+PBDMM es el lenguaje del **modo desarrollador** de Neural Drone Forge. Un programa describe **cómo se entrena** la IA de un dron:
 qué modelo, qué misión, con qué dron, cuánto cerebro, qué premios, y qué hacer mientras aprende. Por detrás hace lo mismo
 que el Laboratorio del juego: un pedido a `scripts/jugar.py`, que lanza `scripts/live_train.py` (PPO, stable-baselines3)
 en segundo plano o en el Drone Lab de Blender.

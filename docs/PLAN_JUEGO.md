@@ -1,5 +1,8 @@
 # Dron Maker — plan del juego
 
+> **Nota (15-10-2026):** este es el plan original. El juego ahora se llama **Neural Drone Forge** y lo que sigue
+> está en [ROADMAP.md](ROADMAP.md). Lo de aquí sigue valiendo como idea de fondo (etapas, sistemas, números).
+>
 > Documento vivo. Es la idea principal de Santiago (14 de octubre de 2026) ordenada en un plan.
 > "Después la pulimos": todo lo que tiene números o nombres es una **propuesta para empezar**, se
 > ajusta jugando. Las preguntas abiertas están al final.

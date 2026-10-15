@@ -1,0 +1,129 @@
+# Roadmap: de la demo a un juego completo
+
+> Documento vivo. Orden propuesto: cada fase deja el juego mejor que antes y se puede mostrar sola.
+> ✅ hecho · 🔜 lo siguiente · 📝 idea anotada (todavía no se empieza).
+> Las ideas marcadas *(Santiago)* son tuyas tal cual las pediste; las demás son propuestas para discutir.
+
+## La visión en una frase
+
+**La IA es la protagonista.** Armas el dron como en la vida real, pero las misiones las cumple **el modelo que
+tú entrenaste**: si el dron no aprendió, el cliente no recibe su video. Tú decides la física (las piezas), el
+cerebro (la red) y la forma de enseñarle (premios, castigos, currículum). Y mientras entrena, puedes ver cómo
+aprende en Blender o salir a volar por gusto con un mando.
+
+---
+
+## Fase 0 · La demo (v0.1) ✅
+
+- ✅ Simulador del quad en Python y JavaScript con las mismas cuentas (prueba de paridad).
+- ✅ IA con PPO, 38 sensores, entrenable en Blender (Drone Lab) o en segundo plano.
+- ✅ Garaje 3D, tienda por categorías, inventario por unidades, hangar con varios drones.
+- ✅ Banco de armado: imprimir (formas o STL propio), armar, cablear con pines reales (cortos y piezas quemadas),
+  prueba de humo, firmware, configurar, motores (orden y sentido), hélices, prueba atada.
+- ✅ Campaña: 3 pedidos jugables (casa, finca con viento, restaurante entre postes), tomas calificadas, video.
+- ✅ Una IA por dron (`models/drones/<nombre>/`), con la opción "Que grabe la IA" (si falla, cuesta reputación).
+- ✅ Modo desarrollador + **PBDMM**: IDE, terminal, autocompletado, variables, premios y castigos de 0 a 10,
+  gráficas, red neuronal en vivo de cualquiera de los drones que entrenan.
+- ✅ Cada modo con su herramienta *(Santiago)*: el desarrollador solo ve el Estudio (IDE + consola); el normal,
+  solo el Laboratorio.
+- ✅ Documentación: README, guía, PBDMM, arquitectura, roadmap. Pruebas automáticas en GitHub.
+
+## Fase 1 · Que la demo enamore 🔜
+
+El objetivo: que alguien que llega al GitHub entienda en 10 segundos qué es y quiera probarlo.
+
+1. 🔜 **Fotos y videos para el GitHub** *(Santiago)*: un GIF del Drone Lab (50 drones aprendiendo), uno de la red
+   neuronal encendiéndose, uno del banco (el ESC quemándose) y un video corto "de caerse a grabar una casa".
+   La imagen social del repo (Settings → Social preview).
+2. 🔜 **Tutorial de los primeros 5 minutos.** Hoy el juego explica con textos; mejor una guía en pantalla:
+   "compra el kit → ármalo → tu primer vuelo → tu primer entrenamiento".
+3. 🔜 **Las misiones las cumple la IA** *(Santiago: "las misiones se prueban exclusivamente con el modelo
+   entrenado")*. Propuesta: los pedidos se entregan solo con "Que grabe la IA"; volar tú queda para practicar,
+   para los modos libres (Fase 3) y para "mostrarle a la IA" (ver Fase 4: aprender de tu vuelo).
+   Decidir: ¿volar tú sigue dando plata en los primeros pedidos (antes de tener IA)?
+4. 🔜 **El momento "wow" en el juego:** al terminar una generación buena, una repetición corta del mejor dron.
+   Antes y después: el mismo dron en la generación 10 y en la 500.
+5. 🔜 **Pulido:** sonidos (motores según el gas, el bip del ESC, el clic del relé), transiciones de cámara,
+   pantalla de carga, ajustes (volumen, calidad, idioma).
+6. 🔜 **Rendimiento:** 60 fps en una laptop sin GPU dedicada (calidad baja real), y que el juego no se trabe
+   mientras entrena en el fondo.
+
+## Fase 2 · El banco de armado de verdad 📝 *(Santiago: "más complejo, más problemas, más uso del multímetro")*
+
+Hoy cablear es "tocar un pin y otro". La idea es que armar sea un oficio, pero simple de jugar.
+
+1. 📝 **Soldar** *(Santiago)*: calentar el cautín (temperatura: frío = soldadura fría que falla después;
+   muy caliente = levantas el pad), poner flux, estañar la punta, estañar el pad y el cable, y soldar.
+   Un minijuego corto por punto de soldadura: los cables de los motores, el XT60, los pines del receptor.
+   - Resultados posibles: buena, fría (funciona y falla en vuelo por vibración), puente de estaño (corto con el
+     pad de al lado), pad levantado (hay que puentear con un cable).
+   - Herramientas nuevas: cautín (barato / con temperatura), estaño, flux, malla desoldante, tercera mano.
+2. 📝 **Multímetro de verdad** *(Santiago)*: modos de continuidad (pita si hay corto), voltaje (¿llegan 5 V al
+   receptor?) y resistencia (¿el motor tiene una fase abierta?). Medir antes de conectar la batería salva piezas.
+3. 📝 **Componentes dañados** *(Santiago)*: piezas que llegan malas de fábrica o que se dañaron en un choque,
+   y que solo se descubren midiendo: un ESC con un MOSFET quemado, un motor con un bobinado abierto, un
+   regulador de 5 V que entrega 3,8 V, una antena con el cable cortado (alcance a la mitad).
+4. 📝 **Más problemas realistas:** cables muy cortos o muy largos, calibre equivocado (se calientan), conectores
+   (JST, XT30/XT60), ruido eléctrico (la cámara con rayas si el cable del video pasa junto al de la batería),
+   capacitor de bajo ESR en la entrada del ESC, calibración del ESC, versión del bootloader.
+5. 📝 **Diagnóstico como en un taller:** síntomas ("el dron se va a la derecha", "la imagen tiembla", "pierde la
+   señal a 30 m") y el jugador encuentra la causa con las herramientas.
+
+## Fase 3 · Volar por gusto mientras la IA entrena 📝 *(Santiago)*
+
+Entrenar toma minutos u horas. Que ese tiempo también sea juego.
+
+1. 📝 **Mando de PS5 (y Xbox)** *(Santiago)*: ya existe una base con la Gamepad API (`game/pilot.js` lee
+   cualquier mando con 4 ejes). Falta: verificar y mapear el DualSense (botones, gatillos), pantalla de
+   calibración (centro y extremos de los sticks), modo 1 / modo 2, *rates* y *expo*, vibración al chocar.
+2. 📝 **Tres ambientes para volar** *(Santiago)*:
+   - **Freestyle:** un parque o una fábrica abandonada con obstáculos para trucos (flips, rolls, *power loops*).
+   - **FPV / carreras:** un circuito con puertas, cronómetro, fantasma de tu mejor vuelta.
+   - **Vuelo libre:** un mapa grande y abierto (pueblo, playa, montaña) para pasear y grabar.
+3. 📝 **Modos de vuelo:** *angle* (se nivela solo, como hoy), *horizon* y *acro* (el de freestyle de verdad).
+4. 📝 **Tu vuelo contra el de la IA:** correr el circuito contra tu modelo entrenado (su fantasma).
+5. 📝 Aviso en pantalla cuando el entrenamiento termina o llega a la meta que pusiste.
+
+## Fase 4 · Más IA 📝
+
+1. 📝 **Video con varios drones a la vez:** un pedido con 2-3 drones, cada uno con su IA y su ángulo, y un editor
+   simple que corta entre cámaras.
+2. 📝 **Nuevas tomas y misiones:** *seguir* (un auto o una persona, nivel 13), el concesionario (tomas bajas),
+   entregas de paquetes (el gancho ya está en el catálogo), inspección de un techo, buscar a alguien en el bosque.
+3. 📝 **Arena de modelos:** poner dos modelos en la misma misión con la misma semilla y comparar (éxito, choques,
+   calidad). Un ranking de tus modelos por misión.
+4. 📝 **Aprender de tu vuelo (imitación):** grabar cómo vuelas tú una toma y usarlo para arrancar el
+   entrenamiento (*behavior cloning*), después afinarlo con PPO.
+5. 📝 **PBDMM 2:** comando `evaluar <modelo>` (correr N episodios y medir, sin entrenar), depurador paso a paso
+   para `cada_generacion`, guardar los programas también en el disco, compartir programas (un archivo `.pbd`),
+   gráficas propias desde el programa (`graficar(e.calidad)`).
+6. 📝 **La red en el dron real:** exportar el modelo para un ESP32-S3 / STM32 (TFLite Micro o C con los pesos)
+   y mostrarlo corriendo en hardware. Para un ingeniero embebido, el cierre perfecto del juego.
+
+## Fase 5 · Producto 📝
+
+1. 📝 **Instalador de un clic** (Windows / macOS / Linux): empaquetar el juego y el entrenador (Tauri o Electron
+   + Python embebido) para que nadie tenga que abrir una terminal.
+2. 📝 **Inglés** además de español (los textos ya viven en JSON: `app/data/`).
+3. 📝 **Guardado en archivos** (exportar e importar la partida y los modelos) y más ranuras de partida.
+4. 📝 **Accesibilidad:** tamaño de letra, controles reasignables, modo daltónico para el cableado.
+5. 📝 **Publicar:** itch.io primero (gratis o "paga lo que quieras"), un tráiler de 60 s, una página de presentación.
+   Después decidir Steam.
+
+---
+
+## Deuda técnica y cosas conocidas
+
+- El panel del Drone Lab en Blender muestra la info del modelo base aunque entrene el de un dron.
+- Los entrenamientos en segundo plano siguen corriendo si cierras `jugar.py`: hay que detenerlos desde el juego.
+- Los programas `.pbd` viven en el navegador (localStorage): si borras los datos del sitio, se pierden.
+  Descárgalos (botón *Descargar .pbd*) o espera la Fase 4 (guardar en disco).
+- Chrome con la aceleración por hardware apagada no muestra el 3D (WebGL): ver la guía.
+- Los textos y la UI están en español; los nombres de los premios del entrenador, en inglés (`crash`, `film`…)
+  y con alias en español en PBDMM.
+
+## Cómo proponer cambios
+
+Abre un *issue* con la plantilla de idea o de error. Para trabajar el código, [`CLAUDE.md`](../CLAUDE.md) resume
+las reglas (Python = JavaScript, las 38 entradas fijas, un modelo por dron, datos en JSON) y
+[`ARQUITECTURA.md`](ARQUITECTURA.md) explica cómo se conecta todo.

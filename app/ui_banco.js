@@ -614,7 +614,7 @@ export function initBanco(ctx) {
     const m = d.modelo && ctx.infoModelo(d.modelo), B = d.banco, f = BA.FIRMWARES.find((x) => x.id === fcU.fw?.id);
     if (!d.modelo) {
       h(der, `<p>"${esc(d.nombre)}" todavía no tiene IA. En el Laboratorio le creas la suya (con su nombre): empieza desde la IA base, desde la de otro dron o desde cero, y la entrenas para lo que hace este dron.</p>`);
-      boton(der, "Ir al laboratorio", "ai", () => { ctx.irTaller(); ctx.abrirLab(); });
+      boton(der, ctx.esDev?.() ? "Ir al Estudio PBDMM" : "Ir al laboratorio", "ai", () => { ctx.irTaller(); ctx.abrirLab(); });
       return;
     }
     const kb = 180;
@@ -629,7 +629,7 @@ export function initBanco(ctx) {
       B.ia = { modelo: d.modelo, gen: m.gen };
       guardar(); sfx("listo");
     }));
-    boton(der, "Entrenarla en el laboratorio", "ghost", () => { ctx.irTaller(); ctx.abrirLab(); });
+    boton(der, ctx.esDev?.() ? "Entrenarla en el Estudio" : "Entrenarla en el laboratorio", "ghost", () => { ctx.irTaller(); ctx.abrirLab(); });
   }
 
   // ---------------- hélices y prueba atada ----------------

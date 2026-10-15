@@ -1,0 +1,28 @@
+name: Pruebas
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Dependencias (PyTorch solo CPU)
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt
+      - name: Simulador y servidor (pytest)
+        run: python -m pytest -q
+      - name: JavaScript == Python
+        run: python game/make_fixture.py && node game/test_sim.mjs
+      - name: Piezas, banco de armado y PBDMM
+        run: node app/test_parts.mjs && node app/test_banco.mjs && node app/test_pbdmm.mjs

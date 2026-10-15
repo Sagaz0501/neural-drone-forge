@@ -45,6 +45,7 @@ export function initEstudio(ctx) {
 
   // ---------------- abrir / cerrar ----------------
   async function abrir() {
+    if (ctx.P()?.modo !== "dev") { toast("El Estudio PBDMM es del modo desarrollador. En el modo normal la IA se entrena en el Laboratorio."); return; }
     await cargarData();
     ctx.show("estudio");
     renderArchivos();

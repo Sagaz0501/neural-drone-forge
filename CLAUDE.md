@@ -1,16 +1,22 @@
-# Dron Maker — guía para Claude Code
+# Neural Drone Forge (Dron Maker) — guía para Claude Code
 
 Claude Code lee este archivo solo al abrir una sesión en esta carpeta. Es el resumen operativo.
 
 | Para… | Lee |
 |---|---|
-| **qué juego vamos a hacer** (la idea, el ciclo, las etapas, los hitos) | [`docs/PLAN_JUEGO.md`](docs/PLAN_JUEGO.md) |
+| **qué sigue: el roadmap paso a paso** (fases, ideas de Santiago anotadas como 📝) | [`docs/ROADMAP.md`](docs/ROADMAP.md) |
+| cómo se juega (para el jugador) · cómo se conecta todo (para quien programa) | [`docs/GUIA.md`](docs/GUIA.md) · [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) |
+| **qué juego vamos a hacer** (la idea original, el ciclo, las etapas) | [`docs/PLAN_JUEGO.md`](docs/PLAN_JUEGO.md) |
 | **la campaña**: capítulos, misiones, qué piezas y qué entrenamiento pide cada una | [`docs/HISTORIA.md`](docs/HISTORIA.md) |
 | **cómo funciona la base que ya existe** (modelo, Blender, juego web) | [`docs/PROYECTO.md`](docs/PROYECTO.md) |
 | la historia día a día del proyecto base (bitácora, experimentos) | [`docs/README_drone-rl.md`](docs/README_drone-rl.md) |
 | **el lenguaje PBDMM** del modo desarrollador (se genera desde `app/data/pbdmm.json`) | [`docs/PBDMM.md`](docs/PBDMM.md) |
 
 ## La idea
+
+**Nombre del producto: Neural Drone Forge** ("Arma el dron. Entrena su cerebro. Míralo aprender a volar.").
+"Dron Maker" es el taller dentro del juego y el nombre de la carpeta. Se vende como videojuego: la **IA es la
+protagonista** (Santiago: las misiones se prueban con el modelo entrenado). README + docs/ son la cara pública.
 
 Un **juego 3D en el navegador** de construir y volar drones. Empiezas en un garaje con piezas
 rústicas (chasis de madera, motores baratos, cámara de juguete), ganas plata vendiendo drones y
@@ -38,7 +44,7 @@ puede grabar el pedido ("Que grabe la IA") con el último modelo que Santiago en
 - **No entrenes la IA por tu cuenta.** Él entrena en el Drone Lab de Blender y quiere ver el
   desarrollo. Puedes *evaluar* el modelo (correr episodios y medir) y hacer pruebas de código, pero
   no lanzar entrenamientos ni sobrescribir `models/modelo.zip`.
-- Git: rama `main`; remoto público en GitHub (cuenta personal **Sagaz0501**, repo `dron-maker`). Commits con
+- Git: rama `main`; remoto público en GitHub: **Sagaz0501/neural-drone-forge** (cuenta personal: push con esa cuenta). Commits con
   el nombre y el correo personales de Santiago (configurados en el repo; no el del trabajo). No hagas push sin que lo pida.
 
 ## Mapa
@@ -169,6 +175,10 @@ Node v22 está en `/opt/homebrew/bin/node`. Blender 5.2 en `/Applications/Blende
   reales (ESP32, STM32F405/F722/H743, ExpressLRS, BLHeli_32…), ESC que limita el empuje, radio con
   failsafe, vibración → nitidez del video, pintura y forma del chasis (impresora 3D). Los demás pedidos
   están planeados ("Próximamente"). Siguiente: concesionario (tomas bajas) y la toma **seguir** (nivel 13).
+- **Cada modo con su herramienta:** en modo desarrollador no se ve el Laboratorio (todo `abrirLab()` abre el
+  Estudio) y en modo normal el Estudio no abre. Lo siguiente está en `docs/ROADMAP.md` (Fase 1: GIFs y videos,
+  tutorial, misiones solo con la IA; Fase 2 📝: soldar, multímetro, piezas dañadas; Fase 3 📝: mando de PS5,
+  freestyle / FPV / vuelo libre).
 - **Modo desarrollador + PBDMM (15-10-2026):** al empezar partida se elige normal (la campaña) o desarrollador
   (todo abierto, $99999, 2 drones armados: "Madera (dev)" y "Cine (dev)"; `PT.nuevaPartidaDev`). El desarrollador
   crea modelos con el **Estudio PBDMM**: `modelo(…, desde=)`, `red(capas=)`, `mision/nivel`, `dron`, `drones`,
