@@ -63,6 +63,16 @@ e = falla(() => corre('print("a" + 1)'));
 ok(/str\(x\)/.test(e?.message || ""), "texto + número explica qué hacer: " + e?.message);
 e = falla(() => corre("if True:\n    x = 1\n  y = 2"));
 ok(/sangría/.test(e?.message || ""), "sangría que no cuadra: " + e?.message);
+e = falla(() => corre("x = 1\nif x > 0 && x < 3:\n    pass"));
+ok(/se escribe and, no &&/.test(e?.message || "") && e.linea === 2, "&& -> usa and: " + e?.message);
+e = falla(() => corre("x = 1\nif x || 2:\n    pass"));
+ok(/se escribe or/.test(e?.message || ""), "|| -> usa or");
+e = falla(() => corre('x = 1\nprint("hola"\ny = 2\nz = 3'));
+ok(/falta cerrar el paréntesis/.test(e?.message || "") && e.linea === 2, "paréntesis sin cerrar: la línea donde se abrió: " + e?.message);
+e = falla(() => corre('print(f"gen {e.generacion}")'));
+ok(/solo existe dentro de las funciones/.test(e?.message || "") && e.linea === 1, "e arriba del archivo: " + e?.message);
+e = falla(() => corre('x = 1\ny = 2\nprint(f"{x.foo}")'));
+ok(e?.linea === 3, "un error dentro de un f-texto dice SU línea: " + e?.message);
 e = falla(() => corre("import os"));
 ok(/no importa/.test(e?.message || ""), "sin import");
 

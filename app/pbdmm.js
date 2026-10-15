@@ -28,6 +28,7 @@ export function lexer(src) {
   const toks = [], indents = [0];
   const lineas = src.replace(/\r\n?/g, "\n").replace(/\t/g, "    ").split("\n");
   let prof = 0;                                   // dentro de ( [ { las líneas siguen
+  const abiertos = [];                            // [símbolo, línea] de cada ( [ { sin cerrar
   for (let ln = 0; ln < lineas.length; ln++) {
     const L = lineas[ln], n = ln + 1;
     let i = 0;
@@ -58,14 +59,24 @@ export function lexer(src) {
       }
       if (c === '"' || c === "'") { const [s, fin] = leerTexto(L, i, n); toks.push({ t: "STR", v: s, n }); i = fin; continue; }
       const op = OPS.find((o) => L.startsWith(o, i));
-      if (!op) throw new ErrorPB(`no entiendo el símbolo "${c}"`, n);
-      if ("([{".includes(op)) prof++;
-      if (")]}".includes(op)) prof = Math.max(0, prof - 1);
+      if (!op) {                                  // lo que se escribe en otros lenguajes y en Python no
+        if (L.startsWith("&&", i)) throw new ErrorPB('en PBDMM (como en Python) "y" se escribe and, no &&: if e.exito > 0.9 and e.calidad > 0.8:', n);
+        if (L.startsWith("||", i)) throw new ErrorPB('en PBDMM (como en Python) "o" se escribe or, no ||', n);
+        if (c === "!") throw new ErrorPB('en PBDMM (como en Python) "no" se escribe not, no ! (para "distinto de" sí es !=)', n);
+        if (c === "{" || c === "}") throw new ErrorPB("las llaves { } son para diccionarios; los bloques van con : y sangría", n);
+        if (c === ";") throw new ErrorPB("en PBDMM no hace falta ; al final de la línea", n);
+        throw new ErrorPB(`no entiendo el símbolo "${c}"`, n);
+      }
+      if ("([{".includes(op)) { prof++; abiertos.push([op, n]); }
+      if (")]}".includes(op)) { prof = Math.max(0, prof - 1); abiertos.pop(); }
       toks.push({ t: "OP", v: op, n }); i += op.length;
     }
     if (prof === 0) toks.push({ t: "NL", n });
   }
-  if (prof > 0) throw new ErrorPB("falta cerrar un paréntesis, corchete o llave", lineas.length);
+  if (prof > 0) {
+    const [sim, ln] = abiertos.at(-1) || ["(", lineas.length];
+    throw new ErrorPB(`falta cerrar el ${{ "(": "paréntesis (", "[": "corchete [", "{": "llave {" }[sim]} que abriste en esta línea`, ln);
+  }
   while (indents.length > 1) { indents.pop(); toks.push({ t: "DEDENT", n: lineas.length }); }
   toks.push({ t: "EOF", n: lineas.length });
   return toks;
@@ -286,8 +297,11 @@ export function parsear(src) {
         const dos = dentro.lastIndexOf(":");
         if (dos > 0 && /^\.?\d*[f%]?$/.test(dentro.slice(dos + 1))) { fmt = dentro.slice(dos + 1); dentro = dentro.slice(0, dos); }
         if (txt) partes.push(txt); txt = "";
-        const sub = parsear(dentro);
+        let sub;
+        try { sub = parsear(dentro); }
+        catch (err) { throw new ErrorPB(`en el f-texto, dentro de { }: ${err.msgCorto || err.message}`, n); }
         if (sub.length !== 1 || sub[0].k !== "expr") throw new ErrorPB("dentro de { } va una expresión", n);
+        renumerar(sub[0].e, n);                     // los errores de adentro dicen la línea del f-texto
         partes.push({ e: sub[0].e, fmt });
         i = j + 1; continue;
       }
@@ -297,6 +311,14 @@ export function parsear(src) {
     return partes;
   }
   return programa();
+}
+
+/** Pone la línea n a todo un árbol (lo de adentro de un f-texto se parsea aparte y diría "línea 1"). */
+function renumerar(nodo, n) {
+  if (!nodo || typeof nodo !== "object") return;
+  if (Array.isArray(nodo)) { nodo.forEach((x) => renumerar(x, n)); return; }
+  if ("n" in nodo) nodo.n = n;
+  for (const v of Object.values(nodo)) if (v && typeof v === "object") renumerar(v, n);
 }
 
 // ---------------- ejecutar ----------------
@@ -438,6 +460,7 @@ export class Interprete {
     if (loc && loc.vars.has(nombre) && !loc.globals.has(nombre)) return loc.vars.get(nombre);
     if (this.globales.has(nombre)) return this.globales.get(nombre);
     if (nombre in this.builtins) return Object.assign(this.builtins[nombre], { nombre });
+    if (nombre === "e" && !loc) throw new ErrorPB('"e" (cómo va el entrenamiento) solo existe dentro de las funciones que llama el juego: def cada_generacion(e): …  Arriba del archivo todavía no está entrenando', n);
     throw new ErrorPB(`no conozco "${nombre}"${sugerir(nombre, [...this.globales.keys(), ...Object.keys(this.builtins)])}`, n);
   }
   ev(e, loc) {
