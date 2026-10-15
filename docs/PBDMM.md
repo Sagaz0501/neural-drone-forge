@@ -20,14 +20,16 @@ mision("grabar_postes")
 dron("azar")
 entrenar_en("fondo")
 
-premios(chocar=30, grabar=1)     # fase 1: no chocar es lo que más importa
+castigos(chocar=30)     # fase 1: no chocar es lo que más importa
+premios(grabar=1)
 fase = 1
 
 def cada_generacion(e):
     global fase
     if fase == 1 and e.choque is not None and e.choque < 0.1:
         fase = 2
-        premios(chocar=15, grabar=4)   # fase 2: ahora, grabar bien
+        castigos(chocar=15)   # fase 2: ahora, grabar bien
+        premios(grabar=4)
         avisar("Fase 2: ya no choca, ahora a grabar")
     if fase == 2 and e.exito >= 0.85:
         detener()
@@ -74,7 +76,7 @@ red(capas=[64, 64])
 
 #### `mision(id)`
 
-*Arriba del archivo.* Qué practica: el mundo, la tarea y cuándo cuenta como éxito. Trae sus premios recomendados (los cambias con premios()).
+*Arriba del archivo.* Qué practica: el mundo, la tarea y cuándo cuenta como éxito. Trae sus premios recomendados (los cambias con premios() y castigos()).
 
 - `id`: "grabar", "grabar_viento", "grabar_postes", "repaso_metas" o "repaso_columnas"
 
@@ -157,26 +159,35 @@ aprendizaje(lr=0.0003, exploracion=0.005)
 
 ### Premios y castigos
 
-#### `premios(film=4, crash=15, …)`
+#### `premios(grabar=4, mirar=2, …)`
 
-*Arriba o dentro de una función.* Lo que le pagas (premio) o le cobras (castigo) a cada dron por lo que hace. ES lo que aprende: hará lo que más pague. Cada nombre se puede escribir en inglés (como el entrenador) o en español (grabar, mirar, chocar…). Dentro de una función cambia los premios mientras entrena.
+*Arriba o dentro de una función.* Lo que le PAGAS a cada dron por hacer algo bien. ES lo que aprende: hará lo que más pague. Solo acepta premios (los castigos van en castigos()). Cada nombre en español o en inglés (como el entrenador). Los que no pongas quedan como los recomienda la misión. Dentro de una función los cambia mientras entrena.
 
 - `film / grabar`: premio por cada segundo grabado, según la calidad de la imagen
 - `heading / mirar`: premio por mirar al sujeto con la nariz (la cámara)
 - `progress / acercarse`: premio por cada metro que se acerca al punto
 - `goal / meta`: premio al llegar o al terminar la toma
+- `near / cerca`: premio por estar cerca de la meta
+- `speed / rapidez`: premio por llegar rápido a un aro
+
+```python
+premios(grabar=4, mirar=2)
+```
+
+#### `castigos(chocar=15, sacudidas=1, …)`
+
+*Arriba o dentro de una función.* Lo que le COBRAS a cada dron por hacer algo mal. Aprende a evitarlo, pero ojo: si castigas demasiado, prefiere no hacer nada. Solo acepta castigos (los premios van en premios()). Los que no pongas quedan como los recomienda la misión. Dentro de una función los cambia mientras entrena.
+
 - `crash / chocar`: castigo al chocar
 - `stability / sacudidas`: castigo por giros bruscos (video que tiembla)
 - `smooth / brusco`: castigo por mover las palancas de golpe
 - `clearance / pegado`: castigo por pasar a menos de 1,2 m de algo
 - `danger / peligro`: castigo por ir rápido hacia algo
-- `near / cerca`: premio por estar cerca de la meta
 - `tilt / inclinar`: castigo por andar inclinado
 - `time / tiempo`: castigo pequeño cada paso (que no se demore)
-- `speed / rapidez`: premio por llegar rápido a un aro
 
 ```python
-premios(grabar=4, chocar=20, sacudidas=1.5)
+castigos(chocar=20, sacudidas=1.5)
 ```
 
 ### Mientras entrena
@@ -287,7 +298,7 @@ Con `nivel(n)`: 0 Hover (quedarse quieto) · 1 Meta fija · 2 Metas al azar · 3
 - `e.nivel`: el nivel del Drone Lab
 - `e.pausado`: True si está en pausa
 - `e.lr, e.exploracion, e.ruido, e.viento`: cómo está entrenando ahora (ruido = cuánto tiembla al explorar, baja solo con el tiempo)
-- `e.premios`: los premios de ahora (diccionario: e.premios["crash"])
+- `e.premios`: los valores de ahora, premios y castigos juntos (diccionario: e.premios["crash"])
 
 ## La terminal del estudio
 
@@ -318,7 +329,7 @@ La IA es una red neuronal: una función con miles de números adentro (los pesos
 
 ### 2 · Cómo aprende: premios
 
-Nadie le dice qué palanca mover. Se llama aprendizaje por refuerzo: el dron prueba, y tú le pagas puntos por lo bueno (acercarse, grabar bien) y se los cobras por lo malo (chocar, temblar). La red se ajusta para hacer más de lo que pagó. Por eso los premios SON el programa: si pagas mucho por acercarse y poco por no chocar, aprenderá a acercarse chocando. Pensar los premios es el trabajo del desarrollador.
+Nadie le dice qué palanca mover. Se llama aprendizaje por refuerzo: el dron prueba, y tú le pagas puntos por lo bueno (acercarse, grabar bien) y se los cobras por lo malo (chocar, temblar). La red se ajusta para hacer más de lo que pagó. Por eso los premios SON el programa: si pagas mucho por acercarse y poco por no chocar, aprenderá a acercarse chocando. Pensar los premios es el trabajo del desarrollador. En PBDMM: premios(grabar=4) paga, castigos(chocar=15) cobra.
 
 ### 3 · Generaciones, PPO y lr
 
@@ -330,7 +341,7 @@ Para descubrir algo nuevo el dron tiene que probar palancas que no conoce: le su
 
 ### 5 · Currículum: de fácil a difícil
 
-Nadie aprende a grabar entre postes sin saber volar. Primero quedarse quieto (nivel 0), después ir a metas (2), después esquivar (3), después grabar (11) y al final con postes (12). Cada modelo puede partir de otro (modelo("nuevo", desde="otro")) y con cada_generacion puedes cambiar los premios cuando ya domina lo básico. Mira el ejemplo curriculum.
+Nadie aprende a grabar entre postes sin saber volar. Primero quedarse quieto (nivel 0), después ir a metas (2), después esquivar (3), después grabar (11) y al final con postes (12). Cada modelo puede partir de otro (modelo("nuevo", desde="otro")) y con cada_generacion puedes cambiar los premios y castigos cuando ya domina lo básico. Mira el ejemplo curriculum.
 
 ### 6 · Medir: éxito, choque, premio
 
@@ -355,7 +366,8 @@ dron("estandar")
 drones(50)
 entrenar_en("fondo")
 
-premios(near=1.0, crash=10, tilt=0.05, smooth=0.05)
+premios(cerca=1.0)
+castigos(chocar=10, inclinar=0.05, brusco=0.05)
 
 def cada_generacion(e):
     print(f"gen {e.generacion}: éxito {e.exito:.0%}, choque {e.choque:.0%}")
@@ -376,8 +388,8 @@ dron("azar")             # cambia por el nombre de un dron de tu hangar
 entrenar_en("fondo")
 aprendizaje(lr=0.0003)
 
-# los premios de la misión, con más castigo a las sacudidas
-premios(sacudidas=1.5)
+# los premios y castigos de la misión, con más castigo a las sacudidas
+castigos(sacudidas=1.5)
 
 def cada_generacion(e):
     if e.generacion % 10 == 0:
@@ -398,14 +410,16 @@ mision("grabar_postes")
 dron("azar")
 entrenar_en("fondo")
 
-premios(chocar=30, grabar=1)     # fase 1: no chocar es lo que más importa
+castigos(chocar=30)     # fase 1: no chocar es lo que más importa
+premios(grabar=1)
 fase = 1
 
 def cada_generacion(e):
     global fase
     if fase == 1 and e.choque is not None and e.choque < 0.1:
         fase = 2
-        premios(chocar=15, grabar=4)   # fase 2: ahora, grabar bien
+        castigos(chocar=15)   # fase 2: ahora, grabar bien
+        premios(grabar=4)
         avisar("Fase 2: ya no choca, ahora a grabar")
     if fase == 2 and e.exito >= 0.85:
         detener()
@@ -447,7 +461,8 @@ modelo("mini_16", desde="cero")
 red(capas=[16])
 nivel(0)
 entrenar_en("fondo")
-premios(near=1.0, crash=10, tilt=0.05)
+premios(cerca=1.0)
+castigos(chocar=10, inclinar=0.05)
 
 def cada_generacion(e):
     if e.generaciones_sesion >= 300:

@@ -5,7 +5,7 @@
 // Laboratorio: un pedido a scripts/jugar.py -> live_train.py (PPO), en segundo plano o en Blender.
 //
 //   arriba del archivo (una vez):   modelo("halcon", desde="cero") · red(capas=[64, 64]) · mision("grabar")
-//                                   dron("azar") · drones(50) · entrenar_en("fondo") · premios(film=4, crash=15) …
+//                                   dron("azar") · drones(50) · entrenar_en("fondo") · premios(grabar=4) · castigos(chocar=15) …
 //   funciones que llama el juego:   def al_empezar(e) · def cada_generacion(e) · def al_terminar(e)
 //                                   e = cómo va (e.generacion, e.exito, e.choque, e.premio, e.calidad …)
 //
@@ -551,7 +551,8 @@ const BASICOS = {
 // =====================================================================
 
 /**
- * Prepara un programa. data = app/data/pbdmm.json + {misiones (entrenamiento.json), premiosValidos, drones (los del
+ * Prepara un programa. data = app/data/pbdmm.json + {misiones (entrenamiento.json), premiosValidos, tiposPremio
+ * ({clave: "premio"|"castigo"}: premios() solo acepta premios y castigos() solo castigos), drones (los del
  * hangar: nombres)}. host = { print(txt), avisar(txt), ajustar(cambios), pausar(), seguir(), detener(), guardar() }
  * Devuelve { cfg, interp, hooks: [...nombres], reaccionar(nombre, e) -> lista de acciones hechas }.
  * Lanza ErrorPB con la línea si algo está mal.
@@ -562,9 +563,14 @@ export function compilar(src, data, host = {}) {
   let fase = "arriba";
   const salida = (t) => (host.print || (() => {}))(t);
   const alias = data.alias_premios || {};
-  const premioKey = (k, n) => {
-    const kk = alias[k] || k;
-    if (!data.premiosValidos.includes(kk)) throw new ErrorPB(`no hay un premio "${k}"${sugerir(k, [...data.premiosValidos, ...Object.keys(alias)])}. Mira ayuda("premios")`, n);
+  const tipos = data.tiposPremio || {};
+  const nombresDe = (tipo) => [...data.premiosValidos.filter((k) => (tipos[k] || "premio") === tipo), ...Object.keys(alias).filter((a) => (tipos[alias[a]] || "premio") === tipo)];
+  /** El nombre del premio/castigo para el entrenador; premios() no acepta castigos ni al revés. */
+  const premioKey = (k, n, tipo) => {
+    const kk = alias[k] || k, fn = tipo === "castigo" ? "castigos" : "premios";
+    if (!data.premiosValidos.includes(kk)) throw new ErrorPB(`no hay un ${tipo} "${k}"${sugerir(k, nombresDe(tipo))}. Mira ayuda("${fn}")`, n);
+    const real = tipos[kk] || "premio";
+    if (real !== tipo) throw new ErrorPB(`"${k}" es un ${real}: va en ${real === "castigo" ? "castigos" : "premios"}(${k}=…), no en ${fn}()`, n);
     return kk;
   };
   const soloArriba = (nombre, n) => { if (fase !== "arriba") throw new ErrorPB(`${nombre}() va arriba del archivo, no dentro de una función (no se puede cambiar mientras entrena)`, n); };
@@ -573,6 +579,17 @@ export function compilar(src, data, host = {}) {
   const rango = (x, a, b, nombre, n) => { num(x, nombre, n); if (x < a || x > b) throw new ErrorPB(`${nombre}: ${x} está fuera de ${a} a ${b}`, n); return x; };
   const acciones = [];
   const accion = (a) => { acciones.push(a); };
+  /** premios(…) y castigos(…): lo mismo para el entrenador (un diccionario de valores), cada uno con sus nombres. */
+  const valores = (tipo, a, k, n) => {
+    const fn = tipo === "castigo" ? "castigos" : "premios", ej = tipo === "castigo" ? "castigos(chocar=15, sacudidas=1)" : "premios(grabar=4, mirar=2)";
+    if (a.length === 1 && tipoDe(a[0]) === "dict") k = { ...a[0], ...k };
+    else if (a.length) throw new ErrorPB(`${ej}: cada ${tipo} con su nombre`, n);
+    if (!Object.keys(k).length) throw new ErrorPB(`${fn}() necesita al menos uno, por ejemplo ${ej}`, n);
+    const c = {};
+    for (const [kk, v] of Object.entries(k)) c[premioKey(kk, n, tipo)] = rango(v, 0, 100, `${tipo} ${kk}`, n);
+    if (fase === "arriba") Object.assign(cfg.premios, c);
+    else { cfg.premiosVivos = { ...(cfg.premiosVivos || cfg.premiosFinal || {}), ...c }; accion({ [fn]: c }); host.ajustar?.({ premios: cfg.premiosVivos }); }
+  };
 
   const B = {
     print: (a, k) => salida(a.map((x) => repr(x)).join(k.sep ?? " ")),
@@ -644,14 +661,8 @@ export function compilar(src, data, host = {}) {
       if (!Object.keys(c).length) throw new ErrorPB("aprendizaje() necesita lr=… o exploracion=…", n);
       if (fase === "arriba") Object.assign(cfg, c); else { accion(c); host.ajustar?.(c); }
     },
-    premios: (a, k, n) => {
-      if (a.length === 1 && tipoDe(a[0]) === "dict") k = { ...a[0], ...k };
-      else if (a.length) throw new ErrorPB("premios(film=4, crash=15): cada premio con su nombre", n);
-      const c = {};
-      for (const [kk, v] of Object.entries(k)) c[premioKey(kk, n)] = rango(v, 0, 100, `premio ${kk}`, n);
-      if (fase === "arriba") Object.assign(cfg.premios, c);
-      else { cfg.premiosVivos = { ...(cfg.premiosVivos || cfg.premiosFinal || {}), ...c }; accion({ premios: c }); host.ajustar?.({ premios: cfg.premiosVivos }); }
-    },
+    premios: (a, k, n) => valores("premio", a, k, n),
+    castigos: (a, k, n) => valores("castigo", a, k, n),
     pausar: (_, __, n) => { if (fase === "arriba") throw new ErrorPB("pausar() va dentro de una función (por ejemplo cada_generacion)", n); accion({ pausar: true }); host.pausar?.(); },
     seguir: (_, __, n) => { if (fase === "arriba") throw new ErrorPB("seguir() va dentro de una función", n); accion({ seguir: true }); host.seguir?.(); },
     detener: (_, __, n) => { if (fase === "arriba") throw new ErrorPB("detener() va dentro de una función (por ejemplo: if e.exito > 0.9: detener())", n); accion({ detener: true }); host.detener?.(); },

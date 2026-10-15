@@ -80,8 +80,8 @@ export function opciones(cx, F) {
     if (!O) return /^[A-Za-z_]\w*$/.test(cx.parcial) ? opciones({ ...cx, tipo: "nombre" }, F) : [];
     const lista = cx.kw ? O[cx.kw] || [] : cx.idx === 0 ? O["0"] || [] : [];
     out = lista.flatMap(([v, d]) => expandir(v, d, F));
-    if (!cx.kw && O._kw && (cx.idx > 0 || cx.fn === "premios")) {
-      const kws = O._kw.flatMap((k) => (k === "$premios" ? expandir("$premios", "", F) : [{ txt: k + "=", label: k + "=", det: "" }]));
+    if (!cx.kw && O._kw && (cx.idx > 0 || cx.fn === "premios" || cx.fn === "castigos")) {
+      const kws = O._kw.flatMap((k) => (k.startsWith("$") ? expandir(k, "", F) : [{ txt: k + "=", label: k + "=", det: "" }]));
       out = [...out, ...kws.filter((k) => !out.some((o) => o.txt === k.txt))];
     }
     if (UN_ARG.has(cx.fn) && !cx.kw) out = out.map((o) => ({ ...o, cerrar: true }));
@@ -107,7 +107,7 @@ function expandir(v, d, F) {
     case "$niveles": return Object.entries(F.nombresNiveles || {}).map(([k, n]) => ({ txt: k, label: k, det: n }));
     case "$modelos": return (F.modelos || []).filter((m) => m.slug !== "base").map((m) => ({ txt: q(m.slug), label: q(m.slug), det: `ya existe: sigue entrenándolo (gen ${m.gen ?? 0})` }));
     case "$modelos_texto": return (F.modelos || []).filter((m) => m.slug !== "base" && m.tiene_modelo).map((m) => ({ txt: q(m.slug), label: q(m.slug), det: `parte de tu modelo (gen ${m.gen ?? 0})` }));
-    case "$premios": return (F.premios || []).map((p) => ({ txt: (p.alias || p.k) + "=", label: (p.alias || p.k) + "=", det: `${p.alias ? p.k + " · " : ""}${p.tipo || ""}: ${corto(p.desc)}` }));
+    case "$premios": case "$castigos": return (F.premios || []).filter((p) => (p.tipo || "premio") === (v === "$castigos" ? "castigo" : "premio")).map((p) => ({ txt: (p.alias || p.k) + "=", label: (p.alias || p.k) + "=", det: `${p.alias ? p.k + ": " : ""}${corto(p.desc)}` }));
     default: return [{ txt: v, label: v, det: d }];
   }
 }

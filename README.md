@@ -8,7 +8,7 @@ ganas compras mejores piezas y, cuando llega el momento, **entrenas una IA de ve
 refuerzo, PPO) para que cada dron grabe solo. El entrenamiento corre en tu compu y lo puedes **ver en Blender**.
 
 En el **modo desarrollador** la IA la creas tú: escribes con **PBDMM**, un lenguaje con cara de Python, *cómo*
-se entrena un modelo (misión, premios, tamaño del cerebro, qué hacer mientras aprende) y lo corres desde un
+se entrena un modelo (misión, premios y castigos, tamaño del cerebro, qué hacer mientras aprende) y lo corres desde un
 estudio con editor, terminal y gráfica en vivo.
 
 > Proyecto de **Santiago Bernal** (ingeniería embebida / QA). Nace de `drone-rl`, un simulador de dron
@@ -53,7 +53,8 @@ red(capas=[64, 64])                  # el tamaño del cerebro: 38 sensores -> 64
 nivel(0)                             # qué aprende: 0 = quedarse quieto en el aire
 drones(50)                           # 50 drones practicando a la vez
 entrenar_en("fondo")                 # o "blender" para verlo en el Drone Lab
-premios(near=1.0, chocar=10, tilt=0.05)
+premios(cerca=1.0)                   # lo que le pagas…
+castigos(chocar=10, inclinar=0.05)  # …y lo que le cobras
 
 def cada_generacion(e):              # el juego la llama mientras entrena
     print(f"gen {e.generacion}: éxito {e.exito:.0%}")

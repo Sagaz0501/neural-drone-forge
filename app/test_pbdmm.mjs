@@ -4,7 +4,8 @@ import { parsear, Interprete, compilar, pedidoDe, estadoE, ErrorPB, repr } from 
 
 const data = JSON.parse(readFileSync(new URL("./data/pbdmm.json", import.meta.url)));
 const ent = JSON.parse(readFileSync(new URL("./data/entrenamiento.json", import.meta.url)));
-const D = { ...data, misiones: ent.misiones, premiosValidos: ent.premios.map((p) => p.k).concat(["near"]), drones: ["Sagaz_Dron_V3"] };
+const D = { ...data, misiones: ent.misiones, premiosValidos: ent.premios.map((p) => p.k).concat(["near"]), drones: ["Sagaz_Dron_V3"],
+  tiposPremio: { ...Object.fromEntries(ent.premios.map((p) => [p.k, p.tipo])), near: "premio" } };
 let fallas = 0;
 const ok = (c, msg) => { console.log(`${c ? "ok  " : "MAL "}  ${msg}`); if (!c) fallas++; };
 const salida = [];
@@ -50,22 +51,22 @@ const acciones = [];
 const host = { print: (t) => acciones.push(["print", t]), ajustar: (c) => acciones.push(["ajustar", c]), detener: () => acciones.push(["detener"]), avisar: () => {} };
 const P = compilar(data.ejemplos.curriculum, D, host);
 ok(P.cfg.modelo === "aprendiz" && P.cfg.nivel === 12 && P.cfg.desde === "base" && P.cfg.donde === "fondo", "el ejemplo curriculum compila: " + JSON.stringify({ m: P.cfg.modelo, n: P.cfg.nivel }));
-ok(P.cfg.premiosFinal.crash === 30 && P.cfg.premiosFinal.film === 1 && P.cfg.premiosFinal.heading === 2, "premios: los de la misión + los del programa (alias en español)");
+ok(P.cfg.premiosFinal.crash === 30 && P.cfg.premiosFinal.film === 1 && P.cfg.premiosFinal.heading === 2, "premios + castigos: los de la misión + los del programa (alias en español)");
 ok(P.cfg.viento === 0.8, "trae el viento de la misión");
 ok(P.hooks.join() === "cada_generacion,al_terminar", "encuentra las funciones especiales");
 const tr = (succ, crash, gen) => ({ gen, steps: gen * 1000, succ, crash, rew: 10, hist: [[gen, 0, succ, crash, 12, 0.5]], params: { lr: 3e-4, ent: 0, reward: {} } });
 let a = P.reaccionar("cada_generacion", estadoE(tr(0.2, 0.3, 10), { gen0: 0 }));
 ok(a.length === 0, "fase 1 con choque alto: no cambia nada");
 a = P.reaccionar("cada_generacion", estadoE(tr(0.3, 0.05, 11), { gen0: 0 }));
-ok(a.length === 1 && a[0].premios?.crash === 15 && a[0].premios?.film === 4, "choque < 10 %: pasa a la fase 2 y cambia los premios");
-ok(acciones.some(([k, c]) => k === "ajustar" && c.premios?.crash === 15 && c.premios?.heading === 2), "al servidor le manda TODOS los premios (no solo los cambiados)");
+ok(a.length === 2 && a[0].castigos?.crash === 15 && a[1].premios?.film === 4, "choque < 10 %: pasa a la fase 2 y cambia castigos y premios");
+ok(acciones.some(([k, c]) => k === "ajustar" && c.premios?.crash === 15 && c.premios?.film === 4 && c.premios?.heading === 2), "al servidor le manda TODOS los valores (premios y castigos juntos)");
 a = P.reaccionar("cada_generacion", estadoE(tr(0.9, 0.02, 12), { gen0: 0 }));
 ok(a.some((x) => x.detener), "éxito 90 %: se detiene");
 P.reaccionar("al_terminar", estadoE(tr(0.9, 0.02, 12)));
 ok(acciones.some(([k, t]) => k === "print" && /fase 2/.test(t)), "al_terminar ve la variable global");
 
 const body = pedidoDe(compilar(data.ejemplos.hover, D, host).cfg, () => null);
-ok(body.base_de === "cero" && body.capas.join() === "64,64" && body.nivel === 0 && body.premios.near === 1 && body.donde === "fondo", "el pedido al servidor: " + JSON.stringify(body).slice(0, 140));
+ok(body.base_de === "cero" && body.capas.join() === "64,64" && body.nivel === 0 && body.premios.near === 1 && body.premios.crash === 10 && body.donde === "fondo", "el pedido al servidor: " + JSON.stringify(body).slice(0, 140));
 const b2 = pedidoDe(compilar('modelo("v3x")\nmision("grabar")\ndron("sagaz_dron_v3")', D, host).cfg, (n) => ({ nombre: n, fisica: {} }));
 ok(b2.dron?.nombre === "Sagaz_Dron_V3", "dron del hangar (sin importar mayúsculas)");
 for (const [k, src] of Object.entries(data.ejemplos)) ok(!falla(() => compilar(src, D, host)), `el ejemplo "${k}" compila`);
@@ -74,8 +75,14 @@ e = falla(() => compilar('mision("grabar")', D, host));
 ok(/falta modelo/.test(e?.message || ""), "sin modelo(): " + e?.message);
 e = falla(() => compilar('modelo("x")\nmision("volar_rapido")', D, host));
 ok(/no hay una misión/.test(e?.message || "") && e.linea === 2, "misión que no existe: " + e?.message);
-e = falla(() => compilar('modelo("x")\nmision("grabar")\npremios(chocr=3)', D, host));
-ok(/quisiste decir "chocar"/.test(e?.message || ""), "premio mal escrito: " + e?.message);
+e = falla(() => compilar('modelo("x")\nmision("grabar")\ncastigos(chocr=3)', D, host));
+ok(/quisiste decir "chocar"/.test(e?.message || ""), "castigo mal escrito: " + e?.message);
+e = falla(() => compilar('modelo("x")\nmision("grabar")\npremios(grabar=4, chocar=3)', D, host));
+ok(/"chocar" es un castigo: va en castigos\(chocar=…\)/.test(e?.message || "") && e.linea === 3, "un castigo en premios(): " + e?.message);
+e = falla(() => compilar('modelo("x")\nmision("grabar")\ncastigos(film=4)', D, host));
+ok(/"film" es un premio: va en premios/.test(e?.message || ""), "un premio en castigos(): " + e?.message);
+e = falla(() => compilar('modelo("x")\nmision("grabar")\npremios()', D, host));
+ok(/al menos uno/.test(e?.message || ""), "premios() vacío: " + e?.message);
 e = falla(() => compilar('modelo("x")\nmision("grabar")\nred(capas=[64])', D, host));
 ok(/desde="cero"/.test(e?.message || ""), "red() sin desde cero: " + e?.message);
 e = falla(() => compilar('modelo("x")\nmision("grabar")\ndef cada_generacion(e):\n    mision("grabar")', D, host).reaccionar("cada_generacion", estadoE(tr(0, 0, 1))));
@@ -90,7 +97,7 @@ ok(/no tienes un dron/.test(e?.message || ""), "dron que no está en el hangar")
   const { contexto, opciones } = await import("./autocompletar.js");
   const F = { data, misiones: ent.misiones, nombresNiveles: data.nombres_niveles, drones: ["Sagaz_Dron_V3", "Cine (dev)"],
     modelos: [{ slug: "base", gen: 1 }, { slug: "colibri", gen: 40, tiene_modelo: true }],
-    premios: ent.premios.map((p) => ({ k: p.k, alias: Object.entries(data.alias_premios).find(([, k]) => k === p.k)?.[0], tipo: p.tipo, desc: p.desc })) };
+    premios: [...ent.premios, { k: "near", tipo: "premio", desc: "cerca de la meta" }].map((p) => ({ k: p.k, alias: Object.entries(data.alias_premios).find(([, k]) => k === p.k)?.[0], tipo: p.tipo, desc: p.desc })) };
   const op = (antes) => opciones(contexto(antes), F);
   let o = op('modelo("x")\ndron(');
   ok(o.map((x) => x.txt).join() === '"estandar","azar","Sagaz_Dron_V3","Cine (dev)"' && o.every((x) => x.cerrar), "dron( -> estandar, azar y tus drones (y cierra el paréntesis)");
@@ -106,10 +113,12 @@ ok(/no tienes un dron/.test(e?.message || ""), "dron que no está en el hangar")
   ok(o.some((x) => x.txt === "desde="), "modelo(…, -> desde=");
   o = op('modelo("halcon", desde=');
   ok(o.map((x) => x.txt).join() === '"base","cero","colibri"', "desde= -> base, cero y tus modelos: " + o.map((x) => x.txt));
-  o = op("premios(chocar=10, gra");
+  o = op("premios(mirar=2, gra");
   ok(o[0].txt === "grabar=" && o[0].det.includes("film"), "premios(…, gra -> grabar= (film)");
   o = op("premios(");
-  ok(o.length >= 12 && o.every((x) => x.txt.endsWith("=")), "premios( -> todos los premios con =");
+  ok(o.map((x) => x.txt).sort().join() === "acercarse=,cerca=,grabar=,meta=,mirar=,rapidez=", "premios( -> solo premios: " + o.map((x) => x.txt));
+  o = op("castigos(");
+  ok(o.map((x) => x.txt).sort().join() === "brusco=,chocar=,inclinar=,pegado=,peligro=,sacudidas=,tiempo=", "castigos( -> solo castigos: " + o.map((x) => x.txt));
   o = op("    print(f\"{e.ex");
   ok(o.length === 0, "dentro de un texto f\"…\" no molesta");
   o = op("def cada_generacion(e):\n    if e.ex");

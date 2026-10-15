@@ -38,6 +38,7 @@ export function initEstudio(ctx) {
   const dataCompilar = () => ({
     ...ES.data, misiones: ctx.ent.misiones, drones: ctx.P().drones.map((d) => d.nombre),
     premiosValidos: [...new Set([...ctx.ent.premios.map((p) => p.k), "near"])],
+    tiposPremio: { ...Object.fromEntries(ctx.ent.premios.map((p) => [p.k, p.tipo])), near: "premio" },
   });
 
   // ---------------- abrir / cerrar ----------------
@@ -567,7 +568,7 @@ export function initEstudio(ctx) {
     const box = $("es-der"), D = ES.data;
     box.innerHTML = "";
     if (ES.tab === "ayuda") {
-      box.insertAdjacentHTML("beforeend", `<p class="muted">Un programa PBDMM describe <b>cómo</b> se entrena un modelo. Arriba: qué modelo, qué misión, con qué dron y premios. Abajo: funciones que el juego llama mientras entrena. Toca <b>insertar</b> para poner el ejemplo en tu programa. Al escribir <code>dron(</code>, <code>mision(</code>, <code>premios(</code>, <code>e.</code>… te salen las opciones (<b>Ctrl+Espacio</b> las abre cuando quieras).</p>`);
+      box.insertAdjacentHTML("beforeend", `<p class="muted">Un programa PBDMM describe <b>cómo</b> se entrena un modelo. Arriba: qué modelo, qué misión, con qué dron, sus premios y sus castigos. Abajo: funciones que el juego llama mientras entrena. Toca <b>insertar</b> para poner el ejemplo en tu programa. Al escribir <code>dron(</code>, <code>mision(</code>, <code>premios(</code>, <code>castigos(</code>, <code>e.</code>… te salen las opciones (<b>Ctrl+Espacio</b> las abre cuando quieras).</p>`);
       const grupos = [...new Set(D.funciones.map((f) => f.grupo))];
       for (const f of grupos.flatMap((g) => D.funciones.filter((x) => x.grupo === g))) {
         if (f === D.funciones.find((x) => x.grupo === f.grupo)) box.insertAdjacentHTML("beforeend", `<h4>${esc(f.grupo)}</h4>`);
