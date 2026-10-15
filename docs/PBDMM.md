@@ -36,6 +36,8 @@ def al_terminar(e):
     print("terminó en la fase", fase, "con éxito", e.exito)
 ```
 
+En el estudio, al escribir te salen las opciones de cada función (por ejemplo `dron(` muestra "estandar", "azar" y los drones de tu hangar). ↑↓ para elegir, Enter o Tab para ponerla, Esc para cerrar y Ctrl+Espacio para abrirlas.
+
 - **Arriba del archivo** (se lee una vez): `modelo`, `red`, `mision`/`nivel`, `dron`, `drones`, `entrenar_en` y los valores iniciales de `premios`, `aprendizaje`, `viento` y `velocidad`.
 - **Funciones especiales** (las llama el juego mientras entrena):
   - `def al_empezar(e):` una vez, cuando el entrenamiento arranca (o cuando lo encuentras ya corriendo)
@@ -100,6 +102,16 @@ nivel(0)
 dron("azar")
 ```
 
+#### `viento(m_s)`
+
+*Arriba o dentro de una función.* Viento máximo con ráfagas, en metros por segundo. Aprender con viento lo hace más firme.
+
+- `m_s`: de 0 a 8
+
+```python
+viento(2.5)
+```
+
 ### Cómo entrena
 
 #### `drones(n)`
@@ -131,20 +143,6 @@ entrenar_en("blender")
 ```python
 velocidad("rapido")
 ```
-
-### Qué aprende
-
-#### `viento(m_s)`
-
-*Arriba o dentro de una función.* Viento máximo con ráfagas, en metros por segundo. Aprender con viento lo hace más firme.
-
-- `m_s`: de 0 a 8
-
-```python
-viento(2.5)
-```
-
-### Cómo entrena
 
 #### `aprendizaje(lr=0.0003, exploracion=0.0)`
 
@@ -460,6 +458,7 @@ def cada_generacion(e):
 ## Por dentro
 
 - `app/pbdmm.js`: léxico → árbol → intérprete (un subconjunto de Python) y `compilar()`: el programa → la configuración del entrenamiento + las funciones especiales. `pedidoDe(cfg)` arma el `POST /api/lab`; `estadoE(tr)` arma `e` desde `entrenando.json`.
+- `app/autocompletar.js`: el autocompletado del editor (`dron(` → "estandar", "azar" y tus drones; `mision(`, `nivel(`, `premios(`, `desde=`, `e.`, `def `). Las opciones fijas están en `opciones` de cada función en `app/data/pbdmm.json`; las de tu juego (`$drones`, `$misiones`, `$modelos`…) se llenan solas. Ctrl+Espacio las abre.
 - `app/estudio.js`: la pantalla (editor, terminal, ayuda, gráfica). Cada 1,5 s lee `GET /api/lab`; si la generación subió, llama `cada_generacion(e)`, y lo que pida (premios, lr…) va como `ajustar`.
 - `scripts/jugar.py`: `POST /api/lab` acepta `lr`, `ent`, `capas` (red nueva → `info.json`) y la acción `guardar`. `live_train.py --capas` (o `capas` en `info.json`) arma la red.
 - Pruebas: `node app/test_pbdmm.mjs`.

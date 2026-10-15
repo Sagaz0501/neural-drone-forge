@@ -280,6 +280,16 @@
   #es-izq h4, #es-der h4 { margin: 12px 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); }
   .es-item { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; background: none; border: 0; color: var(--text); padding: 5px 8px; border-radius: 7px; font-size: 14px; cursor: pointer; font-family: ui-monospace, Menlo, monospace; }
   .es-item:hover { background: rgba(234,242,239,0.07); } .es-item[aria-pressed="true"] { background: rgba(60,203,255,0.16); color: var(--next); }
+  #es-ac { position: absolute; z-index: 4; min-width: 260px; max-width: min(520px, 92%); max-height: 300px; overflow-y: auto; background: #18231f; border: 1px solid rgba(60,203,255,.45); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.5); font-size: 13px; }
+  #es-ac[hidden] { display: none; }
+  .ac-firma { padding: 7px 10px; border-bottom: 1px solid var(--line); color: var(--muted); line-height: 1.4; }
+  .ac-firma code { color: var(--next); font-family: ui-monospace, Menlo, monospace; }
+  .ac-op { display: flex; gap: 10px; align-items: baseline; padding: 5px 10px; cursor: pointer; }
+  .ac-op code { font-family: ui-monospace, Menlo, monospace; color: var(--text); white-space: nowrap; }
+  .ac-op span { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ac-op[aria-selected="true"] { background: rgba(60,203,255,.18); }
+  .ac-op[aria-selected="true"] code { color: var(--next); }
+  .ac-pie { padding: 4px 10px; font-size: 11px; color: #6f877d; border-top: 1px solid var(--line); }
   .es-fila { display: flex; align-items: center; gap: 2px; }
   .es-fila .es-item { flex: 1; min-width: 0; }
   .es-borrar { background: none; border: 0; color: var(--muted); font-size: 18px; line-height: 1; padding: 3px 7px; border-radius: 7px; cursor: pointer; opacity: .55; }
@@ -390,7 +400,7 @@
     <h4>Ejemplos</h4><div id="es-ejemplos"></div>
   </nav>
   <div id="es-centro">
-    <div id="es-editor"><div id="es-gut" aria-hidden="true"></div><div id="es-area"><pre id="es-hl" aria-hidden="true"></pre><textarea id="es-src" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Programa PBDMM"></textarea></div></div>
+    <div id="es-editor"><div id="es-gut" aria-hidden="true"></div><div id="es-area"><pre id="es-hl" aria-hidden="true"></pre><div id="es-ac" role="listbox" aria-label="Opciones" hidden></div><textarea id="es-src" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Programa PBDMM"></textarea></div></div>
     <div id="es-term"><div id="es-out" role="log" aria-live="polite"></div><div id="es-prompt"><span>›</span><input id="es-in" autocomplete="off" spellcheck="false" placeholder="ayuda · modelos · estado · correr · info &lt;modelo&gt;" aria-label="Terminal"></div></div>
   </div>
   <aside id="es-dercol"><div id="es-tabs" class="seg"><button data-t="ayuda">Ayuda</button><button data-t="aprende">Aprende</button><button data-t="grafica">Gráfica</button></div><div id="es-der"></div></aside>

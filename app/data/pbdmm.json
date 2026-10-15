@@ -1,168 +1,690 @@
 {
   "_nota": "El lenguaje PBDMM (Python Base Dron Model Maker) del modo desarrollador: ayuda de cada función, lo que trae e, los comandos de la terminal, las lecciones y los ejemplos. El intérprete está en app/pbdmm.js y la pantalla en app/estudio.js.",
   "version": "1.0",
-  "hooks": ["al_empezar", "cada_generacion", "al_terminar"],
-  "niveles": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+  "hooks": [
+    "al_empezar",
+    "cada_generacion",
+    "al_terminar"
+  ],
+  "niveles": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12
+  ],
   "nombres_niveles": {
-    "0": "Hover (quedarse quieto)", "1": "Meta fija", "2": "Metas al azar", "3": "Columnas", "4": "Varias metas",
-    "5": "Circuito (2 vueltas)", "6": "Bosque", "7": "Bosque: 3 aros", "8": "Caza: 5 pájaros", "9": "Caza entre columnas",
-    "10": "Caza en el bosque", "11": "Grabar: tomas con ruta", "12": "Grabar entre postes"
+    "0": "Hover (quedarse quieto)",
+    "1": "Meta fija",
+    "2": "Metas al azar",
+    "3": "Columnas",
+    "4": "Varias metas",
+    "5": "Circuito (2 vueltas)",
+    "6": "Bosque",
+    "7": "Bosque: 3 aros",
+    "8": "Caza: 5 pájaros",
+    "9": "Caza entre columnas",
+    "10": "Caza en el bosque",
+    "11": "Grabar: tomas con ruta",
+    "12": "Grabar entre postes"
   },
   "alias_premios": {
-    "grabar": "film", "mirar": "heading", "acercarse": "progress", "meta": "goal", "sacudidas": "stability",
-    "brusco": "smooth", "chocar": "crash", "pegado": "clearance", "peligro": "danger", "inclinar": "tilt",
-    "tiempo": "time", "rapidez": "speed", "cerca": "near"
+    "grabar": "film",
+    "mirar": "heading",
+    "acercarse": "progress",
+    "meta": "goal",
+    "sacudidas": "stability",
+    "brusco": "smooth",
+    "chocar": "crash",
+    "pegado": "clearance",
+    "peligro": "danger",
+    "inclinar": "tilt",
+    "tiempo": "time",
+    "rapidez": "speed",
+    "cerca": "near"
   },
   "funciones": [
     {
-      "nombre": "modelo", "firma": "modelo(nombre, desde=\"base\")", "donde": "arriba", "grupo": "El modelo",
+      "nombre": "modelo",
+      "firma": "modelo(nombre, desde=\"base\")",
+      "donde": "arriba",
+      "grupo": "El modelo",
       "desc": "El modelo que entrena este programa. Se guarda con ese nombre en models/drones/<nombre>/ (modelo.zip, modelo.json con su historia, modelo_web.json para volar en el juego). Si ya existe, sigue entrenando desde donde quedó.",
       "params": [
-        ["nombre", "texto: letras, números, _ y -. \"Halcón 1\" queda como halcon_1"],
-        ["desde", "\"base\" (copia la IA de la campaña: ya sabe volar), \"cero\" (red nueva al azar: aprende todo desde cero) o el nombre de otro modelo tuyo. Solo cuenta la primera vez."]
+        [
+          "nombre",
+          "texto: letras, números, _ y -. \"Halcón 1\" queda como halcon_1"
+        ],
+        [
+          "desde",
+          "\"base\" (copia la IA de la campaña: ya sabe volar), \"cero\" (red nueva al azar: aprende todo desde cero) o el nombre de otro modelo tuyo. Solo cuenta la primera vez."
+        ]
       ],
-      "ejemplo": "modelo(\"halcon\", desde=\"cero\")"
+      "ejemplo": "modelo(\"halcon\", desde=\"cero\")",
+      "opciones": {
+        "0": [
+          [
+            "$modelos",
+            ""
+          ]
+        ],
+        "desde": [
+          [
+            "\"base\"",
+            "copia la IA de la campaña: ya sabe volar"
+          ],
+          [
+            "\"cero\"",
+            "red nueva al azar: aprende todo"
+          ],
+          [
+            "$modelos_texto",
+            ""
+          ]
+        ],
+        "_kw": [
+          "desde"
+        ]
+      }
     },
     {
-      "nombre": "red", "firma": "red(capas=[128, 128])", "donde": "arriba", "grupo": "El modelo",
+      "nombre": "red",
+      "firma": "red(capas=[128, 128])",
+      "donde": "arriba",
+      "grupo": "El modelo",
       "desc": "El tamaño del cerebro: cuántas capas ocultas y cuántas neuronas en cada una. Entran siempre 38 números (sensores) y salen 4 (las palancas). Más neuronas = puede aprender cosas más difíciles, pero tarda más. Solo con desde=\"cero\".",
-      "params": [["capas", "lista de 1 a 4 números entre 8 y 512. La IA de la campaña usa [128, 128]"]],
-      "ejemplo": "red(capas=[64, 64])"
+      "params": [
+        [
+          "capas",
+          "lista de 1 a 4 números entre 8 y 512. La IA de la campaña usa [128, 128]"
+        ]
+      ],
+      "ejemplo": "red(capas=[64, 64])",
+      "opciones": {
+        "0": [
+          [
+            "capas=[64, 64]",
+            "mediana: rápida de entrenar"
+          ],
+          [
+            "capas=[128, 128]",
+            "la de la campaña"
+          ],
+          [
+            "capas=[32]",
+            "chiquita: 1 capa de 32"
+          ],
+          [
+            "capas=[256, 256]",
+            "grande: aprende más, tarda más"
+          ],
+          [
+            "capas=[128, 64, 32]",
+            "3 capas"
+          ]
+        ],
+        "capas": [
+          [
+            "[64, 64]",
+            ""
+          ],
+          [
+            "[128, 128]",
+            ""
+          ],
+          [
+            "[32]",
+            ""
+          ]
+        ],
+        "_kw": [
+          "capas"
+        ]
+      }
     },
     {
-      "nombre": "mision", "firma": "mision(id)", "donde": "arriba", "grupo": "Qué aprende",
+      "nombre": "mision",
+      "firma": "mision(id)",
+      "donde": "arriba",
+      "grupo": "Qué aprende",
       "desc": "Qué practica: el mundo, la tarea y cuándo cuenta como éxito. Trae sus premios recomendados (los cambias con premios()).",
-      "params": [["id", "\"grabar\", \"grabar_viento\", \"grabar_postes\", \"repaso_metas\" o \"repaso_columnas\""]],
-      "ejemplo": "mision(\"grabar_postes\")"
+      "params": [
+        [
+          "id",
+          "\"grabar\", \"grabar_viento\", \"grabar_postes\", \"repaso_metas\" o \"repaso_columnas\""
+        ]
+      ],
+      "ejemplo": "mision(\"grabar_postes\")",
+      "opciones": {
+        "0": [
+          [
+            "$misiones",
+            ""
+          ]
+        ]
+      }
     },
     {
-      "nombre": "nivel", "firma": "nivel(n)", "donde": "arriba", "grupo": "Qué aprende",
+      "nombre": "nivel",
+      "firma": "nivel(n)",
+      "donde": "arriba",
+      "grupo": "Qué aprende",
       "desc": "En vez de mision(): cualquier nivel del Drone Lab, del 0 (quedarse quieto) al 12 (grabar entre postes). Sin premios recomendados: pon los tuyos.",
-      "params": [["n", "0 hover · 1 meta fija · 2 metas al azar · 3 columnas · 4 varias metas · 5 circuito · 6 bosque · 7 bosque con aros · 8-10 caza · 11 grabar · 12 grabar entre postes"]],
-      "ejemplo": "nivel(0)"
+      "params": [
+        [
+          "n",
+          "0 hover · 1 meta fija · 2 metas al azar · 3 columnas · 4 varias metas · 5 circuito · 6 bosque · 7 bosque con aros · 8-10 caza · 11 grabar · 12 grabar entre postes"
+        ]
+      ],
+      "ejemplo": "nivel(0)",
+      "opciones": {
+        "0": [
+          [
+            "$niveles",
+            ""
+          ]
+        ]
+      }
     },
     {
-      "nombre": "dron", "firma": "dron(cual)", "donde": "arriba", "grupo": "Qué aprende",
+      "nombre": "dron",
+      "firma": "dron(cual)",
+      "donde": "arriba",
+      "grupo": "Qué aprende",
       "desc": "Con qué física vuela mientras aprende. Un modelo aprende a volar EL dron con el que entrenó: si después lo pones en un dron muy distinto (más pesado, más lento) vuela peor.",
-      "params": [["cual", "\"estandar\", \"azar\" (cada dron con una física distinta: aprende a volar de todo) o el nombre de un dron de tu hangar"]],
-      "ejemplo": "dron(\"azar\")"
+      "params": [
+        [
+          "cual",
+          "\"estandar\", \"azar\" (cada dron con una física distinta: aprende a volar de todo) o el nombre de un dron de tu hangar"
+        ]
+      ],
+      "ejemplo": "dron(\"azar\")",
+      "opciones": {
+        "0": [
+          [
+            "\"estandar\"",
+            "el dron de siempre"
+          ],
+          [
+            "\"azar\"",
+            "cada dron con una física distinta: aprende a volar de todo"
+          ],
+          [
+            "$drones",
+            ""
+          ]
+        ]
+      }
     },
     {
-      "nombre": "drones", "firma": "drones(n)", "donde": "arriba", "grupo": "Cómo entrena",
+      "nombre": "drones",
+      "firma": "drones(n)",
+      "donde": "arriba",
+      "grupo": "Cómo entrena",
       "desc": "Cuántos drones practican a la vez. Todos comparten el mismo cerebro: más drones = más experiencia por generación.",
-      "params": [["n", "de 1 a 200 (normal: 50)"]],
-      "ejemplo": "drones(50)"
+      "params": [
+        [
+          "n",
+          "de 1 a 200 (normal: 50)"
+        ]
+      ],
+      "ejemplo": "drones(50)",
+      "opciones": {
+        "0": [
+          [
+            "50",
+            "lo normal"
+          ],
+          [
+            "20",
+            "menos: cada generación es más rápida"
+          ],
+          [
+            "100",
+            "más experiencia por generación"
+          ],
+          [
+            "8",
+            "para probar rápido"
+          ]
+        ]
+      }
     },
     {
-      "nombre": "entrenar_en", "firma": "entrenar_en(donde)", "donde": "arriba", "grupo": "Cómo entrena",
+      "nombre": "entrenar_en",
+      "firma": "entrenar_en(donde)",
+      "donde": "arriba",
+      "grupo": "Cómo entrena",
       "desc": "\"fondo\": entrena en tu compu sin ventana (hasta 2 a la vez). \"blender\": lo ves en el Drone Lab de Blender (los drones volando, el cerebro, las curvas). Blender tiene que estar abierto con blender/laboratorio.blend (en la terminal: blender).",
-      "params": [["donde", "\"fondo\" o \"blender\""]],
-      "ejemplo": "entrenar_en(\"blender\")"
+      "params": [
+        [
+          "donde",
+          "\"fondo\" o \"blender\""
+        ]
+      ],
+      "ejemplo": "entrenar_en(\"blender\")",
+      "opciones": {
+        "0": [
+          [
+            "\"fondo\"",
+            "en tu compu, sin ventana (hasta 2 a la vez)"
+          ],
+          [
+            "\"blender\"",
+            "lo ves en el Drone Lab de Blender"
+          ]
+        ]
+      }
     },
     {
-      "nombre": "velocidad", "firma": "velocidad(v)", "donde": "las dos", "grupo": "Cómo entrena",
+      "nombre": "velocidad",
+      "firma": "velocidad(v)",
+      "donde": "las dos",
+      "grupo": "Cómo entrena",
       "desc": "\"rapido\": entrena lo más rápido que puede tu compu. \"real\": a velocidad normal, para mirarlo en Blender.",
-      "params": [["v", "\"rapido\" o \"real\""]],
-      "ejemplo": "velocidad(\"rapido\")"
+      "params": [
+        [
+          "v",
+          "\"rapido\" o \"real\""
+        ]
+      ],
+      "ejemplo": "velocidad(\"rapido\")",
+      "opciones": {
+        "0": [
+          [
+            "\"rapido\"",
+            "lo más rápido que pueda tu compu"
+          ],
+          [
+            "\"real\"",
+            "a velocidad normal, para mirarlo en Blender"
+          ]
+        ]
+      }
     },
     {
-      "nombre": "viento", "firma": "viento(m_s)", "donde": "las dos", "grupo": "Qué aprende",
+      "nombre": "viento",
+      "firma": "viento(m_s)",
+      "donde": "las dos",
+      "grupo": "Qué aprende",
       "desc": "Viento máximo con ráfagas, en metros por segundo. Aprender con viento lo hace más firme.",
-      "params": [["m_s", "de 0 a 8"]],
-      "ejemplo": "viento(2.5)"
+      "params": [
+        [
+          "m_s",
+          "de 0 a 8"
+        ]
+      ],
+      "ejemplo": "viento(2.5)",
+      "opciones": {
+        "0": [
+          [
+            "0",
+            "sin viento"
+          ],
+          [
+            "0.8",
+            "brisa (restaurante)"
+          ],
+          [
+            "2.5",
+            "la finca"
+          ],
+          [
+            "4",
+            "fuerte"
+          ]
+        ]
+      }
     },
     {
-      "nombre": "aprendizaje", "firma": "aprendizaje(lr=0.0003, exploracion=0.0)", "donde": "las dos", "grupo": "Cómo entrena",
+      "nombre": "aprendizaje",
+      "firma": "aprendizaje(lr=0.0003, exploracion=0.0)",
+      "donde": "las dos",
+      "grupo": "Cómo entrena",
       "desc": "lr (learning rate) = qué tan grande es cada ajuste del cerebro. Muy alto: aprende rápido pero se olvida y se vuelve loco; muy bajo: casi no cambia. exploracion = cuánto lo empujas a probar cosas nuevas (el premio por tener dudas).",
-      "params": [["lr", "de 0.000001 a 0.01 (normal 0.0003; para afinar al final 0.0001)"], ["exploracion", "de 0 a 0.1 (normal 0; súbelo un poco si se estanca)"]],
-      "ejemplo": "aprendizaje(lr=0.0003, exploracion=0.005)"
+      "params": [
+        [
+          "lr",
+          "de 0.000001 a 0.01 (normal 0.0003; para afinar al final 0.0001)"
+        ],
+        [
+          "exploracion",
+          "de 0 a 0.1 (normal 0; súbelo un poco si se estanca)"
+        ]
+      ],
+      "ejemplo": "aprendizaje(lr=0.0003, exploracion=0.005)",
+      "opciones": {
+        "0": [
+          [
+            "lr=0.0003",
+            "lo normal"
+          ],
+          [
+            "lr=0.0001",
+            "para afinar al final"
+          ],
+          [
+            "exploracion=0.005",
+            "si se estanca"
+          ],
+          [
+            "exploracion=0.0",
+            "sin empujón a explorar"
+          ]
+        ],
+        "lr": [
+          [
+            "0.0003",
+            "normal"
+          ],
+          [
+            "0.0001",
+            "afinar"
+          ],
+          [
+            "0.001",
+            "rápido (arriesgado)"
+          ]
+        ],
+        "exploracion": [
+          [
+            "0.0",
+            ""
+          ],
+          [
+            "0.005",
+            ""
+          ],
+          [
+            "0.01",
+            ""
+          ]
+        ],
+        "_kw": [
+          "lr",
+          "exploracion"
+        ]
+      }
     },
     {
-      "nombre": "premios", "firma": "premios(film=4, crash=15, …)", "donde": "las dos", "grupo": "Premios y castigos",
+      "nombre": "premios",
+      "firma": "premios(film=4, crash=15, …)",
+      "donde": "las dos",
+      "grupo": "Premios y castigos",
       "desc": "Lo que le pagas (premio) o le cobras (castigo) a cada dron por lo que hace. ES lo que aprende: hará lo que más pague. Cada nombre se puede escribir en inglés (como el entrenador) o en español (grabar, mirar, chocar…). Dentro de una función cambia los premios mientras entrena.",
       "params": [
-        ["film / grabar", "premio por cada segundo grabado, según la calidad de la imagen"],
-        ["heading / mirar", "premio por mirar al sujeto con la nariz (la cámara)"],
-        ["progress / acercarse", "premio por cada metro que se acerca al punto"],
-        ["goal / meta", "premio al llegar o al terminar la toma"],
-        ["crash / chocar", "castigo al chocar"],
-        ["stability / sacudidas", "castigo por giros bruscos (video que tiembla)"],
-        ["smooth / brusco", "castigo por mover las palancas de golpe"],
-        ["clearance / pegado", "castigo por pasar a menos de 1,2 m de algo"],
-        ["danger / peligro", "castigo por ir rápido hacia algo"],
-        ["near / cerca", "premio por estar cerca de la meta"],
-        ["tilt / inclinar", "castigo por andar inclinado"],
-        ["time / tiempo", "castigo pequeño cada paso (que no se demore)"],
-        ["speed / rapidez", "premio por llegar rápido a un aro"]
+        [
+          "film / grabar",
+          "premio por cada segundo grabado, según la calidad de la imagen"
+        ],
+        [
+          "heading / mirar",
+          "premio por mirar al sujeto con la nariz (la cámara)"
+        ],
+        [
+          "progress / acercarse",
+          "premio por cada metro que se acerca al punto"
+        ],
+        [
+          "goal / meta",
+          "premio al llegar o al terminar la toma"
+        ],
+        [
+          "crash / chocar",
+          "castigo al chocar"
+        ],
+        [
+          "stability / sacudidas",
+          "castigo por giros bruscos (video que tiembla)"
+        ],
+        [
+          "smooth / brusco",
+          "castigo por mover las palancas de golpe"
+        ],
+        [
+          "clearance / pegado",
+          "castigo por pasar a menos de 1,2 m de algo"
+        ],
+        [
+          "danger / peligro",
+          "castigo por ir rápido hacia algo"
+        ],
+        [
+          "near / cerca",
+          "premio por estar cerca de la meta"
+        ],
+        [
+          "tilt / inclinar",
+          "castigo por andar inclinado"
+        ],
+        [
+          "time / tiempo",
+          "castigo pequeño cada paso (que no se demore)"
+        ],
+        [
+          "speed / rapidez",
+          "premio por llegar rápido a un aro"
+        ]
       ],
-      "ejemplo": "premios(grabar=4, chocar=20, sacudidas=1.5)"
+      "ejemplo": "premios(grabar=4, chocar=20, sacudidas=1.5)",
+      "opciones": {
+        "0": [
+          [
+            "$premios",
+            ""
+          ]
+        ],
+        "_kw": [
+          "$premios"
+        ]
+      }
     },
     {
-      "nombre": "pausar", "firma": "pausar()", "donde": "función", "grupo": "Mientras entrena",
-      "desc": "Pone el entrenamiento en pausa (no se pierde nada).", "params": [], "ejemplo": "if e.minutos > 30: pausar()"
+      "nombre": "pausar",
+      "firma": "pausar()",
+      "donde": "función",
+      "grupo": "Mientras entrena",
+      "desc": "Pone el entrenamiento en pausa (no se pierde nada).",
+      "params": [],
+      "ejemplo": "if e.minutos > 30: pausar()"
     },
     {
-      "nombre": "seguir", "firma": "seguir()", "donde": "función", "grupo": "Mientras entrena",
-      "desc": "Sigue después de una pausa.", "params": [], "ejemplo": "seguir()"
+      "nombre": "seguir",
+      "firma": "seguir()",
+      "donde": "función",
+      "grupo": "Mientras entrena",
+      "desc": "Sigue después de una pausa.",
+      "params": [],
+      "ejemplo": "seguir()"
     },
     {
-      "nombre": "guardar", "firma": "guardar()", "donde": "función", "grupo": "Mientras entrena",
-      "desc": "Guarda el modelo ya (también se guarda solo cada 10 generaciones).", "params": [], "ejemplo": "if e.exito > e.mejor_exito: guardar()"
+      "nombre": "guardar",
+      "firma": "guardar()",
+      "donde": "función",
+      "grupo": "Mientras entrena",
+      "desc": "Guarda el modelo ya (también se guarda solo cada 10 generaciones).",
+      "params": [],
+      "ejemplo": "if e.exito > e.mejor_exito: guardar()"
     },
     {
-      "nombre": "detener", "firma": "detener()", "donde": "función", "grupo": "Mientras entrena",
-      "desc": "Guarda y termina el entrenamiento. Úsalo para parar cuando ya aprendió.", "params": [], "ejemplo": "if e.exito >= 0.9: detener()"
+      "nombre": "detener",
+      "firma": "detener()",
+      "donde": "función",
+      "grupo": "Mientras entrena",
+      "desc": "Guarda y termina el entrenamiento. Úsalo para parar cuando ya aprendió.",
+      "params": [],
+      "ejemplo": "if e.exito >= 0.9: detener()"
     },
     {
-      "nombre": "avisar", "firma": "avisar(texto)", "donde": "las dos", "grupo": "Mientras entrena",
-      "desc": "Muestra un aviso grande en el juego (y en la terminal).", "params": [["texto", "lo que quieras decir"]], "ejemplo": "avisar(f\"¡Ya graba! éxito {e.exito:.0%}\")"
+      "nombre": "avisar",
+      "firma": "avisar(texto)",
+      "donde": "las dos",
+      "grupo": "Mientras entrena",
+      "desc": "Muestra un aviso grande en el juego (y en la terminal).",
+      "params": [
+        [
+          "texto",
+          "lo que quieras decir"
+        ]
+      ],
+      "ejemplo": "avisar(f\"¡Ya graba! éxito {e.exito:.0%}\")"
     },
     {
-      "nombre": "print", "firma": "print(a, b, …)", "donde": "las dos", "grupo": "Python",
-      "desc": "Escribe en la terminal.", "params": [], "ejemplo": "print(\"generación\", e.generacion, \"éxito\", e.exito)"
+      "nombre": "print",
+      "firma": "print(a, b, …)",
+      "donde": "las dos",
+      "grupo": "Python",
+      "desc": "Escribe en la terminal.",
+      "params": [],
+      "ejemplo": "print(\"generación\", e.generacion, \"éxito\", e.exito)"
     },
     {
-      "nombre": "python", "firma": "if / for / def / listas / f\"…\"", "donde": "las dos", "grupo": "Python",
+      "nombre": "python",
+      "firma": "if / for / def / listas / f\"…\"",
+      "donde": "las dos",
+      "grupo": "Python",
       "desc": "Lo que sí hay de Python: números, textos y f\"{x:.2f}\", True/False/None, listas [ ] y diccionarios { }, + - * / // % **, comparaciones, and/or/not, in, if/elif/else, for x in …, def/return, global, pass, break/continue. Funciones: print, str, int, float, round, abs, min, max, sum, len, range, list, type; listas .append() .pop(); textos .upper() .lower() .split(). No hay while ni import: un programa no puede colgar el juego ni tocar tu compu.",
-      "params": [], "ejemplo": "for capa in [32, 64]:\n    print(capa * 2)"
+      "params": [],
+      "ejemplo": "for capa in [32, 64]:\n    print(capa * 2)"
     }
   ],
   "hooks_doc": [
-    ["al_empezar(e)", "una vez, cuando el entrenamiento arranca (o cuando lo encuentras ya corriendo)"],
-    ["cada_generacion(e)", "cada vez que termina una generación (todos los drones practicaron y el cerebro se ajustó)"],
-    ["al_terminar(e)", "cuando el entrenamiento se detiene (detener(), desde la terminal o se cerró)"]
+    [
+      "al_empezar(e)",
+      "una vez, cuando el entrenamiento arranca (o cuando lo encuentras ya corriendo)"
+    ],
+    [
+      "cada_generacion(e)",
+      "cada vez que termina una generación (todos los drones practicaron y el cerebro se ajustó)"
+    ],
+    [
+      "al_terminar(e)",
+      "cuando el entrenamiento se detiene (detener(), desde la terminal o se cerró)"
+    ]
   ],
   "e_doc": [
-    ["e.generacion", "cuántas generaciones lleva este modelo (en total)"],
-    ["e.generaciones_sesion", "cuántas lleva desde que corriste el programa"],
-    ["e.exito", "de 0 a 1: qué fracción de los intentos logró la misión en la última generación"],
-    ["e.choque", "de 0 a 1: qué fracción chocó"],
-    ["e.premio", "el premio promedio de un intento (sube si aprende lo que pagas)"],
-    ["e.calidad", "de 0 a 1: la calidad de imagen al grabar (misiones de grabar)"],
-    ["e.mejor_exito", "el mejor éxito desde que corriste el programa"],
-    ["e.historia_exito", "lista con el éxito de las últimas 20 generaciones"],
-    ["e.pasos", "cuántos pasos de simulación lleva en total"],
-    ["e.minutos", "minutos desde que corriste el programa"],
-    ["e.nivel", "el nivel del Drone Lab"],
-    ["e.pausado", "True si está en pausa"],
-    ["e.lr, e.exploracion, e.ruido, e.viento", "cómo está entrenando ahora (ruido = cuánto tiembla al explorar, baja solo con el tiempo)"],
-    ["e.premios", "los premios de ahora (diccionario: e.premios[\"crash\"])"]
+    [
+      "e.generacion",
+      "cuántas generaciones lleva este modelo (en total)"
+    ],
+    [
+      "e.generaciones_sesion",
+      "cuántas lleva desde que corriste el programa"
+    ],
+    [
+      "e.exito",
+      "de 0 a 1: qué fracción de los intentos logró la misión en la última generación"
+    ],
+    [
+      "e.choque",
+      "de 0 a 1: qué fracción chocó"
+    ],
+    [
+      "e.premio",
+      "el premio promedio de un intento (sube si aprende lo que pagas)"
+    ],
+    [
+      "e.calidad",
+      "de 0 a 1: la calidad de imagen al grabar (misiones de grabar)"
+    ],
+    [
+      "e.mejor_exito",
+      "el mejor éxito desde que corriste el programa"
+    ],
+    [
+      "e.historia_exito",
+      "lista con el éxito de las últimas 20 generaciones"
+    ],
+    [
+      "e.pasos",
+      "cuántos pasos de simulación lleva en total"
+    ],
+    [
+      "e.minutos",
+      "minutos desde que corriste el programa"
+    ],
+    [
+      "e.nivel",
+      "el nivel del Drone Lab"
+    ],
+    [
+      "e.pausado",
+      "True si está en pausa"
+    ],
+    [
+      "e.lr, e.exploracion, e.ruido, e.viento",
+      "cómo está entrenando ahora (ruido = cuánto tiembla al explorar, baja solo con el tiempo)"
+    ],
+    [
+      "e.premios",
+      "los premios de ahora (diccionario: e.premios[\"crash\"])"
+    ]
   ],
   "comandos": [
-    ["ayuda [tema]", "esta ayuda; ayuda premios, ayuda e, ayuda mision… o el nombre de una función"],
-    ["correr [archivo]", "corre el programa abierto (o ese archivo): crea o sigue el modelo y empieza a entrenar"],
-    ["revisar [archivo]", "solo lo revisa (errores y qué pediría) sin entrenar"],
-    ["parar", "deja de escuchar el programa (el entrenamiento sigue; las funciones ya no se llaman)"],
-    ["estado", "qué está entrenando (Blender y el fondo): generación, éxito, choque"],
-    ["modelos [éxito|gen|nombre]", "tus modelos con su generación, red y éxito (ordenados por lo que digas)"],
-    ["info <modelo>", "todo de un modelo: red, de dónde salió, niveles, curva de éxito"],
-    ["pausar <modelo> · seguir <modelo> · detener <modelo>", "controla un entrenamiento en el fondo (o el de Blender)"],
-    ["copiar <modelo> <nuevo> · renombrar <modelo> <nuevo> · borrar <modelo>", "borrar lo manda a la papelera (models/drones/_papelera)"],
-    ["archivos · nuevo <nombre> · abrir <nombre> · eliminar [nombre]", "tus programas .pbd (se guardan en este navegador; descarga con el botón). eliminar sin nombre = el abierto; también con la × de la lista"],
-    ["ejemplo <nombre>", "abre un ejemplo: hover, grabar, curriculum, postes, cerebro_chico"],
-    ["blender", "abre Blender con el Drone Lab (si lo tienes instalado)"],
-    ["volar <modelo>", "pone ese modelo en el dron activo del hangar para probarlo en un pedido"],
-    ["limpiar", "borra la terminal"]
+    [
+      "ayuda [tema]",
+      "esta ayuda; ayuda premios, ayuda e, ayuda mision… o el nombre de una función"
+    ],
+    [
+      "correr [archivo]",
+      "corre el programa abierto (o ese archivo): crea o sigue el modelo y empieza a entrenar"
+    ],
+    [
+      "revisar [archivo]",
+      "solo lo revisa (errores y qué pediría) sin entrenar"
+    ],
+    [
+      "parar",
+      "deja de escuchar el programa (el entrenamiento sigue; las funciones ya no se llaman)"
+    ],
+    [
+      "estado",
+      "qué está entrenando (Blender y el fondo): generación, éxito, choque"
+    ],
+    [
+      "modelos [éxito|gen|nombre]",
+      "tus modelos con su generación, red y éxito (ordenados por lo que digas)"
+    ],
+    [
+      "info <modelo>",
+      "todo de un modelo: red, de dónde salió, niveles, curva de éxito"
+    ],
+    [
+      "pausar <modelo> · seguir <modelo> · detener <modelo>",
+      "controla un entrenamiento en el fondo (o el de Blender)"
+    ],
+    [
+      "copiar <modelo> <nuevo> · renombrar <modelo> <nuevo> · borrar <modelo>",
+      "borrar lo manda a la papelera (models/drones/_papelera)"
+    ],
+    [
+      "archivos · nuevo <nombre> · abrir <nombre> · eliminar [nombre]",
+      "tus programas .pbd (se guardan en este navegador; descarga con el botón). eliminar sin nombre = el abierto; también con la × de la lista"
+    ],
+    [
+      "ejemplo <nombre>",
+      "abre un ejemplo: hover, grabar, curriculum, postes, cerebro_chico"
+    ],
+    [
+      "blender",
+      "abre Blender con el Drone Lab (si lo tienes instalado)"
+    ],
+    [
+      "volar <modelo>",
+      "pone ese modelo en el dron activo del hangar para probarlo en un pedido"
+    ],
+    [
+      "limpiar",
+      "borra la terminal"
+    ]
   ],
   "lecciones": [
     {
@@ -200,5 +722,6 @@
     "curriculum": "# Currículum: primero que no choque, después que grabe bien.\n\nmodelo(\"aprendiz\", desde=\"base\")\nmision(\"grabar_postes\")\ndron(\"azar\")\nentrenar_en(\"fondo\")\n\npremios(chocar=30, grabar=1)     # fase 1: no chocar es lo que más importa\nfase = 1\n\ndef cada_generacion(e):\n    global fase\n    if fase == 1 and e.choque is not None and e.choque < 0.1:\n        fase = 2\n        premios(chocar=15, grabar=4)   # fase 2: ahora, grabar bien\n        avisar(\"Fase 2: ya no choca, ahora a grabar\")\n    if fase == 2 and e.exito >= 0.85:\n        detener()\n\ndef al_terminar(e):\n    print(\"terminó en la fase\", fase, \"con éxito\", e.exito)\n",
     "postes": "# El restaurante: grabar entre postes, mirándolo en Blender.\n\nmodelo(\"entre_postes\", desde=\"base\")\nmision(\"grabar_postes\")\ndron(\"azar\")\ndrones(50)\nentrenar_en(\"blender\")      # ábrelo con el comando: blender\nvelocidad(\"real\")\n\ndef al_empezar(e):\n    print(\"arranca en la generación\", e.generacion)\n\ndef cada_generacion(e):\n    # si se estanca 20 generaciones, que explore un poco más\n    h = e.historia_exito\n    if len(h) == 20 and max(h) - min(h) < 0.02:\n        aprendizaje(exploracion=0.005)\n        print(\"estancado: más exploración\")\n",
     "cerebro_chico": "# ¿Cuánto cerebro hace falta? El mismo hover con 2 tamaños.\n# Corre este, después cambia el nombre y las capas, y compáralos con: modelos éxito\n\nmodelo(\"mini_16\", desde=\"cero\")\nred(capas=[16])\nnivel(0)\nentrenar_en(\"fondo\")\npremios(near=1.0, crash=10, tilt=0.05)\n\ndef cada_generacion(e):\n    if e.generaciones_sesion >= 300:\n        print(f\"300 generaciones: éxito {e.exito:.0%}\")\n        detener()\n"
-  }
+  },
+  "_nota_opciones": "opciones de cada función para el autocompletado del estudio: \"0\" = primer argumento, \"desde\"/\"lr\"… = el valor de ese argumento con nombre, \"_kw\" = argumentos con nombre. $drones, $misiones, $niveles, $modelos, $modelos_texto y $premios se llenan con lo que hay en tu juego."
 }

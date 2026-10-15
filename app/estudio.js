@@ -7,6 +7,7 @@
 // El lenguaje vive en pbdmm.js; la ayuda en data/pbdmm.json.
 // =====================================================================
 import { compilar, pedidoDe, estadoE, ErrorPB, repr } from "./pbdmm.js";
+import { contexto, opciones } from "./autocompletar.js";
 
 const ARCH = "dronmaker.pbdmm.archivos", ABIERTO = "dronmaker.pbdmm.abierto";
 const leerLS = (k, d) => { try { const s = localStorage.getItem(k); return s ? JSON.parse(s) : d; } catch { return d; } };
@@ -17,7 +18,8 @@ const chispa = (xs) => xs.map((x) => (typeof x === "number" ? "▁▂▃▄▅�
 export function initEstudio(ctx) {
   const { $, esc, api, toast } = ctx;
   const ES = { data: null, archivos: leerLS(ARCH, null), abierto: leerLS(ABIERTO, null), tab: "ayuda", hist: [], hi: -1,
-    run: null, poll: 0, graf: null, grafSlug: null, modelos: [], errLinea: null, tema: null };
+    run: null, poll: 0, graf: null, grafSlug: null, modelos: [], errLinea: null, tema: null,
+    ac: { items: [], sel: 0, cx: null, abierto: false } };
 
   async function cargarData() {
     if (ES.data) return ES.data;
@@ -45,6 +47,7 @@ export function initEstudio(ctx) {
     renderArchivos();
     cargarEditor();
     renderDer();
+    cargarModelos();                     // para autocompletar modelo(…) y desde=
     if (!$("es-out").childElementCount) {
       linea(`PBDMM ${ES.data.version} · Python Base Dron Model Maker`, "ok");
       linea('Escribe "ayuda" para ver los comandos. Ctrl/⌘+Enter corre el programa. Empieza por la pestaña "Aprende".', "muted");
@@ -92,10 +95,20 @@ export function initEstudio(ctx) {
     if (ES.abierto) { ES.archivos[ES.abierto] = $("es-src").value; guardarArchivos(); }
     if (ES.errLinea) ES.errLinea = null;
     pintar();
+    autocompletar(false);
   });
-  $("es-src").addEventListener("scroll", sincScroll);
+  $("es-src").addEventListener("scroll", () => { sincScroll(); cerrarAC(); });
+  $("es-src").addEventListener("click", () => autocompletar(false));
+  $("es-src").addEventListener("blur", () => setTimeout(cerrarAC, 150));
   $("es-src").addEventListener("keydown", (ev) => {
     const t = ev.target, s = t.selectionStart, v = t.value;
+    const A = ES.ac;
+    if (A.abierto && A.items.length) {
+      if (ev.key === "ArrowDown" || ev.key === "ArrowUp") { ev.preventDefault(); A.sel = (A.sel + (ev.key === "ArrowDown" ? 1 : -1) + A.items.length) % A.items.length; pintarAC(); return; }
+      if ((ev.key === "Enter" && !ev.metaKey && !ev.ctrlKey) || ev.key === "Tab") { ev.preventDefault(); aceptarAC(A.items[A.sel]); return; }
+    }
+    if (A.abierto && ev.key === "Escape") { ev.preventDefault(); cerrarAC(); return; }
+    if (ev.ctrlKey && ev.code === "Space") { ev.preventDefault(); autocompletar(true); return; }
     if ((ev.metaKey || ev.ctrlKey) && ev.key === "Enter") { ev.preventDefault(); comando("correr"); return; }
     if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === "s") { ev.preventDefault(); toast("Guardado (se guarda solo en este navegador). Para tenerlo en un archivo: Descargar."); return; }
     if (ev.key === "Tab") { ev.preventDefault(); t.setRangeText("    ", s, t.selectionEnd, "end"); t.dispatchEvent(new Event("input")); return; }
@@ -108,6 +121,62 @@ export function initEstudio(ctx) {
       t.dispatchEvent(new Event("input"));
     }
   });
+  // ---------------- autocompletado: dron( -> "estandar", "azar", tus drones… ----------------
+  const fuentesAC = () => ({
+    data: ES.data, misiones: ctx.ent.misiones, nombresNiveles: ES.data.nombres_niveles,
+    drones: ctx.P().drones.map((d) => d.nombre), modelos: ES.modelos,
+    premios: [...ctx.ent.premios, { k: "near", tipo: "premio", desc: "Por estar cerca de la meta (niveles de metas y hover)." }]
+      .map((p) => ({ ...p, alias: Object.entries(ES.data.alias_premios).find(([, k]) => k === p.k)?.[0] })),
+  });
+  let anchoLetra = 0;
+  function autocompletar(forzar) {
+    const t = $("es-src"), A = ES.ac;
+    if (!ES.data || t.readOnly || t.selectionStart !== t.selectionEnd) return cerrarAC();
+    const cx = contexto(t.value.slice(0, t.selectionStart));
+    let items = cx ? opciones(cx, fuentesAC()) : [];
+    if (!forzar && cx?.tipo === "nombre" && cx.parcial.length < 2) items = [];
+    if (items.length === 1 && cx && items[0].txt.replace(/[(=:]$/, "") === t.value.slice(cx.desde, t.selectionStart)) items = [];   // ya está escrito
+    const fn = cx?.tipo === "arg" ? ES.data.funciones.find((f) => f.nombre === cx.fn) : null;
+    if (!items.length && !fn) return cerrarAC();
+    Object.assign(A, { items, cx, fn, sel: 0, abierto: true });
+    pintarAC();
+  }
+  function pintarAC() {
+    const A = ES.ac, box = $("es-ac"), t = $("es-src");
+    if (!A.abierto) { box.hidden = true; return; }
+    if (!anchoLetra) { const g = document.createElement("canvas").getContext("2d"); g.font = getComputedStyle(t).font; anchoLetra = g.measureText("MMMMMMMMMM").width / 10; }
+    const antes = t.value.slice(0, A.cx.desde), lin = antes.split("\n").length - 1, col = antes.length - antes.lastIndexOf("\n") - 1;
+    const area = $("es-area").getBoundingClientRect();
+    let x = 12 + col * anchoLetra - t.scrollLeft, y = 10 + (lin + 1) * 20 - t.scrollTop + 2;
+    const fn = A.fn;
+    box.innerHTML = (fn ? `<div class="ac-firma"><code>${esc(fn.firma)}</code>${A.cx.kw ? ` · <b>${esc(A.cx.kw)}</b>` : ""}<br><span>${esc((fn.params.find(([k]) => A.cx.kw && k.split(" ")[0] === A.cx.kw)?.[1]) || fn.desc.split(". ")[0] + ".")}</span></div>` : "") +
+      A.items.map((it, i) => `<div class="ac-op" role="option" aria-selected="${i === A.sel}" data-i="${i}"><code>${esc(it.label)}</code><span>${esc(it.det || "")}</span></div>`).join("") +
+      (A.items.length ? `<div class="ac-pie">↑↓ elegir · Enter/Tab poner · Esc cerrar · Ctrl+Espacio abrir</div>` : "");
+    box.hidden = false;
+    const w = box.offsetWidth, h = box.offsetHeight;
+    if (x + w > area.width - 8) x = Math.max(4, area.width - w - 8);
+    if (y + h > area.height - 4) y = Math.max(4, y - h - 24);       // si no cabe abajo, arriba de la línea
+    box.style.left = x + "px"; box.style.top = y + "px";
+    box.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest" });
+    box.querySelectorAll(".ac-op").forEach((el) => {
+      el.onmousedown = (ev) => { ev.preventDefault(); aceptarAC(A.items[+el.dataset.i]); };
+    });
+  }
+  function aceptarAC(it) {
+    const t = $("es-src"), A = ES.ac, fin = t.selectionStart;
+    if (!it || !A.cx) return;
+    // lo que ya escribiste de ese argumento (y una comilla de cierre que haya quedado)
+    let hasta = fin;
+    if (A.cx.enTexto && /["']/.test(t.value[fin] || "")) hasta++;
+    const cierra = it.cerrar && t.value[hasta] !== ")";
+    t.setRangeText(it.txt + (cierra ? ")" : ""), A.cx.desde, hasta, "end");
+    if (it.cerrar && !cierra) t.setSelectionRange(t.selectionStart + 1, t.selectionStart + 1);   // ya había ")": quedar después
+    cerrarAC();
+    t.dispatchEvent(new Event("input"));           // guarda, pinta y, si pusiste "dron(", abre sus opciones
+    t.focus();
+  }
+  function cerrarAC() { ES.ac.abierto = false; const b = $("es-ac"); if (b) b.hidden = true; }
+
   function insertar(txt) {
     const t = $("es-src"), s = t.selectionStart;
     const ini = t.value.lastIndexOf("\n", s - 1) + 1, ind = /^ */.exec(t.value.slice(ini, s))[0];
@@ -498,10 +567,10 @@ export function initEstudio(ctx) {
     const box = $("es-der"), D = ES.data;
     box.innerHTML = "";
     if (ES.tab === "ayuda") {
-      box.insertAdjacentHTML("beforeend", `<p class="muted">Un programa PBDMM describe <b>cómo</b> se entrena un modelo. Arriba: qué modelo, qué misión, con qué dron y premios. Abajo: funciones que el juego llama mientras entrena. Toca <b>insertar</b> para poner el ejemplo en tu programa.</p>`);
-      let grupo = null;
-      for (const f of D.funciones) {
-        if (f.grupo !== grupo) { grupo = f.grupo; box.insertAdjacentHTML("beforeend", `<h4>${esc(grupo)}</h4>`); }
+      box.insertAdjacentHTML("beforeend", `<p class="muted">Un programa PBDMM describe <b>cómo</b> se entrena un modelo. Arriba: qué modelo, qué misión, con qué dron y premios. Abajo: funciones que el juego llama mientras entrena. Toca <b>insertar</b> para poner el ejemplo en tu programa. Al escribir <code>dron(</code>, <code>mision(</code>, <code>premios(</code>, <code>e.</code>… te salen las opciones (<b>Ctrl+Espacio</b> las abre cuando quieras).</p>`);
+      const grupos = [...new Set(D.funciones.map((f) => f.grupo))];
+      for (const f of grupos.flatMap((g) => D.funciones.filter((x) => x.grupo === g))) {
+        if (f === D.funciones.find((x) => x.grupo === f.grupo)) box.insertAdjacentHTML("beforeend", `<h4>${esc(f.grupo)}</h4>`);
         const d = document.createElement("details");
         d.className = "es-fn";
         d.innerHTML = `<summary><code>${esc(f.firma)}</code><span class="muted"> · ${{ arriba: "arriba", "función": "en una función", "las dos": "arriba o en una función" }[f.donde] || ""}</span></summary>` +

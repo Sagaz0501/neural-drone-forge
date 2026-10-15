@@ -73,6 +73,8 @@ app/               EL JUEGO (Dron Maker): usa los módulos de game/
                    cada_generacion(e), al_terminar). test: node app/test_pbdmm.mjs
   estudio.js       el Estudio PBDMM (editor con colores, terminal con comandos, ayuda, lecciones, gráfica en vivo);
                    lee GET /api/lab cada 1,5 s y llama los hooks. Programas en localStorage "dronmaker.pbdmm.archivos"
+  autocompletar.js el autocompletado del editor PBDMM: contexto(texto antes del cursor) + opciones() (las fijas en
+                   data/pbdmm.json "opciones"; $drones/$misiones/$modelos/$premios salen del juego). Pruebas en test_pbdmm
   doc_pbdmm.mjs    genera docs/PBDMM.md desde data/pbdmm.json (ayuda, comandos, lecciones, ejemplos)
 drones/            madera.json (el dron del kit) y rango_juego.json (física al azar: --dron azar)
 

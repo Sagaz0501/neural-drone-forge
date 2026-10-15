@@ -22,6 +22,8 @@ p("```python");
 p(D.ejemplos.curriculum.trimEnd());
 p("```");
 p();
+p("En el estudio, al escribir te salen las opciones de cada función (por ejemplo `dron(` muestra \"estandar\", \"azar\" y los drones de tu hangar). ↑↓ para elegir, Enter o Tab para ponerla, Esc para cerrar y Ctrl+Espacio para abrirlas.");
+p();
 p("- **Arriba del archivo** (se lee una vez): `modelo`, `red`, `mision`/`nivel`, `dron`, `drones`, `entrenar_en` y los valores iniciales de `premios`, `aprendizaje`, `viento` y `velocidad`.");
 p("- **Funciones especiales** (las llama el juego mientras entrena):");
 for (const [k, t] of D.hooks_doc) p(`  - \`def ${k}:\` ${t}`);
@@ -29,7 +31,8 @@ p("- Dentro de esas funciones puedes cambiar `premios`, `aprendizaje`, `viento` 
 p();
 p("## Funciones");
 let g = null;
-for (const f of D.funciones) {
+const orden = [...new Set(D.funciones.map((f) => f.grupo))].flatMap((gr) => D.funciones.filter((f) => f.grupo === gr));
+for (const f of orden) {
   if (f.grupo !== g) { g = f.grupo; p(); p(`### ${g}`); }
   p();
   p(`#### \`${f.firma}\``);
@@ -76,6 +79,7 @@ p();
 p("## Por dentro");
 p();
 p("- `app/pbdmm.js`: léxico → árbol → intérprete (un subconjunto de Python) y `compilar()`: el programa → la configuración del entrenamiento + las funciones especiales. `pedidoDe(cfg)` arma el `POST /api/lab`; `estadoE(tr)` arma `e` desde `entrenando.json`.");
+p("- `app/autocompletar.js`: el autocompletado del editor (`dron(` → \"estandar\", \"azar\" y tus drones; `mision(`, `nivel(`, `premios(`, `desde=`, `e.`, `def `). Las opciones fijas están en `opciones` de cada función en `app/data/pbdmm.json`; las de tu juego (`$drones`, `$misiones`, `$modelos`…) se llenan solas. Ctrl+Espacio las abre.");
 p("- `app/estudio.js`: la pantalla (editor, terminal, ayuda, gráfica). Cada 1,5 s lee `GET /api/lab`; si la generación subió, llama `cada_generacion(e)`, y lo que pida (premios, lr…) va como `ajustar`.");
 p("- `scripts/jugar.py`: `POST /api/lab` acepta `lr`, `ent`, `capas` (red nueva → `info.json`) y la acción `guardar`. `live_train.py --capas` (o `capas` en `info.json`) arma la red.");
 p("- Pruebas: `node app/test_pbdmm.mjs`.");

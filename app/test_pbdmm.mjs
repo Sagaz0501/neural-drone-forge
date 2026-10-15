@@ -85,5 +85,50 @@ ok(/no llama/.test(e?.message || ""), "función especial mal escrita: " + e?.mes
 e = falla(() => compilar('modelo("x")\nmision("grabar")\ndron("Halcon")', D, host));
 ok(/no tienes un dron/.test(e?.message || ""), "dron que no está en el hangar");
 
+// 4) autocompletado del editor
+{
+  const { contexto, opciones } = await import("./autocompletar.js");
+  const F = { data, misiones: ent.misiones, nombresNiveles: data.nombres_niveles, drones: ["Sagaz_Dron_V3", "Cine (dev)"],
+    modelos: [{ slug: "base", gen: 1 }, { slug: "colibri", gen: 40, tiene_modelo: true }],
+    premios: ent.premios.map((p) => ({ k: p.k, alias: Object.entries(data.alias_premios).find(([, k]) => k === p.k)?.[0], tipo: p.tipo, desc: p.desc })) };
+  const op = (antes) => opciones(contexto(antes), F);
+  let o = op('modelo("x")\ndron(');
+  ok(o.map((x) => x.txt).join() === '"estandar","azar","Sagaz_Dron_V3","Cine (dev)"' && o.every((x) => x.cerrar), "dron( -> estandar, azar y tus drones (y cierra el paréntesis)");
+  o = op('dron("sa');
+  ok(o.length === 1 && o[0].txt === '"Sagaz_Dron_V3"', "dron(\"sa -> filtra: " + o.map((x) => x.txt));
+  let cx = contexto('dron("sa');
+  ok(cx.desde === 5 && cx.enTexto, "reemplaza desde la comilla");
+  o = op("mision(");
+  ok(o.length === ent.misiones.length && o[0].det.includes("nivel"), "mision( -> las misiones con su nivel");
+  o = op("nivel(1");
+  ok(o[0].txt === "1" && o.some((x) => x.txt === "12"), "nivel(1 -> 1, 10, 11, 12");
+  o = op('modelo("halcon", ');
+  ok(o.some((x) => x.txt === "desde="), "modelo(…, -> desde=");
+  o = op('modelo("halcon", desde=');
+  ok(o.map((x) => x.txt).join() === '"base","cero","colibri"', "desde= -> base, cero y tus modelos: " + o.map((x) => x.txt));
+  o = op("premios(chocar=10, gra");
+  ok(o[0].txt === "grabar=" && o[0].det.includes("film"), "premios(…, gra -> grabar= (film)");
+  o = op("premios(");
+  ok(o.length >= 12 && o.every((x) => x.txt.endsWith("=")), "premios( -> todos los premios con =");
+  o = op("    print(f\"{e.ex");
+  ok(o.length === 0, "dentro de un texto f\"…\" no molesta");
+  o = op("def cada_generacion(e):\n    if e.ex");
+  ok(o[0]?.txt === "exito", "e.ex -> exito");
+  o = op("    print(e.ch");
+  ok(o[0]?.txt === "choque", "print(e.ch -> choque");
+  o = op("de");
+  ok(o.some((x) => x.txt === "detener(") && o.some((x) => x.txt === "def "), "de -> detener(, def…");
+  o = op("def ca");
+  ok(o[0]?.txt === "cada_generacion(e):", "def ca -> cada_generacion(e):");
+  o = op("# dron(");
+  ok(o.length === 0, "en un comentario no sale nada");
+  o = op("    print(dro");
+  ok(o[0]?.txt === "dron(" || o.some((x) => x.txt === "drones("), "dentro de print( completa nombres");
+  o = op("red(");
+  ok(o[0]?.txt.startsWith("capas="), "red( -> capas=[…]");
+  o = op("x = [1, 2");
+  ok(o.length === 0, "dentro de una lista no molesta");
+}
+
 console.log(fallas ? `\n${fallas} pruebas fallaron.` : "\nTodas las pruebas pasan.");
 process.exit(fallas ? 1 : 0);
