@@ -185,7 +185,8 @@ Node v22 está en `/opt/homebrew/bin/node`. Blender 5.2 en `/Applications/Blende
   español), diccionarios `app/i18n/en/<parte>.json`, capas de datos `app/data/en/*.json` (se mezclan por id/k o por
   posición), `traducirHTML()` para index.html, la elección en `localStorage["dronmaker.idioma"]` (la primera vez se
   pregunta). TODO texto nuevo visible va con t() y su traducción (`node app/test_i18n.mjs`). Plan, fases y glosario:
-  `docs/I18N.md`. Falta: alias en inglés de PBDMM (fase 3), mensajes del servidor/Blender (fase 4).
+  `docs/I18N.md`. PBDMM es bilingüe (tabla `alias_en` en data/pbdmm.json; en compilar() los nombres en inglés son
+  alias; `traducirCodigo()`; la capa data/en/pbdmm.json trae el CÓDIGO en inglés). Falta: mensajes del servidor/Blender (fase 4).
 - **Fase 1 (15-10-2026):** Blender solo MUESTRA (panel de solo lectura + Modo video; el panel viejo con
   `DRONMAKER_LAB_AVANZADO=1`). Tres botones por IA: **Avance del modelo** (mejor y peor intento por nivel: live_train
   `LiveLink.grabar` -> `<carpeta del modelo>/avance.json`, `GET /api/avance`), **Simular prueba** (`POST /api/simular`:

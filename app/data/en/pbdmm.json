@@ -21,88 +21,137 @@
       "desc": "The model this program trains. It's saved under that name in models/drones/<name>/ (modelo.zip, modelo.json with its history, modelo_web.json to fly in the game). If it already exists, training continues where it left off.",
       "params": [
         [
-          "nombre",
+          "name",
           "text: letters, numbers, _ and -. \"Halcón 1\" becomes halcon_1"
         ],
         [
-          "desde",
-          "\"base\" (copies the campaign AI: it already knows how to fly), \"cero\" (a new random network: learns everything from scratch) or the name of another one of YOUR already trained models, e.g. desde=\"colibri\" (starts from what that one already learned; the original isn't touched). Only counts when creating it: if the model already exists, it keeps training its own."
+          "start_from",
+          "\"base\" (copies the campaign AI: it already knows how to fly), \"zero\" (a new random network: learns everything from scratch) or the name of another one of YOUR already trained models, e.g. start_from=\"colibri\" (starts from what that one already learned; the original isn't touched). Only counts when creating it: if the model already exists, it keeps training its own."
         ]
       ],
-      "ejemplo": "modelo(\"camarografo\", desde=\"colibri\")   # starts from the hummingbird, which already knows how to fly",
+      "ejemplo": "model(\"camarografo\", start_from=\"colibri\")   # starts from the hummingbird, which already knows how to fly",
       "opciones": {
+        "0": [
+          [
+            "$modelos",
+            ""
+          ]
+        ],
         "desde": [
           [
             "\"base\"",
             "copies the campaign AI: it already knows how to fly"
           ],
           [
-            "\"cero\"",
+            "\"zero\"",
             "a new random network: learns everything"
           ],
           [
             "$modelos_texto",
             ""
           ]
+        ],
+        "_kw": [
+          "start_from"
         ]
-      }
+      },
+      "firma": "model(name, start_from=\"base\")"
     },
     {
       "nombre": "red",
       "grupo": "The model",
-      "desc": "The size of the brain: how many hidden layers and how many neurons in each. 38 numbers (sensors) always go in and 4 (the sticks) come out. More neurons = it can learn harder things, but it takes longer. Only with desde=\"cero\".",
+      "desc": "The size of the brain: how many hidden layers and how many neurons in each. 38 numbers (sensors) always go in and 4 (the sticks) come out. More neurons = it can learn harder things, but it takes longer. Only with start_from=\"zero\".",
       "params": [
         [
-          "capas",
+          "layers",
           "a list of 1 to 4 numbers between 8 and 512. The campaign AI uses [128, 128]"
         ]
       ],
       "opciones": {
         "0": [
           [
-            "capas=[64, 64]",
+            "layers=[64, 64]",
             "medium: quick to train"
           ],
           [
-            "capas=[128, 128]",
+            "layers=[128, 128]",
             "the campaign one"
           ],
           [
-            "capas=[32]",
+            "layers=[32]",
             "tiny: 1 layer of 32"
           ],
           [
-            "capas=[256, 256]",
+            "layers=[256, 256]",
             "big: learns more, takes longer"
           ],
           [
-            "capas=[128, 64, 32]",
+            "layers=[128, 64, 32]",
             "3 layers"
+          ]
+        ],
+        "capas": [
+          [
+            "[64, 64]",
+            ""
+          ],
+          [
+            "[128, 128]",
+            ""
+          ],
+          [
+            "[32]",
+            ""
+          ]
+        ],
+        "_kw": [
+          "layers"
+        ]
+      },
+      "firma": "network(layers=[128, 128])",
+      "ejemplo": "network(layers=[64, 64])"
+    },
+    {
+      "nombre": "mision",
+      "grupo": "What it learns",
+      "desc": "What it practices: the world, the task and when it counts as a success. Comes with its recommended rewards (change them with rewards() and penalties()).",
+      "params": [
+        [
+          "id",
+          "\"film\", \"film_wind\", \"film_poles\", \"review_goals\" or \"review_columns\""
+        ]
+      ],
+      "firma": "mission(id)",
+      "ejemplo": "mission(\"film_poles\")",
+      "opciones": {
+        "0": [
+          [
+            "$misiones",
+            ""
           ]
         ]
       }
     },
     {
-      "nombre": "mision",
-      "grupo": "What it learns",
-      "desc": "What it practices: the world, the task and when it counts as a success. Comes with its recommended rewards (change them with premios() and castigos()).",
-      "params": [
-        [
-          "id",
-          "\"grabar\", \"grabar_viento\", \"grabar_postes\", \"repaso_metas\" or \"repaso_columnas\""
-        ]
-      ]
-    },
-    {
       "nombre": "nivel",
       "grupo": "What it learns",
-      "desc": "Instead of mision(): any Drone Lab level, from 0 (hold still) to 12 (filming between poles). No recommended rewards: set your own.",
+      "desc": "Instead of mission(): any Drone Lab level, from 0 (hold still) to 12 (filming between poles). No recommended rewards: set your own.",
       "params": [
         [
           "n",
           "0 hover · 1 fixed target · 2 random targets · 3 columns · 4 several targets · 5 circuit · 6 forest · 7 forest with rings · 8-10 hunt · 11 filming · 12 filming between poles"
         ]
-      ]
+      ],
+      "firma": "level(n)",
+      "ejemplo": "level(0)",
+      "opciones": {
+        "0": [
+          [
+            "$niveles",
+            ""
+          ]
+        ]
+      }
     },
     {
       "nombre": "dron",
@@ -110,18 +159,18 @@
       "desc": "Which physics it flies with while it learns. A model learns to fly THE drone it trained with: if you later put it in a very different drone (heavier, slower) it flies worse.",
       "params": [
         [
-          "cual",
-          "\"estandar\", \"azar\" (each drone with different physics: learns to fly anything) or the name of a drone in your hangar"
+          "which",
+          "\"standard\", \"random\" (each drone with different physics: learns to fly anything) or the name of a drone in your hangar"
         ]
       ],
       "opciones": {
         "0": [
           [
-            "\"estandar\"",
+            "\"standard\"",
             "the usual drone"
           ],
           [
-            "\"azar\"",
+            "\"random\"",
             "each drone with different physics: learns to fly anything"
           ],
           [
@@ -129,7 +178,9 @@
             ""
           ]
         ]
-      }
+      },
+      "firma": "drone(which)",
+      "ejemplo": "drone(\"random\")"
     },
     {
       "nombre": "drones",
@@ -160,22 +211,24 @@
             "for a quick test"
           ]
         ]
-      }
+      },
+      "firma": "drones(n)",
+      "ejemplo": "drones(50)"
     },
     {
       "nombre": "entrenar_en",
       "grupo": "How it trains",
-      "desc": "\"fondo\": trains on your computer with no window (up to 2 at a time). \"blender\": you watch it in Blender's Drone Lab (the drones flying, the brain, the curves). Blender has to be open with blender/laboratorio.blend (in the terminal: blender).",
+      "desc": "\"background\": trains on your computer with no window (up to 2 at a time). \"blender\": you watch it in Blender's Drone Lab (the drones flying, the brain, the curves). Blender has to be open with blender/laboratorio.blend (in the terminal: blender).",
       "params": [
         [
-          "donde",
-          "\"fondo\" or \"blender\""
+          "where",
+          "\"background\" or \"blender\""
         ]
       ],
       "opciones": {
         "0": [
           [
-            "\"fondo\"",
+            "\"background\"",
             "on your computer, no window (up to 2 at a time)"
           ],
           [
@@ -183,7 +236,9 @@
             "watch it in Blender's Drone Lab"
           ]
         ]
-      }
+      },
+      "firma": "train_on(where)",
+      "ejemplo": "train_on(\"blender\")"
     },
     {
       "nombre": "velocidad",
@@ -198,7 +253,7 @@
       "opciones": {
         "0": [
           [
-            "\"rapido\"",
+            "\"fast\"",
             "as fast as your computer can"
           ],
           [
@@ -206,7 +261,9 @@
             "at normal speed, to watch it in Blender"
           ]
         ]
-      }
+      },
+      "firma": "speed(v)",
+      "ejemplo": "speed(\"fast\")"
     },
     {
       "nombre": "viento",
@@ -237,19 +294,21 @@
             "strong"
           ]
         ]
-      }
+      },
+      "firma": "wind(m_s)",
+      "ejemplo": "wind(2.5)"
     },
     {
       "nombre": "aprendizaje",
       "grupo": "How it trains",
-      "desc": "lr (learning rate) = how big each adjustment of the brain is. Too high: it learns fast but forgets and goes crazy; too low: it barely changes. exploracion = how much you push it to try new things (the reward for having doubts).",
+      "desc": "lr (learning rate) = how big each adjustment of the brain is. Too high: it learns fast but forgets and goes crazy; too low: it barely changes. exploration = how much you push it to try new things (the reward for having doubts).",
       "params": [
         [
           "lr",
           "from 0.000001 to 0.01 (normal 0.0003; for fine-tuning at the end 0.0001)"
         ],
         [
-          "exploracion",
+          "exploration",
           "from 0 to 0.1 (normal 0; raise it a little if it gets stuck)"
         ]
       ],
@@ -264,11 +323,11 @@
             "for fine-tuning at the end"
           ],
           [
-            "exploracion=0.005",
+            "exploration=0.005",
             "if it gets stuck"
           ],
           [
-            "exploracion=0.0",
+            "exploration=0.0",
             "no push to explore"
           ]
         ],
@@ -285,94 +344,148 @@
             "0.001",
             "fast (risky)"
           ]
+        ],
+        "exploracion": [
+          [
+            "0.0",
+            ""
+          ],
+          [
+            "0.005",
+            ""
+          ],
+          [
+            "0.01",
+            ""
+          ]
+        ],
+        "_kw": [
+          "lr",
+          "exploration"
         ]
-      }
+      },
+      "firma": "learning(lr=0.0003, exploration=0.0)",
+      "ejemplo": "learning(lr=0.0003, exploration=0.005)"
     },
     {
       "nombre": "premios",
       "grupo": "Rewards and penalties",
-      "desc": "What you PAY each drone for doing something right, from 0 to 10 (0 = off, 4 = normal, 10 = maximum). This IS what it learns: it will do whatever pays the most. Only accepts rewards (penalties go in castigos()). The ones you don't set stay as the mission recommends. The game converts them to the values the trainer uses. Inside a function it changes them while training.",
+      "desc": "What you PAY each drone for doing something right, from 0 to 10 (0 = off, 4 = normal, 10 = maximum). This IS what it learns: it will do whatever pays the most. Only accepts rewards (penalties go in penalties()). The ones you don't set stay as the mission recommends. The game converts them to the values the trainer uses. Inside a function it changes them while training.",
       "params": [
         [
-          "film / grabar",
+          "film",
           "reward for every second filmed, according to image quality"
         ],
         [
-          "heading / mirar",
+          "heading",
           "reward for facing the subject with its nose (the camera)"
         ],
         [
-          "progress / acercarse",
+          "progress",
           "reward for every meter it gets closer to the point"
         ],
         [
-          "goal / meta",
+          "goal",
           "reward for arriving or finishing the shot"
         ],
         [
-          "near / cerca",
+          "near",
           "reward for being near the target"
         ],
         [
-          "speed / rapidez",
+          "speed",
           "reward for reaching a ring fast"
         ]
-      ]
+      ],
+      "firma": "rewards(film=4, heading=4, …)",
+      "ejemplo": "rewards(film=6, heading=4)",
+      "opciones": {
+        "0": [
+          [
+            "$premios",
+            ""
+          ]
+        ],
+        "_kw": [
+          "$premios"
+        ]
+      }
     },
     {
       "nombre": "castigos",
       "grupo": "Rewards and penalties",
-      "desc": "What you CHARGE each drone for doing something wrong, from 0 to 10 (0 = off, 4 = normal, 10 = maximum). It learns to avoid it, but careful: if you penalize too much, it prefers to do nothing. Only accepts penalties (rewards go in premios()). The ones you don't set stay as the mission recommends. The game converts them to the values the trainer uses. Inside a function it changes them while training.",
+      "desc": "What you CHARGE each drone for doing something wrong, from 0 to 10 (0 = off, 4 = normal, 10 = maximum). It learns to avoid it, but careful: if you penalize too much, it prefers to do nothing. Only accepts penalties (rewards go in rewards()). The ones you don't set stay as the mission recommends. The game converts them to the values the trainer uses. Inside a function it changes them while training.",
       "params": [
         [
-          "crash / chocar",
+          "crash",
           "penalty for crashing"
         ],
         [
-          "stability / sacudidas",
+          "stability",
           "penalty for sharp turns (shaky video)"
         ],
         [
-          "smooth / brusco",
+          "smooth",
           "penalty for jerking the sticks"
         ],
         [
-          "clearance / pegado",
+          "clearance",
           "penalty for passing within 1.2 m of something"
         ],
         [
-          "danger / peligro",
+          "danger",
           "penalty for rushing toward something"
         ],
         [
-          "tilt / inclinar",
+          "tilt",
           "penalty for flying tilted"
         ],
         [
-          "time / tiempo",
+          "time",
           "small penalty every step (so it doesn't dawdle)"
         ]
-      ]
+      ],
+      "firma": "penalties(crash=3, stability=4, …)",
+      "ejemplo": "penalties(crash=5, stability=6)",
+      "opciones": {
+        "0": [
+          [
+            "$castigos",
+            ""
+          ]
+        ],
+        "_kw": [
+          "$castigos"
+        ]
+      }
     },
     {
       "nombre": "pausar",
       "grupo": "While it trains",
-      "desc": "Pauses the training (nothing is lost)."
+      "desc": "Pauses the training (nothing is lost).",
+      "firma": "pause()",
+      "ejemplo": "if e.minutes > 30: pause()"
     },
     {
       "nombre": "seguir",
       "grupo": "While it trains",
-      "desc": "Resumes after a pause."
+      "desc": "Resumes after a pause.",
+      "firma": "resume()",
+      "ejemplo": "resume()"
     },
     {
       "nombre": "guardar",
       "grupo": "While it trains",
-      "desc": "Saves the model right now (it also saves itself every 10 generations)."
+      "desc": "Saves the model right now (it also saves itself every 10 generations).",
+      "firma": "save()",
+      "ejemplo": "if e.success > e.best_success: save()"
     },
     {
       "nombre": "detener",
       "grupo": "While it trains",
-      "desc": "Saves and ends the training. Use it to stop once it has learned."
+      "desc": "Saves and ends the training. Use it to stop once it has learned.",
+      "firma": "stop()",
+      "ejemplo": "if e.success >= 0.9: stop()"
     },
     {
       "nombre": "avisar",
@@ -380,21 +493,23 @@
       "desc": "Shows a big notice in the game (and in the terminal).",
       "params": [
         [
-          "texto",
+          "text",
           "whatever you want to say"
         ]
       ],
-      "ejemplo": "avisar(f\"It films now! success {e.exito:.0%}\")"
+      "ejemplo": "notify(f\"It films now! success {e.success:.0%}\")",
+      "firma": "notify(text)"
     },
     {
       "nombre": "print",
       "desc": "Writes to the terminal.",
-      "ejemplo": "print(\"generation\", e.generacion, \"success\", e.exito)"
+      "ejemplo": "print(\"generation\", e.generation, \"success\", e.success)",
+      "firma": "print(a, b, …)"
     },
     {
       "nombre": "variables",
       "firma": "name = value",
-      "desc": "Stores a value under a name to use later: a text, a number, a list or a dictionary. Put them at the top of the file (the setup in one place) and pass them to the functions: modelo(model_test). Inside def, to CHANGE a variable from the top write global name. Autocomplete offers your variables where they fit (text ones in modelo(, lists in capas=, dictionaries in premios(…).",
+      "desc": "Stores a value under a name to use later: a text, a number, a list or a dictionary. Put them at the top of the file (the setup in one place) and pass them to the functions: model(model_test). Inside def, to CHANGE a variable from the top write global name. Autocomplete offers your variables where they fit (text ones in model(, lists in layers=, dictionaries in rewards(…).",
       "params": [
         [
           "text",
@@ -410,115 +525,117 @@
         ],
         [
           "dictionary",
-          "P = {\"grabar\": 6, \"mirar\": 4}   ->   premios(**P)"
+          "P = {\"film\": 6, \"heading\": 4}   ->   rewards(**P)"
         ],
         [
           "several",
           "a, b = 1, 2   ·   for k, v in P.items():"
         ]
-      ]
+      ],
+      "ejemplo": "model_test = \"colibri\"\nCAPAS = [64, 64]\nmodel(model_test, start_from=\"zero\")\nnetwork(layers=CAPAS)"
     },
     {
       "nombre": "python",
       "firma": "if / for / def / lists / f\"…\" / [x for x in …]",
-      "desc": "What Python does have: numbers, texts and f\"{x:.2f}\", True/False/None, lists [ ], tuples ( ), dictionaries { }, variables, + - * / // % **, comparisons, and/or/not, in, is, x if condition else y, if/elif/else, for x in … (and for k, v in d.items()), list comprehensions [x * 2 for x in xs if x > 0], def/return (with default values and multiple values: return a, b), f(*list, **dictionary), a, b = 1, 2, global, pass, break/continue. Functions: print, str, int, float, round, abs, min, max, sum, len, range, list, type; lists .append() .pop(); dictionaries .get() .keys() .values() .items(); texts .upper() .lower() .split(). There's no while or import: a program can't hang the game or touch your computer."
+      "desc": "What Python does have: numbers, texts and f\"{x:.2f}\", True/False/None, lists [ ], tuples ( ), dictionaries { }, variables, + - * / // % **, comparisons, and/or/not, in, is, x if condition else y, if/elif/else, for x in … (and for k, v in d.items()), list comprehensions [x * 2 for x in xs if x > 0], def/return (with default values and multiple values: return a, b), f(*list, **dictionary), a, b = 1, 2, global, pass, break/continue. Functions: print, str, int, float, round, abs, min, max, sum, len, range, list, type; lists .append() .pop(); dictionaries .get() .keys() .values() .items(); texts .upper() .lower() .split(). There's no while or import: a program can't hang the game or touch your computer.",
+      "ejemplo": "CAPAS = [16 * i for i in range(1, 4)]   # [16, 32, 48]\nfor k, v in {\"film\": 6, \"heading\": 4}.items():\n    print(k, v)"
     }
   ],
   "hooks_doc": [
     [
-      "al_empezar(e)",
+      "on_start(e)",
       "once, when training starts (or when you find it already running)"
     ],
     [
-      "cada_generacion(e)",
+      "every_generation(e)",
       "every time a generation ends (all the drones practiced and the brain was adjusted)"
     ],
     [
-      "al_terminar(e)",
-      "when training stops (detener(), from the terminal, or it was closed)"
+      "on_end(e)",
+      "when training stops (stop(), from the terminal, or it was closed)"
     ]
   ],
   "e_doc": [
     [
-      "e.generacion",
+      "e.generation",
       "how many generations this model has (in total)"
     ],
     [
-      "e.generaciones_sesion",
+      "e.session_generations",
       "how many since you ran the program"
     ],
     [
-      "e.exito",
+      "e.success",
       "0 to 1: what fraction of the attempts completed the mission in the last generation"
     ],
     [
-      "e.choque",
+      "e.crash",
       "0 to 1: what fraction crashed"
     ],
     [
-      "e.premio",
+      "e.reward",
       "the average reward of an attempt (goes up if it learns what you pay for)"
     ],
     [
-      "e.calidad",
+      "e.quality",
       "0 to 1: image quality while filming (filming missions)"
     ],
     [
-      "e.mejor_exito",
+      "e.best_success",
       "the best success since you ran the program"
     ],
     [
-      "e.historia_exito",
+      "e.success_history",
       "a list with the success of the last 20 generations"
     ],
     [
-      "e.pasos",
+      "e.steps",
       "how many simulation steps in total"
     ],
     [
-      "e.minutos",
+      "e.minutes",
       "minutes since you ran the program"
     ],
     [
-      "e.nivel",
+      "e.level",
       "the Drone Lab level"
     ],
     [
-      "e.pausado",
+      "e.paused",
       "True if it's paused"
     ],
     [
-      "e.lr, e.exploracion, e.ruido, e.viento",
+      "e.lr, e.exploration, e.noise, e.wind",
       "how it's training right now (ruido = how much it jitters while exploring; it goes down on its own over time)"
     ],
     [
-      "e.premios",
-      "the current values, rewards and penalties together, from 0 to 10 (a dictionary: e.premios[\"crash\"])"
+      "e.rewards",
+      "the current values, rewards and penalties together, from 0 to 10 (a dictionary: e.rewards[\"crash\"])"
     ]
   ],
   "comandos": [
     [
-      "ayuda [topic]",
-      "this help; ayuda premios, ayuda e, ayuda mision… or the name of a function"
+      "help [topic]",
+      "this help; help rewards, help e, help mission… or the name of a function"
     ],
     [
-      "correr [file]",
+      "run [file]",
       "runs the open program (or that file): creates or continues the model and starts training"
     ],
     [
-      "revisar [file]",
+      "check [file]",
       "only checks it (errors and what it would request) without training"
     ],
     [
-      "parar",
+      "detach",
       "stops listening to the program (training continues; the functions are no longer called)"
     ],
     [
-      "estado",
+      "status",
       "what's training (Blender and the background): generation, success, crash"
     ],
     [
-      "modelos [éxito|gen|nombre]",
+      "models [success|gen|name]",
       "your models with their generation, network and success (sorted by what you say)"
     ],
     [
@@ -526,19 +643,19 @@
       "everything about a model: network, where it came from, levels, success curve"
     ],
     [
-      "pausar <model> · seguir <model> · detener <model>",
+      "pause <model> · resume <model> · stop <model>",
       "controls a background training (or Blender's)"
     ],
     [
-      "copiar <model> <new> · renombrar <model> <new> · borrar <model>",
+      "copy <model> <new> · rename <model> <new> · delete <model>",
       "borrar sends it to the trash (models/drones/_papelera)"
     ],
     [
-      "archivos · nuevo <name> · abrir <name> · eliminar [name]",
+      "files · new <name> · open <name> · remove [name]",
       "your .pbd programs (saved in this browser; download with the button). eliminar with no name = the open one; also with the × in the list"
     ],
     [
-      "ejemplo <name>",
+      "example <name>",
       "opens an example: hover, grabar, curriculum, postes, cerebro_chico"
     ],
     [
@@ -546,15 +663,19 @@
       "opens Blender with the Drone Lab (if you have it installed)"
     ],
     [
-      "avance <model> · simular <model>",
+      "progress <model> · simulate <model>",
       "the best and worst attempt it has had while training · a random test right now, with its latest generation (without stopping the training): with the path, the network, charts and cameras"
     ],
     [
-      "cargar [model] [drone]",
-      "uploads the model's LATEST generation to the drone (if it's training, it saves it first). No drone: the active one; no model: the one you're looking at. E.g.: cargar sagaz_model cine · cargar sagaz_model \"Cine (dev)\" (volar = the same)"
+      "load [model] [drone]",
+      "uploads the model's LATEST generation to the drone (if it's training, it saves it first). No drone: the active one; no model: the one you're looking at. E.g.: load sagaz_model cine · load sagaz_model \"Cine (dev)\" (fly = the same)"
     ],
     [
-      "limpiar",
+      "translate [en|es]",
+      "converts the open program to the other language (function, argument, hook and e. names): it works the same in both"
+    ],
+    [
+      "clear",
       "clears the terminal"
     ]
   ],
@@ -565,7 +686,7 @@
     },
     {
       "titulo": "2 · How it learns: rewards",
-      "texto": "Nobody tells it which stick to move. This is called reinforcement learning: the drone tries things, and you pay it points for the good stuff (getting closer, filming well) and charge it for the bad (crashing, shaking). The network adjusts itself to do more of what paid. That's why the rewards ARE the program: if you pay a lot for getting closer and little for not crashing, it will learn to get closer by crashing. Designing the rewards is the developer's job. In PBDMM: premios(grabar=6) pays, castigos(chocar=3) charges. Everything goes from 0 to 10: 4 is normal; raise it if you want it to care more, lower it if it cares too much. What matters is how much one weighs against another."
+      "texto": "Nobody tells it which stick to move. This is called reinforcement learning: the drone tries things, and you pay it points for the good stuff (getting closer, filming well) and charge it for the bad (crashing, shaking). The network adjusts itself to do more of what paid. That's why the rewards ARE the program: if you pay a lot for getting closer and little for not crashing, it will learn to get closer by crashing. Designing the rewards is the developer's job. In PBDMM: rewards(film=6) pays, penalties(crash=3) charges. Everything goes from 0 to 10: 4 is normal; raise it if you want it to care more, lower it if it cares too much. What matters is how much one weighs against another."
     },
     {
       "titulo": "3 · Generations, PPO and lr",
@@ -573,27 +694,27 @@
     },
     {
       "titulo": "4 · Explore or exploit",
-      "texto": "To discover something new the drone has to try stick moves it doesn't know: we add noise to what it decides (e.ruido). Over time the noise goes down on its own and it exploits what it already knows. If it gets stuck (success doesn't go up for many generations), raise exploration a little: aprendizaje(exploracion=0.005)."
+      "texto": "To discover something new the drone has to try stick moves it doesn't know: we add noise to what it decides (e.noise). Over time the noise goes down on its own and it exploits what it already knows. If it gets stuck (success doesn't go up for many generations), raise exploration a little: learning(exploration=0.005)."
     },
     {
       "titulo": "5 · Curriculum: from easy to hard",
-      "texto": "Nobody learns to film between poles without knowing how to fly. First hold still (level 0), then reach targets (2), then dodge (3), then film (11) and finally with poles (12). Each model can start from another (modelo(\"nuevo\", desde=\"otro\")) and with cada_generacion you can change the rewards and penalties once it masters the basics. Check out the curriculum example."
+      "texto": "Nobody learns to film between poles without knowing how to fly. First hold still (level 0), then reach targets (2), then dodge (3), then film (11) and finally with poles (12). Each model can start from another (model(\"new\", start_from=\"other\")) and with every_generation you can change the rewards and penalties once it masters the basics. Check out the curriculum example."
     },
     {
       "titulo": "6 · Measuring: success, crash, reward",
-      "texto": "e.exito is what matters (how many attempts completed the mission). e.premio goes up if it learns what you pay for —if the reward goes up and success doesn't, you're paying for the wrong thing—. e.choque should go down. The studio's chart shows all three. One model is compared with another by its success on the SAME mission (command: modelos éxito)."
+      "texto": "e.success is what matters (how many attempts completed the mission). e.reward goes up if it learns what you pay for —if the reward goes up and success doesn't, you're paying for the wrong thing—. e.crash should go down. The studio's chart shows all three. One model is compared with another by its success on the SAME mission (command: modelos éxito)."
     },
     {
       "titulo": "7 · Watching it in Blender",
-      "texto": "With entrenar_en(\"blender\") the same training shows up in Blender's Drone Lab: the 50 drones flying, the brain lighting up, the curves. Open Blender from the terminal (command blender) or with blender/laboratorio.blend. If Blender was already open from before you updated the game, close it (Stop and save) and open it again."
+      "texto": "With train_on(\"blender\") the same training shows up in Blender's Drone Lab: the 50 drones flying, the brain lighting up, the curves. Open Blender from the terminal (command blender) or with blender/laboratorio.blend. If Blender was already open from before you updated the game, close it (Stop and save) and open it again."
     }
   ],
   "ejemplos": {
-    "hover": "# My first model: hold still in the air.\n# A small network, from scratch. Watch it go from falling to floating.\n\nmodelo(\"colibri\", desde=\"cero\")\nred(capas=[64, 64])\nnivel(0)                 # hover: stay at one point\ndron(\"estandar\")\ndrones(50)\nentrenar_en(\"fondo\")\n\n# everything goes from 0 to 10: 0 = off, 4 = normal, 10 = maximum\npremios(cerca=8)\ncastigos(chocar=4, inclinar=8, brusco=4)\n\ndef cada_generacion(e):\n    print(f\"gen {e.generacion}: success {e.exito:.0%}, crash {e.choque:.0%}\")\n    if e.exito >= 0.95:\n        avisar(\"Colibrí floats now!\")\n        detener()\n",
-    "grabar": "# Filming houses: starts from the campaign AI (it already knows how to fly)\n# and specializes it in filming with your drone.\n\nmodelo(\"camarografo\", desde=\"base\")\nmision(\"grabar\")\ndron(\"azar\")             # change it to the name of a drone in your hangar\nentrenar_en(\"fondo\")\naprendizaje(lr=0.0003)\n\n# the mission's rewards and penalties, with a bigger penalty for shaking\ncastigos(sacudidas=6)     # normal is 4\n\ndef cada_generacion(e):\n    if e.generacion % 10 == 0:\n        print(f\"gen {e.generacion}: success {e.exito:.0%} · quality {e.calidad}\")\n    if e.exito >= 0.8:\n        aprendizaje(lr=0.0001)   # almost there: fine adjustments\n    if e.exito >= 0.9:\n        detener()\n",
-    "curriculum": "# Curriculum: first don't crash, then film well.\n\nmodelo(\"aprendiz\", desde=\"base\")\nmision(\"grabar_postes\")\ndron(\"azar\")\nentrenar_en(\"fondo\")\n\ncastigos(chocar=8)     # phase 1: not crashing matters most\npremios(grabar=1)\nfase = 1\n\ndef cada_generacion(e):\n    global fase\n    if fase == 1 and e.choque is not None and e.choque < 0.1:\n        fase = 2\n        castigos(chocar=3)    # phase 2: now, film well\n        premios(grabar=6)\n        avisar(\"Phase 2: it doesn't crash anymore, now let's film\")\n    if fase == 2 and e.exito >= 0.85:\n        detener()\n\ndef al_terminar(e):\n    print(\"finished in phase\", fase, \"with success\", e.exito)\n",
-    "postes": "# The restaurant: filming between poles, watching it in Blender.\n\nmodelo(\"entre_postes\", desde=\"base\")\nmision(\"grabar_postes\")\ndron(\"azar\")\ndrones(50)\nentrenar_en(\"blender\")      # open it with the command: blender\nvelocidad(\"real\")\n\ndef al_empezar(e):\n    print(\"starting at generation\", e.generacion)\n\ndef cada_generacion(e):\n    # if it's stuck for 20 generations, make it explore a bit more\n    h = e.historia_exito\n    if len(h) == 20 and max(h) - min(h) < 0.02:\n        aprendizaje(exploracion=0.005)\n        print(\"stuck: more exploration\")\n",
-    "cerebro_chico": "# How much brain does it need? The same hover with 2 sizes.\n# Run this one, then change the name and the layers, and compare them with: modelos éxito\n\nmodelo(\"mini_16\", desde=\"cero\")\nred(capas=[16])\nnivel(0)\nentrenar_en(\"fondo\")\npremios(cerca=8)\ncastigos(chocar=4, inclinar=8)\n\ndef cada_generacion(e):\n    if e.generaciones_sesion >= 300:\n        print(f\"300 generations: success {e.exito:.0%}\")\n        detener()\n",
-    "variables": "# Variables: the setup at the top, in one place, and the rest uses it.\nNOMBRE = \"halcon\"\nVERSION = 2\nmodel_test = f\"{NOMBRE}_v{VERSION}\"      # \"halcon_v2\"\nCAPAS = [64, 64]\nMI_DRON = \"azar\"                         # or the name of a drone in your hangar\nMETA = 0.85\n\nmodelo(model_test, desde=\"cero\")\nred(capas=CAPAS)\nmision(\"grabar\")\ndron(MI_DRON)\nentrenar_en(\"fondo\")\n\n# the training phases in a list: to add one, add a dictionary\nFASES = [\n    {\"nombre\": \"don't crash\", \"premios\": {\"grabar\": 2}, \"castigos\": {\"chocar\": 8}, \"hasta\": 0.3},\n    {\"nombre\": \"film well\", \"premios\": {\"grabar\": 6, \"mirar\": 5}, \"castigos\": {\"chocar\": 3}, \"hasta\": META},\n]\nfase = 0\npremios(**FASES[0][\"premios\"])\ncastigos(**FASES[0][\"castigos\"])\n\ndef cambiar_fase():\n    global fase\n    fase += 1\n    f = FASES[fase]\n    premios(**f[\"premios\"])\n    castigos(**f[\"castigos\"])\n    avisar(f\"Phase {fase + 1}: {f['nombre']}\")\n\ndef cada_generacion(e):\n    if e.exito is None:\n        return\n    if e.exito >= FASES[fase][\"hasta\"]:\n        if fase + 1 < len(FASES):\n            cambiar_fase()\n        else:\n            print(f\"{model_test} reached {e.exito:.0%}: done\")\n            detener()\n"
+    "hover": "# My first model: hold still in the air.\n# A small network, from scratch. Watch it go from falling to floating.\n\nmodel(\"colibri\", start_from=\"zero\")\nnetwork(layers=[64, 64])\nlevel(0)                 # hover: stay at one point\ndrone(\"standard\")\ndrones(50)\ntrain_on(\"background\")\n\n# everything goes from 0 to 10: 0 = off, 4 = normal, 10 = maximum\nrewards(near=8)\npenalties(crash=4, tilt=8, smooth=4)\n\ndef every_generation(e):\n    print(f\"gen {e.generation}: success {e.success:.0%}, crash {e.crash:.0%}\")\n    if e.success >= 0.95:\n        notify(\"Colibrí floats now!\")\n        stop()\n",
+    "grabar": "# Filming houses: starts from the campaign AI (it already knows how to fly)\n# and specializes it in filming with your drone.\n\nmodel(\"camarografo\", start_from=\"base\")\nmission(\"film\")\ndrone(\"random\")             # change it to the name of a drone in your hangar\ntrain_on(\"background\")\nlearning(lr=0.0003)\n\n# the mission's rewards and penalties, with a bigger penalty for shaking\npenalties(stability=6)     # normal is 4\n\ndef every_generation(e):\n    if e.generation % 10 == 0:\n        print(f\"gen {e.generation}: success {e.success:.0%} · quality {e.quality}\")\n    if e.success >= 0.8:\n        learning(lr=0.0001)   # almost there: fine adjustments\n    if e.success >= 0.9:\n        stop()\n",
+    "curriculum": "# Curriculum: first don't crash, then film well.\n\nmodel(\"aprendiz\", start_from=\"base\")\nmission(\"film_poles\")\ndrone(\"random\")\ntrain_on(\"background\")\n\npenalties(crash=8)     # phase 1: not crashing matters most\nrewards(film=1)\nphase = 1\n\ndef every_generation(e):\n    global phase\n    if phase == 1 and e.crash is not None and e.crash < 0.1:\n        phase = 2\n        penalties(crash=3)    # phase 2: now, film well\n        rewards(film=6)\n        notify(\"Phase 2: it doesn't crash anymore, now let's film\")\n    if phase == 2 and e.success >= 0.85:\n        stop()\n\ndef on_end(e):\n    print(\"finished in phase\", phase, \"with success\", e.success)\n",
+    "postes": "# The restaurant: filming between poles, watching it in Blender.\n\nmodel(\"entre_postes\", start_from=\"base\")\nmission(\"film_poles\")\ndrone(\"random\")\ndrones(50)\ntrain_on(\"blender\")      # open it with the command: blender\nspeed(\"real\")\n\ndef on_start(e):\n    print(\"starting at generation\", e.generation)\n\ndef every_generation(e):\n    # if it's stuck for 20 generations, make it explore a bit more\n    h = e.success_history\n    if len(h) == 20 and max(h) - min(h) < 0.02:\n        learning(exploration=0.005)\n        print(\"stuck: more exploration\")\n",
+    "cerebro_chico": "# How much brain does it need? The same hover with 2 sizes.\n# Run this one, then change the name and the layers, and compare them with: modelos éxito\n\nmodel(\"mini_16\", start_from=\"zero\")\nnetwork(layers=[16])\nlevel(0)\ntrain_on(\"background\")\nrewards(near=8)\npenalties(crash=4, tilt=8)\n\ndef every_generation(e):\n    if e.session_generations >= 300:\n        print(f\"300 generations: success {e.success:.0%}\")\n        stop()\n",
+    "variables": "# Variables: the setup at the top, in one place, and the rest uses it.\nNAME = \"halcon\"\nVERSION = 2\nmodel_test = f\"{NAME}_v{VERSION}\"      # \"halcon_v2\"\nLAYERS = [64, 64]\nMY_DRONE = \"random\"                         # or the name of a drone in your hangar\nTARGET = 0.85\n\nmodel(model_test, start_from=\"zero\")\nnetwork(layers=LAYERS)\nmission(\"film\")\ndrone(MY_DRONE)\ntrain_on(\"background\")\n\n# the training phases in a list: to add one, add a dictionary\nPHASES = [\n    {\"name\": \"don't crash\", \"rewards\": {\"film\": 2}, \"penalties\": {\"crash\": 8}, \"until\": 0.3},\n    {\"name\": \"film well\", \"rewards\": {\"film\": 6, \"heading\": 5}, \"penalties\": {\"crash\": 3}, \"until\": TARGET},\n]\nphase = 0\nrewards(**PHASES[0][\"rewards\"])\npenalties(**PHASES[0][\"penalties\"])\n\ndef next_phase():\n    global phase\n    phase += 1\n    f = PHASES[phase]\n    rewards(**f[\"rewards\"])\n    penalties(**f[\"penalties\"])\n    notify(f\"Phase {phase + 1}: {f['name']}\")\n\ndef every_generation(e):\n    if e.success is None:\n        return\n    if e.success >= PHASES[phase][\"until\"]:\n        if phase + 1 < len(PHASES):\n            next_phase()\n        else:\n            print(f\"{model_test} reached {e.success:.0%}: done\")\n            stop()\n"
   }
 }

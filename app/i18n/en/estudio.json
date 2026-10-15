@@ -121,7 +121,7 @@
   "Todavía no arranca: estado para ver qué pasa": "Not started yet: estado to see what's going on",
   "esperando…": "waiting…",
   "nada corriendo": "nothing running",
-  "Un programa PBDMM describe <b>cómo</b> se entrena un modelo. Arriba: qué modelo, qué misión, con qué dron, sus premios y sus castigos. Abajo: funciones que el juego llama mientras entrena. Toca <b>insertar</b> para poner el ejemplo en tu programa. Al escribir <code>dron(</code>, <code>mision(</code>, <code>premios(</code>, <code>castigos(</code>, <code>e.</code>… te salen las opciones (<b>Ctrl+Espacio</b> las abre cuando quieras).": "A PBDMM program describes <b>how</b> a model is trained. At the top: which model, which mission, which drone, its rewards and its penalties. Below: functions the game calls while it trains. Tap <b>insert</b> to put the example in your program. When you type <code>dron(</code>, <code>mision(</code>, <code>premios(</code>, <code>castigos(</code>, <code>e.</code>… the options show up (<b>Ctrl+Space</b> opens them anytime).",
+  "Un programa PBDMM describe <b>cómo</b> se entrena un modelo. Arriba: qué modelo, qué misión, con qué dron, sus premios y sus castigos. Abajo: funciones que el juego llama mientras entrena. Toca <b>insertar</b> para poner el ejemplo en tu programa. Al escribir <code>dron(</code>, <code>mision(</code>, <code>premios(</code>, <code>castigos(</code>, <code>e.</code>… te salen las opciones (<b>Ctrl+Espacio</b> las abre cuando quieras).": "A PBDMM program describes <b>how</b> a model is trained. At the top: which model, which mission, which drone, its rewards and its penalties. Below: functions the game calls while it trains. Tap <b>insert</b> to put the example in your program. When you type <code>drone(</code>, <code>mission(</code>, <code>rewards(</code>, <code>penalties(</code>, <code>e.</code>… the options show up (<b>Ctrl+Space</b> opens them anytime).",
   "arriba": "at the top",
   "en una función": "in a function",
   "arriba o en una función": "at the top or in a function",
@@ -186,5 +186,8 @@
   "tu dron del hangar": "your hangar drone",
   "nivel {n} · {nombre}": "level {n} · {nombre}",
   "ya existe: sigue entrenándolo (gen {gen})": "already exists: keeps training it (gen {gen})",
-  "parte de tu modelo (gen {gen})": "starts from your model (gen {gen})"
+  "parte de tu modelo (gen {gen})": "starts from your model (gen {gen})",
+  "No hay un programa abierto.": "No program is open.",
+  "Listo: {f}.pbd quedó con los nombres en inglés (funciona igual).": "Done: {f}.pbd now uses the English names (it works the same).",
+  "Listo: {f}.pbd quedó con los nombres en español (funciona igual).": "Done: {f}.pbd now uses the Spanish names (it works the same)."
 }

@@ -6,7 +6,7 @@
 // mientras entrena, el estudio lee el progreso (GET /api/lab) y llama las funciones del programa (cada_generacion…).
 // El lenguaje vive en pbdmm.js; la ayuda en data/pbdmm.json.
 // =====================================================================
-import { compilar, pedidoDe, estadoE, ErrorPB, repr, nivelDe, recomendados } from "./pbdmm.js";
+import { compilar, pedidoDe, estadoE, ErrorPB, repr, nivelDe, recomendados, traducirCodigo } from "./pbdmm.js";
 import { contexto, opciones, delPrograma } from "./autocompletar.js";
 import { dibujarRed as pintarRed } from "./redviz.js";
 import { t, datos, idioma, num } from "./i18n.js";
@@ -67,8 +67,9 @@ export function initEstudio(ctx) {
   // ---------------- editor ----------------
   const KWS = /\b(def|return|if|elif|else|for|in|and|or|not|is|global|pass|break|continue)\b/;
   function resaltar(src) {
-    const fns = new Set((ES.data?.funciones || []).map((f) => f.nombre).concat(["print", "str", "int", "float", "round", "abs", "min", "max", "sum", "len", "range", "list", "type"]));
-    const hooks = new Set(ES.data?.hooks || []);
+    const AL = ES.data?.alias_en || {};
+    const fns = new Set((ES.data?.funciones || []).map((f) => f.nombre).concat(Object.values(AL.funciones || {}), ["print", "str", "int", "float", "round", "abs", "min", "max", "sum", "len", "range", "list", "type"]));
+    const hooks = new Set([...(ES.data?.hooks || []), ...Object.values(AL.hooks || {})]);
     const re = /(#.*$)|([fF]?"(?:[^"\\]|\\.)*"?|[fF]?'(?:[^'\\]|\\.)*'?)|(\b\d[\d_]*\.?\d*(?:[eE][-+]?\d+)?\b)|([A-Za-z_áéíóúñÁÉÍÓÚÑ][\wáéíóúñÁÉÍÓÚÑ]*)/gm;
     let out = "", i = 0, m;
     while ((m = re.exec(src))) {
@@ -132,6 +133,7 @@ export function initEstudio(ctx) {
   const fuentesAC = () => ({
     data: ES.data, misiones: ctx.ent.misiones, nombresNiveles: ES.data.nombres_niveles,
     drones: ctx.P().drones.map((d) => d.nombre), modelos: ES.modelos, programa: delPrograma($("es-src").value),
+    lang: idioma(), alias: ES.data.alias_en,
     premios: [...ctx.ent.premios, { k: "near", tipo: "premio", desc: t("Por estar cerca de la meta (niveles de metas y hover).") }]
       .map((p) => ({ ...p, alias: Object.entries(ES.data.alias_premios).find(([, k]) => k === p.k)?.[0], rec: recomendados(ctx.ent.misiones, ctx.ent.escala_premios)[p.k] })),
   });
@@ -242,7 +244,8 @@ export function initEstudio(ctx) {
     let n = nombreArchivo(nombre) || "programa", k = 2;
     const base = n;
     while (ES.archivos[n] !== undefined) n = `${base}_${k++}`;
-    ES.archivos[n] = src ?? `# ${n}.pbd\n\nmodelo("${n}", desde="base")\nmision("grabar")\nentrenar_en("fondo")\n\ndef cada_generacion(e):\n    print(f"gen {e.generacion}: ${t("éxito")} {e.exito:.0%}")\n`;
+    const plantilla = `# ${n}.pbd\n\nmodelo("${n}", desde="base")\nmision("grabar")\nentrenar_en("fondo")\n\ndef cada_generacion(e):\n    print(f"gen {e.generacion}: ${t("éxito")} {e.exito:.0%}")\n`;
+    ES.archivos[n] = src ?? (idioma() === "en" ? traducirCodigo(plantilla, "en", ES.data.alias_en) : plantilla);
     ES.abierto = n;
     guardarArchivos(); renderArchivos(); cargarEditor();
     return n;
@@ -297,12 +300,24 @@ export function initEstudio(ctx) {
     else if (ev.key === "ArrowDown" && ES.hist.length) { ES.hi = Math.min(ES.hist.length, ES.hi + 1); ta.value = ES.hist[ES.hi] ?? ""; ev.preventDefault(); }
   });
 
+  /** Los comandos en inglés -> su nombre en español (run -> correr…), de data/pbdmm.json alias_en.comandos. */
+  const comandoEs = (c) => {
+    const al = ES.data?.alias_en?.comandos || {};
+    return Object.keys(al).find((es) => al[es] === c) || c;
+  };
   async function comando(c) {
     linea("› " + c, "cmd");
     const [cmd, ...args] = c.split(/\s+/);
     const a0 = args[0], a1 = args[1];
     try {
-      switch (cmd.toLowerCase()) {
+      switch (comandoEs(cmd.toLowerCase())) {
+        case "traducir": {                               // translate: el programa abierto, al otro idioma (o al que digas)
+          if (!ES.abierto) return linea(t("No hay un programa abierto."), "bad");
+          const hacia = ["en", "es"].includes(a0) ? a0 : (/^\s*(model|mission|rewards|penalties|train_on)\s*\(/m.test(ES.archivos[ES.abierto]) ? "es" : "en");
+          ES.archivos[ES.abierto] = traducirCodigo(ES.archivos[ES.abierto], hacia, ES.data.alias_en);
+          guardarArchivos(); cargarEditor();
+          return linea(hacia === "en" ? t("Listo: {f}.pbd quedó con los nombres en inglés (funciona igual).", { f: ES.abierto }) : t("Listo: {f}.pbd quedó con los nombres en español (funciona igual).", { f: ES.abierto }), "ok");
+        }
         case "ayuda": case "help": return ayuda(a0);
         case "limpiar": case "clear": $("es-out").innerHTML = ""; return;
         case "correr": case "run": return correr(a0, false);
@@ -315,7 +330,7 @@ export function initEstudio(ctx) {
           linea(cmd === "avance" ? t('Abriendo el mejor y el peor intento de "{m}"…', { m }) : t('Simulando una prueba de "{m}" con su última generación…', { m }), "muted");
           return cmd === "avance" ? ctx.abrirAvance(m, () => abrir()) : ctx.abrirSimular(m, () => abrir());
         }
-        case "modelos": case "ls": return modelos(a0);
+        case "modelos": case "ls": return modelos({ success: "exito", name: "nombre" }[a0] || a0);
         case "info": return info(a0);
         case "pausar": return control(a0, "pausar", { pausa: true });
         case "seguir": return control(a0, "pausar", { pausa: false });
@@ -437,7 +452,8 @@ export function initEstudio(ctx) {
     if (tema === "e") { D.e_doc.forEach(([k, d]) => linea(`  ${k.padEnd(34)} ${d}`)); return; }
     if (tema === "funciones") { D.funciones.forEach((f) => linea(`  ${f.firma}`)); return; }
     if (tema === "hooks") { D.hooks_doc.forEach(([k, d]) => linea(`  def ${k}: ${d}`)); return; }
-    const f = D.funciones.find((x) => x.nombre === tema);
+    const esDe = Object.fromEntries(Object.entries(D.alias_en?.funciones || {}).map(([es, en]) => [en, es]));
+    const f = D.funciones.find((x) => x.nombre === (esDe[tema] || tema));
     if (!f) return linea(t('No hay ayuda de "{tema}". Prueba: ayuda funciones · ayuda e · ayuda hooks', { tema }), "bad");
     linea(f.firma, "ok");
     linea(f.desc);
@@ -551,9 +567,9 @@ export function initEstudio(ctx) {
     linea("  " + t('modelo "{m}" ({desde}) · nivel {nivel} {niv} · {dron} · {n} drones · en {donde} ({vel})', {
       m: c.modelo, desde: c.desde === "cero" ? t("red nueva {capas}", { capas: c.capas ? c.capas.join("×") : "128×128" }) : c.desde === "base" ? t("desde la IA base") : t('desde "{m}"', { m: c.desde }),
       nivel: c.nivel, niv, dron: typeof c.dron === "object" ? t('tu dron "{d}"', { d: c.dron.hangar }) : c.dron === "AZAR" ? t("drones al azar") : t("dron estándar"),
-      n: c.drones, donde: c.donde === "blender" ? "Blender" : t("el fondo"), vel: c.velocidad }));
+      n: c.drones, donde: c.donde === "blender" ? "Blender" : t("el fondo"), vel: idioma() === "en" ? ES.data.alias_en?.valores?.[c.velocidad] || c.velocidad : c.velocidad }));
     linea(`  ${valoresTxt(c.premiosFinal)}${c.viento ? " · " + t("viento {v} m/s", { v: c.viento }) : ""}${c.lr !== undefined ? ` · lr ${c.lr}` : ""}${c.ent !== undefined ? " · " + t("exploración {v}", { v: c.ent }) : ""}`, "muted");
-    linea("  " + t("funciones: {lista}", { lista: prog.hooks.length ? prog.hooks.join(", ") : t("ninguna (solo entrena; párala con detener {m})", { m: c.modelo }) }), "muted");
+    linea("  " + t("funciones: {lista}", { lista: prog.hooks.length ? prog.hooks.map((h) => (idioma() === "en" ? ES.data.alias_en?.hooks?.[h] || h : h)).join(", ") : t("ninguna (solo entrena; párala con detener {m})", { m: c.modelo }) }), "muted");
     if (soloRevisar) return;
     let dron = null;
     if (typeof c.dron === "object") {
@@ -586,7 +602,7 @@ export function initEstudio(ctx) {
   function valoresTxt(reales) {
     const esc_ = ctx.ent.escala_premios, al = Object.fromEntries(Object.entries(ES.data.alias_premios).map(([a, k]) => [k, a]));
     const tipo = (k) => ctx.ent.premios.find((p) => p.k === k)?.tipo || "premio";
-    const parte = (tp) => Object.entries(reales).filter(([k]) => tipo(k) === tp).map(([k, v]) => `${al[k] || k}=${numero(nivelDe(k, v, esc_))}`).join(" ");
+    const parte = (tp) => Object.entries(reales).filter(([k]) => tipo(k) === tp).map(([k, v]) => `${idioma() === "en" ? k : al[k] || k}=${numero(nivelDe(k, v, esc_))}`).join(" ");   // en inglés: film=, crash=
     if (!Object.keys(reales).length) return t("premios y castigos: los de siempre del entrenador (ponlos con premios() y castigos())");
     return t("premios: {p} · castigos: {c} (de 0 a 10)", { p: parte("premio") || "—", c: parte("castigo") || "—" });
   }

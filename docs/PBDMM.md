@@ -47,6 +47,20 @@ En el estudio, al escribir te salen las opciones de cada función (por ejemplo `
   - `def al_terminar(e):` cuando el entrenamiento se detiene (detener(), desde la terminal o se cerró)
 - Dentro de esas funciones puedes cambiar `premios`, `aprendizaje`, `viento` y `velocidad` en vivo, y llamar `pausar`, `seguir`, `guardar`, `detener`, `avisar` y `print`.
 
+## En español o en inglés
+
+Todo nombre del lenguaje tiene su equivalente en inglés, y **los dos funcionan siempre**, en cualquier idioma del juego (se pueden mezclar). El comando `traducir` / `translate` pasa un programa de un idioma al otro.
+
+| español | English |
+|---|---|
+| funciones: `modelo()`, `red()`, `mision()`, `nivel()`, `dron()`, `drones()`, `entrenar_en()`, `velocidad()`, `viento()`, `aprendizaje()`, `premios()`, `castigos()`, `pausar()`, `seguir()`, `guardar()`, `detener()`, `avisar()` | `model()`, `network()`, `mission()`, `level()`, `drone()`, `drones()`, `train_on()`, `speed()`, `wind()`, `learning()`, `rewards()`, `penalties()`, `pause()`, `resume()`, `save()`, `stop()`, `notify()` |
+| argumentos: `desde=`, `capas=`, `exploracion=` | `start_from=`, `layers=`, `exploration=` |
+| valores: `"cero"`, `"fondo"`, `"rapido"`, `"estandar"`, `"azar"`, `"grabar"`, `"grabar_viento"`, `"grabar_postes"`, `"repaso_metas"`, `"repaso_columnas"` | `"zero"`, `"background"`, `"fast"`, `"standard"`, `"random"`, `"film"`, `"film_wind"`, `"film_poles"`, `"review_goals"`, `"review_columns"` |
+| premios y castigos: `grabar=`, `mirar=`, `acercarse=`, `meta=`, `cerca=`, `rapidez=`, `chocar=`, `sacudidas=`, `brusco=`, `pegado=`, `peligro=`, `inclinar=`, `tiempo=` | `film=`, `heading=`, `progress=`, `goal=`, `near=`, `speed=`, `crash=`, `stability=`, `smooth=`, `clearance=`, `danger=`, `tilt=`, `time=` |
+| funciones especiales: `def al_empezar(e)`, `def cada_generacion(e)`, `def al_terminar(e)` | `def on_start(e)`, `def every_generation(e)`, `def on_end(e)` |
+| lo que trae e: `e.generacion`, `e.generaciones_sesion`, `e.exito`, `e.choque`, `e.premio`, `e.calidad`, `e.mejor_exito`, `e.historia_exito`, `e.pasos`, `e.minutos`, `e.nivel`, `e.pausado`, `e.exploracion`, `e.ruido`, `e.viento`, `e.premios` | `e.generation`, `e.session_generations`, `e.success`, `e.crash`, `e.reward`, `e.quality`, `e.best_success`, `e.success_history`, `e.steps`, `e.minutes`, `e.level`, `e.paused`, `e.exploration`, `e.noise`, `e.wind`, `e.rewards` |
+| comandos: `ayuda`, `correr`, `revisar`, `parar`, `estado`, `modelos`, `pausar`, `seguir`, `detener`, `guardar`, `copiar`, `renombrar`, `borrar`, `archivos`, `nuevo`, `abrir`, `eliminar`, `ejemplo`, `cargar`, `volar`, `avance`, `simular`, `limpiar`, `traducir`, `info`, `blender` | `help`, `run`, `check`, `detach`, `status`, `models`, `pause`, `resume`, `stop`, `save`, `copy`, `rename`, `delete`, `files`, `new`, `open`, `remove`, `example`, `load`, `fly`, `progress`, `simulate`, `clear`, `translate`, `info`, `blender` |
+
 ## Funciones
 
 ### El modelo
@@ -338,6 +352,7 @@ Con `nivel(n)`: 0 Hover (quedarse quieto) · 1 Meta fija · 2 Metas al azar · 3
 - `blender`: abre Blender con el Drone Lab (si lo tienes instalado)
 - `avance <modelo> · simular <modelo>`: el mejor y el peor intento que ha tenido entrenando · una prueba al azar ahora, con su última generación (sin detener el entrenamiento): con el recorrido, la red, gráficas y cámaras
 - `cargar [modelo] [dron]`: sube la ÚLTIMA generación del modelo al dron (si está entrenando, primero la guarda). Sin dron: el activo; sin modelo: el que estás mirando. Ej: cargar sagaz_model cine · cargar sagaz_model "Cine (dev)" (volar = lo mismo)
+- `traducir [en|es]`: pasa el programa abierto al otro idioma (los nombres de las funciones, argumentos, hooks y e.): funciona igual en los dos
 - `limpiar`: borra la terminal
 
 ## Python que sí hay

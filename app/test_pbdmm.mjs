@@ -219,5 +219,31 @@ ok(/no tienes un dron/.test(e?.message || ""), "dron que no está en el hangar")
   ok(o.length === 0, "dentro de una lista no molesta");
 }
 
+// 5) PBDMM bilingüe: los nombres en inglés funcionan igual (en cualquier idioma del juego)
+{
+  const { traducirCodigo, E_EN } = await import("./pbdmm.js");
+  const AL = data.alias_en;
+  const es = 'modelo("halcon", desde="cero")\nred(capas=[32, 32])\nmision("grabar_postes")\ndron("azar")\ndrones(20)\nentrenar_en("fondo")\nvelocidad("rapido")\nviento(0.5)\naprendizaje(lr=0.0002, exploracion=0.003)\npremios(grabar=6, mirar=4)\ncastigos(chocar=3, sacudidas=5)\n';
+  const en = 'model("halcon", start_from="zero")\nnetwork(layers=[32, 32])\nmission("film_poles")\ndrone("random")\ndrones(20)\ntrain_on("background")\nspeed("fast")\nwind(0.5)\nlearning(lr=0.0002, exploration=0.003)\nrewards(film=6, heading=4)\npenalties(crash=3, stability=5)\n';
+  const cE = compilar(es, D, host).cfg, cI = compilar(en, D, host).cfg;
+  const limpio = (c) => JSON.stringify({ ...c, lineas: undefined });
+  ok(limpio(cE) === limpio(cI), "un programa en inglés = el mismo en español: " + (limpio(cE) === limpio(cI) ? "" : limpio(cI).slice(0, 200)));
+  ok(traducirCodigo(es, "en", AL) === en, "traducir español -> inglés: " + traducirCodigo(es, "en", AL).split("\n").slice(0, 3).join(" | "));
+  ok(traducirCodigo(en, "es", AL) === es, "traducir inglés -> español");
+  for (const [k, src] of Object.entries(data.ejemplos)) {
+    const ida = traducirCodigo(src, "en", AL), vuelta = traducirCodigo(ida, "es", AL);
+    const quedan = Object.keys(AL.funciones).filter((es) => es !== AL.funciones[es] && new RegExp(`^[^#\\n]*\\b${es}\\(`, "m").test(ida));
+    ok(vuelta === src && !falla(() => compilar(ida, D, host)) && !quedan.length, `el ejemplo "${k}" en inglés compila, vuelve igual y no le quedan funciones en español${quedan.length ? ": " + quedan : ""}`);
+  }
+  const mezcla = compilar('model("x")\nmision("grabar")\nrewards(grabar=5)\ndef every_generation(e):\n    if e.success > 0.9 and e.exito > 0.9:\n        stop()', D, host);
+  ok(mezcla.hooks.join() === "cada_generacion", "se pueden mezclar los dos idiomas (y every_generation es cada_generacion)");
+  const ac = mezcla.reaccionar("cada_generacion", estadoE({ succ: 0.95, gen: 3 }, {}));
+  ok(ac.some((x) => x.detener), "e.success y stop() en inglés funcionan");
+  ok(JSON.stringify(E_EN) === JSON.stringify(AL.e), "los campos de e en inglés (pbdmm.js E_EN) = data/pbdmm.json alias_en.e");
+  const e1 = falla(() => compilar('model("x")\nmission("volar_rapido")', D, host));
+  ok(/no hay una misión/.test(e1?.message || ""), "los errores siguen funcionando con nombres en inglés: " + e1?.message);
+  ok(compilar('model("x")\nmission("film")\ndrone("Sagaz_Dron_V3")', D, host).cfg.dron.hangar === "Sagaz_Dron_V3", "drone() con un dron del hangar");
+}
+
 console.log(fallas ? `\n${fallas} pruebas fallaron.` : "\nTodas las pruebas pasan.");
 process.exit(fallas ? 1 : 0);

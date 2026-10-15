@@ -83,13 +83,20 @@ export function contexto(antes) {
 export function opciones(cx, F) {
   if (!cx) return [];
   const D = F.data, fns = D.funciones.filter((f) => f.nombre !== "python");
+  // en inglés se ofrecen e insertan los nombres en inglés; lo escrito se reconoce en los dos idiomas
+  const en = F.lang === "en", AL = F.alias || {};
+  const esDe = Object.fromEntries(Object.entries(AL.funciones || {}).map(([es, e2]) => [e2, es]));
+  const kwEs = Object.fromEntries(Object.entries(AL.kwargs || {}).map(([es, e2]) => [e2, es]));
+  const vis = (es) => (en ? AL.funciones?.[es] || es : es);
+  const hooksTodos = [...(D.hooks || []), ...Object.values(AL.hooks || {})];
+  const fnEs = cx.fn ? esDe[cx.fn] || cx.fn : null, kwKey = cx.kw ? kwEs[cx.kw] || cx.kw : null;
   let out = [];
   const mios = F.programa || { vars: [], fns: [] };
   const misVars = (tipo) => mios.vars.filter((v) => !tipo || tipo === "?" || tipoValor(v.prev) === tipo || tipoValor(v.prev) === "?")
     .map((v) => ({ txt: v.nombre, label: v.nombre, det: t("tu variable = {v}", { v: v.prev.slice(0, 40) + (v.prev.length > 40 ? "…" : "") }) }));
   if (cx.tipo === "nombre") {
-    out = [...misVars(null), ...mios.fns.filter((n) => !D.hooks.includes(n)).map((n) => ({ txt: n + "(", label: n + "()", det: t("tu función"), fn: true })),
-      ...fns.map((f) => ({ txt: f.nombre + "(", label: f.firma, det: corto(f.desc), fn: true })),
+    out = [...misVars(null), ...mios.fns.filter((n) => !hooksTodos.includes(n)).map((n) => ({ txt: n + "(", label: n + "()", det: t("tu función"), fn: true })),
+      ...fns.map((f) => ({ txt: vis(f.nombre) + "(", label: f.firma, det: corto(f.desc), fn: true })),
       ...PY().map(([tx, d]) => ({ txt: tx, label: tx + ")", det: d, fn: true })),
       ...KWS().map(([tx, d]) => ({ txt: tx, label: tx.trim(), det: d }))];
   } else if (cx.tipo === "def") {
@@ -97,20 +104,20 @@ export function opciones(cx, F) {
   } else if (cx.tipo === "attr") {
     out = D.e_doc.flatMap(([k, d]) => k.split(",").map((x) => x.trim().replace(/^e\./, "")).map((x) => ({ txt: x, label: "e." + x, det: corto(d) })));
   } else if (cx.tipo === "arg") {
-    const f = D.funciones.find((x) => x.nombre === cx.fn);
+    const f = D.funciones.find((x) => x.nombre === fnEs);
     const O = f?.opciones;
     if (!O) return /^[A-Za-z_]\w*$/.test(cx.parcial) ? opciones({ ...cx, tipo: "nombre" }, F) : [];
-    const lista = cx.kw ? O[cx.kw] || [] : cx.idx === 0 ? O["0"] || [] : [];
+    const lista = kwKey ? O[kwKey] || [] : cx.idx === 0 ? O["0"] || [] : [];
     out = lista.flatMap(([v, d]) => expandir(v, d, F));
-    if (!cx.kw && O._kw && (cx.idx > 0 || cx.fn === "premios" || cx.fn === "castigos")) {
+    if (!cx.kw && O._kw && (cx.idx > 0 || fnEs === "premios" || fnEs === "castigos")) {
       const kws = O._kw.flatMap((k) => (k.startsWith("$") ? expandir(k, "", F) : [{ txt: k + "=", label: k + "=", det: "" }]));
       out = [...out, ...kws.filter((k) => !out.some((o) => o.txt === k.txt))];
     }
     if (!cx.enTexto) {                               // tus variables que sirven en ese lugar
-      const tipo = ESPERA[cx.kw || cx.fn] || null;
+      const tipo = ESPERA[kwKey || fnEs] || null;
       if (tipo && (cx.kw || cx.idx === 0)) out = [...out, ...misVars(tipo).filter((v) => !out.some((o) => o.txt === v.txt))];
     }
-    if (UN_ARG.has(cx.fn) && !cx.kw) out = out.map((o) => ({ ...o, cerrar: true }));
+    if (UN_ARG.has(fnEs) && !cx.kw) out = out.map((o) => ({ ...o, cerrar: true }));
   }
   // filtrar con lo que ya escribiste (sin comillas, sin mayúsculas, sin tildes)
   const norm = (s) => String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ"']/g, "");
@@ -129,11 +136,14 @@ const q = (s) => JSON.stringify(s);
 function expandir(v, d, F) {
   switch (v) {
     case "$drones": return (F.drones || []).map((n) => ({ txt: q(n), label: q(n), det: t("tu dron del hangar") }));
-    case "$misiones": return (F.misiones || []).map((m) => ({ txt: q(m.id), label: q(m.id), det: t("nivel {n} · {nombre}", { n: m.nivel, nombre: m.nombre }) }));
+    case "$misiones": return (F.misiones || []).map((m) => ({ txt: q(F.lang === "en" ? F.alias?.misiones?.[m.id] || m.id : m.id), label: q(F.lang === "en" ? F.alias?.misiones?.[m.id] || m.id : m.id), det: t("nivel {n} · {nombre}", { n: m.nivel, nombre: m.nombre }) }));
     case "$niveles": return Object.entries(F.nombresNiveles || {}).map(([k, n]) => ({ txt: k, label: k, det: n }));
     case "$modelos": return (F.modelos || []).filter((m) => m.slug !== "base").map((m) => ({ txt: q(m.slug), label: q(m.slug), det: t("ya existe: sigue entrenándolo (gen {gen})", { gen: m.gen ?? 0 }) }));
     case "$modelos_texto": return (F.modelos || []).filter((m) => m.slug !== "base" && m.tiene_modelo).map((m) => ({ txt: q(m.slug), label: q(m.slug), det: t("parte de tu modelo (gen {gen})", { gen: m.gen ?? 0 }) }));
-    case "$premios": case "$castigos": return (F.premios || []).filter((p) => (p.tipo || "premio") === (v === "$castigos" ? "castigo" : "premio")).map((p) => ({ txt: (p.alias || p.k) + "=", label: (p.alias || p.k) + "=", det: `${p.rec !== undefined ? t("normal {v}", { v: p.rec }) + " · " : ""}${p.alias ? p.k + ": " : ""}${corto(p.desc)}` }));
+    case "$premios": case "$castigos": return (F.premios || []).filter((p) => (p.tipo || "premio") === (v === "$castigos" ? "castigo" : "premio")).map((p) => {
+      const nom = F.lang === "en" ? p.k : p.alias || p.k;              // en inglés: film=, crash= (los del entrenador)
+      return { txt: nom + "=", label: nom + "=", det: `${p.rec !== undefined ? t("normal {v}", { v: p.rec }) + " · " : ""}${F.lang !== "en" && p.alias ? p.k + ": " : ""}${corto(p.desc)}` };
+    });
     default: return [{ txt: v, label: v, det: d }];
   }
 }

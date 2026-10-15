@@ -737,6 +737,10 @@
       "sube la ÚLTIMA generación del modelo al dron (si está entrenando, primero la guarda). Sin dron: el activo; sin modelo: el que estás mirando. Ej: cargar sagaz_model cine · cargar sagaz_model \"Cine (dev)\" (volar = lo mismo)"
     ],
     [
+      "traducir [en|es]",
+      "pasa el programa abierto al otro idioma (los nombres de las funciones, argumentos, hooks y e.): funciona igual en los dos"
+    ],
+    [
       "limpiar",
       "borra la terminal"
     ]
@@ -779,5 +783,112 @@
     "cerebro_chico": "# ¿Cuánto cerebro hace falta? El mismo hover con 2 tamaños.\n# Corre este, después cambia el nombre y las capas, y compáralos con: modelos éxito\n\nmodelo(\"mini_16\", desde=\"cero\")\nred(capas=[16])\nnivel(0)\nentrenar_en(\"fondo\")\npremios(cerca=8)\ncastigos(chocar=4, inclinar=8)\n\ndef cada_generacion(e):\n    if e.generaciones_sesion >= 300:\n        print(f\"300 generaciones: éxito {e.exito:.0%}\")\n        detener()\n",
     "variables": "# Variables: la configuración arriba, en un solo lugar, y el resto la usa.\nNOMBRE = \"halcon\"\nVERSION = 2\nmodel_test = f\"{NOMBRE}_v{VERSION}\"      # \"halcon_v2\"\nCAPAS = [64, 64]\nMI_DRON = \"azar\"                         # o el nombre de un dron de tu hangar\nMETA = 0.85\n\nmodelo(model_test, desde=\"cero\")\nred(capas=CAPAS)\nmision(\"grabar\")\ndron(MI_DRON)\nentrenar_en(\"fondo\")\n\n# las fases del entrenamiento en una lista: para agregar una, agrega un diccionario\nFASES = [\n    {\"nombre\": \"no chocar\", \"premios\": {\"grabar\": 2}, \"castigos\": {\"chocar\": 8}, \"hasta\": 0.3},\n    {\"nombre\": \"grabar bien\", \"premios\": {\"grabar\": 6, \"mirar\": 5}, \"castigos\": {\"chocar\": 3}, \"hasta\": META},\n]\nfase = 0\npremios(**FASES[0][\"premios\"])\ncastigos(**FASES[0][\"castigos\"])\n\ndef cambiar_fase():\n    global fase\n    fase += 1\n    f = FASES[fase]\n    premios(**f[\"premios\"])\n    castigos(**f[\"castigos\"])\n    avisar(f\"Fase {fase + 1}: {f['nombre']}\")\n\ndef cada_generacion(e):\n    if e.exito is None:\n        return\n    if e.exito >= FASES[fase][\"hasta\"]:\n        if fase + 1 < len(FASES):\n            cambiar_fase()\n        else:\n            print(f\"{model_test} llegó a {e.exito:.0%}: listo\")\n            detener()\n"
   },
-  "_nota_opciones": "opciones de cada función para el autocompletado del estudio: \"0\" = primer argumento, \"desde\"/\"lr\"… = el valor de ese argumento con nombre, \"_kw\" = argumentos con nombre. $drones, $misiones, $niveles, $modelos, $modelos_texto $premios y $castigos se llenan con lo que hay en tu juego."
+  "_nota_opciones": "opciones de cada función para el autocompletado del estudio: \"0\" = primer argumento, \"desde\"/\"lr\"… = el valor de ese argumento con nombre, \"_kw\" = argumentos con nombre. $drones, $misiones, $niveles, $modelos, $modelos_texto $premios y $castigos se llenan con lo que hay en tu juego.",
+  "alias_en": {
+    "_nota": "PBDMM en inglés: cada nombre en español tiene su alias en inglés (los dos funcionan siempre, en cualquier idioma del juego).",
+    "funciones": {
+      "modelo": "model",
+      "red": "network",
+      "mision": "mission",
+      "nivel": "level",
+      "dron": "drone",
+      "drones": "drones",
+      "entrenar_en": "train_on",
+      "velocidad": "speed",
+      "viento": "wind",
+      "aprendizaje": "learning",
+      "premios": "rewards",
+      "castigos": "penalties",
+      "pausar": "pause",
+      "seguir": "resume",
+      "guardar": "save",
+      "detener": "stop",
+      "avisar": "notify"
+    },
+    "kwargs": {
+      "desde": "start_from",
+      "capas": "layers",
+      "exploracion": "exploration"
+    },
+    "premios": {
+      "grabar": "film",
+      "mirar": "heading",
+      "acercarse": "progress",
+      "meta": "goal",
+      "cerca": "near",
+      "rapidez": "speed",
+      "chocar": "crash",
+      "sacudidas": "stability",
+      "brusco": "smooth",
+      "pegado": "clearance",
+      "peligro": "danger",
+      "inclinar": "tilt",
+      "tiempo": "time"
+    },
+    "hooks": {
+      "al_empezar": "on_start",
+      "cada_generacion": "every_generation",
+      "al_terminar": "on_end"
+    },
+    "e": {
+      "generacion": "generation",
+      "generaciones_sesion": "session_generations",
+      "exito": "success",
+      "choque": "crash",
+      "premio": "reward",
+      "calidad": "quality",
+      "mejor_exito": "best_success",
+      "historia_exito": "success_history",
+      "pasos": "steps",
+      "minutos": "minutes",
+      "nivel": "level",
+      "pausado": "paused",
+      "exploracion": "exploration",
+      "ruido": "noise",
+      "viento": "wind",
+      "premios": "rewards"
+    },
+    "valores": {
+      "cero": "zero",
+      "fondo": "background",
+      "rapido": "fast",
+      "estandar": "standard",
+      "azar": "random"
+    },
+    "misiones": {
+      "grabar": "film",
+      "grabar_viento": "film_wind",
+      "grabar_postes": "film_poles",
+      "repaso_metas": "review_goals",
+      "repaso_columnas": "review_columns"
+    },
+    "comandos": {
+      "ayuda": "help",
+      "correr": "run",
+      "revisar": "check",
+      "parar": "detach",
+      "estado": "status",
+      "modelos": "models",
+      "pausar": "pause",
+      "seguir": "resume",
+      "detener": "stop",
+      "guardar": "save",
+      "copiar": "copy",
+      "renombrar": "rename",
+      "borrar": "delete",
+      "archivos": "files",
+      "nuevo": "new",
+      "abrir": "open",
+      "eliminar": "remove",
+      "ejemplo": "example",
+      "cargar": "load",
+      "volar": "fly",
+      "avance": "progress",
+      "simular": "simulate",
+      "limpiar": "clear",
+      "traducir": "translate",
+      "info": "info",
+      "blender": "blender"
+    }
+  }
 }

@@ -15,7 +15,7 @@
 // break/continue, comentarios #. Sin while ni import (un programa no puede colgar ni tocar tu compu).
 // Docs para el jugador: app/data/pbdmm.json. Pruebas: node app/test_pbdmm.mjs
 // =====================================================================
-import { t } from "./i18n.js";
+import { t, idioma } from "./i18n.js";
 
 export class ErrorPB extends Error {
   constructor(msg, linea) { super(linea ? t("línea {n}: {msg}", { n: linea, msg }) : msg); this.linea = linea || null; this.msgCorto = msg; }
@@ -705,9 +705,9 @@ export function compilar(src, data, host = {}) {
     if (!Object.keys(k).length) throw new ErrorPB(t("{fn}() necesita al menos uno, por ejemplo {ej}", { fn, ej }), n);
     const c = {};
     for (const [kk, v] of Object.entries(k)) {
+      const key = premioKey(kk, n, tipo);                    // primero: ¿existe y es de este tipo? (el error más útil)
       num(v, fn, n);
       if (v < 0 || v > 10) throw new ErrorPB(t("{k}={v}: los {fn} van de 0 a 10 (0 = apagado, 4 = lo normal, 10 = al máximo)", { k: kk, v: repr(v), fn }), n);
-      const key = premioKey(kk, n, tipo);
       c[key] = realDe(key, v, data.escala);                 // el entrenador recibe el valor real
     }
     if (fase === "arriba") Object.assign(cfg.premios, c);
@@ -791,11 +791,39 @@ export function compilar(src, data, host = {}) {
     detener: (_, __, n) => { if (fase === "arriba") throw new ErrorPB(t("detener() va dentro de una función (por ejemplo: if e.exito > 0.9: detener())"), n); accion({ detener: true }); host.detener?.(); },
     guardar: (_, __, n) => { if (fase === "arriba") throw new ErrorPB(t("guardar() va dentro de una función"), n); accion({ guardar: true }); host.guardar?.(); },
   };
+  // PBDMM bilingüe: cada función también con su nombre en inglés (model, mission, rewards…), y los argumentos y valores
+  // en inglés (start_from="zero", train_on("background"), mission("film")…) se pasan al español antes de usarse.
+  const AL = data.alias_en || {};
+  const kwEs = Object.fromEntries(Object.entries(AL.kwargs || {}).map(([es, en]) => [en, es]));
+  const valEs = Object.fromEntries(Object.entries(AL.valores || {}).map(([es, en]) => [en, es]));
+  const misEs = Object.fromEntries(Object.entries(AL.misiones || {}).map(([es, en]) => [en, es]));
+  const VALOR_DE = { mision: misEs, dron: valEs, entrenar_en: valEs, velocidad: valEs };
+  for (const [es, en] of Object.entries(AL.funciones || {})) {
+    const f = B[es];
+    if (!f) continue;
+    const g = (a, k, n) => {
+      if (es !== "premios" && es !== "castigos") {           // los premios ya aceptan sus nombres en inglés
+        k = Object.fromEntries(Object.entries(k).map(([kk, v]) => {
+          const ke = kwEs[kk] || kk;
+          return [ke, ke === "desde" && typeof v === "string" && valEs[v] ? valEs[v] : v];
+        }));
+      }
+      const m = VALOR_DE[es];
+      if (m) a = a.map((v) => (typeof v === "string" && m[v.toLowerCase()] ? m[v.toLowerCase()] : v));
+      return f(a, k, n);
+    };
+    B[es] = g;
+    if (en !== es) B[en] = g;
+  }
+  const hookEn = AL.hooks || {};
+
   const interp = new Interprete(B);
-  interp.correr(arbol);
+  try { interp.correr(arbol); } catch (err) { throw enIdioma(err, AL); }
   fase = "corriendo";
 
-  // valida y completa
+  // valida y completa (los errores, con los nombres del idioma del juego)
+  try { validar(); } catch (err) { throw enIdioma(err, AL); }
+  function validar() {
   if (!cfg.modelo) throw new ErrorPB(t('falta modelo("nombre"): cada programa entrena UN modelo con nombre'));
   if (cfg.nivel === undefined) throw new ErrorPB(t('falta mision("…") (o nivel(n)): qué tiene que aprender. Mira ayuda("mision")'));
   cfg.donde = cfg.donde || "fondo";
@@ -817,21 +845,80 @@ export function compilar(src, data, host = {}) {
   cfg.yaExiste = yaExiste ? { gen: yaExiste.gen ?? 0 } : null;           // entonces desde= no cuenta: sigue el suyo
   if (cfg.capas && cfg.desde !== "cero") throw new ErrorPB(t('red(capas=…) solo sirve con modelo(…, desde="cero"): una red que ya existe no cambia de tamaño'), cfg.lineas.red);
   if (cfg.donde === "fondo" && cfg.modelo === "base") throw new ErrorPB(t("el modelo base solo se entrena en Blender"));
+  }
   const premiosMision = cfg.mision ? data.misiones.find((x) => x.id === cfg.mision)?.premios || {} : {};
   cfg.premiosFinal = { ...premiosMision, ...cfg.premios };
-  const hooks = (data.hooks || ["al_empezar", "cada_generacion", "al_terminar"]).filter((h) => interp.tiene(h));
-  const desconocidas = [...interp.globales.entries()].filter(([k, v]) => v?.__pb_fn && !hooks.includes(k) && /^(al_|cada_)/.test(k)).map(([k]) => k);
-  if (desconocidas.length) throw new ErrorPB(t('el juego no llama "{f}": las funciones especiales son {lista}', { f: desconocidas[0], lista: (data.hooks || []).join(", ") }), interp.globales.get(desconocidas[0]).n);
+  const nombresHook = data.hooks || ["al_empezar", "cada_generacion", "al_terminar"];
+  // cada hook se puede escribir en español o en inglés (cada_generacion / every_generation)
+  const hooks = nombresHook.filter((h) => interp.tiene(h) || interp.tiene(hookEn[h]));
+  const todosHooks = nombresHook.flatMap((h) => [h, hookEn[h]].filter(Boolean));
+  const desconocidas = [...interp.globales.entries()].filter(([k, v]) => v?.__pb_fn && !todosHooks.includes(k) && /^(al_|cada_|on_|every_)/.test(k)).map(([k]) => k);
+  if (desconocidas.length) throw enIdioma(new ErrorPB(t('el juego no llama "{f}": las funciones especiales son {lista}', { f: desconocidas[0], lista: (idioma() === "en" ? nombresHook.map((h) => hookEn[h] || h) : nombresHook).join(", ") }), interp.globales.get(desconocidas[0]).n), AL);
 
   return {
     cfg, interp, hooks,
     /** Llama un hook con e (objeto). Devuelve las acciones que pidió. */
     reaccionar(nombre, e) {
       acciones.length = 0;
-      if (interp.tiene(nombre)) interp.llamar(nombre, [e]);
+      try {
+        if (interp.tiene(nombre)) interp.llamar(nombre, [e]);
+        else if (hookEn[nombre] && interp.tiene(hookEn[nombre])) interp.llamar(hookEn[nombre], [e]);
+      } catch (err) { throw enIdioma(err, AL); }
       return [...acciones];
     },
   };
+}
+
+/**
+ * Con el juego en inglés, un error nombra las funciones como en inglés (modelo( -> model(, desde= -> start_from=…).
+ * El programa se puede escribir en cualquiera de los dos idiomas: esto es solo para el mensaje.
+ */
+function enIdioma(err, AL) {
+  if (!(err instanceof ErrorPB) || idioma() !== "en" || !AL) return err;
+  let m = err.message;
+  for (const [es, en] of Object.entries(AL.funciones || {})) if (es !== en) m = m.replace(new RegExp(`\\b${es}\\(`, "g"), `${en}(`);
+  for (const [es, en] of Object.entries(AL.kwargs || {})) m = m.replace(new RegExp(`\\b${es}=`, "g"), `${en}=`);
+  for (const [es, en] of Object.entries(AL.hooks || {})) m = m.replace(new RegExp(`\\b${es}\\b`, "g"), en);
+  for (const [es, en] of Object.entries(AL.premios || {})) m = m.replace(new RegExp(`\\b${es}=`, "g"), `${en}=`);
+  err.message = m;
+  return err;
+}
+
+/** Los campos de e también en inglés (como "e" en data/pbdmm.json alias_en: la prueba revisa que coincidan). */
+export const E_EN = { generacion: "generation", generaciones_sesion: "session_generations", exito: "success", choque: "crash",
+  premio: "reward", calidad: "quality", mejor_exito: "best_success", historia_exito: "success_history", pasos: "steps",
+  minutos: "minutes", nivel: "level", pausado: "paused", exploracion: "exploration", ruido: "noise", viento: "wind", premios: "rewards" };
+
+/**
+ * Pasa un programa de un idioma al otro ("en" o "es"): nombres de funciones, argumentos, hooks, campos de e., nombres de
+ * premios y los valores conocidos entre comillas. No toca comentarios ni otros textos. (comando translate / traducir)
+ */
+export function traducirCodigo(src, hacia, AL) {
+  const par = (m) => (hacia === "en" ? m : Object.fromEntries(Object.entries(m || {}).map(([a, b]) => [b, a])));
+  const fn = par(AL.funciones), kw = { ...par(AL.premios), ...par(AL.kwargs) }, hk = par(AL.hooks), ef = par(AL.e);
+  const val = { ...par(AL.valores), ...par(AL.misiones) };
+  let out = "", i = 0;
+  const re = /(#[^\n]*)|([fF]?"(?:[^"\\\n]|\\.)*"|[fF]?'(?:[^'\\\n]|\\.)*')|([A-Za-z_][\w]*)/g;
+  let m;
+  while ((m = re.exec(src))) {
+    out += src.slice(i, m.index);
+    i = re.lastIndex;
+    let x = m[0];
+    if (m[2]) {
+      const q = x.match(/^([fF]?)(["'])([\s\S]*)\2$/);
+      if (q && !q[1] && val[q[3]]) x = q[2] + val[q[3]] + q[2];
+      else if (q && q[1]) x = q[1] + q[2] + q[3].replace(/\{([^}]*)\}/g, (all, ex) => "{" + traducirCodigo(ex, hacia, AL) + "}") + q[2];
+    } else if (m[3]) {
+      const antes = src.slice(0, m.index), despues = src.slice(re.lastIndex);
+      if (/\be\.[ \t]*$/.test(antes)) x = ef[x] || x;                     // e.exito -> e.success
+      else if (/\.[ \t]*$/.test(antes)) { /* otro atributo: igual (sin \n: "fin de frase.\nmodelo(" no es un atributo) */ }
+      else if (/^\s*=(?!=)/.test(despues) && kw[x] && /[(,]\s*$/.test(antes)) x = kw[x];   // argumento con nombre: f(desde=…)
+      else if (/^\s*\(/.test(despues) && fn[x]) x = fn[x];                  // una llamada
+      else if (/\bdef\s+$/.test(antes) && hk[x]) x = hk[x];                  // def cada_generacion(
+    }
+    out += x;
+  }
+  return out + src.slice(i);
 }
 
 /** El pedido para POST /api/lab (accion "iniciar"). dronFisica(nombre) -> el dron del hangar como lo pide el servidor. */
@@ -853,7 +940,7 @@ export function estadoE(tr, ses = {}, escala = null) {
   const h = tr.hist || [], ult = h.at(-1) || [];
   const p = tr.params || {};
   const val = (x) => (typeof x === "number" && Number.isFinite(x) ? Math.round(x * 10000) / 10000 : null);
-  return objeto({
+  const campos = {
     generacion: tr.gen ?? 0,
     generaciones_sesion: Math.max(0, (tr.gen ?? 0) - (ses.gen0 ?? tr.gen ?? 0)),
     pasos: tr.steps ?? 0,
@@ -868,5 +955,7 @@ export function estadoE(tr, ses = {}, escala = null) {
     lr: val(p.lr), exploracion: val(p.ent), ruido: val(p.sigma), viento: val(p.wind),
     premios: Object.freeze(Object.fromEntries(Object.entries(p.reward || {}).map(([k, v]) => [k, escala ? nivelDe(k, v, escala) : v]))),
     historia_exito: h.slice(-20).map((x) => val(x[2])),
-  });
+  };
+  for (const [es, en] of Object.entries(E_EN)) campos[en] = campos[es];     // e.success = e.exito …
+  return objeto(campos);
 }

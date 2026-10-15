@@ -2,6 +2,11 @@
 
 ## v0.3 · English
 
+- **PBDMM bilingüe:** todo nombre se escribe en español o en inglés, siempre (`model("x", start_from="zero")`,
+  `mission("film")`, `rewards(film=6)`, `def every_generation(e): if e.success > 0.9: stop()`…); se pueden mezclar y un
+  programa guardado en español sigue funcionando. En inglés, la ayuda, el autocompletado, los ejemplos y los comandos
+  (`run`, `check`, `load`, `models`…) salen en inglés. Comando nuevo `translate` / `traducir`.
+
 - **Arreglado (Blender):** al cerrar Blender, su entrenador seguía corriendo sin ventana y el Blender nuevo no podía
   entrenar ("Address already in use"). Ahora el entrenador lanzado por Blender guarda y termina solo si Blender se
   cierra (`live_train.py --salir-sin-padre`), y si al empezar el puerto está ocupado, Blender le pide al huérfano que
