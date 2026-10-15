@@ -40,6 +40,13 @@ de su física (peso, motores, hélices), de la misión y de cómo lo entrenas.
 | ![Motores](docs/img/banco_motores.jpg) | ![Vuelo](docs/img/vuelo.jpg) |
 | **Motores.** El orden y el sentido de giro que espera Betaflight, sin hélices. | **Pedidos.** Tomas con ruta, calificadas por encuadre, ritmo y estabilidad; video `.webm`. |
 
+## La demo
+
+![El visor de simulaciones: el intento de la IA, las gráficas y la red neuronal en cada instante](docs/media/simulacion.gif)
+
+*Modo desarrollador: escribir un modelo en PBDMM, entrenarlo en Blender, mirar su red neuronal en vivo y revisar su
+mejor intento. [Ver la demo completa (MP4, 4½ min)](docs/media/demo_estudio.mp4).*
+
 ## Dos formas de jugar
 
 ![Elegir el modo](docs/img/modos.jpg)

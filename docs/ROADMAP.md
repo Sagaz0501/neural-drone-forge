@@ -34,34 +34,66 @@ El objetivo: que alguien que llega al GitHub entienda en 10 segundos qué es y q
 
 Ya hecho en esta fase:
 - ✅ **Blender = la pantalla del entrenamiento** *(Santiago)*: el panel Drone Lab ya no tiene controles (todo se
-  maneja desde el juego); solo muestra qué entrena y tiene **Modo video** (sin menús ni grilla, pantalla completa)
-  para grabar los 50 drones aprendiendo.
-- ✅ **Tres botones por IA** *(Santiago)*: **Avance del modelo** (el mejor y el peor intento que ha tenido, que el
-  entrenador guarda solo), **Simular prueba** (una prueba al azar como las del entrenamiento, con la última
-  generación y sin detenerlo; no da plata ni daña nada) y **Pedidos**. Las simulaciones muestran el recorrido, la red
-  neuronal en cada instante, gráficas y tres cámaras, con línea de tiempo.
+  maneja desde el juego); solo muestra qué entrena y tiene **Modo video** (sin menús ni grilla, pantalla completa).
+  Si se cierra Blender, su entrenamiento guarda y termina solo (ya no quedan entrenamientos huérfanos).
+- ✅ **Tres botones por IA** *(Santiago)*: **Avance del modelo** (primer intento, peor, mejor, último y "Ahora"),
+  **Simular prueba** (una prueba al azar como las del entrenamiento, con la última generación, sin detenerlo; no da
+  plata ni daña nada) y **Pedidos**. Las simulaciones muestran el recorrido, la red neuronal en cada instante,
+  gráficas y tres cámaras, con línea de tiempo. Preguntan con qué IA (cada modelo con su generación guardada).
 - ✅ **Pedidos al azar** *(Santiago)*: cada intento las tomas cambian (ángulo, distancia, altura, sentido de la órbita).
 - ✅ **La IA nunca se bloquea** *(Santiago)*: con una IA sin entrenar sale un aviso (reputación y daños) y puedes
   intentarlo igual.
+- ✅ **`cargar <modelo> <dron>`** *(Santiago)*: sube la última generación al dron, con animación.
+- ✅ **El juego en inglés** *(Santiago)*: pregunta el idioma al abrir; PBDMM bilingüe (`model()` = `modelo()`).
+- ✅ **Videos en el README** *(Santiago)*: 25 drones aprendiendo en Blender (GIF + MP4) y la demo del modo
+  desarrollador (GIF del visor de simulaciones + MP4 de 4½ min), en `docs/media/`.
 
-Lo que falta:
+Lo que falta para cerrar la Fase 1 (en orden):
 
-1. 🔜 **Fotos y videos para el GitHub** *(Santiago)*: ✅ el primer video (25 drones aprendiendo en Blender, en el
-   README como GIF + MP4 en `docs/media/`). Faltan: Un GIF del Drone Lab (50 drones aprendiendo), uno de la red
-   neuronal encendiéndose, uno del banco (el ESC quemándose) y un video corto "de caerse a grabar una casa".
-   La imagen social del repo (Settings → Social preview).
+1. 🔜 **Arreglos que se ven en la demo:** en *Avance del modelo* el selector de modelo puede mostrar "base" aunque se
+   esté viendo otro; con el juego en inglés, los nombres de los sensores de la red ("meta adelante"…) y algunos
+   mensajes del servidor y de Blender siguen en español (fase 4 de los idiomas, `docs/I18N.md`).
 2. 🔜 **Tutorial de los primeros 5 minutos.** Hoy el juego explica con textos; mejor una guía en pantalla:
-   "compra el kit → ármalo → tu primer vuelo → tu primer entrenamiento".
+   "compra el kit → ármalo → tu primer vuelo → tu primer entrenamiento → simula su prueba".
 3. 🔜 **Las misiones las cumple la IA** *(Santiago: "las misiones se prueban exclusivamente con el modelo
    entrenado")*. Propuesta: los pedidos se entregan solo con "Que grabe la IA"; volar tú queda para practicar,
-   para los modos libres (Fase 3) y para "mostrarle a la IA" (ver Fase 4: aprender de tu vuelo).
-   Decidir: ¿volar tú sigue dando plata en los primeros pedidos (antes de tener IA)?
+   para los modos libres (Fase 3) y para "mostrarle a la IA" (Fase 4: aprender de tu vuelo).
+   Por decidir: ¿volar tú sigue dando plata en los primeros pedidos (antes de tener IA)?
 4. 🔜 **El momento "wow" en el juego:** al terminar una generación buena, una repetición corta del mejor dron.
-   Antes y después: el mismo dron en la generación 10 y en la 500.
-5. 🔜 **Pulido:** sonidos (motores según el gas, el bip del ESC, el clic del relé), transiciones de cámara,
-   pantalla de carga, ajustes (volumen, calidad, idioma).
-6. 🔜 **Rendimiento:** 60 fps en una laptop sin GPU dedicada (calidad baja real), y que el juego no se trabe
+   (El Avance ya muestra antes y después; falta que aparezca solo, como una celebración.)
+5. 🔜 **Más imágenes para el GitHub:** un GIF del banco (el ESC quemándose), uno corto "de caerse a grabar una casa"
+   y la imagen social del repo (GitHub → Settings → Social preview: se sube a mano).
+6. 🔜 **Pulido:** sonidos (motores según el gas, el bip del ESC, el clic del relé), transiciones de cámara, pantalla
+   de carga, ajustes (volumen y calidad en el mismo lugar que el idioma).
+7. 🔜 **Rendimiento:** 60 fps en una laptop sin GPU dedicada (calidad baja real), y que el juego no se trabe
    mientras entrena en el fondo.
+
+## Fase 1b · Premios, castigos y misiones que exigen al dron 📝 *(Santiago, 15-10-2026)*
+
+> Idea anotada, todavía no se empieza. Podría ir justo después de la Fase 1 porque cambia cómo se entrena.
+
+**Premios y castigos mejor pensados.** Hoy son pocos y genéricos (acercarse, grabar, chocar, sacudidas…). La idea es
+un **catálogo amplio, con nombres claros**, que haya que combinar y ajustar según la misión:
+- **Estabilidad de altura:** mantenerse a la misma altura cuando la toma lo pide (no confundir con "sin sacudidas").
+- **Velocidad:** ir al ritmo que pide la ruta, ni más rápido ni más lento; castigo por pasarse del límite.
+- **Enfoque:** el sujeto al centro y a la distancia correcta (encuadre), separado de "mirar al sujeto".
+- Otros candidatos: suavidad en las curvas, ahorro de batería (menos gas inútil), distancia segura a personas,
+  aterrizar suave en la base, no salirse de la zona del cliente, compensar el viento, mantener la línea de vista
+  con el piloto (alcance de la radio).
+- Cada misión diría cuáles importan y en qué rango; el Laboratorio y PBDMM los mostrarían agrupados (vuelo, cámara,
+  seguridad, energía). Por dentro, cada premio nuevo es una entrada más del entrenador (`drone_rl/env.py`) y lo que el
+  dron "siente" para lograrlo (las 38 entradas solo pueden crecer **al final**).
+
+**Misiones que dependen de la física del dron.** Una misión no se puede cumplir con cualquier dron, y el
+entrenamiento debería reflejarlo:
+- **Alcance de la radio:** un dron con ESP-NOW (ESP32) no llega lejos; una misión de largo alcance pide ExpressLRS o
+  una antena mejor (hoy el juego ya revisa el alcance y activa el failsafe: llevarlo también al entrenamiento,
+  con pérdida de señal).
+- **Viento fuerte y motores débiles:** con poco empuje/peso el dron no puede contra ráfagas fuertes; la misión debe
+  decirlo antes (hoy hay un aviso de empuje/peso con viento: hacerlo parte de la física que aprende la IA).
+- **Batería, peso de la cámara y del gimbal, sensores** (sin ToF no ve los postes, sin GPS no frena solo…).
+- Cada misión declararía sus **requisitos** (alcance, empuje/peso con su viento, minutos de vuelo, sensores) y el
+  juego explicaría qué pieza falta y por qué, antes de entrenar y antes de volar.
 
 ## Fase 2 · El banco de armado de verdad 📝 *(Santiago: "más complejo, más problemas, más uso del multímetro")*
 

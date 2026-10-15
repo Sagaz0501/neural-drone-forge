@@ -39,6 +39,13 @@ physics (weight, motors, propellers), on the mission and on how you train it.
 | ![Motors](docs/img/banco_motores.jpg) | ![Flight](docs/img/vuelo.jpg) |
 | **Motors.** The order and spin direction Betaflight expects, props off. | **Jobs.** Shots along a route, graded on framing, pace and stability; `.webm` video. |
 
+## The demo
+
+![The simulation viewer: the AI's attempt, the charts and the neural network at every instant](docs/media/simulacion.gif)
+
+*Developer mode: write a model in PBDMM, train it in Blender, watch its neural network live and replay its best
+attempt. [Watch the full demo (MP4, 4½ min)](docs/media/demo_estudio.mp4).*
+
 ## Two ways to play
 
 | **Normal mode: the campaign** | **Developer mode: build the AI with code** |
