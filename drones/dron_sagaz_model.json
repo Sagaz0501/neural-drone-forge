@@ -13,34 +13,30 @@
   },
   "canopy": null,
   "visuales": {},
-  "chasis": "aluminio",
-  "motores": "m2306",
+  "chasis": "carbono7",
+  "motores": "m2806",
   "helices": "h7",
-  "esc": "esc45",
-  "bateria": "b4s2200",
-  "controladora": "fc_gps",
-  "radio": "rx_elrs24",
-  "camara": "cam_4k",
-  "montaje": "mt_gomas",
-  "diseno": {
-   "tipo": "forma",
-   "forma": "x"
-  }
+  "esc": "esc55",
+  "bateria": "b4s3000",
+  "controladora": "fc_ia",
+  "radio": "rx_elrs900",
+  "camara": "cam_gimbal",
+  "montaje": "mt_tpu"
  },
  "fisica": {
-  "mass": 0.85,
-  "twr": 5.5681,
+  "mass": 1.008,
+  "twr": 4.7222,
   "drag": 0.042,
   "max_angle_deg": 35.0,
-  "yaw_rate_deg": 216.0,
+  "yaw_rate_deg": 183.6,
   "att_resp": 7.5855,
-  "crash_speed": 4.5,
-  "radius": 0.19
+  "crash_speed": 5.0,
+  "radius": 0.21
  },
  "juego": {
-  "masa_g": 850,
-  "minutos": 11.25,
-  "precio": 681,
+  "masa_g": 1008,
+  "minutos": 15.86,
+  "precio": 1238,
   "dron": "Cine (dev)"
  }
 }

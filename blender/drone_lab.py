@@ -87,6 +87,34 @@ def to_bu():
 # =====================================================================
 # Comunicación
 # =====================================================================
+def puerto_libre(port):
+    """¿El puerto UDP (en 127.0.0.1) está libre? (el entrenador escucha su control ahí)"""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.bind(("127.0.0.1", port))
+        return True
+    except OSError:
+        return False
+    finally:
+        s.close()
+
+
+def liberar_ctrl(espera=15.0):
+    """Si quedó un entrenador huérfano escuchando en CTRL_PORT (p. ej. de un Blender que se cerró sin detenerlo),
+    pedirle que guarde y termine, y esperar a que suelte el puerto. -> (libre, mensaje)."""
+    if puerto_libre(CTRL_PORT):
+        return True, ""
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        s.sendto(json.dumps({"stop": True}).encode(), ("127.0.0.1", CTRL_PORT))
+    t0 = time.time()
+    while time.time() - t0 < espera:
+        time.sleep(0.25)
+        if puerto_libre(CTRL_PORT):
+            return True, "Había un entrenamiento sin ventana (de un Blender anterior): lo guardé y lo detuve."
+    return False, (f"El puerto {CTRL_PORT} sigue ocupado: hay otro entrenamiento que no responde. "
+                   "Ciérralo desde el juego (detener) o reinicia la compu.")
+
+
 def send_ctrl(msg):
     st = S()
     sock = st.get("ctrl_sock")
@@ -1578,6 +1606,13 @@ class DRONELAB_OT_start(bpy.types.Operator):
         elif p.dron and p.dron != "ESTANDAR":
             cmd += ["--dron", os.path.join(project, "drones", p.dron + ".json")]
         cmd += ["--model", LAB().get("modelo") or model_files(project)[0]]   # el modelo del pedido (o el base): se continúa si existe
+        cmd += ["--salir-sin-padre"]                  # si Blender se cierra, el entrenador guarda y termina (no queda huérfano)
+        libre, txt = liberar_ctrl()
+        if not libre:
+            tele.close()
+            return self.fail(txt)
+        if txt:
+            self.report({'INFO'}, txt)
         log = os.path.join(project, "live_train.log")
         proc = subprocess.Popen(cmd, cwd=project, stdout=open(log, "w"), stderr=subprocess.STDOUT,
                                 start_new_session=True)

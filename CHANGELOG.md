@@ -2,6 +2,11 @@
 
 ## v0.3 · English
 
+- **Arreglado (Blender):** al cerrar Blender, su entrenador seguía corriendo sin ventana y el Blender nuevo no podía
+  entrenar ("Address already in use"). Ahora el entrenador lanzado por Blender guarda y termina solo si Blender se
+  cierra (`live_train.py --salir-sin-padre`), y si al empezar el puerto está ocupado, Blender le pide al huérfano que
+  guarde y se detenga (`liberar_ctrl`).
+
 - **El juego en inglés:** la primera vez pregunta Español / English; se cambia en el inicio. 1.200 textos traducidos
   (`app/i18n/en/`), los datos con una capa en inglés (`app/data/en/`), el HTML fijo traducido al cargar.
   `node app/test_i18n.mjs` revisa que no falte nada. `README.en.md`. Plan y glosario: `docs/I18N.md`.

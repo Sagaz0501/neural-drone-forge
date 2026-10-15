@@ -153,6 +153,8 @@ class LiveLink(BaseCallback):
         self.avance = SIM.Avance(Path(model_path).parent / "avance.json")
         self.avance_t = 0.0
         self.watch = args.watch % args.drones
+        self.padre = os.getppid()                          # quién lo lanzó (Blender): si cambia, quedó huérfano
+        self.revisa_padre = 0.0
         self.msg = ""
 
     # ---------------- envío ----------------
@@ -532,12 +534,28 @@ class LiveLink(BaseCallback):
         self.send_frame()
         self.send_stats()
 
+    def huerfano(self):
+        """Con --salir-sin-padre: ¿se cerró Blender? (el sistema adopta al proceso: cambia el padre)"""
+        if not getattr(self.args, "salir_sin_padre", False):
+            return False
+        now = time.time()
+        if now - self.revisa_padre < 2.0:
+            return False
+        self.revisa_padre = now
+        if os.getppid() != self.padre:
+            print("Blender se cerró: guardo el modelo y termino.", flush=True)
+            self.stop = True
+            return True
+        return False
+
     def _on_step(self) -> bool:
         self.poll_control()
+        self.huerfano()
         while self.paused and not self.stop:
             self.send_frame()
             time.sleep(0.05)
             self.poll_control()
+            self.huerfano()
             if time.perf_counter() - getattr(self, "last_stats", 0.0) > 1.0:
                 self.send_stats()                    # en pausa: el progreso sigue "vivo" (t) para el juego
                 self.last_stats = time.perf_counter()
@@ -626,6 +644,8 @@ def main():
     ap.add_argument("--ctrl-port", type=int, default=9002)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--watch", type=int, default=0, help="dron cuya red neuronal se manda a Blender")
+    ap.add_argument("--salir-sin-padre", action="store_true",
+                    help="si el proceso que lo lanzó (Blender) se cierra, guardar y terminar (no quedar huérfano)")
     ap.add_argument("--log-std", type=float, default=None, help="ruido de exploración inicial (log σ)")
     ap.add_argument("--density", type=float, default=1.0, help="bosque: 0.5 claro · 1 normal · 2 denso")
     ap.add_argument("--wind", type=float, default=0.0, help="viento máx. con ráfagas (m/s)")
