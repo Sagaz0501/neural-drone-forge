@@ -94,5 +94,21 @@
     "exito": "Tocar a los 5 pájaros antes de 60 s sin tocar ningún árbol, arbusto ni roca.",
     "falla": "tocar un árbol, arbusto o roca, chocar con el piso a más de 4 m/s, salirse del área, o que se acabe el tiempo.",
     "premio": "+2 por metro que se acerca a su presa, +10 por cada pájaro, + velocidad media x 'rapidez', - nariz lejos de la presa x 'ir de frente', -10 al chocar (incluye los árboles)"
+  },
+  "11": {
+    "nombre": "Grabar: tomas con ruta",
+    "tiempo": 45,
+    "objetivo": "Una casa a 10-16 m y una toma al azar: FIJA (quieto en un punto exacto 5-7 s), ÓRBITA (dar la vuelta a la casa por un arco de 70-150°) o REVELAR (arrancar bajo y cerca y subir alejándose). Hay que llegar al inicio de la ruta; ahí el punto de cámara empieza a moverse y el dron tiene que ir pegado a él con la nariz (la cámara) en la casa. Entradas: la meta es el punto de cámara (y cómo se mueve, 24-26), el sujeto (27-29), la toma (30-33) y la física del dron (34-37).",
+    "exito": "Terminar la ruta con calidad media de imagen >= 0,5: la casa al centro del cuadro, pegado al punto de cámara, al ritmo de la ruta y sin sacudidas ni paneos bruscos.",
+    "falla": "chocar con la casa o con el piso a más de 4 m/s, salir del área de 30 m, o que se acabe el tiempo",
+    "premio": "+2 por metro hacia el punto de cámara, + calidad de imagen x 'grabar' por segundo grabado, + 'toma completa' x calidad media al terminar, - nariz lejos de la casa x 'ir de frente', - sacudidas x 'estabilidad', -10 al chocar"
+  },
+  "12": {
+    "nombre": "Grabar entre postes",
+    "tiempo": 45,
+    "objetivo": "Lo mismo que Grabar (una casa y una toma con ruta: fija, órbita o revelar), pero con 5-9 postes de luz o sombrillas alrededor, a 1,5 m de la ruta. Para ir al inicio y seguir la ruta sin tocarlos hay que usar los 10 sensores de distancia. Es lo que pide el restaurante (postes en el andén y una terraza con sombrillas).",
+    "exito": "Terminar la ruta con calidad media de imagen >= 0,5 sin tocar ningún poste ni la casa.",
+    "falla": "chocar con un poste, la casa o el piso a más de 4 m/s, salir del área de 30 m, o que se acabe el tiempo",
+    "premio": "igual que Grabar: + calidad de imagen por segundo grabado, + 'toma terminada' x calidad media; - pasar pegado y - ir rápido hacia algo ayudan a no tocar los postes"
   }
 }

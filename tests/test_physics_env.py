@@ -101,7 +101,7 @@ def test_circuit_two_laps():
     env.reset(seed=0)
     assert len(env.level.goals) == 8                       # 4 aros x 2 vueltas
     assert len(OBS_LABELS) == env.observation_space.shape[0]
-    assert set(MISSIONS) == set(range(11))
+    assert set(MISSIONS) == set(range(13))
     assert run_pilot(5, episodes=5) == 1.0                 # el piloto PD completa las 2 vueltas
 
 
@@ -228,11 +228,15 @@ def test_heading_reward_prefers_nose_first():
 
 
 def test_old_24_input_obs_unchanged():
-    """Las 3 entradas nuevas van al final: con aros quietos valen 0 y las primeras 24 son las de siempre."""
+    """Las entradas nuevas van al final: con aros quietos 24-26 valen 0, sin sujeto 27-29 = la meta,
+    sin toma 30-33 valen 0 y 34-37 son la física del dron."""
     env = DroneEnv(stage=2)
     o, _ = env.reset(seed=3)
-    assert o.shape == (27,)
-    assert np.all(o[24:] == 0)
+    assert o.shape == (38,)
+    assert np.all(o[24:27] == 0)
+    assert np.allclose(o[27:30], o[0:3])
+    assert np.all(o[30:34] == 0)
+    assert np.allclose(o[34:38], [2.5 / 5, 0.6, 0.6, 0.8])
 
 
 def test_hunt_birds_move_flee_and_get_caught():
@@ -273,7 +277,7 @@ def test_widened_model_flies_exactly_like_before():
     zp = Path(__file__).resolve().parents[1] / "models" / "anteriores" / "stage2.zip"
     old = PPO.load(zp, device="cpu")
     new, widened = load_ppo(zp)
-    assert widened and new.observation_space.shape == (27,)
+    assert widened and new.observation_space.shape == (38,)
     assert new.num_timesteps == old.num_timesteps
     env = DroneEnv(stage=2)
     obs, _ = env.reset(seed=5)
@@ -303,3 +307,131 @@ def test_hunt_with_obstacles_birds_never_inside():
         for _ in range(1000):
             env.step(np.zeros(4))
             assert not lv.collides_many(env.flock.pos, 0.2).any()
+
+
+def film_pilot(env):
+    """Piloto clásico para grabar: sube por encima de la casa si estorba, va al inicio de la ruta y después sigue
+    el punto de cámara (con su velocidad) mirando la casa. No usa red: prueba que el nivel se puede resolver."""
+    from drone_rl.physics import throttle_to_action, yaw_frame
+    s, p, sh = env.state, env.p, env.shot
+    g, gv = sh.point(), sh.vel()
+    tgt = g
+    if sh.phase == "ir":
+        blocked = any(env.level.collides(s.pos + (g - s.pos) * u, 1.0) for u in np.linspace(0, 1, 30))
+        if blocked:
+            tgt = np.array([s.pos[0], s.pos[1], 7.5]) if s.pos[2] < 7.0 else np.array([g[0], g[1], 7.5])
+    vd = gv + 1.2 * (tgt - s.pos)
+    n = np.linalg.norm(vd)
+    if n > 3.0:
+        vd *= 3.0 / n
+    acc = 2.5 * (vd - s.vel)
+    ah = yaw_frame(acc, s.yaw)
+    pitch, roll = np.arctan2(ah[0], p.g), -np.arctan2(ah[1], p.g)
+    thr = p.hover_throttle * (1 + acc[2] / p.g) / max(np.cos(roll) * np.cos(pitch), 0.5)
+    d = env.subject - s.pos
+    e = np.arctan2(np.sin(np.arctan2(d[1], d[0]) - s.yaw), np.cos(np.arctan2(d[1], d[0]) - s.yaw))
+    return np.clip([throttle_to_action(float(np.clip(thr, 0, 1)), p), roll / p.max_angle, pitch / p.max_angle,
+                    3.0 * e / p.yaw_rate], -1, 1)
+
+
+def test_film_stage_solvable_and_rewards_framing():
+    """Grabar (nivel 11): tomas con ruta (fija, órbita, revelar). Un piloto clásico que sigue el punto de cámara
+    mirando la casa las logra; mirar para otro lado, quedarse atrás o ir a otro ritmo baja la calidad."""
+    from drone_rl.sensing import film_quality
+    from drone_rl.tomas import Toma
+    env = DroneEnv(stage=11)
+    seen, ok = set(), 0
+    for ep in range(12):
+        env.reset(seed=ep)
+        seen.add(env.toma)
+        done = False
+        while not done:
+            _, _, te, tr, info = env.step(film_pilot(env))
+            done = te or tr
+        assert not info["crashed"], (ep, info["crash_reason"])
+        ok += info["success"]
+    assert seen == {"fija", "orbita", "revelar"}
+    assert ok >= 10
+    # la calidad: en el punto de cámara, a su ritmo y mirando la casa vs. de espaldas, lejos o quieto
+    t = Toma("orbita", [10.0, 0.0, 1.8], 10.0, r=8.0, z=3.5, a0=np.pi, sweep=np.pi / 2)
+    t.t = 5.0
+    cp, cv = t.at(0.5)
+    s = QuadState(pos=cp.copy(), vel=cv.copy())
+    s.yaw = float(np.arctan2(0.0 - cp[1], 10.0 - cp[0]))                     # la nariz hacia la casa
+    good = film_quality(s, t.subject, cp, cv, 0.0)
+    assert good["q"] > 0.7
+    s.yaw += np.pi
+    assert film_quality(s, t.subject, cp, cv, 0.0)["q"] == 0.0                 # de espaldas
+    s.yaw -= np.pi
+    s.pos = cp + np.array([0, 0, 2.5])
+    assert film_quality(s, t.subject, cp, cv, 0.0)["track"] < 0.05            # lejos de la ruta
+    s.pos, s.vel = cp.copy(), np.zeros(3)
+    assert film_quality(s, t.subject, cp, cv, 0.0)["flow"] < film_quality(s, t.subject, cp, np.zeros(3), 0.0)["flow"]
+    assert film_quality(s, t.subject, cp, np.zeros(3), 0.0, yaw_acc=12.0)["steady"] < 0.05   # paneo brusco
+
+
+def test_shot_waits_then_runs():
+    """La toma espera al dron en el inicio; cuando llega despacio, el punto recorre la ruta y termina."""
+    from drone_rl.tomas import Toma
+    t = Toma("revelar", [0.0, 0.0, 1.5], 4.0, az=0.0, d0=6.0, d1=10.0, z0=2.0, z1=6.0)
+    t.step(0.02, np.array([0.0, 5.0, 2.0]), np.zeros(3))
+    assert t.phase == "ir" and np.allclose(t.point(), [6, 0, 2]) and np.allclose(t.vel(), 0)
+    t.step(0.02, np.array([6.2, 0.0, 2.0]), np.array([3.0, 0, 0]))           # rápido: todavía no
+    assert t.phase == "ir"
+    t.step(0.02, np.array([6.2, 0.0, 2.0]), np.array([0.5, 0, 0]))
+    assert t.phase == "grabando"
+    for _ in range(100):
+        t.step(0.02, np.zeros(3), np.zeros(3))
+    assert np.isclose(t.t, 2.0) and 6 < t.point()[0] < 10 and t.vel()[0] > 0
+    for _ in range(200):
+        t.step(0.02, np.zeros(3), np.zeros(3))
+    assert t.phase == "lista" and np.allclose(t.point(), [10, 0, 6])
+
+
+def test_drone_file_and_random_physics():
+    """La física de un dron del juego (drones/madera.json) y la física al azar en cada intento."""
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    p = QuadParams.load(root / "drones" / "madera.json")
+    assert 1.5 < p.twr < 2.3 and 0.5 < p.mass < 0.8
+    env = DroneEnv(stage=2, params=p)
+    o, _ = env.reset(seed=0)
+    assert np.allclose(o[34:38], [p.twr / 5, p.mass, p.drag * 20, p.att_resp / 10], atol=1e-6)
+    rng = {"twr": [1.5, 6.0], "mass": [0.45, 1.0]}
+    env = DroneEnv(stage=2, phys_range=rng)
+    seen = set()
+    for ep in range(5):
+        env.reset(seed=ep)
+        assert 1.5 <= env.p.twr <= 6.0 and 0.45 <= env.p.mass <= 1.0
+        seen.add(round(env.p.twr, 3))
+    assert len(seen) == 5
+
+
+def test_widen_27_to_38_flies_the_same(tmp_path):
+    """El modelo de la caza (27 entradas) ampliado a 38 hace exactamente lo mismo."""
+    import torch
+    from pathlib import Path
+    from stable_baselines3 import PPO
+    from drone_rl.upgrade import load_ppo, widen_state_dict
+    zp = Path(__file__).resolve().parents[1] / "models" / "anteriores" / "stage2.zip"
+    m27, _ = load_ppo(zp)                                   # 24 -> 38
+    # armar un modelo de 27 entradas de verdad (con pesos distintos de 0 en 24-26)
+    old = PPO.load(zp, device="cpu")
+    env27 = DroneEnv(stage=8)
+    env27.observation_space = __import__("gymnasium").spaces.Box(-3.0, 3.0, shape=(27,), dtype=np.float32)
+    p27 = PPO("MlpPolicy", env27, device="cpu", policy_kwargs=old.policy_kwargs, verbose=0)
+    sd = widen_state_dict(old.policy.state_dict(), p27.policy.state_dict())
+    sd["mlp_extractor.policy_net.0.weight"][:, 24:] = 0.3
+    p27.policy.load_state_dict(sd)
+    p27.save(tmp_path / "m27.zip")
+    new, widened = load_ppo(tmp_path / "m27.zip")
+    assert widened and new.observation_space.shape == (38,)
+    env = DroneEnv(stage=8)
+    obs, _ = env.reset(seed=2)
+    for _ in range(60):
+        a27 = p27.predict(obs[:27], deterministic=True)[0]
+        a38 = new.predict(obs, deterministic=True)[0]
+        assert np.allclose(a27, a38, atol=1e-6)
+        obs, _, te, tr, _ = env.step(a38)
+        if te or tr:
+            break

@@ -66,7 +66,7 @@ Modo **angle** (auto-nivelado), como el modo para principiantes de Betaflight:
 - **Viento:** una dirección base por intento + ráfagas (proceso de Ornstein-Uhlenbeck, τ = 1.5 s).
   El dron no lo "ve"; solo nota que su velocidad cambia.
 
-### 2.2 Lo que ve: 27 entradas (`drone_rl/sensing.py`, `build_obs`)
+### 2.2 Lo que ve: 38 entradas (`drone_rl/sensing.py`, `build_obs`)
 
 Todo va rotado al **marco del dron** (X adelante, Y izquierda, Z arriba). Así "la meta está adelante
 a la izquierda" significa lo mismo mirando al norte o al sur.
@@ -82,6 +82,9 @@ a la izquierda" significa lo mismo mirando al norte o al sur.
 | 14-21 | 8 sensores horizontales (0°, 45°, …, 315°, contra reloj desde adelante) | ÷5 m (1 = libre) |
 | 22-23 | sensor arriba, sensor abajo | ÷5 m |
 | 24-26 | **cómo se mueve la meta** (adelante, izquierda, arriba) | ÷5 m/s, ±2 |
+| 27-29 | **dónde está el sujeto** a grabar (sin sujeto: igual que 0-2) | ÷10, ±2 |
+| 30-33 | **qué toma** se pide: fija, revelar, seguir, órbita (una en 1; todo 0 si no graba) | 0/1 |
+| 34-37 | **la física de su dron**: empuje/peso ÷5, masa (kg), arrastre ×20, respuesta ÷10 | ~0-2 |
 
 - **Sensores en cono:** cada horizontal mide 3 rayos (−15°, 0°, +15°) y reporta el más corto, como
   un ToF real de ~27°. Alcance 5 m.

@@ -9,8 +9,8 @@ archiva y crea uno nuevo) y todas las pruebas 3D vuelan con ese mismo modelo.
 
 Blender es solo el visor. El entrenamiento corre en otro proceso (scripts/live_train.py)
 con el Python del proyecto (.venv), y se hablan por UDP en localhost:
-    trainer -> Blender :9001  (posiciones, niveles, estadísticas)
-    Blender -> trainer :9002  (parámetros nuevos, pausa, guardar, detener)
+    trainer -> Blender :9011  (posiciones, niveles, estadísticas)
+    Blender -> trainer :9012  (parámetros nuevos, pausa, guardar, detener)
 """
 bl_info = {
     "name": "Drone Lab (drone-rl)",
@@ -36,7 +36,8 @@ import gpu
 from gpu_extras.batch import batch_for_shader
 from mathutils import Euler, Vector
 
-TELE_PORT, CTRL_PORT = 9001, 9002
+# Dron Maker (drone-rl usa 9001/9002: pueden correr los dos). DRONMAKER_LAB_PORTS="9021,9022" los cambia (pruebas).
+TELE_PORT, CTRL_PORT = (int(x) for x in os.environ.get("DRONMAKER_LAB_PORTS", "9011,9012").split(","))
 STAGE_ITEMS = [
     ("0", "Hover", "Despegar y quedarse quieto a 1.5 m"),
     ("1", "Meta fija", "Ir a (5, 0, 2)"),
@@ -49,14 +50,16 @@ STAGE_ITEMS = [
     ("8", "Caza: pájaros", "Pájaros que vuelan solos y huyen: cazarlos a todos (tocarlos)"),
     ("9", "Caza entre columnas", "Cazar los pájaros en un área llena de columnas (ellos las esquivan)"),
     ("10", "Caza en el bosque", "Cazar los pájaros debajo de las copas, entre troncos y arbustos"),
+    ("11", "Grabar: tomas con ruta", "Fija, órbita o revelar: llegar al inicio de la ruta y seguir el punto de cámara sin perder el encuadre de la casa"),
+    ("12", "Grabar entre postes", "Lo mismo que Grabar, con postes / sombrillas a 1,5 m de la ruta: usar los sensores"),
     ("LEVEL", "Nivel JSON", "Un nivel exportado desde Blender (todos los drones en el mismo nivel)"),
 ]
 STAGE_NAMES = {"hover": "Hover", "goal_fixed": "Meta fija", "goal_random": "Metas", "obstacles": "Columnas",
                "multi_goal": "Varias metas", "circuit": "Circuito", "forest": "Bosque", "forest_multi": "Bosque 3 aros", "hunt": "Caza",
-               "hunt_columns": "Caza columnas", "hunt_forest": "Caza bosque"}
+               "hunt_columns": "Caza columnas", "hunt_forest": "Caza bosque", "film_fixed": "Grabar", "film_posts": "Grabar entre postes"}
 COLORS = {"fly": (0.9, 0.9, 0.95, 1), 1: (1.0, 0.12, 0.08, 1), 2: (0.1, 1.0, 0.35, 1), 3: (1.0, 0.75, 0.1, 1)}
 REWARD_KEYS = ["progress", "goal", "crash", "time", "smooth", "tilt", "near", "clearance", "danger", "speed",
-               "stability", "heading"]
+               "stability", "heading", "film"]
 
 
 def S():
@@ -92,6 +95,36 @@ def send_ctrl(msg):
             sock.sendto(json.dumps(msg).encode(), ("127.0.0.1", CTRL_PORT))
         except OSError:
             pass
+
+
+_DRON_ITEMS = []        # Blender necesita que la lista siga viva mientras el menú existe
+
+
+def dron_items(self, context):
+    """Menú Dron: el de siempre, física al azar, o un dron armado en el juego (drones/*.json)."""
+    global _DRON_ITEMS
+    items = [("ESTANDAR", "Estándar (0,6 kg, empuje/peso 2,5)", "El dron con el que se entrenó todo hasta ahora"),
+             ("AZAR", "Al azar (los del juego)", "Un dron distinto en cada intento (drones/rango_juego.json): "
+              "la red aprende a volar cualquier dron que el jugador pueda armar")]
+    try:
+        project = os.path.expanduser(bpy.path.abspath(self.project)).rstrip("/")
+        folder = os.path.join(project, "drones")
+        for f in sorted(os.listdir(folder)):
+            if not f.endswith(".json") or f == "rango_juego.json":
+                continue
+            name = f[:-5]
+            try:
+                with open(os.path.join(folder, f), encoding="utf-8") as fh:
+                    d = json.load(fh)
+                fis = d["fisica"]
+                label = f"{d.get('nombre', name).capitalize()} ({fis['mass'] * 1000:.0f} g, empuje/peso {fis['twr']:.2f})"
+            except (OSError, ValueError, KeyError):
+                label = name
+            items.append((name, label, f"drones/{f}: un dron armado en el juego (node app/exportar_dron.mjs)"))
+    except OSError:
+        pass
+    _DRON_ITEMS = items
+    return items
 
 
 def live_params(props):
@@ -215,7 +248,8 @@ def start_test(npz, stage):
 
 
 TEST_NAMES = {0: "Hover", 1: "Meta fija", 2: "Una meta", 3: "Columnas", 4: "Varias metas",
-              5: "Circuito", 6: "Bosque", 7: "Bosque 3 aros"}
+              5: "Circuito", 6: "Bosque", 7: "Bosque 3 aros", 8: "Caza", 9: "Caza col.", 10: "Caza bosque",
+              11: "Grabar"}
 
 
 def training_stage(props):
@@ -281,6 +315,32 @@ def glow_material(name):
     nt.links.new(oi.outputs["Color"], bsdf.inputs["Base Color"])
     nt.links.new(oi.outputs["Color"], bsdf.inputs["Emission Color"])
     bsdf.inputs["Emission Strength"].default_value = 2.0
+    return m
+
+
+def alpha_material(name, emission=1.5):
+    """Como glow_material, pero transparente: color Y transparencia salen del objeto (o.color = (r, g, b, a))."""
+    m = bpy.data.materials.get(name)
+    if m:
+        return m
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    nt = m.node_tree
+    bsdf = nt.nodes.get("Principled BSDF")
+    oi = nt.nodes.new("ShaderNodeObjectInfo")
+    nt.links.new(oi.outputs["Color"], bsdf.inputs["Base Color"])
+    nt.links.new(oi.outputs["Color"], bsdf.inputs["Emission Color"])
+    if "Alpha" in oi.outputs:
+        nt.links.new(oi.outputs["Alpha"], bsdf.inputs["Alpha"])
+    else:
+        bsdf.inputs["Alpha"].default_value = 0.3
+    bsdf.inputs["Emission Strength"].default_value = emission
+    if hasattr(m, "surface_render_method"):          # EEVEE de Blender 4.2+
+        m.surface_render_method = 'BLENDED'
+    elif hasattr(m, "blend_method"):
+        m.blend_method = 'BLEND'
+    m.use_backface_culling = False
+    m.diffuse_color = (1, 1, 1, 0.3)
     return m
 
 
@@ -364,6 +424,253 @@ def bird_mesh(name, k):
     return me
 
 
+# ---------------- grabar (nivel 11): casa, zona del cliente y cono de la cámara ----------------
+CAM_H, CAM_V, CAM_TILT = 80.0, 50.0, 15.0     # la cámara del dron (igual que sensing.py): 80° x 50°, 15° abajo
+ZONE_COL, ZONE_EDGE = (0.2, 0.7, 1.0, 0.16), (0.35, 0.85, 1.0, 0.9)
+ZONE_OK = (0.15, 1.0, 0.4, 0.45)              # la zona se pone verde un momento al lograr la toma
+
+
+def q_color(q, alpha):
+    """Calidad de imagen 0-1 -> rojo (mala) · amarillo (0.5) · verde (buena)."""
+    q = max(0.0, min(1.0, q))
+    if q < 0.5:
+        return (1.0, 0.15 + 1.5 * q, 0.1, alpha)
+    return (1.0 - 1.8 * (q - 0.5), 0.9 + 0.2 * (q - 0.5), 0.15, alpha)
+
+
+def _mesh(name, verts, faces, mats=None, me=None):
+    """Crea (o rehace en el lugar) una malla con caras y material por cara."""
+    me = me or bpy.data.meshes.new(name)
+    me.clear_geometry()
+    me.from_pydata(verts, [], faces)
+    if mats is not None:
+        me.polygons.foreach_set("material_index", mats)
+    me.update()
+    return me
+
+
+def house_geometry(cx, cy, w, d, wall_h, k):
+    """La casa del nivel 11 como CASA: paredes, techo de dos aguas (cumbrera a lo largo de x, con alero),
+    hastiales, puerta y ventanas. Mismas medidas que level.house_boxes (la física usa esas 3 cajas).
+    Materiales: 0 pared, 1 techo, 2 puerta, 3 ventana."""
+    eave, rh = 0.3, 0.35 * d
+    V, F, M = [], [], []
+
+    def poly(pts, mat):
+        i = len(V)
+        V.extend(pts)
+        F.append(tuple(range(i, i + len(pts))))
+        M.append(mat)
+
+    x0, x1, y0, y1, z1 = cx - w / 2, cx + w / 2, cy - d / 2, cy + d / 2, wall_h
+    zr = z1 + rh                                       # cumbrera
+    poly([(x0, y0, 0), (x1, y0, 0), (x1, y0, z1), (x0, y0, z1)], 0)          # paredes
+    poly([(x1, y1, 0), (x0, y1, 0), (x0, y1, z1), (x1, y1, z1)], 0)
+    poly([(x0, y1, 0), (x0, y0, 0), (x0, y0, z1), (x0, y1, z1)], 0)
+    poly([(x1, y0, 0), (x1, y1, 0), (x1, y1, z1), (x1, y0, z1)], 0)
+    poly([(x0, y0, z1), (x0, y1, z1), (x0, cy, zr)], 0)                       # hastiales
+    poly([(x1, y1, z1), (x1, y0, z1), (x1, cy, zr)], 0)
+    ze = z1 - rh * eave / (d / 2)                      # el alero sigue la pendiente del techo
+    ex0, ex1 = x0 - eave, x1 + eave
+    poly([(ex0, y0 - eave, ze), (ex1, y0 - eave, ze), (ex1, cy, zr), (ex0, cy, zr)], 1)   # faldones
+    poly([(ex1, y1 + eave, ze), (ex0, y1 + eave, ze), (ex0, cy, zr), (ex1, cy, zr)], 1)
+    hd = min(2.0, z1 - 0.35)                           # puerta al frente (lado y0)
+    poly([(cx - 0.45, y0 - 0.02, 0), (cx + 0.45, y0 - 0.02, 0), (cx + 0.45, y0 - 0.02, hd), (cx - 0.45, y0 - 0.02, hd)], 2)
+    zw0, zw1 = 1.0, min(2.0, z1 - 0.3)                 # ventanas: dos al frente, dos atrás
+    for xw in (cx - w / 4 - 0.2, cx + w / 4 + 0.2):
+        for y, s in ((y0 - 0.02, 1), (y1 + 0.02, -1)):
+            a, b = xw - 0.5 * s, xw + 0.5 * s
+            poly([(a, y, zw0), (b, y, zw0), (b, y, zw1), (a, y, zw1)], 3)
+    return [(x * k, y * k, z * k) for x, y, z in V], F, M
+
+
+def _ring(r0, r1, z, seg, V, F):
+    """Anillo plano horizontal (de radio r0 a r1) a la altura z, centrado en el origen."""
+    i = len(V)
+    for j in range(seg):
+        a = 2 * math.pi * j / seg
+        V.append((r0 * math.cos(a), r0 * math.sin(a), z))
+        V.append((r1 * math.cos(a), r1 * math.sin(a), z))
+    for j in range(seg):
+        a, b = i + 2 * j, i + 2 * ((j + 1) % seg)
+        F.append((a, b, b + 1, a + 1))
+
+
+def zone_geometry(band, k, seg=72):
+    """Zona del cliente alrededor del sujeto (origen): (relleno del piso, bordes).
+    Relleno = anillo en el piso entre d_min y d_max. Bordes = esos dos círculos + la ventana de altura
+    (dos aros a z_min y z_max, al medio de la zona)."""
+    d0, d1, z0, z1 = band
+    Vf, Ff = [], []
+    _ring(d0, d1, 0.03, seg, Vf, Ff)
+    Ve, Fe = [], []
+    _ring(d0 - 0.06, d0 + 0.06, 0.05, seg, Ve, Fe)
+    _ring(d1 - 0.06, d1 + 0.06, 0.05, seg, Ve, Fe)
+    dm = (d0 + d1) / 2
+    _ring(dm - 0.05, dm + 0.05, z0, seg, Ve, Fe)
+    _ring(dm - 0.05, dm + 0.05, z1, seg, Ve, Fe)
+    sc = lambda V: [(x * k, y * k, z * k) for x, y, z in V]
+    return (sc(Vf), Ff), (sc(Ve), Fe)
+
+
+def path_geometry(pts, k, w=0.06):
+    """La ruta de la toma: una cinta delgada por los puntos (más un palito al piso en el inicio)."""
+    V, F = [], []
+    for j in range(len(pts) - 1):
+        (x0, y0, z0), (x1, y1, z1) = pts[j], pts[j + 1]
+        dx, dy = x1 - x0, y1 - y0
+        L = math.hypot(dx, dy) or 1.0
+        nx, ny = -dy / L * w, dx / L * w
+        i = len(V)
+        V += [(x0 - nx, y0 - ny, z0), (x0 + nx, y0 + ny, z0), (x1 + nx, y1 + ny, z1), (x1 - nx, y1 - ny, z1),
+              (x0, y0, z0 - w), (x0, y0, z0 + w), (x1, y1, z1 + w), (x1, y1, z1 - w)]
+        F += [(i, i + 1, i + 2, i + 3), (i + 4, i + 5, i + 6, i + 7)]
+    if pts:
+        Vs, Fs = stem_geometry(tuple(pts[0]), 1.0, w * 0.7)
+        i = len(V)
+        V += Vs
+        F += [tuple(i + a for a in f) for f in Fs]
+    return [(a * k, b * k, c * k) for a, b, c in V], F
+
+
+def stem_geometry(p, k, w=0.05):
+    """Palito del punto de cámara al piso (para ver a qué altura está)."""
+    x, y, z = p
+    V = [(x + sx * w, y + sy * w, zz) for zz in (0.0, z) for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+    F = [(0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)]
+    return [(a * k, b * k, c * k) for a, b, c in V], F
+
+
+def cone_meshes(k):
+    """El cono de la cámara (1 m de largo; se escala hasta la casa): caras transparentes + marco del cuadro."""
+    me = bpy.data.meshes.get("DL_Cono")
+    fr = bpy.data.meshes.get("DL_ConoMarco")
+    if me and fr:
+        return me, fr
+    hy, hz = math.tan(math.radians(CAM_H / 2)), math.tan(math.radians(CAM_V / 2))
+    c = [(1.0, -hy, -hz), (1.0, hy, -hz), (1.0, hy, hz), (1.0, -hy, hz)]
+    V = [(0.0, 0.0, 0.0)] + c
+    F = [(0, 1, 2), (0, 2, 3), (0, 3, 4), (0, 4, 1)]
+    me = _mesh("DL_Cono", [(x * k, y * k, z * k) for x, y, z in V], F)
+    me.materials.append(alpha_material("DL_Alpha"))
+    t = 0.012                                          # marco: 4 tiras finas en el plano del fondo
+    Vr, Fr = [], []
+    for j in range(4):
+        a, b = c[j], c[(j + 1) % 4]
+        ia, ib = (a[0], a[1] * (1 - t * 2), a[2] * (1 - t * 3)), (b[0], b[1] * (1 - t * 2), b[2] * (1 - t * 3))
+        i = len(Vr)
+        Vr += [a, b, ib, ia]
+        Fr.append((i, i + 1, i + 2, i + 3))
+    fr = _mesh("DL_ConoMarco", [(x * k, y * k, z * k) for x, y, z in Vr], Fr)
+    fr.materials.append(alpha_material("DL_Alpha"))
+    return me, fr
+
+
+def film_objects(i):
+    """Los objetos de grabar del dron i (se crean la primera vez): casa, zona, bordes, palito y cono."""
+    st = S()
+    fo = st.setdefault("film", {})
+    if i in fo:
+        return fo[i]
+    k = to_bu()
+    col = bpy.data.collections["DroneLab"]
+    house_mats = [flat_material("DL_Casa_Pared", (0.93, 0.86, 0.72, 1)), flat_material("DL_Casa_Techo", (0.62, 0.2, 0.12, 1)),
+                  flat_material("DL_Casa_Puerta", (0.32, 0.19, 0.1, 1)), flat_material("DL_Casa_Ventana", (0.5, 0.75, 0.98, 1))]
+
+    def obj(name, me, color=None):
+        o = bpy.data.objects.new(name, me)
+        col.objects.link(o)
+        if color:
+            o.color = color
+        return o
+
+    def mesh(name, mats):
+        me = bpy.data.meshes.get(name) or bpy.data.meshes.new(name)
+        if len(me.materials) != len(mats):
+            me.materials.clear()
+            for m in mats:
+                me.materials.append(m)
+        return me
+
+    h_me = mesh(f"DL_Casa_{i:03d}", house_mats)
+    z_me = mesh(f"DL_Zona_{i:03d}", [alpha_material("DL_Alpha")])
+    e_me = mesh(f"DL_ZonaBorde_{i:03d}", [alpha_material("DL_Alpha")])
+    s_me = mesh(f"DL_Palito_{i:03d}", [alpha_material("DL_Alpha")])
+    cone_me, frame_me = cone_meshes(k)
+    drone = st["drones"][i]
+    cone, frame = obj(f"DL_Cono_{i:03d}", cone_me, q_color(0, 0.18)), obj(f"DL_ConoMarco_{i:03d}", frame_me, q_color(0, 0.95))
+    for c in (cone, frame):                            # la cámara va en la nariz, 15° hacia abajo
+        c.parent = drone
+        c.rotation_mode = 'XYZ'
+        c.rotation_euler = (0.0, math.radians(CAM_TILT), 0.0)
+        c.hide_viewport = True                         # aparecen con la primera calidad que llegue
+    fo[i] = {"house": obj(f"DL_Casa_{i:03d}", h_me), "zone": obj(f"DL_Zona_{i:03d}", z_me, ZONE_COL),
+             "edge": obj(f"DL_ZonaBorde_{i:03d}", e_me, ZONE_EDGE), "stem": obj(f"DL_Palito_{i:03d}", s_me, ZONE_EDGE),
+             "cone": cone, "frame": frame, "subject": None, "q": -1.0, "fg": -1.0, "scale": -1.0, "until": 0.0}
+    return fo[i]
+
+
+def apply_film(i, msg, goals):
+    """Grabar: rehace la casa, la zona y el palito del dron i para su nivel nuevo."""
+    f = msg["film"]
+    st = S()
+    k = to_bu()
+    off = st["offsets"][i]
+    o = film_objects(i)
+    cx, cy, w, d, wall_h = f["house"]
+    V, F, M = house_geometry(cx, cy, w, d, wall_h, k)
+    _mesh("", V, F, M, me=o["house"].data)
+    o["house"].location = off * k
+    subj = Vector(f["subject"])
+    (Vf, Ff), (Ve, Fe) = zone_geometry(f["band"], k)
+    _mesh("", Vf, Ff, me=o["zone"].data)
+    _mesh("", Ve, Fe, me=o["edge"].data)
+    for key in ("zone", "edge"):
+        o[key].location = (off + Vector((subj.x, subj.y, 0.0))) * k
+    o["zone"].color = ZONE_COL
+    o["until"] = 0.0
+    if f.get("path"):                                  # la ruta de la toma (fija: un punto; órbita: un arco…)
+        Vs, Fs = path_geometry([tuple(q) for q in f["path"]], k)
+        _mesh("", Vs, Fs, me=o["stem"].data)
+        o["stem"].location = off * k
+    elif goals:
+        Vs, Fs = stem_geometry(tuple(goals[0]), k)
+        _mesh("", Vs, Fs, me=o["stem"].data)
+        o["stem"].location = off * k
+    o["subject"] = subj
+    o["q"] = o["fg"] = -1.0
+
+
+def update_film(i, q, fg, cp=None):
+    """Cada frame: el cono se pinta según la calidad de imagen (rojo -> amarillo -> verde) y llega hasta
+    la casa; el aro del punto de cámara se va llenando de verde mientras junta los 6 s de la toma."""
+    st = S()
+    o = (st.get("film") or {}).get(i)
+    if not o or o["subject"] is None:
+        return
+    drone = st["drones"][i]
+    if abs(q - o["q"]) > 0.03:
+        o["q"] = q
+        o["cone"].color = q_color(q, 0.12 + 0.18 * q)
+        o["frame"].color = q_color(q, 0.95)
+        if o["cone"].hide_viewport:
+            o["cone"].hide_viewport = o["frame"].hide_viewport = False
+    k = to_bu()
+    off = st["offsets"][i]
+    dist = ((drone.location / k) - off - o["subject"]).length
+    s = max(1.5, min(dist, 25.0)) / max(drone.scale[0], 1e-6)
+    if abs(s - o["scale"]) > 0.03 * s:
+        o["scale"] = s
+        o["cone"].scale = o["frame"].scale = (s, s, s)
+    if cp is not None:                                 # el punto de cámara avanza por la ruta: el aro va con él
+        for ring in st["rings"][i][:1]:
+            ring.location = (off + Vector(cp)) * k
+    if abs(fg - o["fg"]) > 0.02:
+        o["fg"] = fg
+        for ring in st["rings"][i][:1]:
+            ring.color = tuple(a + (b - a) * fg for a, b in zip(RING_NEXT, RING_CUR))
+
+
 def unit_cyl_mesh():
     """Tronco: cilindro de radio 1 y alto 1 con la base en el origen (se escala por objeto)."""
     me = bpy.data.meshes.get("DL_Cyl")
@@ -435,7 +742,7 @@ def build_proto():
 def cell_size(stage, fixed_level):
     if fixed_level:
         return 24.0
-    return {0: 3.0, 1: 9.0, 5: 12.0, 6: 32.0, 7: 46.0, 8: 30.0, 9: 30.0, 10: 30.0}.get(stage, 22.0)
+    return {0: 3.0, 1: 9.0, 5: 12.0, 6: 32.0, 7: 46.0, 8: 30.0, 9: 30.0, 10: 30.0, 11: 50.0, 12: 50.0}.get(stage, 22.0)
 
 
 RING_CUR = (0.1, 1.0, 0.35, 1)      # el aro que toca ahora
@@ -469,7 +776,7 @@ def build_scene(props, n, stage):
     rows = math.ceil(n / cols)
     st = S()
     st.update(drones=[], beacons=[], flashes=[], rings=[[] for _ in range(n)], ring_state=[None] * n,
-              n_goals=[0] * n,
+              n_goals=[0] * n, film={},
               obstacles=[[] for _ in range(n)], offsets=[], flash_until=[0.0] * n, beacon_until=[0.0] * n,
               cols=cols, rows=rows, cell=cell, watch=min(props.watch, n - 1))
     for i in range(n):
@@ -551,10 +858,18 @@ def apply_level(i, msg):
     st["n_goals"][i] = len(goals)
     st["ring_state"][i] = None
     color_rings(i, 0, 0.0)
+    film = msg.get("film")
+    if film:                                       # grabar: casa de verdad, zona del cliente, aro mirando a la casa
+        apply_film(i, msg, goals)
+        if pool and goals:
+            d = Vector(film["subject"]) - goals[0]
+            pool[0].rotation_euler = (0.0, -math.atan2(d.z, math.hypot(d.x, d.y)), math.atan2(d.y, d.x))
+            pool[0].scale = (1.6, 1.6, 1.6)
+            pool[0].color = RING_NEXT
 
     # ---- obstáculos: cajas, esferas (copas, arbustos, rocas) y cilindros (troncos) ----
     obs = st["obstacles"][i]
-    shapes = ([("box", b) for b in msg.get("boxes", [])] + [("sph", s) for s in msg.get("spheres", [])]
+    shapes = ([("box", b) for b in ([] if film else msg.get("boxes", []))] + [("sph", s) for s in msg.get("spheres", [])]
               + [("cyl", c) for c in msg.get("cylinders", [])])
     meshes = {"box": cube_mesh(), "sph": unit_sphere_mesh(), "cyl": unit_cyl_mesh()}
     while len(obs) < len(shapes):
@@ -633,16 +948,23 @@ def update_birds(i, d):
 
 
 def flash(i, status, pos):
+    """Destello donde terminó el intento: rojo = chocó (justo donde chocó), verde = lo logró,
+    amarillo = se acabó el tiempo. En grabar, además la zona del cliente se pone verde al lograr la toma."""
     st = S()
     k = to_bu()
     now = time.time()
     fl = st["flashes"][i]
     fl.location = (st["offsets"][i] + Vector(pos)) * k
     fl.color = COLORS[status]
-    fl.hide_viewport = status == 3
-    st["flash_until"][i] = now + (0.8 if status == 1 else 0.6)
+    fl.scale = (max(1.0, (st.get("cell") or 10.0) / 14.0) * (1.4 if status == 1 else 1.0),) * 3
+    fl.hide_viewport = False
+    st["flash_until"][i] = now + (1.2 if status == 1 else 0.9)
     st["beacons"][i].color = COLORS[status]
-    st["beacon_until"][i] = now + 0.6
+    st["beacon_until"][i] = now + 0.8
+    o = (st.get("film") or {}).get(i)
+    if o and status == 2:
+        o["zone"].color = ZONE_OK
+        o["until"] = now + 1.2
 
 
 # =====================================================================
@@ -728,6 +1050,7 @@ def _tick():
             st["stats"] = m
         elif t == "h":
             st["hello"] = m
+            LAB().pop("error_txt", None)             # el entrenador arrancó bien: se olvida el error anterior
         elif t == "bye":
             st["bye"] = m
         elif t == "x" and st.get("pending_test"):           # el trainer exportó la generación actual
@@ -744,6 +1067,11 @@ def _tick():
                 update_birds(i, d)
             elif len(d) >= 8:
                 color_rings(i, int(d[6]), float(d[7]))
+        qs, fgs, cps = frame.get("q"), frame.get("fg"), frame.get("cp")
+        if qs is not None:                       # grabar: cono por calidad, aro por avance de la toma (y se mueve)
+            for i in range(min(n, len(qs))):
+                update_film(i, float(qs[i]), float(fgs[i]) if fgs and i < len(fgs) else 0.0,
+                            cps[i] if cps and i < len(cps) else None)
         if frame.get("w", st.get("watch")) != st.get("watch") and frame.get("w", 0) < n:
             set_watch(frame["w"])
     now = time.time()
@@ -755,6 +1083,10 @@ def _tick():
         if until and now > until:
             st["beacons"][i].color = WATCH if i == st.get("watch") else COLORS["fly"]
             st["beacon_until"][i] = 0.0
+    for o in (st.get("film") or {}).values():
+        if o["until"] and now > o["until"]:
+            o["zone"].color = ZONE_COL
+            o["until"] = 0.0
 
     proc = st.get("proc")
     if proc and proc.poll() is not None:
@@ -765,6 +1097,7 @@ def _tick():
                 st["error"] = open(st["log"]).read().strip().splitlines()[-6:]
             except OSError:
                 st["error"] = ["El trainer se cerró con error (ver live_train.log)"]
+            lab_error("El entrenador se cerró con error: " + (st["error"][-1] if st["error"] else "ver live_train.log"))
         close_sockets()
     elif st.get("stop_requested") and now - st["stop_requested"] > 20 and proc:
         proc.terminate()
@@ -825,6 +1158,9 @@ def text(x, y, s, size=14, color=(0.95, 0.95, 0.95, 1)):
 # Red neuronal (vista en vivo del dron observado)
 # =====================================================================
 NEG, ZERO, POS = (0.25, 0.6, 1.0), (0.32, 0.34, 0.4), (1.0, 0.58, 0.15)
+# las entradas nuevas de Dron Maker (sensing.build_obs): [desde, hasta, nombre, color]
+INPUT_GROUPS = [(27, 29, "sujeto", (1.0, 0.45, 0.85)), (30, 33, "toma", (1.0, 0.8, 0.2)),
+                (34, 37, "su dron", (0.45, 1.0, 0.75))]
 
 
 def act_color(v, alpha=1.0):
@@ -877,7 +1213,8 @@ def draw_network(sh, f, x0, y_bot, width, y_top):
     text(tx, y_top - 22 * f, f"RED NEURONAL del dron #{act['i']} (el de luz celeste)", int(14 * f), (0.6, 0.85, 1, 1))
     text(tx, y_top - 38 * f, f"{shown:,} de {total:,} conexiones (las de más peso) · pesos de la generación "
          f"{net.get('gen', 0)}", int(10 * f), (0.75, 0.78, 0.85, 1))
-    text(tx, y_top - 51 * f, "naranja = empuja hacia +   azul = empuja hacia −   más brillante = influye más ahora",
+    text(tx, y_top - 51 * f, "naranja = empuja hacia +   azul = empuja hacia −   más brillante = influye más ahora"
+         + ("   ·   franjas: entradas nuevas (27-37)" if len(act["in"]) > 27 else ""),
          int(10 * f), (0.75, 0.78, 0.85, 1))
 
     lab_in, lab_out = 150 * f, 190 * f
@@ -913,6 +1250,25 @@ def draw_network(sh, f, x0, y_bot, width, y_top):
             key = (base[0], base[1], base[2], 0.04 + 0.8 * (bk / buckets) ** 2)
             segs.setdefault(key, []).extend([(xs[L], ny(i, n_src)), (xs[L + 1], ny(j, n_dst))])
     draw_segments(sh, segs)
+
+    # ---- entradas nuevas (27-37): franja de color + nombre del grupo, para ubicarlas rápido ----
+    n_in = sizes[0]
+    for a, b, name, col in INPUT_GROUPS:
+        if n_in <= b:
+            continue
+        sp = (top - bot) / n_in
+        y_hi, y_lo = ny(a, n_in) + sp / 2, ny(b, n_in) - sp / 2
+        draw_rect(sh, x0 + 4 * f, y_lo, xs[0] + 9 * f - (x0 + 4 * f), y_hi - y_lo, (col[0], col[1], col[2], 0.16))
+        draw_rect(sh, x0 + 4 * f, y_lo, 4 * f, y_hi - y_lo, (col[0], col[1], col[2], 0.95))
+        fs_g = int(9 * f)
+        blf.size(0, fs_g)
+        try:                                         # el nombre del grupo, vertical junto a la franja
+            blf.enable(0, blf.ROTATION)
+            blf.rotation(0, math.pi / 2)
+            text(x0 + 17 * f, (y_hi + y_lo) / 2 - blf.dimensions(0, name)[0] / 2, name, fs_g, (col[0], col[1], col[2], 1))
+        finally:
+            blf.rotation(0, 0)
+            blf.disable(0, blf.ROTATION)
 
     # ---- neuronas: color = activación ----
     quads = {}
@@ -977,6 +1333,12 @@ def draw_hud():
     if p.get("stage") in (8, 9, 10):
         lines.append(f"caza: {s.get('goals', 0):.1f} de {p.get('n_birds', 5)} pájaros por intento · "
                      f"pájaros a {p.get('bird_speed', 2):g} m/s")
+    if p.get("stage") in (11, 12):
+        lines.append(f"GRABAR: tomas logradas {s.get('succ', 0) * 100:.0f} % · choques {s.get('crash', 0) * 100:.0f} % · "
+                     f"calidad media {s.get('film', 0) * 100:.0f} % · dron {p.get('dron', '-')}")
+        lines.append("cono de la cámara: rojo = mala imagen · amarillo · verde = buena · aro = punto de cámara")
+    elif p.get("dron") and p.get("dron") != "estándar":
+        lines.append(f"dron: {p['dron']}")
     if s.get("front") is not None and s.get("front", 0) > 0:
         lines.append(f"vuela de frente el {s['front'] * 100:.0f} % del tiempo (nariz hacia donde va, ±45°)")
     if s.get("spd"):
@@ -1026,7 +1388,8 @@ def draw_hud():
 
     # ---- curva de progreso, abajo a la derecha ----
     hist = s.get("hist", [])
-    cw, ch = 330 * f, 130 * f
+    film_hist = any(len(h) > 5 and h[5] is not None for h in hist)
+    cw, ch = (380 * f, 150 * f) if film_hist else (330 * f, 130 * f)
     cx, cy = W - right - cw - 26 * f, 26 * f
     if sh:
         draw_rect(sh, cx - 12 * f, cy - 12 * f, cw + 24 * f, ch + 46 * f, (0.05, 0.06, 0.08, 0.75))
@@ -1038,6 +1401,15 @@ def draw_hud():
             px = lambda g: cx + (g - g0) / span * cw
             draw_line(sh, [(px(h[0]), cy + h[3] * ch) for h in hist], (1.0, 0.3, 0.25, 1))
             draw_line(sh, [(px(h[0]), cy + h[2] * ch) for h in hist], (0.3, 1.0, 0.45, 1))
+            if film_hist:                            # calidad media de imagen (solo donde entrenó grabar)
+                seg = []
+                for h in hist:
+                    if len(h) > 5 and h[5] is not None:
+                        seg.append((px(h[0]), cy + h[5] * ch))
+                    elif seg:
+                        draw_line(sh, seg, (1.0, 0.82, 0.2, 1))
+                        seg = []
+                draw_line(sh, seg, (1.0, 0.82, 0.2, 1))
     # cambios de nivel en la vida del modelo: línea vertical + nombre corto
     if sh and len(hist) >= 2:
         prev = None
@@ -1048,9 +1420,15 @@ def draw_hud():
                 draw_line(sh, [(x, cy), (x, cy + ch)], (0.6, 0.75, 1.0, 0.35))
                 text(x + 3 * f, cy + ch - 28 * f, TEST_NAMES.get(stg, str(stg))[:9], int(9 * f), (0.6, 0.75, 1.0, 0.9))
             prev = stg
-    text(cx, cy + ch + 14 * f, "progreso del modelo (toda su vida)", int(12 * f), (0.85, 0.85, 0.9, 1))
-    text(cx + cw - 105 * f, cy + ch + 14 * f, "éxito", int(12 * f), (0.3, 1.0, 0.45, 1))
-    text(cx + cw - 50 * f, cy + ch + 14 * f, "crash", int(12 * f), (1.0, 0.3, 0.25, 1))
+    if film_hist:
+        text(cx, cy + ch + 14 * f, "por generación:", int(12 * f), (0.85, 0.85, 0.9, 1))
+        text(cx + 100 * f, cy + ch + 14 * f, "tomas logradas", int(12 * f), (0.3, 1.0, 0.45, 1))
+        text(cx + 205 * f, cy + ch + 14 * f, "choques", int(12 * f), (1.0, 0.3, 0.25, 1))
+        text(cx + 265 * f, cy + ch + 14 * f, "calidad imagen", int(12 * f), (1.0, 0.82, 0.2, 1))
+    else:
+        text(cx, cy + ch + 14 * f, "progreso del modelo (toda su vida)", int(12 * f), (0.85, 0.85, 0.9, 1))
+        text(cx + cw - 105 * f, cy + ch + 14 * f, "éxito", int(12 * f), (0.3, 1.0, 0.45, 1))
+        text(cx + cw - 50 * f, cy + ch + 14 * f, "crash", int(12 * f), (1.0, 0.3, 0.25, 1))
     text(cx + 4 * f, cy + ch - 14 * f, "100%", int(10 * f), (0.7, 0.7, 0.75, 1))
     text(cx + 4 * f, cy + 4 * f, "0%", int(10 * f), (0.7, 0.7, 0.75, 1))
     if hist:
@@ -1074,6 +1452,9 @@ class DroneLabProps(bpy.types.PropertyGroup):
     python: bpy.props.StringProperty(name="Python", subtype='FILE_PATH', default="~/Documents/drone-rl/.venv/bin/python")
     drones: bpy.props.IntProperty(name="Drones", default=50, min=1, max=200)
     stage: bpy.props.EnumProperty(name="Nivel", items=STAGE_ITEMS, default="0")
+    dron: bpy.props.EnumProperty(name="Dron", items=dron_items,
+                                 description="Con qué física vuela: el dron de siempre, uno armado en el juego "
+                                             "(drones/*.json) o uno al azar en cada intento")
     level_path: bpy.props.StringProperty(name="JSON", subtype='FILE_PATH', default="")
     net: bpy.props.IntProperty(name="Neuronas por capa", default=128, min=8, max=512,
                                description="Solo cuenta al crear el modelo (o al Empezar de cero)")
@@ -1111,6 +1492,9 @@ class DroneLabProps(bpy.types.PropertyGroup):
     rw_speed: bpy.props.FloatProperty(name="Premio por rapidez", default=0.3, min=0, max=10, update=_on_live_change,
                                       description="Al pasar cada aro: + esto × velocidad media del tramo (m/s). "
                                                   "Más alto = vuela más rápido (y arriesga más)")
+    rw_film: bpy.props.FloatProperty(name="Premio por grabar bien", default=3.0, min=0, max=20, update=_on_live_change,
+                                     description="Grabar: + esto por segundo de buena imagen (casa en el cuadro, en la "
+                                                 "zona del cliente y sin sacudidas)")
     rw_stability: bpy.props.FloatProperty(name="Castigo por inestabilidad", default=0.5, min=0, max=10,
                                           update=_on_live_change,
                                           description="Castiga (por segundo) los giros bruscos de roll/pitch (sacudidas). "
@@ -1143,6 +1527,12 @@ class DRONELAB_OT_start(bpy.types.Operator):
     bl_label = "Iniciar entrenamiento"
     bl_description = "Crea los drones y lanza el entrenamiento en otro proceso"
 
+    def fail(self, msg):
+        """No pudo iniciar: lo dice en Blender y en models/lab_estado.json (el juego lo muestra)."""
+        self.report({'ERROR'}, msg)
+        lab_error(msg)
+        return {'CANCELLED'}
+
     def execute(self, context):
         p = lab_scene().drone_lab
         st = S()
@@ -1155,11 +1545,9 @@ class DRONELAB_OT_start(bpy.types.Operator):
         python = os.path.expanduser(bpy.path.abspath(p.python))
         script = os.path.join(project, "scripts", "live_train.py")
         if not os.path.isfile(python):
-            self.report({'ERROR'}, f"No encuentro Python en {python}")
-            return {'CANCELLED'}
+            return self.fail(f"No encuentro Python en {python}")
         if not os.path.isfile(script):
-            self.report({'ERROR'}, f"No encuentro {script}")
-            return {'CANCELLED'}
+            return self.fail(f"No encuentro {script}")
         stage = 0 if p.stage == "LEVEL" else int(p.stage)
 
         tele = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -1171,8 +1559,8 @@ class DRONELAB_OT_start(bpy.types.Operator):
         try:
             tele.bind(("127.0.0.1", TELE_PORT))
         except OSError as e:
-            self.report({'ERROR'}, f"Puerto {TELE_PORT} ocupado: {e}")
-            return {'CANCELLED'}
+            tele.close()
+            return self.fail(f"Puerto {TELE_PORT} ocupado ({e}): ¿otro Drone Lab de Dron Maker abierto en otra ventana de Blender?")
         tele.setblocking(False)
 
         lp = live_params(p)
@@ -1185,7 +1573,11 @@ class DRONELAB_OT_start(bpy.types.Operator):
                "--birds", str(p.pajaros), "--bird-speed", repr(p.pajaros_vel)]
         if p.stage == "LEVEL" and p.level_path:
             cmd += ["--level", os.path.expanduser(bpy.path.abspath(p.level_path))]
-        cmd += ["--model", model_files(project)[0]]          # EL modelo: se continúa si existe
+        if p.dron == "AZAR":
+            cmd += ["--dron", "azar"]
+        elif p.dron and p.dron != "ESTANDAR":
+            cmd += ["--dron", os.path.join(project, "drones", p.dron + ".json")]
+        cmd += ["--model", LAB().get("modelo") or model_files(project)[0]]   # el modelo del pedido (o el base): se continúa si existe
         log = os.path.join(project, "live_train.log")
         proc = subprocess.Popen(cmd, cwd=project, stdout=open(log, "w"), stderr=subprocess.STDOUT,
                                 start_new_session=True)
@@ -1317,6 +1709,10 @@ class DRONELAB_OT_probar(bpy.types.Operator):
         p = lab_scene().drone_lab
         st = S()
         stage = self.stage if self.stage >= 0 else test_stage(p)
+        if stage in (11, 12):               # grabar se prueba en el juego nuevo: misión de la casa, "Que grabe la IA"
+            st["test_msg"] = ("Grabar se prueba en Dron Maker: Tablero → Fotos de una casa → Que grabe la IA. "
+                              "Usa la última generación guardada (cada 10)")
+            return bpy.ops.dronelab.jugar(pagina="app")
         if stage >= 8:                      # la caza se ve en el juego del navegador (pájaros, cámaras, etc.)
             st["test_msg"] = ("La caza se prueba en el juego: Jugar en el navegador → Juego: Caza "
                               "(mundo Campo, Columnas o Bosque)")
@@ -1345,6 +1741,8 @@ class DRONELAB_OT_jugar(bpy.types.Operator):
     bl_description = ("Abre el juego (game/) en tu navegador: escoges el mundo, pones los aros y EL modelo vuela. "
                       "Mucho más fluido que la prueba en Blender")
 
+    pagina: bpy.props.StringProperty(default="arena", options={'HIDDEN', 'SKIP_SAVE'})
+
     def execute(self, context):
         p = lab_scene().drone_lab
         project, python = _paths(p)
@@ -1355,10 +1753,12 @@ class DRONELAB_OT_jugar(bpy.types.Operator):
         alive = srv is not None and srv.poll() is None
         log = open(os.path.join(project, "jugar.log"), "w")
         args = [python, "-u", os.path.join(project, "scripts", "jugar.py")]
+        if self.pagina == "arena":
+            args.append("--arena")
         proc = subprocess.Popen(args, cwd=project, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
         if not alive:
             st["game_server"] = proc
-        self.report({'INFO'}, "Abriendo el juego en http://localhost:8765/game/")
+        self.report({'INFO'}, f"Abriendo http://localhost:8765/{'game' if self.pagina == 'arena' else 'app'}/")
         return {'FINISHED'}
 
 
@@ -1437,12 +1837,31 @@ class VIEW3D_PT_drone_lab(bpy.types.Panel):
         L = self.layout
         if context.scene.get("es_prueba"):
             L.label(text="Estás viendo la prueba. Ajustes = los del laboratorio.", icon='INFO')
+        width = max(24, int(context.region.width / (7.2 * context.preferences.system.ui_scale)))
+
+        # ---- lo que pidió el juego (app/, Laboratorio de IA) y en qué va ----
+        lb = LAB()
+        if lb.get("pedido_txt") or lb.get("error_txt"):
+            box = L.box()
+            est = lab_status(lb, st)
+            icon = {"entrenando": 'PLAY', "iniciando": 'TIME', "deteniendo": 'TIME', "error": 'ERROR'}.get(est, 'CHECKMARK')
+            box.label(text=f"Juego ↔ Blender: {ESTADO_TXT.get(est, est)}", icon=icon)
+            c = box.column(align=True)
+            c.scale_y = 0.85
+            if lb.get("pedido_txt"):
+                hace = int(time.time() - lb.get("pedido_t", time.time()))
+                wrapped(c, f"Pedido del juego (hace {hace // 60} min {hace % 60} s): {lb['pedido_txt']}", width)
+            if lb.get("msg"):
+                wrapped(c, lb["msg"], width)
+            if lb.get("error_txt"):
+                r = c.column(align=True)
+                r.alert = True
+                wrapped(r, "Error: " + lb["error_txt"], width)
 
         # ---- misión: qué cuenta como éxito ----
         missions = load_missions(p.project)
         key = "level" if p.stage == "LEVEL" else p.stage
         mis = (st.get("hello", {}).get("mission") if running else None) or missions.get(key)
-        width = max(24, int(context.region.width / (7.2 * context.preferences.system.ui_scale)))
         box = L.box()
         if mis:
             box.label(text=f"Misión: {mis['nombre']}  ({mis['tiempo']} s máx.)", icon='TRACKER')
@@ -1451,8 +1870,14 @@ class VIEW3D_PT_drone_lab(bpy.types.Panel):
             for title, field in (("Objetivo", "objetivo"), ("Éxito", "exito"), ("Falla", "falla"), ("Premio", "premio")):
                 wrapped(c, f"{title}: {mis[field]}", width)
             c.separator()
-            wrapped(c, "Aros: verde = el que toca · celeste = el siguiente · gris = después · "
-                       "amarillo = aguantando (hover). Aro más grande = 2ª vuelta.", width)
+            if p.stage in ("11", "12"):
+                wrapped(c, "Casa = el sujeto · anillo celeste en el piso = zona del cliente (distancia) y aros "
+                           "arriba = alturas · aro = punto de cámara (se llena de verde mientras graba) · cono = lo "
+                           "que ve la cámara: rojo mala imagen → amarillo → verde buena. Destellos: verde toma "
+                           "lograda · rojo choque (donde chocó) · amarillo se acabó el tiempo.", width)
+            else:
+                wrapped(c, "Aros: verde = el que toca · celeste = el siguiente · gris = después · "
+                           "amarillo = aguantando (hover). Aro más grande = 2ª vuelta.", width)
         else:
             box.label(text="Misión: (no encuentro drone_rl/missions.json)", icon='ERROR')
 
@@ -1495,6 +1920,7 @@ class VIEW3D_PT_drone_lab(bpy.types.Panel):
         col.enabled = not running
         col.prop(p, "drones")
         col.prop(p, "stage")
+        col.prop(p, "dron")
         if p.stage == "LEVEL":
             col.prop(p, "level_path")
         rn = col.row()
@@ -1596,6 +2022,248 @@ def _shutdown_trainer():
             proc.terminate()
 
 
+# =====================================================================
+# El juego (app/, pantalla "Laboratorio de IA") manda pedidos de entrenamiento:
+#   juego -> scripts/jugar.py -> models/lab_pedido.json -> (este vigilante, cada 1 s) -> Drone Lab
+# y Blender avisa que está vivo en models/lab_estado.json. El progreso lo escribe el entrenador
+# (models/entrenando.json). Pedido: {"id", "accion": "iniciar"|"ajustar"|"pausar"|"detener", "nivel",
+# "dron": "ESTANDAR"|"AZAR"|<drones/*.json>, "drones", "velocidad", "viento", "premios": {...}, "python",
+# "modelo": ruta del zip (models/drones/<slug>/modelo.zip; sin él, models/modelo.zip) -- cambiarlo reinicia}
+# =====================================================================
+def LAB():
+    """Estado del vigilante (aparte de S(): Iniciar borra S())."""
+    return bpy.app.driver_namespace.setdefault("dronmaker_lab", {})
+
+
+ESTADO_TXT = {"esperando": "esperando pedidos", "iniciando": "iniciando…", "entrenando": "entrenando",
+              "deteniendo": "deteniendo y guardando…", "error": "error"}
+
+
+def lab_error(msg):
+    """Guarda el último error del Drone Lab: lo muestran el panel y el juego (lab_estado.json)."""
+    L = LAB()
+    L["error_txt"] = str(msg)[:220]
+    L["error_t"] = time.time()
+
+
+def lab_status(L, st):
+    """Qué está haciendo el Drone Lab: esperando · iniciando · entrenando · deteniendo · error."""
+    proc = st.get("proc")
+    if st.get("running") and proc and proc.poll() is None:
+        if st.get("stop_requested"):
+            return "deteniendo"
+        return "entrenando" if st.get("hello") else "iniciando"
+    if L.get("pending_start"):
+        return "iniciando"
+    if L.get("error_txt"):
+        return "error"
+    return "esperando"
+
+
+def describe_request(req):
+    """El pedido del juego en una línea, para el panel."""
+    acc = req.get("accion", "iniciar")
+    if acc in ("pausar", "detener"):
+        return {"pausar": "pausar / seguir", "detener": "detener y guardar"}[acc]
+    niv = str(req.get("nivel", "?"))
+    name = next((it[1] for it in STAGE_ITEMS if it[0] == niv), niv)
+    parts = [("entrenar" if acc == "iniciar" else "ajustar") + f" «{name}»"]
+    if req.get("dron"):
+        parts.append(f"dron {req['dron']}")
+    if req.get("drones"):
+        parts.append(f"{req['drones']} drones")
+    if req.get("velocidad"):
+        parts.append("tiempo real" if req["velocidad"] == "real" else "rápido")
+    if req.get("premios"):
+        parts.append(f"{len(req['premios'])} premios")
+    return " · ".join(parts)
+
+
+def lab_projects(p):
+    """Dónde buscar los pedidos: la carpeta de este script, DRONMAKER_ROOT y la del panel (con Dron Maker primero)."""
+    cands = []
+    if os.environ.get("DRONMAKER_ROOT"):
+        cands.append(os.environ["DRONMAKER_ROOT"])
+    try:
+        cands.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    except NameError:
+        pass
+    for t in bpy.data.texts:
+        if t.filepath and t.filepath.endswith("drone_lab.py"):
+            cands.append(os.path.dirname(os.path.dirname(os.path.abspath(bpy.path.abspath(t.filepath)))))
+    cands.append(os.path.expanduser(bpy.path.abspath(p.project)).rstrip("/"))
+    out = []
+    for c in cands:
+        if c and c not in out and os.path.isfile(os.path.join(c, "scripts", "live_train.py")):
+            out.append(c)
+    return sorted(out, key=lambda c: not os.path.isdir(os.path.join(c, "app")))
+
+
+def trainer_running():
+    st = S()
+    proc = st.get("proc")
+    return bool(st.get("running") and proc and proc.poll() is None)
+
+
+def _call(op):
+    """Correr un operador del Drone Lab desde el vigilante (los timers no tienen ventana)."""
+    wm = bpy.context.window_manager
+    lab = lab_scene()
+    for win in wm.windows:
+        if win.scene != lab and not win.scene.get("es_prueba"):
+            continue
+        win.scene = lab
+        area = next((a for a in win.screen.areas if a.type == 'VIEW_3D'), None)
+        with bpy.context.temp_override(window=win, screen=win.screen, area=area, scene=lab):
+            return op()
+    win = wm.windows[0]
+    win.scene = lab
+    area = next((a for a in win.screen.areas if a.type == 'VIEW_3D'), None)
+    with bpy.context.temp_override(window=win, screen=win.screen, area=area, scene=lab):
+        return op()
+
+
+def apply_lab_request(req, root):
+    L = LAB()
+    p = lab_scene().drone_lab
+    act = req.get("accion", "iniciar")
+    if os.path.expanduser(bpy.path.abspath(p.project)).rstrip("/") != root:
+        p.project = root
+    if req.get("python") and os.path.isfile(req["python"]):
+        p.python = req["python"]
+    running = trainer_running()
+    if act == "detener":
+        L["pending_start"] = False
+        if running:
+            _call(bpy.ops.dronelab.stop)
+            L["msg"] = "Deteniendo y guardando el modelo…"
+        return
+    if act == "pausar":
+        if running:
+            _call(bpy.ops.dronelab.pause)
+        return
+    # iniciar / ajustar
+    restart = False
+    nivel = str(req.get("nivel", p.stage))
+    if nivel != p.stage:
+        restart = True
+        p.stage = nivel
+    dron = req.get("dron")
+    if dron and dron != p.dron:
+        try:
+            p.dron = dron
+            restart = True
+        except TypeError:
+            L["msg"] = f"No encuentro el dron {dron} en drones/"
+    if req.get("drones") and int(req["drones"]) != p.drones:
+        p.drones = max(1, min(200, int(req["drones"])))
+        restart = True
+    if req.get("velocidad") in ("real", "rapido") and req["velocidad"] != p.speed:
+        p.speed = req["velocidad"]                     # en vivo
+    if "viento" in req and abs(float(req["viento"]) - p.viento) > 1e-6:
+        p.viento = float(req["viento"])                 # en vivo (desde el próximo intento)
+    for k, v in (req.get("premios") or {}).items():
+        if k in REWARD_KEYS and abs(float(v) - getattr(p, "rw_" + k)) > 1e-9:
+            setattr(p, "rw_" + k, float(v))             # en vivo
+    if act != "iniciar":
+        L["msg"] = "Premios y castigos actualizados"
+        return
+    modelo = req.get("modelo") or model_files(root)[0]       # un modelo por dron (models/drones/<slug>/modelo.zip)
+    if os.path.abspath(modelo) != os.path.abspath(L.get("modelo") or model_files(root)[0]):
+        restart = True
+    L["modelo"] = modelo
+    if running and restart:
+        _call(bpy.ops.dronelab.stop)
+        L["pending_start"] = True
+        L["msg"] = "Cambio de misión o de dron: guardando y reiniciando…"
+    elif not running:
+        L["pending_start"] = True
+        L["msg"] = "Iniciando el entrenamiento…"
+    else:
+        L["msg"] = "Ya estaba entrenando: premios actualizados"
+
+
+def _lab_watch():
+    L = LAB()
+    p = lab_scene().drone_lab
+    roots = lab_projects(p)
+    if not roots:
+        return
+    root = roots[0]
+    mdir = os.path.join(root, "models")
+    req_path = os.path.join(mdir, "lab_pedido.json")
+    if os.path.isfile(req_path):
+        try:
+            with open(req_path, encoding="utf-8") as fh:
+                req = json.load(fh)
+        except (OSError, ValueError):
+            req = None
+        if req and req.get("id") != L.get("req_id"):
+            first = "req_id" not in L
+            L["req_id"] = req.get("id")
+            # un pedido viejo (de antes de abrir Blender) no se ejecuta solo
+            if not (first and time.time() - float(req.get("t", 0)) > 30):
+                L["pedido_txt"] = describe_request(req)
+                L["pedido_t"] = time.time()
+                L.pop("error_txt", None)             # pedido nuevo: se olvida el error anterior
+                try:
+                    apply_lab_request(req, root)
+                except Exception as e:
+                    L["msg"] = f"Error con el pedido: {e!r}"[:160]
+                    lab_error(L["msg"])
+    if L.get("pending_start") and not trainer_running():
+        st = S()
+        if not st.get("stop_requested") or time.time() - st["stop_requested"] > 1.0:
+            L["pending_start"] = False
+            probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            try:
+                probe.bind(("127.0.0.1", TELE_PORT))
+            except OSError:
+                L["msg"] = (f"El puerto {TELE_PORT} está ocupado: hay otro Drone Lab de Dron Maker entrenando (¿otra "
+                            "ventana de Blender?). Detenlo (Detener y guardar) y vuelve a pedirlo.")
+                lab_error(L["msg"])
+                return
+            finally:
+                probe.close()
+            try:
+                r = _call(bpy.ops.dronelab.start)
+                L["msg"] = "Iniciando el entrenamiento…" if r == {'FINISHED'} else "No pude iniciar (mira el error)"
+            except Exception as e:
+                L["msg"] = f"No pude iniciar: {e!r}"[:160]
+                lab_error(L["msg"])
+    st = S()
+    est = lab_status(L, st)
+    if est == "entrenando" and L.get("msg", "").startswith("Iniciando"):
+        L["msg"] = "Entrenando"
+    elif est in ("esperando", "error") and L.get("msg") in ("Entrenando", "Iniciando el entrenamiento…"):
+        L["msg"] = "Entrenamiento detenido (el modelo quedó guardado)" if st.get("bye") else ""
+    view_err = st.get("error")
+    view_err = view_err[-1] if isinstance(view_err, list) and view_err else (view_err or None)
+    estado = {"vivo": time.time(), "estado": est, "estado_txt": ESTADO_TXT.get(est, est),
+              "corriendo": trainer_running(), "pedido": L.get("req_id"), "pedido_txt": L.get("pedido_txt"),
+              "pedido_t": L.get("pedido_t"), "msg": L.get("msg", ""), "proyecto": root, "nivel": p.stage,
+              "dron": p.dron, "drones": p.drones, "puerto": TELE_PORT,
+              "modelo": ("base" if os.path.dirname(os.path.abspath(L.get("modelo") or model_files(root)[0]))
+                         == os.path.abspath(mdir) else os.path.basename(os.path.dirname(L["modelo"]))),
+              "gen": (st.get("stats") or {}).get("gen"),
+              "error": L.get("error_txt") or view_err, "error_t": L.get("error_t")}
+    try:
+        tmp = os.path.join(mdir, "lab_estado_guardando.json")
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(estado, fh)
+        os.replace(tmp, os.path.join(mdir, "lab_estado.json"))
+    except OSError:
+        pass
+
+
+def lab_watch():
+    try:
+        _lab_watch()
+    except Exception as e:                  # el vigilante nunca se muere
+        LAB()["msg"] = f"Vigilante: {e!r}"[:160]
+    return 1.0
+
+
 def register():
     import atexit
     atexit.unregister(_shutdown_trainer)
@@ -1617,6 +2285,11 @@ def register():
         except (ValueError, RuntimeError):
             pass
     ns["hud"] = bpy.types.SpaceView3D.draw_handler_add(draw_hud, (), 'WINDOW', 'POST_PIXEL')
+    old = ns.get("dronmaker_watch")              # el juego (app/) manda pedidos de entrenamiento
+    if old and bpy.app.timers.is_registered(old):
+        bpy.app.timers.unregister(old)
+    ns["dronmaker_watch"] = lab_watch
+    bpy.app.timers.register(lab_watch, first_interval=1.0, persistent=True)
 
 
 def unregister():

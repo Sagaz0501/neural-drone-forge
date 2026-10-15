@@ -1,0 +1,31 @@
+{
+  "nombre": "madera",
+  "piezas": {
+    "chasis": "madera",
+    "motores": "m1806",
+    "helices": "h5",
+    "bateria": "b3s1300",
+    "controladora": "fc_baro",
+    "camara": "cam_juguete",
+    "esc": "esc20",
+    "radio": "rx_espnow",
+    "montaje": "mt_tornillos"
+  },
+  "fisica": {
+    "mass": 0.629,
+    "twr": 1.9078,
+    "drag": 0.05,
+    "max_angle_deg": 35,
+    "yaw_rate_deg": 125.79,
+    "att_resp": 6.9885,
+    "crash_speed": 3,
+    "radius": 0.2
+  },
+  "juego": {
+    "masa_g": 629,
+    "minutos": 4.4,
+    "vel_max": 9.3,
+    "calidad": 20,
+    "precio": 119
+  }
+}

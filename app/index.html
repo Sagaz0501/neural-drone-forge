@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dron Maker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --moss: rgba(20, 31, 27, 0.86);
+    --moss-solid: #17221e;
+    --line: rgba(234, 242, 239, 0.14);
+    --text: #eaf2ef;
+    --muted: #9db3a9;
+    --prop: #ff7a1a;
+    --gate: #47f08a;
+    --next: #3ccbff;
+    --crash: #ff5040;
+    --gold: #ffd23f;
+    --font: "Chakra Petch", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #0f1714; color: var(--text); font-family: var(--font); overflow: hidden; }
+  canvas#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  button { font-family: var(--font); }
+  .hidden { display: none !important; }
+  .panel { background: var(--moss); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid var(--line); }
+  :focus-visible { outline: 2px solid var(--next); outline-offset: 2px; }
+  .btn { border: 0; border-radius: 11px; padding: 12px 18px; font-size: 16.5px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
+  .btn.main { background: var(--prop); color: #1b0f05; }
+  .btn.main:hover { filter: brightness(1.08); }
+  .btn.ghost { background: rgba(234,242,239,0.08); color: var(--text); border: 1px solid var(--line); }
+  .btn.ghost:hover { background: rgba(234,242,239,0.14); }
+  .btn.ai { background: var(--next); color: #04161d; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn.small { font-size: 14px; padding: 7px 11px; border-radius: 9px; font-weight: 500; }
+  .muted { color: var(--muted); }
+  .money { color: var(--gold); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .ok { color: var(--gate); } .bad { color: var(--crash); } .warn { color: var(--gold); }
+
+  /* ---------------- inicio ---------------- */
+  #inicio { position: fixed; left: 40px; top: 50%; transform: translateY(-50%); width: min(440px, calc(100vw - 32px)); border-radius: 20px; padding: 28px; display: flex; flex-direction: column; gap: 14px; }
+  #inicio h1 { font-size: 64px; line-height: .9; margin: 0; letter-spacing: -1px; }
+  #inicio h1 small { display: block; font-size: 16.5px; font-weight: 500; color: var(--muted); letter-spacing: 0; margin-top: 12px; line-height: 1.4; }
+  #inicio .save { border-left: 3px solid var(--prop); padding: 4px 0 4px 14px; font-size: 15px; line-height: 1.45; }
+  #inicio .col { display: flex; flex-direction: column; gap: 10px; }
+  .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 15px; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+  .seg button { background: transparent; color: var(--muted); border: 0; padding: 6px 12px; font-size: 14px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: rgba(234,242,239,0.12); color: var(--text); }
+  #modelo-ini { font-size: 13.5px; color: var(--muted); line-height: 1.4; }
+
+  /* ---------------- taller ---------------- */
+  #taller-izq { position: fixed; left: 18px; top: 18px; bottom: 18px; width: min(420px, calc(100vw - 36px)); border-radius: 18px; display: flex; flex-direction: column; overflow: hidden; }
+  #taller-izq header { padding: 16px 18px 12px; border-bottom: 1px solid var(--line); }
+  #taller-izq header h2 { margin: 0; font-size: 26px; }
+  .wallet { display: flex; gap: 16px; margin-top: 6px; font-size: 15px; flex-wrap: wrap; }
+  #ranuras { overflow-y: auto; padding: 8px 12px 12px; flex: 1; }
+  .ranura h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin: 14px 6px 6px; font-weight: 600; }
+  .op { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; width: 100%; text-align: left; background: transparent; border: 1px solid transparent; color: var(--text); border-radius: 10px; padding: 8px 10px; cursor: pointer; }
+  .op:hover { background: rgba(234,242,239,0.06); }
+  .op.puesta { border-color: rgba(255,122,26,0.55); background: rgba(255,122,26,0.08); }
+  .op.bloq { opacity: .45; cursor: not-allowed; }
+  .op b { font-size: 15px; font-weight: 600; }
+  .op .tag { font-size: 13px; font-weight: 600; align-self: center; white-space: nowrap; }
+  .op small { grid-column: 1 / -1; color: var(--muted); font-size: 12.5px; line-height: 1.35; }
+  .op .vida { color: var(--crash); }
+  #taller-izq footer { padding: 12px; border-top: 1px solid var(--line); display: flex; gap: 8px; flex-wrap: wrap; }
+  #taller-izq footer .btn.main { flex: 1 1 100%; }
+  #taller-der { position: fixed; right: 18px; bottom: 18px; width: min(330px, calc(100vw - 36px)); border-radius: 18px; padding: 14px 16px; }
+  #taller-der h3 { margin: 0 0 8px; font-size: 17px; }
+  .stat { display: grid; grid-template-columns: 112px 1fr auto; gap: 8px; align-items: center; font-size: 14px; margin: 5px 0; }
+  .stat .bar { height: 7px; border-radius: 4px; background: rgba(234,242,239,0.1); overflow: hidden; position: relative; }
+  .stat .bar i { position: absolute; inset: 0 auto 0 0; background: var(--prop); border-radius: 4px; transition: width .25s; }
+  .stat .bar i.prev { background: var(--next); opacity: .55; }
+  .stat output { font-variant-numeric: tabular-nums; min-width: 74px; text-align: right; }
+  .stat .d { font-size: 12px; }
+  .ayudas { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .chip { font-size: 12.5px; padding: 3px 8px; border-radius: 20px; border: 1px solid var(--line); color: var(--muted); }
+  .chip.on { color: var(--gate); border-color: rgba(71,240,138,.45); }
+  #errores { color: var(--crash); font-size: 14px; line-height: 1.4; margin-top: 8px; }
+  #taller-top { position: fixed; right: 18px; top: 18px; display: flex; gap: 8px; }
+
+  /* ---------------- modales ---------------- */
+  .modal { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(620px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow-y: auto; border-radius: 18px; padding: 22px 24px; z-index: 5; }
+  .modal h2 { margin: 0 0 4px; font-size: 28px; }
+  .modal .go { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+  .pedido { display: grid; grid-template-columns: 1fr auto; gap: 4px 14px; width: 100%; text-align: left; border: 1px solid var(--line); background: rgba(234,242,239,0.04); color: var(--text); border-radius: 12px; padding: 12px 14px; margin-top: 10px; cursor: pointer; }
+  .pedido:hover { background: rgba(234,242,239,0.09); }
+  .pedido.bloq { opacity: .5; cursor: default; }
+  .pedido b { font-size: 17px; }
+  .pedido .pago { font-size: 20px; }
+  .pedido small { grid-column: 1 / -1; color: var(--muted); font-size: 13.5px; line-height: 1.4; }
+  .req { list-style: none; padding: 0; margin: 12px 0; display: flex; flex-direction: column; gap: 6px; font-size: 15px; }
+  .req li::before { content: "✓ "; color: var(--gate); font-weight: 700; }
+  .req li.no::before { content: "✗ "; color: var(--crash); }
+  .req li.meh::before { content: "! "; color: var(--gold); }
+  .note { font-size: 13.5px; color: var(--muted); line-height: 1.45; border-left: 3px solid var(--next); padding-left: 10px; margin-top: 12px; }
+
+  /* ---------------- vuelo ---------------- */
+  .osd { position: fixed; text-shadow: 0 1px 3px rgba(0,0,0,0.85); pointer-events: none; }
+  #mis { top: 16px; left: 18px; border-radius: 14px; padding: 10px 14px; text-shadow: none; max-width: min(380px, 60vw); }
+  #mis .who { font-size: 13px; color: var(--prop); font-weight: 600; }
+  #mis .tt { font-size: 18px; font-weight: 600; line-height: 1.2; }
+  #mis .obj { font-size: 13.5px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+  .prog { height: 8px; border-radius: 4px; background: rgba(234,242,239,0.12); margin-top: 8px; overflow: hidden; }
+  .prog i { display: block; height: 100%; background: var(--gate); width: 0; transition: width .2s; }
+  #tel { top: 16px; right: 18px; text-align: right; }
+  #tel .spd { font-size: 40px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+  #tel .spd small { font-size: 16px; color: var(--muted); font-weight: 500; }
+  #tel .sub { font-size: 15px; line-height: 1.55; font-variant-numeric: tabular-nums; }
+  .batt { display: inline-flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; margin-top: 6px; }
+  .batt .cell { width: 64px; height: 18px; border: 2px solid var(--text); border-radius: 4px; padding: 2px; position: relative; }
+  .batt .cell::after { content: ""; position: absolute; right: -6px; top: 4px; width: 4px; height: 6px; background: var(--text); border-radius: 0 2px 2px 0; }
+  .batt .cell i { display: block; height: 100%; background: var(--gate); border-radius: 1px; }
+  /* la imagen de la cámara la dibuja WebGL debajo de este marco (vuelo.js pipRect); el lienzo #vcam es el video */
+  #pip { position: fixed; right: 18px; bottom: 18px; width: min(400px, 42vw); aspect-ratio: 16 / 9; border-radius: 4px; border: 2px solid rgba(234,242,239,0.35); pointer-events: none; }
+  #pip canvas { display: none; }
+  #pip .vig { position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.45)); }
+  #pip .rec-t { position: absolute; left: 10px; top: 8px; font-size: 14px; font-weight: 600; color: #ff3b30; text-shadow: 0 1px 2px #000; display: none; }
+  #pip.rec .rec-t { display: block; }
+  #pip.full { display: none; }
+  #pip .t { position: absolute; left: 8px; bottom: 6px; font-size: 12.5px; color: #fff; text-shadow: 0 1px 2px #000; }
+  #pip .frame { position: absolute; inset: 14% 18%; border: 1.5px dashed rgba(255,255,255,0.35); border-radius: 4px; pointer-events: none; }
+  #pip.rec { border-color: #ff3b30; }
+  #qbar { position: absolute; right: 8px; top: 8px; bottom: 8px; width: 8px; border-radius: 4px; background: rgba(0,0,0,0.45); overflow: hidden; }
+  #qbar i { position: absolute; left: 0; right: 0; bottom: 0; background: var(--gate); }
+  #checks { position: fixed; right: 18px; bottom: calc(18px + min(400px, 42vw) * 9 / 16 + 14px); text-align: right; font-size: 14px; line-height: 1.55; }
+  #keys { position: fixed; left: 18px; bottom: 16px; font-size: 13px; color: var(--muted); text-shadow: 0 1px 2px #000; line-height: 1.5; }
+  #sticks { position: fixed; left: 18px; bottom: 64px; border-radius: 14px; padding: 8px 10px; }
+  #toast { position: fixed; top: 84px; left: 50%; transform: translateX(-50%); border-radius: 10px; padding: 9px 14px; font-size: 15px; transition: opacity .3s; z-index: 6; max-width: calc(100vw - 40px); text-align: center; }
+  #mouse-hint { position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%); font-size: 15px; padding: 9px 16px; border-radius: 10px; pointer-events: none; }
+
+  /* ---------------- resultado ---------------- */
+  .stars { font-size: 44px; letter-spacing: 6px; color: var(--gold); line-height: 1; margin: 6px 0; }
+  .stars .off { color: rgba(234,242,239,0.18); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; font-size: 15px; margin: 10px 0; }
+  .grid2 span:nth-child(even) { text-align: right; font-variant-numeric: tabular-nums; }
+  video { width: 100%; border-radius: 10px; background: #000; margin-top: 8px; }
+  /* ---------------- laboratorio de IA ---------------- */
+  #lab { width: min(1080px, calc(100vw - 24px)); max-height: calc(100vh - 24px); padding: 18px 20px; }
+  #lab .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+  #lab .cols { display: grid; grid-template-columns: 1fr 1.15fr; gap: 18px; margin-top: 12px; }
+  #lab h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin: 14px 0 6px; font-weight: 600; }
+  #lab h3:first-child { margin-top: 0; }
+  .estado { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .dot { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; padding: 5px 10px; border-radius: 20px; border: 1px solid var(--line); }
+  .dot::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--crash); }
+  .dot.on::before { background: var(--gate); box-shadow: 0 0 8px var(--gate); }
+  .dot.wait::before { background: var(--gold); }
+  .card { display: block; width: 100%; text-align: left; border: 1px solid var(--line); background: rgba(234,242,239,0.03); color: var(--text); border-radius: 11px; padding: 9px 12px; margin-top: 6px; cursor: pointer; }
+  .card[aria-pressed="true"] { border-color: rgba(60,203,255,0.7); background: rgba(60,203,255,0.08); }
+  .card b { font-size: 15px; } .card small { display: block; color: var(--muted); font-size: 12.5px; line-height: 1.4; margin-top: 2px; }
+  .pr { display: grid; grid-template-columns: 150px 1fr 52px; gap: 2px 10px; align-items: center; padding: 6px 0; border-top: 1px solid rgba(234,242,239,0.06); }
+  .pr b { font-size: 14px; font-weight: 600; } .pr b.premio { color: var(--gate); } .pr b.castigo { color: #ff8a7a; }
+  .pr input { width: 100%; accent-color: var(--next); } .pr output { text-align: right; font-variant-numeric: tabular-nums; font-size: 14px; }
+  .pr small { grid-column: 1 / -1; color: var(--muted); font-size: 12px; line-height: 1.35; }
+  .pr.off { opacity: .4; }
+  .big { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 4px; }
+  .big div { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+  .big b { display: block; font-size: 26px; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .big span { font-size: 12px; color: var(--muted); }
+  #lab-chart { width: 100%; height: 100px; display: block; margin-top: 8px; border-radius: 8px; background: rgba(0,0,0,0.2); }
+  #lab-msg { font-size: 13.5px; color: var(--muted); line-height: 1.45; margin-top: 8px; min-height: 2.8em; }
+  #premios { max-height: calc(100vh - 560px); min-height: 160px; overflow-y: auto; padding-right: 6px; }
+  #lab .go { position: sticky; bottom: -18px; background: linear-gradient(transparent, var(--moss-solid) 35%); padding: 14px 0 4px; margin-top: 6px; }
+  .sl { display: grid; grid-template-columns: 1fr 1fr 50px; gap: 8px; align-items: center; font-size: 14px; margin: 6px 0; }
+  .sl input { accent-color: var(--prop); }
+  @media (max-width: 860px) { #lab .cols { grid-template-columns: 1fr; } .big { grid-template-columns: repeat(2, 1fr); } #premios { max-height: none; } }
+  .capitulo { margin-top: 16px; }
+  .capitulo .cap-h { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; font-size: 15px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+  .capitulo .cap-h b { font-size: 16px; }
+  .capitulo.cerrado { opacity: .55; }
+  .cap-p { margin: 6px 0 0; font-size: 13.5px; line-height: 1.45; }
+  .colores { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 6px 6px; font-size: 13.5px; }
+  .colores span { width: 62px; color: var(--muted); }
+  .color { width: 24px; height: 24px; border-radius: 50%; border: 2px solid rgba(234,242,239,0.25); cursor: pointer; padding: 0; }
+  .color.on, .colores .btn.on { outline: 2px solid var(--text); outline-offset: 2px; }
+  #historia { width: min(560px, calc(100vw - 32px)); border-left: 4px solid var(--prop); }
+  #historia p { font-size: 16px; line-height: 1.55; }
+  #fps { position: fixed; right: 8px; bottom: 4px; font-size: 11px; color: var(--muted); pointer-events: none; z-index: 9; }
+  #fatal { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(560px, calc(100vw - 32px)); border-radius: 18px; padding: 24px 26px; border-left: 4px solid var(--crash); z-index: 10; }
+  #fatal p, #fatal li { color: var(--muted); font-size: 16px; line-height: 1.5; }
+  #fatal code { font-size: 13px; word-break: break-word; }
+  @media (max-width: 760px) {
+    #inicio { left: 16px; right: 16px; width: auto; }
+    #inicio h1 { font-size: 50px; }
+    #taller-izq { bottom: auto; max-height: 56vh; }
+    #taller-der { left: 18px; right: 18px; width: auto; }
+    #sticks { display: none; }
+  }
+  /* ---------------- hangar / tienda / inventario / banco ---------------- */
+  .dcard { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; width: 100%; text-align: left; border: 1px solid var(--line); background: rgba(234,242,239,0.03); color: var(--text); border-radius: 12px; padding: 10px 12px; margin-top: 8px; cursor: pointer; }
+  .dcard:hover { background: rgba(234,242,239,0.07); }
+  .dcard.on { border-color: rgba(255,122,26,0.7); background: rgba(255,122,26,0.08); }
+  .dcard b { font-size: 16px; } .dcard small { grid-column: 1 / -1; color: var(--muted); font-size: 12.5px; line-height: 1.4; }
+  .chips { grid-column: 1 / -1; display: flex; gap: 5px; flex-wrap: wrap; margin-top: 4px; }
+  .chip.warn { color: var(--gold); border-color: rgba(255,210,63,.45); } .chip.bad { color: var(--crash); border-color: rgba(255,80,64,.45); } .chip.ai { color: var(--next); border-color: rgba(60,203,255,.45); }
+  .back { background: none; border: 0; color: var(--muted); font: inherit; font-size: 14px; cursor: pointer; padding: 0; margin-bottom: 4px; }
+  .back:hover { color: var(--text); }
+  .nombre-in { background: transparent; border: 1px solid transparent; border-radius: 8px; color: var(--text); font: inherit; font-size: 24px; font-weight: 700; width: 100%; padding: 2px 6px; margin-left: -6px; }
+  .nombre-in:hover, .nombre-in:focus { border-color: var(--line); outline: none; }
+  .prop-in { background: transparent; border: 1px solid transparent; border-radius: 8px; color: var(--muted); font: inherit; font-size: 14px; width: 100%; padding: 2px 6px; margin-left: -6px; }
+  .prop-in:hover, .prop-in:focus { border-color: var(--line); outline: none; color: var(--text); }
+  .wide { width: min(1120px, calc(100vw - 24px)) !important; max-height: calc(100vh - 24px) !important; }
+  .tienda { display: grid; grid-template-columns: 170px 1fr 260px; gap: 16px; margin-top: 12px; min-height: 0; }
+  .cats { display: flex; flex-direction: column; gap: 4px; }
+  .cats button { text-align: left; background: transparent; border: 1px solid transparent; color: var(--muted); border-radius: 9px; padding: 7px 10px; font-size: 14.5px; cursor: pointer; }
+  .cats button[aria-pressed="true"] { color: var(--text); border-color: var(--line); background: rgba(234,242,239,0.07); }
+  .prods { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; align-content: start; max-height: calc(100vh - 190px); overflow-y: auto; padding-right: 4px; }
+  .prod { border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; display: flex; flex-direction: column; gap: 6px; background: rgba(234,242,239,0.03); }
+  .prod.bloq { opacity: .5; }
+  .prod b { font-size: 15px; } .prod small { color: var(--muted); font-size: 12.5px; line-height: 1.4; flex: 1; }
+  .prod .fila { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .qty { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 8px; }
+  .qty button { background: none; border: 0; color: var(--text); width: 26px; height: 26px; cursor: pointer; font-size: 16px; }
+  .qty span { min-width: 22px; text-align: center; font-variant-numeric: tabular-nums; }
+  .carrito { border-left: 1px solid var(--line); padding-left: 14px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+  .carrito .it { display: flex; justify-content: space-between; gap: 6px; }
+  .tengo { font-size: 12px; color: var(--next); }
+  @media (max-width: 860px) { .tienda { grid-template-columns: 1fr; } .cats { flex-direction: row; flex-wrap: wrap; } .carrito { border-left: 0; padding-left: 0; } .prods { max-height: none; } }
+  .inv-t { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 8px; }
+  .inv-t td, .inv-t th { padding: 6px 8px; border-top: 1px solid rgba(234,242,239,0.07); text-align: left; vertical-align: top; }
+  .inv-t th { color: var(--muted); font-weight: 500; font-size: 12.5px; text-transform: uppercase; letter-spacing: 1px; }
+  .inv-t .grp td { color: var(--muted); font-size: 12.5px; text-transform: uppercase; letter-spacing: 1.2px; padding-top: 14px; }
+  .u { display: inline-flex; gap: 4px; align-items: center; margin: 2px 6px 2px 0; font-size: 12.5px; border: 1px solid var(--line); border-radius: 7px; padding: 2px 6px; }
+  .u button { background: none; border: 0; color: var(--gold); cursor: pointer; font: inherit; font-size: 12px; padding: 0 2px; }
+  #banco-izq { position: fixed; left: 18px; top: 18px; width: min(300px, calc(100vw - 36px)); border-radius: 18px; padding: 14px 16px; }
+  #banco-izq h2 { margin: 0; font-size: 22px; }
+  .pasos { list-style: none; padding: 0; margin: 10px 0 0; display: flex; flex-direction: column; gap: 3px; }
+  .pasos button { width: 100%; display: grid; grid-template-columns: 22px 1fr; gap: 6px; text-align: left; background: transparent; border: 1px solid transparent; color: var(--text); border-radius: 9px; padding: 6px 8px; cursor: pointer; font-size: 14.5px; }
+  .pasos button[aria-pressed="true"] { border-color: rgba(60,203,255,0.6); background: rgba(60,203,255,0.08); }
+  .pasos .ic { font-weight: 700; } .pasos .ic.ok { color: var(--gate); } .pasos .ic.no { color: var(--muted); }
+  .pasos small { grid-column: 2; color: var(--muted); font-size: 12px; line-height: 1.35; }
+  #banco-der { position: fixed; right: 18px; top: 18px; bottom: 18px; width: min(470px, calc(100vw - 36px)); border-radius: 18px; padding: 16px 18px; overflow-y: auto; }
+  #banco-der h3 { margin: 0 0 6px; font-size: 20px; }
+  #banco-der p { font-size: 14.5px; line-height: 1.5; color: var(--muted); margin: 6px 0; }
+  #banco-der .go { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .lista { list-style: none; padding: 0; margin: 8px 0; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+  .lista li { display: flex; justify-content: space-between; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; }
+  .tabs { display: flex; gap: 4px; flex-wrap: wrap; margin: 8px 0; }
+  .tabs button { background: transparent; border: 1px solid var(--line); color: var(--muted); border-radius: 8px; padding: 5px 10px; font-size: 13.5px; cursor: pointer; }
+  .tabs button[aria-pressed="true"] { color: #04161d; background: var(--next); border-color: var(--next); }
+  .log { font-family: ui-monospace, Menlo, monospace; font-size: 12px; background: #08100d; border: 1px solid var(--line); border-radius: 8px; padding: 8px; height: 150px; overflow-y: auto; white-space: pre-wrap; color: #9fe8bd; }
+  .barra { height: 10px; border-radius: 5px; background: rgba(234,242,239,0.1); overflow: hidden; margin: 8px 0; } .barra i { display: block; height: 100%; width: 0; background: var(--gate); }
+  .canal { display: grid; grid-template-columns: 70px 1fr 44px; gap: 8px; align-items: center; font-size: 13px; margin: 4px 0; }
+  .mot { display: grid; grid-template-columns: 40px 1fr auto; gap: 6px 10px; align-items: center; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; margin: 6px 0; font-size: 13.5px; }
+  .mot .pos { display: flex; gap: 4px; flex-wrap: wrap; grid-column: 1 / -1; }
+  .mot .pos button { font-size: 12.5px; }
+  .diag-mot { display: block; width: 100%; max-width: 260px; margin: 4px auto 6px; }
+  .diag-mot .gira-cw { animation: giraMot 0.5s linear infinite; }
+  .diag-mot .gira-ccw { animation: giraMot 0.5s linear infinite reverse; }
+  @keyframes giraMot { to { transform: rotate(360deg); } }
+  .disenos { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px; margin: 6px 0; }
+  .disenos button { border: 1px solid var(--line); background: rgba(234,242,239,0.03); color: var(--text); border-radius: 10px; padding: 8px; cursor: pointer; text-align: left; font-size: 13.5px; }
+  .disenos button[aria-pressed="true"] { border-color: rgba(255,122,26,0.7); background: rgba(255,122,26,0.1); }
+  .disenos small { display: block; color: var(--muted); font-size: 11.5px; }
+  #cableado { position: fixed; inset: 12px; border-radius: 18px; padding: 12px 14px; z-index: 5; display: flex; flex-direction: column; }
+  #cableado .top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  #cableado svg { flex: 1; width: 100%; min-height: 0; touch-action: none; user-select: none; }
+  #cab-msg { font-size: 13.5px; color: var(--muted); line-height: 1.45; max-height: 76px; overflow-y: auto; }
+  .pin { cursor: pointer; } .pin:hover circle { stroke: #fff; stroke-width: 3; }
+  .cable { cursor: pointer; fill: none; stroke-width: 4; stroke-linecap: round; } .cable:hover { stroke-width: 7; }
+  #lab .modelos { display: flex; flex-direction: column; gap: 6px; }
+  @media (max-width: 760px) { #banco-izq { bottom: auto; } #banco-der { top: auto; left: 18px; width: auto; max-height: 52vh; } }
+  @media (prefers-reduced-motion: reduce) { #toast { transition: none; } .stat .bar i { transition: none; } }
+  /* ---------------- modo nuevo + estudio PBDMM ---------------- */
+  #modo-nuevo { display: flex; flex-direction: column; gap: 10px; }
+  .modo { text-align: left; background: rgba(234,242,239,0.06); color: var(--text); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; cursor: pointer; font-family: var(--font); display: flex; flex-direction: column; gap: 4px; }
+  .modo b { font-size: 18px; } .modo span { font-size: 13.5px; color: var(--muted); line-height: 1.4; }
+  .modo:hover { border-color: var(--prop); } .modo.dev:hover { border-color: var(--next); }
+  .modo.dev b { color: var(--next); }
+  #estudio { position: fixed; inset: 12px; border-radius: 16px; display: grid; grid-template-columns: 200px minmax(0, 1fr) 380px; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; z-index: 3; background: rgba(13, 20, 18, 0.95); }
+  #es-top { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .es-logo { font-size: 18px; color: var(--next); letter-spacing: .5px; } .es-sp { flex: 1; }
+  #es-run { font-size: 13.5px; }
+  #es-izq { border-right: 1px solid var(--line); padding: 8px 10px; overflow-y: auto; }
+  #es-izq h4, #es-der h4 { margin: 12px 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); }
+  .es-item { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; background: none; border: 0; color: var(--text); padding: 5px 8px; border-radius: 7px; font-size: 14px; cursor: pointer; font-family: ui-monospace, Menlo, monospace; }
+  .es-item:hover { background: rgba(234,242,239,0.07); } .es-item[aria-pressed="true"] { background: rgba(60,203,255,0.16); color: var(--next); }
+  .es-acc { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  #es-centro { display: grid; grid-template-rows: minmax(0, 1fr) 36%; min-width: 0; }
+  #es-editor { display: flex; min-height: 0; border-bottom: 1px solid var(--line); }
+  #es-gut { width: 44px; padding: 10px 6px 10px 0; text-align: right; color: #5d726a; font: 13.5px/20px ui-monospace, Menlo, monospace; overflow: hidden; user-select: none; flex: none; }
+  #es-gut .err { color: #fff; background: var(--crash); border-radius: 0 4px 4px 0; }
+  #es-area { position: relative; flex: 1; min-width: 0; }
+  #es-hl, #es-src { position: absolute; inset: 0; margin: 0; padding: 10px 12px; font: 13.5px/20px ui-monospace, Menlo, monospace; white-space: pre; overflow: auto; tab-size: 4; border: 0; }
+  #es-hl { color: var(--text); pointer-events: none; overflow: hidden; }
+  #es-src { background: transparent; color: transparent; caret-color: var(--prop); resize: none; outline: none; }
+  #es-src::selection { background: rgba(60,203,255,.3); color: transparent; }
+  .tc { color: #6f877d; font-style: italic; } .ts { color: #ffd23f; } .tn { color: #ff9e5e; } .tk { color: #ff7ab8; font-weight: 600; }
+  .tf { color: #3ccbff; } .th { color: #47f08a; font-weight: 600; } .te { color: #c8a6ff; }
+  #es-term { display: flex; flex-direction: column; min-height: 0; background: rgba(0,0,0,.25); }
+  #es-out { flex: 1; overflow-y: auto; padding: 8px 12px; font: 13px/1.45 ui-monospace, Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
+  #es-out .cmd { color: var(--next); margin-top: 4px; }
+  #es-prompt { display: flex; gap: 8px; align-items: center; padding: 6px 12px; border-top: 1px solid var(--line); font-family: ui-monospace, Menlo, monospace; color: var(--next); }
+  #es-in { flex: 1; background: none; border: 0; color: var(--text); font: 13.5px ui-monospace, Menlo, monospace; outline: none; }
+  #es-dercol { border-left: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; padding: 10px 12px; gap: 8px; }
+  #es-der { overflow-y: auto; font-size: 14px; line-height: 1.5; flex: 1; }
+  #es-der p { margin: 6px 0; } #es-der ul { padding-left: 18px; margin: 6px 0; } #es-der li { margin: 3px 0; }
+  #es-der code, #es-der pre { font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; }
+  #es-der pre { background: rgba(0,0,0,.3); padding: 8px; border-radius: 8px; white-space: pre-wrap; margin: 6px 0; }
+  #es-der code { color: var(--next); }
+  .es-fn, .es-lec { border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; margin: 6px 0; }
+  .es-fn summary, .es-lec summary { cursor: pointer; } .es-lec summary { font-weight: 600; }
+  #es-graf { width: 100%; height: auto; background: rgba(0,0,0,.25); border-radius: 10px; }
+  .es-ley { display: flex; gap: 12px; font-size: 13px; }
+  @media (max-width: 980px) {
+    #estudio { inset: 0; border-radius: 0; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr) auto; overflow-y: auto; }
+    #es-izq { border-right: 0; border-bottom: 1px solid var(--line); max-height: 120px; }
+    #es-centro { min-height: 70vh; } #es-dercol { border-left: 0; border-top: 1px solid var(--line); max-height: 60vh; }
+  }
+</style>
+<script>
+  window.showFatal = function (title, html) {
+    var f = document.getElementById("fatal");
+    if (!f) return;
+    f.innerHTML = "<h2>" + title + "</h2>" + html;
+    f.classList.remove("hidden");
+  };
+  function onBoot(msg) {
+    if (window.__gameReady) return;
+    var webgl = /WebGL/i.test(msg);
+    window.showFatal(webgl ? "Tu navegador no está usando la tarjeta de video" : "El juego no pudo arrancar",
+      webgl ? "<p>El juego necesita WebGL. En Chrome: abre <b>chrome://settings/system</b>, activa <b>Usar aceleración de gráficos</b> y reinicia Chrome. O ábrelo en Safari.</p><code>" + msg + "</code>"
+            : "<p>Este es el error (cópiamelo si no sabes qué hacer):</p><code>" + msg + "</code>");
+  }
+  window.addEventListener("error", function (e) { onBoot(String(e.message || e.error)); });
+  window.addEventListener("unhandledrejection", function (e) { onBoot(String((e.reason && e.reason.message) || e.reason)); });
+</script>
+<script type="importmap">
+{ "imports": { "three": "../game/vendor/three.module.min.js", "three/addons/": "../game/vendor/" } }
+</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<!-- ============ INICIO ============ -->
+<section id="inicio" class="panel" aria-label="Inicio">
+  <h1>Dron Maker<small>Arma tu dron en el garaje, graba videos para tus clientes y gana para mejores piezas. Algún día, una flota con IA.</small></h1>
+  <div id="save-info" class="save hidden"></div>
+  <div class="col">
+    <button class="btn main" id="b-continuar">Continuar</button>
+    <button class="btn ghost" id="b-nueva">Nueva partida</button>
+  </div>
+  <div id="modo-nuevo" class="hidden">
+    <p class="muted" style="margin:0">¿Cómo quieres jugar?</p>
+    <button class="modo" id="b-modo-normal"><b>Modo normal</b><span>La campaña: empiezas con $150 en un garaje, compras piezas, armas drones en el banco, grabas videos para clientes y entrenas su IA en el laboratorio.</span></button>
+    <button class="modo dev" id="b-modo-dev"><b>Modo desarrollador</b><span>Creas los modelos de IA con código: el lenguaje <b>PBDMM</b> (con cara de Python), una terminal y una gráfica en vivo. Entrena en segundo plano o en Blender. Todo desbloqueado y dos drones listos.</span></button>
+    <button class="btn ghost small" id="b-modo-volver">Volver</button>
+  </div>
+  <div class="row"><span class="muted">Calidad gráfica</span>
+    <div class="seg" id="quality"><button data-q="baja">Baja</button><button data-q="media">Media</button><button data-q="alta">Alta</button></div></div>
+  <div id="modelo-ini">Buscando el modelo de IA…</div>
+</section>
+
+<!-- ============ TALLER ============ -->
+<aside id="taller-izq" class="panel hidden" aria-label="Taller">
+  <header><h2 id="empresa">El garaje</h2><div class="wallet"><span>Plata <b class="money" id="plata">$0</b></span><span>Reputación <b id="rep">0</b></span><span class="muted" id="etapa">Etapa 1</span></div></header>
+  <div id="ranuras"></div>
+  <footer id="taller-pie"></footer>
+</aside>
+<div id="taller-top" class="hidden"><button class="btn main small" id="b-pedidos">Pedidos</button><button class="btn ghost small" id="b-tienda">Tienda</button><button class="btn ghost small" id="b-inventario">Inventario</button><button class="btn ai small" id="b-lab">Laboratorio de IA</button><button class="btn ai small hidden" id="b-estudio">Estudio PBDMM</button><button class="btn ghost small" id="b-videos">Videos</button><button class="btn ghost small" id="b-controles">Controles</button><button class="btn ghost small" id="b-menu">Menú</button></div>
+<aside id="taller-der" class="panel hidden" aria-label="Tu dron"><h3 id="dron-nombre">Tu dron</h3><div id="stats"></div><div id="errores"></div></aside>
+
+<!-- ============ ESTUDIO PBDMM (modo desarrollador) ============ -->
+<section id="estudio" class="panel hidden" aria-label="Estudio PBDMM">
+  <header id="es-top">
+    <b class="es-logo">PBDMM <span class="muted">estudio</span></b>
+    <span id="es-nombre" class="muted"></span>
+    <span id="es-run"></span>
+    <span class="es-sp"></span>
+    <button class="btn main small" id="es-correr" title="Ctrl/⌘ + Enter">▶ Correr</button>
+    <button class="btn ghost small" id="es-revisar">Revisar</button>
+    <button class="btn ghost small" id="es-parar" disabled>Dejar de escuchar</button>
+    <button class="btn ghost small" id="es-bajar">Descargar .pbd</button>
+    <button class="btn ai small" id="es-blender">Blender</button>
+    <button class="btn ghost small" id="es-volver">Garaje</button>
+  </header>
+  <nav id="es-izq" aria-label="Programas">
+    <h4>Tus programas</h4><div id="es-archivos"></div>
+    <div class="es-acc"><button class="btn ghost small" id="es-nuevo">+ Nuevo</button><label class="btn ghost small">Abrir .pbd<input type="file" id="es-subir" accept=".pbd,.py,.txt" hidden></label></div>
+    <h4>Ejemplos</h4><div id="es-ejemplos"></div>
+  </nav>
+  <div id="es-centro">
+    <div id="es-editor"><div id="es-gut" aria-hidden="true"></div><div id="es-area"><pre id="es-hl" aria-hidden="true"></pre><textarea id="es-src" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Programa PBDMM"></textarea></div></div>
+    <div id="es-term"><div id="es-out" role="log" aria-live="polite"></div><div id="es-prompt"><span>›</span><input id="es-in" autocomplete="off" spellcheck="false" placeholder="ayuda · modelos · estado · correr · info &lt;modelo&gt;" aria-label="Terminal"></div></div>
+  </div>
+  <aside id="es-dercol"><div id="es-tabs" class="seg"><button data-t="ayuda">Ayuda</button><button data-t="aprende">Aprende</button><button data-t="grafica">Gráfica</button></div><div id="es-der"></div></aside>
+</section>
+
+<!-- ============ PEDIDOS ============ -->
+<section id="tablero" class="modal panel hidden" role="dialog" aria-label="Pedidos">
+  <h2>Pedidos</h2><p class="muted" style="margin:0">Clientes que quieren videos. Mejor reputación, mejores clientes.</p>
+  <div id="lista-pedidos"></div>
+  <div class="go"><button class="btn ghost" id="b-cerrar-tablero">Volver al garaje</button></div>
+</section>
+
+<section id="brief" class="modal panel hidden" role="dialog" aria-label="Pedido">
+  <div class="muted" id="br-cliente"></div><h2 id="br-titulo"></h2>
+  <p id="br-desc" style="font-size:15.5px;line-height:1.5;margin:8px 0 0"></p>
+  <ul class="req" id="br-req"></ul>
+  <div class="note" id="br-ia"></div>
+  <div class="go"><button class="btn main" id="b-volar">Volar yo</button><button class="btn ai" id="b-volar-ia">Que grabe la IA</button><button class="btn ghost" id="b-brief-lab">Entrenar la IA</button><button class="btn ghost" id="b-cerrar-brief">Volver</button></div>
+</section>
+
+<section id="lab" class="modal panel hidden" role="dialog" aria-label="Laboratorio de IA">
+  <div class="top">
+    <div><h2>Laboratorio de IA</h2><p class="muted" style="margin:0;font-size:14px">Tu IA aprende en Blender (Drone Lab): muchos drones intentan a la vez y la red aprende de los premios y castigos.</p></div>
+    <div class="estado"><span class="dot" id="lab-blender">Blender</span><span class="dot" id="lab-trainer">Entrenador</span><button class="btn ghost small" id="b-abrir-blender">Abrir Blender</button></div>
+  </div>
+  <div class="cols">
+    <div>
+      <h3>Qué va a aprender</h3><div id="lab-misiones"></div>
+      <h3>Con qué dron</h3><div id="lab-drones"></div>
+      <h3>Su IA (el modelo)</h3><div id="lab-modelo"></div>
+      <div class="row" style="margin-top:6px"><span>Dónde entrena</span><div class="seg" id="lab-donde"><button data-v="blender">En Blender (para mirar)</button><button data-v="fondo">En segundo plano</button></div></div>
+      <h3>Cómo</h3>
+      <div class="sl"><label for="lab-n">Drones a la vez</label><input id="lab-n" type="range" min="10" max="100" step="5" value="50"><output id="lab-n-o">50</output></div>
+      <div class="sl"><label for="lab-viento">Viento (ráfagas)</label><input id="lab-viento" type="range" min="0" max="4" step="0.5" value="0"><output id="lab-viento-o">0</output></div>
+      <div class="row" style="margin-top:6px"><span>Velocidad</span><div class="seg" id="lab-vel"><button data-v="real">Para mirar</button><button data-v="rapido">Máxima</button></div></div>
+    </div>
+    <div>
+      <h3>Progreso</h3>
+      <div class="big"><div><b id="lab-gen">–</b><span>generación</span></div><div><b id="lab-succ">–</b><span>tomas logradas</span></div><div><b id="lab-crash">–</b><span>choques</span></div><div><b id="lab-film">–</b><span>calidad de imagen</span></div></div>
+      <canvas id="lab-chart" width="900" height="200"></canvas>
+      <div id="lab-msg"></div>
+      <div id="lab-fondo"></div>
+      <div class="row" style="margin-top:10px"><h3 style="margin:0">Premios y castigos</h3><button class="btn ghost small" id="b-lab-rec">Valores recomendados</button></div>
+      <div id="premios"></div>
+    </div>
+  </div>
+  <div class="go">
+    <button class="btn ai" id="b-lab-iniciar">Empezar a entrenar</button>
+    <button class="btn ghost" id="b-lab-pausa">Pausar</button>
+    <button class="btn ghost" id="b-lab-detener">Detener y guardar</button>
+    <button class="btn ghost" id="b-lab-probar">Probar en el pedido</button>
+    <button class="btn ghost" id="b-lab-cerrar">Cerrar</button>
+  </div>
+</section>
+
+<section id="tienda" class="modal panel wide hidden" role="dialog" aria-label="Tienda">
+  <div class="top" style="display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap"><div><h2>Tienda</h2><p class="muted" style="margin:0;font-size:14px">Pide las piezas que quieras, las cantidades que quieras: llegan a tu estante y las usas en cualquier dron.</p></div><span>Plata <b class="money" id="t-plata">$0</b></span></div>
+  <div class="tienda"><div class="cats" id="t-cats"></div><div class="prods" id="t-prods"></div>
+    <div class="carrito"><b style="font-size:16px">Tu pedido</b><div id="t-carrito"></div><div class="it" style="border-top:1px solid var(--line);padding-top:6px"><span>Total</span><b class="money" id="t-total">$0</b></div>
+      <button class="btn main" id="b-t-comprar">Comprar</button><button class="btn ghost small" id="b-t-cerrar">Cerrar</button></div></div>
+</section>
+
+<section id="inventario" class="modal panel wide hidden" role="dialog" aria-label="Inventario">
+  <h2>Inventario</h2><p class="muted" style="margin:0;font-size:14px">Todo lo que has comprado: cuántas tienes, cuáles están libres y en qué dron está cada una. Las libres se pueden vender usadas.</p>
+  <div id="inv-body"></div>
+  <h3 style="font-size:13px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin:18px 0 6px">Tus diseños 3D (STL)</h3>
+  <p class="muted" style="margin:0;font-size:13.5px;line-height:1.45">Importa un STL (de Printables, Thingiverse, GrabCAD o hecho por ti en Fusion/Onshape/Blender) para imprimir tu propio chasis o carcasa, o para que tu controladora / cámara se vea como la real. En milímetros, con Z hacia arriba (como cualquier slicer).</p>
+  <div class="row" style="margin-top:8px;justify-content:flex-start;flex-wrap:wrap"><label class="muted" for="stl-tipo">Es un:</label>
+    <select id="stl-tipo" style="background:var(--moss-solid);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:5px 8px;font:inherit"><option value="chasis">Chasis (se imprime, cambia el peso)</option><option value="canopy">Carcasa (canopy)</option><option value="controladora">Cómo se ve la controladora</option><option value="camara">Cómo se ve la cámara</option></select>
+    <input type="file" id="stl-file" accept=".stl" class="hidden"><button class="btn ghost small" id="b-stl">Importar STL…</button></div>
+  <div id="stl-lista"></div>
+  <div class="go"><button class="btn ghost" id="b-inv-cerrar">Cerrar</button></div>
+</section>
+
+<section id="nuevo-dron" class="modal panel hidden" role="dialog" aria-label="Nuevo dron" style="width:min(480px,calc(100vw - 32px))">
+  <h2>Nuevo dron</h2><p class="muted" style="margin:4px 0 10px;line-height:1.45">Cada dron tiene sus piezas y su propia IA (con su nombre): uno para casas, otro para seguir ciclistas…</p>
+  <div class="row" style="flex-direction:column;align-items:stretch;gap:4px"><label for="nd-nombre">Nombre</label><input id="nd-nombre" maxlength="30" class="prop-in" style="border-color:var(--line);font-size:16px;color:var(--text);margin:0"></div>
+  <div class="row" style="flex-direction:column;align-items:stretch;gap:4px;margin-top:8px"><label for="nd-prop">Para qué es</label><input id="nd-prop" maxlength="60" class="prop-in" style="border-color:var(--line);font-size:15px;margin:0" placeholder="Videos de casas, persecuciones, carreras…"></div>
+  <div class="go"><button class="btn main" id="b-nd-crear">Crear</button><button class="btn ghost" id="b-nd-cerrar">Cancelar</button></div>
+</section>
+
+<section id="cableado" class="panel hidden" role="dialog" aria-label="Cableado">
+  <div class="top"><div><h2 style="margin:0;font-size:22px">Cableado · <span id="cab-dron"></span></h2><div class="muted" style="font-size:13.5px">Toca un pin y luego otro para soldar un cable. Toca un cable para quitarlo.</div></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn ghost small" id="b-cab-diag">Ver el diagrama</button><button class="btn ghost small" id="b-cab-multi">Multímetro</button><button class="btn ghost small" id="b-cab-borrar">Quitar todos</button><button class="btn main small" id="b-cab-listo">Listo</button></div></div>
+  <svg id="cab-svg" viewBox="0 0 1000 640" preserveAspectRatio="xMidYMid meet"></svg>
+  <div id="cab-msg"></div>
+</section>
+
+<aside id="banco-izq" class="panel hidden" aria-label="Banco de armado"><button class="back" id="b-banco-volver">← Volver al hangar</button><h2 id="banco-dron">Banco</h2><div class="muted" style="font-size:13px" id="banco-sub"></div><ul class="pasos" id="banco-pasos"></ul>
+  <div class="muted" style="font-size:12px;margin-top:10px">Arrastra para girar el dron · rueda para acercar</div></aside>
+<aside id="banco-der" class="panel hidden" aria-label="Paso del banco"></aside>
+
+<section id="historia" class="modal panel hidden" role="dialog" aria-live="polite">
+  <div class="muted" style="font-size:13px;letter-spacing:1.2px;text-transform:uppercase">La historia</div>
+  <h2 id="hist-h"></h2><p id="hist-p"></p>
+  <div class="go"><button class="btn main" id="b-hist">¡Vamos!</button></div>
+</section>
+
+<section id="videos" class="modal panel hidden" role="dialog" aria-label="Mis videos">
+  <h2>Mis videos</h2><p class="muted" style="margin:0">Lo que grabaste en esta sesión (descárgalos para guardarlos).</p>
+  <div id="lista-videos"></div>
+  <div class="go"><button class="btn ghost" id="b-cerrar-videos">Cerrar</button></div>
+</section>
+
+<section id="controles" class="modal panel hidden" role="dialog" aria-label="Controles">
+  <h2>Controles</h2>
+  <p class="muted" style="margin:0 0 10px;line-height:1.5">Ratón: girar (haz clic en el juego para atraparlo). <b>Espacio</b> sube, <b>Shift</b> baja, <b>WASD</b> mueve. <b>R</b> graba, <b>C</b> cambia la cámara, <b>P</b> pausa. También un control de videojuego (modo 2; X graba, B cámara).<br>Las ayudas dependen de tu controladora: con barómetro, al soltar Espacio se queda a esa altura; con GPS, al soltar WASD frena solo.</p>
+  <div class="row"><label for="c-sens">Sensibilidad</label><input id="c-sens" type="range" min="0" max="1" step="0.05"></div>
+  <div class="row"><label for="c-smooth">Suavizado del teclado</label><input id="c-smooth" type="range" min="0" max="1" step="0.05"></div>
+  <div class="row"><label><input type="checkbox" id="c-mouse"> Girar con el ratón</label><input id="c-msens" type="range" min="0" max="1" step="0.05" aria-label="Sensibilidad del ratón"></div>
+  <div class="go"><button class="btn main" id="b-cerrar-controles">Listo</button></div>
+</section>
+
+<!-- ============ VUELO ============ -->
+<div id="hud" class="hidden">
+  <div id="mis" class="panel osd"><div class="who" id="h-who"></div><div class="tt" id="h-tt"></div><div class="obj" id="h-obj"></div><div class="prog"><i id="h-prog"></i></div></div>
+  <div id="tel" class="osd"><div class="spd"><span id="h-spd">0</span> <small>km/h</small></div><div class="sub" id="h-sub"></div>
+    <div class="batt"><span id="h-bat">100 %</span><span class="cell"><i id="h-batbar" style="width:100%"></i></span></div></div>
+  <div id="checks" class="osd"></div>
+  <div id="pip"><canvas id="vcam"></canvas><div class="vig hidden" id="pip-vig"></div><div class="frame"></div><div class="rec-t" id="pip-rec">● REC</div><div id="qbar"><i></i></div><div class="t" id="pip-t">Cámara del dron</div></div>
+  <div id="keys">R grabar · C cámara · P pausa · Esc menú</div>
+  <div id="mouse-hint" class="panel hidden">Haz clic para girar con el ratón</div>
+</div>
+
+<section id="pausa" class="modal panel hidden" role="dialog" aria-label="Pausa" style="width:min(420px,calc(100vw - 32px))">
+  <h2>Pausa</h2>
+  <div class="go"><button class="btn main" id="b-seguir">Seguir volando</button><button class="btn ghost" id="b-reintentar">Empezar de nuevo</button><button class="btn ghost" id="b-abandonar">Volver al garaje</button></div>
+</section>
+
+<section id="resultado" class="modal panel hidden" role="dialog" aria-live="polite">
+  <h2 id="r-h"></h2><div class="stars" id="r-stars"></div><p id="r-p" class="muted" style="margin:4px 0;line-height:1.5"></p>
+  <div class="grid2" id="r-grid"></div>
+  <video id="r-video" controls playsinline class="hidden"></video>
+  <div class="go"><button class="btn main" id="b-res-taller">Volver al garaje</button><button class="btn ghost" id="b-res-otra">Otra vez</button><a class="btn ghost hidden" id="b-res-bajar" download="toma.webm">Descargar el video</a></div>
+</section>
+
+<div id="toast" class="panel" style="opacity:0"></div>
+<div id="fps"></div>
+<div id="fatal" class="panel hidden" role="alert"></div>
+<script type="module" src="./main.js"></script>
+</body>
+</html>

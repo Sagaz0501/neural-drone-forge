@@ -2,7 +2,7 @@
 Entorno Gymnasium: el "videojuego" donde la IA aprende a volar.
 
 Cada paso (50 por segundo) la IA:
-    1. recibe una OBSERVACIÓN (24 números: lo que "siente" el dron),
+    1. recibe una OBSERVACIÓN (38 números: lo que "siente" el dron),
     2. elige una ACCIÓN (4 números: gas, roll, pitch, yaw),
     3. recibe una RECOMPENSA (un número: qué tan bien lo hizo).
 El entrenamiento (PPO) ajusta la red neuronal para maximizar la recompensa total.
@@ -19,7 +19,12 @@ Currículum (de fácil a difícil), parámetro `stage`:
     8 hunt         : CAZA: 5 pájaros vuelan solos (y huyen); hay que tocarlos a todos (birds.py)
     9 hunt_columns : caza entre columnas altas (los pájaros las esquivan; el dron también tiene que)
    10 hunt_forest  : caza en el bosque, debajo de las copas, entre troncos y arbustos
+   11 film_fixed   : GRABAR: una casa y una toma con ruta (fija, órbita o revelar, tomas.py): llegar al inicio,
+                    y seguir el punto de cámara por la ruta SIN perder el encuadre de la casa
+   12 film_posts   : GRABAR ENTRE POSTES: lo mismo, con postes / sombrillas a 1,5 m de la ruta (usar los sensores)
 Opciones para cualquier nivel: density (bosque más claro/denso) y wind (viento con ráfagas, m/s).
+Física: params (un dron fijo, ej. QuadParams.load("drones/madera.json")) o phys_range (física al azar
+en cada intento, dentro de esos rangos: así la red aprende a volar drones distintos).
 O un nivel fijo hecho en Blender: DroneEnv(level_path="levels/mi_nivel.json")
 """
 from __future__ import annotations
@@ -32,16 +37,20 @@ import numpy as np
 from gymnasium import spaces
 
 from .birds import CATCH_R, Z_FOREST, Z_MAX, Z_MIN, Flock
-from .level import (Level, forest_level, forest_shapes, hunt_pillars, random_forest, random_goal,
+from .level import (Level, film_house_level, film_posts, forest_level, forest_shapes, hunt_pillars, random_forest, random_goal,
                     random_pillars)
 from .physics import QuadParams, QuadState, Wind, step
 from .physics import yaw_frame
-from .sensing import (OBS_SCALE, RAY_DIRS_LOCAL, RAY_LEN, build_obs, clearance_penalty, danger_penalty,  # noqa: F401
-                      sensor_rays)
+from .tomas import Toma, random_toma  # noqa: F401
+from .sensing import (N_OBS, OBS_SCALE, RAY_DIRS_LOCAL, RAY_LEN, build_obs, clearance_penalty, danger_penalty,  # noqa: F401
+                      film_quality, sensor_rays)
 
 STAGES = {0: "hover", 1: "goal_fixed", 2: "goal_random", 3: "obstacles", 4: "multi_goal", 5: "circuit",
-          6: "forest", 7: "forest_multi", 8: "hunt", 9: "hunt_columns", 10: "hunt_forest"}
+          6: "forest", 7: "forest_multi", 8: "hunt", 9: "hunt_columns", 10: "hunt_forest", 11: "film_fixed", 12: "film_posts"}
 HUNT_STAGES = (8, 9, 10)
+FILM_STAGES = (11, 12)
+FILM_OK = 0.5            # grabar: calidad media de la toma para que cuente como lograda (sensing.film_quality)
+FILM_TOMAS = ("fija", "orbita", "revelar")
 
 # Qué cuenta como éxito en cada misión (texto en drone_rl/missions.json, que también lee Blender).
 # OJO: la IA no lee esto; solo "siente" la recompensa. Esto es para nosotros.
@@ -52,13 +61,16 @@ LEVEL_MISSION = _M["level"]
 CIRCUIT = [np.array(g, dtype=float) for g in ((6, 0, 2), (6, 6, 3), (0, 6, 2), (0, 0, 1.5))]
 CIRCUIT_LAPS = 2
 
-# Nombre de cada una de las 27 entradas de la red (para verlas en Blender)
+# Nombre de cada una de las 38 entradas de la red (para verlas en Blender)
 OBS_LABELS = ["meta adelante", "meta izquierda", "meta arriba", "distancia",
               "vel adelante", "vel izquierda", "vel arriba", "roll", "pitch", "altura",
               "gas anterior", "roll anterior", "pitch anterior", "yaw anterior",
               "sensor 0°", "sensor 45°", "sensor 90°", "sensor 135°", "sensor 180°",
               "sensor 225°", "sensor 270°", "sensor 315°", "sensor arriba", "sensor abajo",
-              "meta se mueve adelante", "meta se mueve izquierda", "meta se mueve arriba"]
+              "meta se mueve adelante", "meta se mueve izquierda", "meta se mueve arriba",
+              "sujeto adelante", "sujeto izquierda", "sujeto arriba",
+              "toma fija", "toma revelar", "toma seguir", "toma órbita",
+              "empuje/peso", "masa", "arrastre", "respuesta"]
 ACT_LABELS = ["gas", "roll", "pitch", "yaw"]
 
 # Pesos de la recompensa. Se pueden cambiar en vivo desde Blender (Drone Lab):
@@ -78,6 +90,8 @@ DEFAULT_REWARD = {
     "danger": 0.0,       # castigo por ir rápido hacia algo que ve (menos de 1 s para chocar)
     "heading": 2.0,      # nariz hacia el aro: castigo por segundo (0 mirándolo, la mitad de lado, todo de
                          # espaldas) + premio/castigo inmediato por cada grado que gira hacia/lejos del aro
+                         # (grabar: la nariz -la cámara- hacia el SUJETO)
+    "film": 3.0,         # grabar: premio por segundo de buena imagen (encuadre x zona x estable, de 0 a 1)
 }
 ANG_RATE_REF = 4.0       # rad/s: un giro de roll/pitch así de rápido cuenta como "1" en el castigo de estabilidad
 
@@ -90,7 +104,8 @@ class DroneEnv(gym.Env):
                  goal_radius: float = 0.5, reward: dict | None = None,
                  start_anywhere: float = 0.0, spawn_jitter: float = 0.0, yaw_jitter: float = 0.0,
                  focus_blocked: float = 1.0, start_speed: float = 0.0, density: float = 1.0, wind: float = 0.0,
-                 n_birds: int = 5, bird_speed: float = 1.5):
+                 n_birds: int = 5, bird_speed: float = 1.5, phys_range: dict | None = None,
+                 tomas: tuple | None = None):
         super().__init__()
         self.stage = stage
         self.n_birds, self.bird_speed = n_birds, bird_speed   # caza: cuántos pájaros y qué tan rápido (m/s, en vivo)
@@ -99,7 +114,14 @@ class DroneEnv(gym.Env):
         self.wind = Wind(wind)                 # viento máx. en m/s (0 = sin viento; se puede cambiar en vivo)
         self.trees = []
         self.fixed_level = Level.load(level_path) if level_path else None
-        self.p = params or QuadParams()
+        self.p0 = params or QuadParams()       # el dron base (o el armado en el juego)
+        self.p = self.p0
+        # física al azar en cada intento: {"twr": [a, b], "mass": [a, b], "drag": …, "att_resp": …,
+        # "max_angle_deg": …, "yaw_rate_deg": …}; lo que no está queda como en p0
+        self.phys_range = phys_range
+        self.subject, self.band, self.toma = None, None, None     # grabar
+        self.shot = None                                          # grabar: la toma con su ruta (tomas.Toma)
+        self.tomas = tuple(tomas) if tomas else FILM_TOMAS        # qué tomas se sortean
         self.dt = 1.0 / control_hz
         self.substeps = physics_substeps
         self.goal_radius = goal_radius
@@ -124,8 +146,7 @@ class DroneEnv(gym.Env):
         self.hold_steps = int(1.0 * control_hz) if (stage == 0 and not level_path) else 0
 
         self.action_space = spaces.Box(-1.0, 1.0, shape=(4,), dtype=np.float32)
-        n_obs = 3 + 1 + 3 + 2 + 1 + 4 + len(RAY_DIRS_LOCAL) + 3    # = 27 (las 3 últimas: cómo se mueve la meta)
-        self.observation_space = spaces.Box(-3.0, 3.0, shape=(n_obs,), dtype=np.float32)
+        self.observation_space = spaces.Box(-3.0, 3.0, shape=(N_OBS,), dtype=np.float32)   # 38 (sensing.build_obs)
 
     # ------------------------------------------------------------------
     def _make_level(self) -> Level:
@@ -160,10 +181,29 @@ class DroneEnv(gym.Env):
         if self.stage == 10:                   # bosque por toda el área de caza (radio ~13 m)
             self.trees = random_forest(rng, sp, [], self.density, margin=13.0)
             lv.cyl_xy, lv.cyl_r, lv.cyl_z, lv.sph_c, lv.sph_r = forest_shapes(self.trees)
+        if self.stage in FILM_STAGES:          # grabar una casa: la meta es el punto de cámara
+            lv, self.subject, _ = film_house_level(rng)
+            self.shot = random_toma(rng, self.subject, lv, self.tomas)
+            self.toma, self.band = self.shot.tipo, self.shot.band()
+            lv.goals = [self.shot.start()]
+            if self.stage == 12:                   # postes cerca de la ruta: hay que verlos con los sensores
+                film_posts(rng, lv, self.shot)
         return lv
+
+    def _random_params(self) -> QuadParams:
+        """Física al azar dentro de phys_range (un dron distinto en cada intento)."""
+        rng, r, p0 = self.np_random, self.phys_range, self.p0
+        u = lambda k, base: float(rng.uniform(*r[k])) if k in r else base
+        return QuadParams(mass=u("mass", p0.mass), twr=u("twr", p0.twr), drag=u("drag", p0.drag),
+                          max_angle=np.radians(u("max_angle_deg", np.degrees(p0.max_angle))),
+                          yaw_rate=np.radians(u("yaw_rate_deg", np.degrees(p0.yaw_rate))),
+                          att_resp=u("att_resp", p0.att_resp), crash_speed=p0.crash_speed, radius=p0.radius)
 
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
+        if self.phys_range:
+            self.p = self._random_params()
+        self.subject, self.band, self.toma, self.shot = None, None, None, None
         self.level = self._make_level()
         self.state = QuadState(pos=self.level.spawn.copy())
         self.goal_idx = 0
@@ -212,16 +252,23 @@ class DroneEnv(gym.Env):
         self.prev_phi = self._heading_phi()
         self.path_len, self.ang_sum = 0.0, 0.0
         self.front_n, self.move_n = 0, 0          # cuánto vuela de frente (para el HUD)
+        self.film_good, self.film_sum, self.film_n = 0.0, 0.0, 0   # grabar: segundos grabados, suma de calidad, pasos
+        self.prev_yaw, self.yaw_rate = self.state.yaw, 0.0
+        self.film_q = 0.0                         # grabar: calidad de imagen de ESTE paso (para pintar el cono en Blender)
         return self._obs(), {}
 
     # ------------------------------------------------------------------
     def _goal(self) -> np.ndarray:
+        if self.shot is not None:
+            return self.shot.point()
         if self.flock is not None:
             return self.flock.pos[self.target]
         return self.level.goals[min(self.goal_idx, len(self.level.goals) - 1)]
 
     def _goal_vel(self) -> np.ndarray:
         """Cómo se mueve la meta (estimado de la última décima de segundo). Aros: quietos = 0."""
+        if self.shot is not None:
+            return self.shot.vel()
         return self.flock.est_vel[self.target] if self.flock is not None else np.zeros(3)
 
     def _n_goals(self) -> int:
@@ -232,8 +279,10 @@ class DroneEnv(gym.Env):
 
     def _heading_phi(self) -> float:
         """Qué tan mal mira al aro: 0 con la nariz hacia el aro, -1/2 de lado, -1 de espaldas.
-        Se apaga a menos de 0.3 m en horizontal (justo encima del aro la dirección no está definida)."""
-        g = self._goal()[:2] - self.state.pos[:2]
+        Se apaga a menos de 0.3 m en horizontal (justo encima del aro la dirección no está definida).
+        Grabar: lo que hay que mirar es el SUJETO (la cámara va en la nariz)."""
+        look = self.subject if self.subject is not None else self._goal()
+        g = look[:2] - self.state.pos[:2]
         dh = float(np.hypot(g[0], g[1]))
         if dh < 1e-6:
             return 0.0
@@ -244,10 +293,11 @@ class DroneEnv(gym.Env):
         return sensor_rays(self.state, self.level)
 
     def _obs(self, rays: np.ndarray | None = None) -> np.ndarray:
-        """Las 24 entradas (el cálculo vive en sensing.py, compartido con Blender)."""
+        """Las 38 entradas (el cálculo vive en sensing.py, compartido con Blender y el juego)."""
         if rays is None:
             rays = self._rays()
-        return build_obs(self.state, self._goal(), rays, self.prev_action, self.p, self._goal_vel())
+        return build_obs(self.state, self._goal(), rays, self.prev_action, self.p, self._goal_vel(),
+                         self.subject, self.toma)
 
     # ------------------------------------------------------------------
     def step(self, action):
@@ -260,6 +310,13 @@ class DroneEnv(gym.Env):
             ground_crash |= info["ground_crash"]
         self.steps += 1
         ang_rate = np.hypot(self.state.roll - prev_att[0], self.state.pitch - prev_att[1]) / self.dt   # rad/s
+        yaw_rate = float(np.arctan2(np.sin(self.state.yaw - self.prev_yaw), np.cos(self.state.yaw - self.prev_yaw))) / self.dt
+        yaw_acc = (yaw_rate - self.yaw_rate) / self.dt                  # paneo brusco (grabar)
+        self.prev_yaw, self.yaw_rate = self.state.yaw, yaw_rate
+        recording = False
+        if self.shot is not None:                      # grabar: la toma espera al dron en el inicio y después avanza
+            recording = self.shot.phase == "grabando"
+            self.shot.step(self.dt, self.state.pos, self.state.vel)
         if self.flock is not None:                     # los pájaros se mueven (y eligen huir) a la vez que el dron
             self.flock.speed = self.bird_speed
             self.flock.step(self.dt, self.np_random.normal(size=(self.flock.n, 3)), self.state.pos)
@@ -313,10 +370,28 @@ class DroneEnv(gym.Env):
         self.prev_action = action
 
         terminated, success = False, False
-        if self.hold_steps:
+        film = self.stage in FILM_STAGES and self.fixed_level is None
+        if film:
+            # grabar: qué tan buena es la imagen (encuadre x seguimiento x ritmo x estable) contra el punto de la ruta
+            p, _ = self.shot.at(self.shot.progress)
+            fq = film_quality(self.state, self.subject, p, self.shot.vel() if recording else np.zeros(3), ang_rate, yaw_acc)
+            self.film_q = fq["q"]
+            if recording:                                    # solo cuenta lo que se graba
+                reward += rw.get("film", 0.0) * fq["q"] * self.dt
+                self.film_sum += fq["q"]
+                self.film_n += 1
+                self.film_good += self.dt
+            if self.shot.phase == "lista":                   # se acabó la ruta: ¿quedó buena?
+                q_mean = self.film_sum / max(self.film_n, 1)
+                reward += rw["goal"] * q_mean
+                terminated = True
+                success = q_mean >= FILM_OK
+        elif self.hold_steps:
             # tarea de "quedarse": premio continuo por estar cerca (más cerca = más premio)
             reward += rw["near"] * np.exp(-dist)
-        if dist < (CATCH_R if self.flock is not None else self.goal_radius):
+        if film:
+            pass
+        elif dist < (CATCH_R if self.flock is not None else self.goal_radius):
             if self.hold_steps:
                 self.hold += 1
                 reward += 0.2 - 0.1 * float(np.linalg.norm(self.state.vel))   # quieto = mejor
@@ -349,7 +424,7 @@ class DroneEnv(gym.Env):
             "success": success,
             "crashed": crashed,
             "crash_reason": "suelo" if ground_crash else "obstaculo" if hit_obstacle else "limites" if oob else None,
-            "goals_reached": self.goal_idx if not self.hold_steps else int(success),
+            "goals_reached": (self.goal_idx if not self.hold_steps else int(success)) if not film else int(success),
             "dist": dist,
             "pos": pos.copy(),          # para ver dónde chocó (el entorno se reinicia solo)
         }
@@ -358,4 +433,8 @@ class DroneEnv(gym.Env):
             info["avg_speed"] = self.path_len / t
             info["ang_rate"] = float(np.degrees(self.ang_sum / self.steps))
             info["front"] = self.front_n / self.move_n if self.move_n else None
+            if film:
+                info["film_good"] = self.film_good
+                info["film_q"] = self.film_sum / max(self.film_n, 1)
+                info["toma"] = self.toma
         return self._obs(rays), float(reward), terminated, truncated, info

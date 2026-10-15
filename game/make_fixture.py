@@ -117,17 +117,17 @@ for t in range(800):
 assert inside == 0, inside
 forest_flock = {"pos": fpos, "head": fhead, "noise": fnoise.tolist(), "drone": fdrone, "out": fout}
 
-# 7) caza completa con una red de 27 entradas (las 3 nuevas con pesos de verdad)
+# 7) caza completa con una red de 38 entradas (las nuevas con pesos de verdad)
 import torch
 from drone_rl.upgrade import load_ppo
-m27, _ = load_ppo(ROOT / "models" / "anteriores" / "stage3.zip")
+m38, _ = load_ppo(ROOT / "models" / "anteriores" / "stage3.zip")
 with torch.no_grad():
-    w = m27.policy.mlp_extractor.policy_net[0].weight
-    w[:, 24:] = torch.from_numpy(np.random.default_rng(3).normal(0, 0.3, (w.shape[0], 3)).astype(np.float32))
-m27.save(out / "p27.zip")
-npz27 = export(out / "p27.zip", out / "p27.npz")
-npz_to_web(npz27, out / "policy27.json")
-pol27 = NumpyPolicy(npz27)
+    w = m38.policy.mlp_extractor.policy_net[0].weight
+    w[:, 24:] = torch.from_numpy(np.random.default_rng(3).normal(0, 0.3, (w.shape[0], w.shape[1] - 24)).astype(np.float32))
+m38.save(out / "p38.zip")
+npz38 = export(out / "p38.zip", out / "p38.npz")
+npz_to_web(npz38, out / "policy38.json")
+pol27 = NumpyPolicy(npz38)
 hunt_lv = Level.from_dict({"goals": []})
 hrng = np.random.default_rng(21)
 hunt_noise = []
@@ -147,9 +147,46 @@ for _ in range(1500):
 hunt = {"pos": start_pos, "head": start_head, "noise": hunt_noise, "traj": traj3, "phase": fl.phase,
         "reason": fl.reason, "caught": fl.goal_idx}
 
+# 8) grabar: un vuelo de la red de 38 entradas con la física del dron de madera, siguiendo una ÓRBITA
+#    alrededor de una casa (la toma espera en el inicio y después avanza), y la calidad de imagen en estados al azar
+from drone_rl.level import film_house_level
+from drone_rl.physics import QuadParams
+from drone_rl.sensing import film_quality
+from drone_rl.tomas import Toma, random_toma
+wood = QuadParams.load(ROOT / "drones" / "madera.json")
+film_lv, subject, _ = film_house_level(np.random.default_rng(31))
+shot = random_toma(np.random.default_rng(32), subject, film_lv, ("orbita",))
+fl = Flight(film_lv, pol27, p=wood, subject=subject, shot=shot)
+fl.reset(pos=shot.start() - np.array([0.8, 0.3, 0.4]), yaw=0.3)     # cerca del inicio: la toma arranca enseguida
+traj4 = []
+for _ in range(500):
+    fl.step()
+    traj4.append(fl.state.pos.tolist() + [fl.state.yaw, shot.t, ["ir", "grabando", "lista"].index(shot.phase)])
+    if fl.phase != "ruta":
+        break
+fq_cases = []
+for _ in range(200):
+    s = QuadState(pos=rng.uniform([-25, -25, 0.3], [5, 5, 9]), vel=rng.normal(0, 1.5, 3),
+                  roll=float(rng.uniform(-0.4, 0.4)), pitch=float(rng.uniform(-0.4, 0.4)), yaw=float(rng.uniform(-3, 3)))
+    ar, ya, gim = float(rng.uniform(0, 3)), float(rng.normal(0, 6)), bool(rng.random() < 0.3)
+    cp, cv = shot.at(float(rng.uniform(0, 1)))
+    q = film_quality(s, subject, cp, cv, ar, ya, gim)
+    fq_cases.append({"pos": s.pos.tolist(), "vel": s.vel.tolist(), "roll": s.roll, "pitch": s.pitch, "yaw": s.yaw,
+                     "ang": ar, "yawacc": ya, "gimbal": gim, "cp": cp.tolist(), "cv": cv.tolist(),
+                     "q": [q["framing"], q["track"], q["flow"], q["steady"], q["q"]]})
+shot_cases = []                                      # las 3 rutas: punto y velocidad en varios u
+for tipo, seed in (("fija", 41), ("orbita", 42), ("revelar", 43)):
+    t = random_toma(np.random.default_rng(seed), subject, film_lv, (tipo,))
+    shot_cases.append({"toma": t.to_dict(), "pts": [[*t.at(u)[0], *t.at(u)[1]] for u in np.linspace(0, 1, 17)]})
+film = {"level": film_lv.to_dict(), "subject": subject.tolist(), "shot": Toma.from_dict(shot.to_dict()).to_dict(),
+        "start": (shot.start() - np.array([0.8, 0.3, 0.4])).tolist(), "params": json.loads(
+    (ROOT / "drones" / "madera.json").read_text())["fisica"], "traj": traj4, "phase": fl.phase, "cases": fq_cases,
+        "shots": shot_cases}
+
 (ROOT / "game" / "_fixture" / "fixture.json").write_text(json.dumps(
     {"level": level, "rays": ray_cases, "obs": obs_cases, "acts": acts.tolist(), "phys": phys,
      "flight": flight1, "open_level": open_lv.to_dict(),
-     "flight2": flight2, "flock": flock_case, "hunt": hunt, "forest_flock": forest_flock}))
+     "flight2": flight2, "flock": flock_case, "hunt": hunt, "forest_flock": forest_flock, "film": film}))
 print("fixture ok:", flight1["phase"], flight1["reason"], len(traj), "| abierto:", flight2["phase"], round(flight2["t"], 2),
-      len(traj2), "| caza:", hunt["phase"], hunt["reason"], hunt["caught"], "pájaros en", len(traj3), "pasos")
+      len(traj2), "| caza:", hunt["phase"], hunt["reason"], hunt["caught"], "pájaros en", len(traj3), "pasos",
+      "| grabar:", shot.tipo, shot.phase, round(shot.t, 2), "s grabados en", len(traj4), "pasos")

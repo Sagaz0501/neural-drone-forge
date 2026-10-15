@@ -10,6 +10,8 @@
 //
 // No usa nada del navegador: también corre en node (game/test_sim.mjs lo compara con Python).
 // Unidades SI. Eje X = frente del dron, Y = izquierda, Z = arriba (igual que en Python).
+// La física del dron va en `P` (el dron de siempre); para otro dron (armado en el juego) se pasa
+// `p` con la misma forma (app/parts.js -> paramsFisica) a step/buildObs/pdAct/Flight.
 // =====================================================================
 
 export const P = {
@@ -49,12 +51,12 @@ export function makeRng(seed) {
 }
 
 // ---------------- física (physics.py) ----------------
-export function actionToThrottle(a0) {
-  const h = P.hover;
+export function actionToThrottle(a0, p = P) {
+  const h = p.hover;
   return a0 >= 0 ? h + a0 * (1 - h) : h * (1 + a0);
 }
-export function throttleToAction(thr) {
-  const h = P.hover;
+export function throttleToAction(thr, p = P) {
+  const h = p.hover;
   return thr >= h ? (thr - h) / (1 - h) : thr / h - 1;
 }
 export function yawFrame(v, yaw) {
@@ -66,37 +68,37 @@ export function newState(pos = [0, 0, 0], yaw = 0) {
   return { pos: pos.slice(), vel: [0, 0, 0], roll: 0, pitch: 0, yaw, throttle: 0 };
 }
 
-/** Avanza dt segundos. Devuelve {groundCrash, grounded}. Modifica s. */
-export function step(s, action, dt, wind = null) {
+/** Avanza dt segundos. Devuelve {groundCrash, grounded}. Modifica s. p = la física del dron. */
+export function step(s, action, dt, wind = null, p = P) {
   const a = action.map((x) => clip(x, -1, 1));
-  s.throttle = actionToThrottle(a[0]);
-  let tr = a[1] * P.maxAngle, tp = a[2] * P.maxAngle;
+  s.throttle = actionToThrottle(a[0], p);
+  let tr = a[1] * p.maxAngle, tp = a[2] * p.maxAngle;
   const grounded = s.pos[2] <= 1e-4;
-  if (grounded && s.throttle < P.hover * 0.9) { tr = 0; tp = 0; }
-  const k = Math.min(1, P.attResp * dt);                // el ángulo real persigue al pedido
+  if (grounded && s.throttle < p.hover * 0.9) { tr = 0; tp = 0; }
+  const k = Math.min(1, p.attResp * dt);                // el ángulo real persigue al pedido
   s.roll += (tr - s.roll) * k;
   s.pitch += (tp - s.pitch) * k;
-  if (!(grounded && s.throttle < 0.05)) s.yaw += a[3] * P.yawRate * dt;
+  if (!(grounded && s.throttle < 0.05)) s.yaw += a[3] * p.yawRate * dt;
   const m = 2 * Math.PI;
   s.yaw = ((((s.yaw + Math.PI) % m) + m) % m) - Math.PI;
 
-  const thrust = s.throttle * P.twr * P.mass * P.g;
+  const thrust = s.throttle * p.twr * p.mass * p.g;
   const cr = Math.cos(s.roll), sr = Math.sin(s.roll), cp = Math.cos(s.pitch), sp = Math.sin(s.pitch);
   const cy = Math.cos(s.yaw), sy = Math.sin(s.yaw);
   const bz = [cy * sp * cr + sy * sr, sy * sp * cr - cy * sr, cp * cr];   // eje Z del dron (R = Rz Ry Rx)
-  const f = [bz[0] * thrust, bz[1] * thrust, bz[2] * thrust - P.mass * P.g];
+  const f = [bz[0] * thrust, bz[1] * thrust, bz[2] * thrust - p.mass * p.g];
   const va = (wind === null || grounded) ? s.vel : [s.vel[0] - wind[0], s.vel[1] - wind[1], s.vel[2] - wind[2]];
   const sp_ = norm3(va);
-  for (let i = 0; i < 3; i++) f[i] -= P.drag * sp_ * va[i];
+  for (let i = 0; i < 3; i++) f[i] -= p.drag * sp_ * va[i];
   for (let i = 0; i < 3; i++) {
-    s.vel[i] += f[i] / P.mass * dt;
+    s.vel[i] += f[i] / p.mass * dt;
     s.pos[i] += s.vel[i] * dt;
   }
   const info = { groundCrash: false, grounded: false };
   if (s.pos[2] < 0) {
     const impact = -s.vel[2];
     s.pos[2] = 0;
-    if (impact > P.crashSpeed) {
+    if (impact > p.crashSpeed) {
       info.groundCrash = true;
       s.vel = [0, 0, 0];
     } else {
@@ -277,23 +279,101 @@ export function sensorRays(s, level) {
   return out;
 }
 
-/** Las 27 entradas de la red (mismo orden y escala que el entrenamiento).
- *  Las 3 últimas: cómo se mueve la meta (0 con aros quietos). */
-export function buildObs(s, goal, rays, prevAction, goalVel = null) {
+// Grabar: los tipos de toma (entradas 30-33) y la cámara del dron (sensing.py)
+export const TOMAS = ["fija", "revelar", "seguir", "orbita"];
+export const CAM = { hfov: (80 * Math.PI) / 180, vfov: (50 * Math.PI) / 180, tilt: (15 * Math.PI) / 180 };
+export const N_OBS = 38;
+
+/** Entradas 34-37: qué dron maneja. */
+export const physFeatures = (p) => [p.twr / 5, p.mass, p.drag * 20, p.attResp / 10];
+
+/** Las 38 entradas de la red (mismo orden y escala que el entrenamiento, sensing.build_obs).
+ *  24-26 cómo se mueve la meta · 27-29 el sujeto a grabar (sin sujeto: la meta) · 30-33 la toma · 34-37 el dron. */
+export function buildObs(s, goal, rays, prevAction, goalVel = null, p = P, subject = null, toma = null) {
   const rel = yawFrame([goal[0] - s.pos[0], goal[1] - s.pos[1], goal[2] - s.pos[2]], s.yaw);
   const dist = norm3(rel);
   const vh = yawFrame(s.vel, s.yaw);
+  const subj = subject ? yawFrame([subject[0] - s.pos[0], subject[1] - s.pos[1], subject[2] - s.pos[2]], s.yaw) : rel;
   const obs = [
     ...rel.map((x) => clip(x / OBS_SCALE, -2, 2)),
     Math.min(dist / OBS_SCALE, 2),
     ...vh.map((x) => clip(x / OBS_SCALE, -2, 2)),
-    s.roll / P.maxAngle, s.pitch / P.maxAngle,
+    s.roll / p.maxAngle, s.pitch / p.maxAngle,
     s.pos[2] / OBS_SCALE,
     ...prevAction,
     ...rays.map((r) => r / RAY_LEN),
     ...(goalVel ? yawFrame(goalVel, s.yaw).map((x) => clip(x / GOAL_VEL_SCALE, -2, 2)) : [0, 0, 0]),
+    ...subj.map((x) => clip(x / OBS_SCALE, -2, 2)),
+    ...TOMAS.map((t) => (t === toma ? 1 : 0)),
+    ...physFeatures(p),
   ];
   return obs.map(Math.fround);                            // float32, como en Python
+}
+
+// Qué es una toma BUENA (sensing.py: FRAME_H, FRAME_V, TRACK_R, FLOW_V, SHAKE_REF, PAN_REF)
+export const FILM = { frameH: (20 * Math.PI) / 180, frameV: (15 * Math.PI) / 180, trackR: 1.2, flowV: 1.0, shakeRef: 0.8, panRef: 6.0 };
+
+/**
+ * Qué tan buena es la imagen ahora (0-1) = encuadre x seguimiento x ritmo x estable (sensing.film_quality).
+ * camPos/camVel = el punto de cámara de la toma y su velocidad · angRate = giro de roll/pitch (rad/s)
+ * yawAcc = cambio del giro (rad/s²) · gimbal: la cámara apunta sola al sujeto y quita sacudidas.
+ */
+export function filmQuality(s, subject, camPos, camVel, angRate, yawAcc = 0, gimbal = false) {
+  const d = [subject[0] - s.pos[0], subject[1] - s.pos[1], subject[2] - s.pos[2]];
+  const dh = Math.hypot(d[0], d[1]);
+  const b = Math.atan2(d[1], d[0]);
+  const eH = Math.atan2(Math.sin(b - s.yaw), Math.cos(b - s.yaw));
+  const elev = Math.atan2(d[2], dh);
+  const cam = gimbal ? elev : -CAM.tilt - s.pitch;
+  const eV = elev - cam;
+  const framing = Math.max(0, 1 - (eH / FILM.frameH) ** 2) * Math.max(0, 1 - (eV / FILM.frameV) ** 2);
+  const track = Math.exp(-((norm3([camPos[0] - s.pos[0], camPos[1] - s.pos[1], camPos[2] - s.pos[2]]) / FILM.trackR) ** 2));
+  const flow = Math.exp(-((norm3([s.vel[0] - camVel[0], s.vel[1] - camVel[1], s.vel[2] - camVel[2]]) / FILM.flowV) ** 2));
+  const shake = angRate * (gimbal ? 0.3 : 1.0), pan = Math.abs(yawAcc) * (gimbal ? 0.5 : 1.0);
+  const steady = Math.exp(-((shake / FILM.shakeRef) ** 2)) * Math.exp(-((pan / FILM.panRef) ** 2));
+  return { framing, track, flow, steady, q: framing * track * flow * steady, dh, eH, eV };
+}
+
+// ---------------- tomas de video (tomas.py): la ruta que sigue la cámara ----------------
+export const TOMA = { startR: 1.5, startV: 2.0 };
+const ease = (u) => u * u * (3 - 2 * u), dease = (u) => 6 * u * (1 - u);
+
+/** Una toma: tipo ("fija", "orbita", "revelar"), sujeto [x,y,z], duración y los números de su ruta. */
+export class Toma {
+  constructor(tipo, subject, dur, p) { this.tipo = tipo; this.subject = subject.slice(); this.dur = dur; this.p = { ...p }; this.reset(); }
+  static fromDict(d) { const { tipo, subject, dur, ...p } = d; return new Toma(tipo, subject, dur, p); }
+  toDict() { return { tipo: this.tipo, subject: this.subject.slice(), dur: this.dur, ...this.p }; }
+  reset() { this.t = 0; this.phase = "ir"; return this; }
+  /** [punto, velocidad] en la fracción u (0-1) de la ruta. */
+  at(u) {
+    u = clip(u, 0, 1);
+    const s = ease(u), ds = dease(u) / this.dur, p = this.p, sx = this.subject[0], sy = this.subject[1];
+    if (this.tipo === "fija") return [[p.x, p.y, p.z], [0, 0, 0]];
+    if (this.tipo === "orbita") {
+      const a = p.a0 + p.sweep * s, w = p.sweep * ds;
+      return [[sx + p.r * Math.cos(a), sy + p.r * Math.sin(a), p.z], [-p.r * Math.sin(a) * w, p.r * Math.cos(a) * w, 0]];
+    }
+    if (this.tipo === "revelar") {
+      const d = p.d0 + (p.d1 - p.d0) * s, z = p.z0 + (p.z1 - p.z0) * s, c = Math.cos(p.az), si = Math.sin(p.az);
+      const vd = (p.d1 - p.d0) * ds, vz = (p.z1 - p.z0) * ds;
+      return [[sx + d * c, sy + d * si, z], [vd * c, vd * si, vz]];
+    }
+    throw new Error("toma desconocida: " + this.tipo);
+  }
+  start() { return this.at(0)[0]; }
+  get progress() { return Math.min(this.t / this.dur, 1); }
+  point() { return this.at(this.progress)[0]; }
+  vel() { return this.phase === "grabando" ? this.at(this.progress)[1] : [0, 0, 0]; }
+  step(dt, pos, vel) {
+    if (this.phase === "ir") {
+      const st = this.start();
+      if (norm3([pos[0] - st[0], pos[1] - st[1], pos[2] - st[2]]) < TOMA.startR && norm3(vel) < TOMA.startV) this.phase = "grabando";
+    } else if (this.phase === "grabando") {
+      this.t += dt;
+      if (this.t >= this.dur - 1e-9) { this.t = this.dur; this.phase = "lista"; }
+    }
+  }
+  path(n = 32) { return Array.from({ length: n }, (_, i) => this.at(i / (n - 1))[0]); }
 }
 
 // ---------------- la red neuronal (runtime.NumpyPolicy) ----------------
@@ -305,7 +385,7 @@ export class Policy {
     this.hidden = [];                                     // activaciones (para dibujar el cerebro)
   }
   act(obs) {
-    let h = obs.length > this.layers[0].nin ? obs.slice(0, this.layers[0].nin) : obs;   // modelo viejo: 24 entradas
+    let h = obs.length > this.layers[0].nin ? obs.slice(0, this.layers[0].nin) : obs;   // modelo viejo: 24 o 27 entradas
     this.hidden = [];
     this.layers.forEach((L, li) => {
       const out = new Float32Array(L.nout);
@@ -323,27 +403,32 @@ export class Policy {
 }
 
 // ---------------- piloto PD (controller.py): solo para el aterrizaje ----------------
-export function pdAct(s, goal, vMax = 1.5, kp = 1.2, kv = 2.0) {
+export function pdAct(s, goal, vMax = 1.5, kp = 1.2, kv = 2.0, p = P) {
   let vd = [kp * (goal[0] - s.pos[0]), kp * (goal[1] - s.pos[1]), kp * (goal[2] - s.pos[2])];
   const n = norm3(vd);
   if (n > vMax) vd = vd.map((x) => (x * vMax) / n);
   const acc = [kv * (vd[0] - s.vel[0]), kv * (vd[1] - s.vel[1]), kv * (vd[2] - s.vel[2])];
   const ah = yawFrame(acc, s.yaw);
-  const pitch = Math.atan2(ah[0], P.g);
-  const roll = -Math.atan2(ah[1], P.g);
-  const thr = (P.hover * (1 + acc[2] / P.g)) / Math.max(Math.cos(roll) * Math.cos(pitch), 0.5);
-  return [throttleToAction(clip(thr, 0, 1)), roll / P.maxAngle, pitch / P.maxAngle, 0].map((x) => clip(x, -1, 1));
+  const pitch = Math.atan2(ah[0], p.g);
+  const roll = -Math.atan2(ah[1], p.g);
+  const thr = (p.hover * (1 + acc[2] / p.g)) / Math.max(Math.cos(roll) * Math.cos(pitch), 0.5);
+  return [throttleToAction(clip(thr, 0, 1), p), roll / p.maxAngle, pitch / p.maxAngle, 0].map((x) => clip(x, -1, 1));
 }
 
 // ---------------- un vuelo (runtime.Flight) ----------------
 /**
  * phase: "ruta" (la red vuela) -> "aterrizaje" (PD baja a la plataforma) -> "aterrizado"   o   "choque".
  * pilot: "ia" (la red) o una función () => [gas, roll, pitch, yaw] (teclado).
+ * params: la física del dron (P por defecto). Grabar: subject, toma y film = true (la meta es el punto de
+ * cámara y no se "pasa": el dron se queda grabando hasta que el juego cambie la fase).
  */
 export class Flight {
   /** flock: caza (Flock ya con start()). noise: (n) => n x 3 normales (las pruebas lo fijan; si no, al azar). */
-  constructor(level, policy, { landOn = null, wind = 0, seed = 1, pilot = "ia", flock = null, noise = null } = {}) {
+  constructor(level, policy, { landOn = null, wind = 0, seed = 1, pilot = "ia", flock = null, noise = null,
+    params = P, subject = null, toma = null, film = false, shot = null } = {}) {
     this.level = level; this.policy = policy; this.landOn = landOn; this.pilot = pilot;
+    this.p = params; this.subject = subject; this.shot = shot;
+    this.toma = shot ? shot.tipo : toma; this.film = film || !!shot;
     this.dt = 1 / CONTROL_HZ;
     this.wind = new Wind(wind);
     this.rng = makeRng(seed);
@@ -355,6 +440,7 @@ export class Flight {
   reset(pos = null, yaw = null) {
     const start = pos || this.level.spawn;
     this.goalIdx = 0;
+    if (this.shot) this.shot.reset();
     if (this.flock) this.target = this.flock.pick(start, null);
     const g = this.flock ? this.goal() : this.level.goals[0] || [start[0] + 1, start[1], 1];
     this.state = newState(start, yaw ?? Math.atan2(g[1] - start[1], g[0] - start[0]));
@@ -367,10 +453,11 @@ export class Flight {
     return this;
   }
   goal() {
+    if (this.shot) return this.shot.point();
     if (this.flock) return this.flock.pos[this.target];
     return this.level.goals[Math.min(this.goalIdx, this.level.goals.length - 1)];
   }
-  goalVel() { return this.flock ? this.flock.estVel(this.target) : null; }
+  goalVel() { return this.shot ? this.shot.vel() : this.flock ? this.flock.estVel(this.target) : null; }
   nGoals() { return this.flock ? this.flock.n : this.level.goals.length; }
   step() {
     if (this.phase !== "ruta" && this.phase !== "aterrizaje") return;
@@ -378,7 +465,7 @@ export class Flight {
     let a;
     if (this.phase === "ruta") {
       if (this.pilot === "ia") {
-        this.obs = buildObs(s, this.goal(), this.rays, this.prevAction, this.goalVel());
+        this.obs = buildObs(s, this.goal(), this.rays, this.prevAction, this.goalVel(), this.p, this.subject, this.toma);
         a = this.policy.act(this.obs);                  // <- la red neuronal decide
       } else {
         a = this.pilot(s);
@@ -387,12 +474,12 @@ export class Flight {
       const pad = this.landOn;
       const above = [pad[0], pad[1], pad[2] + 0.6];
       if (!this.landLow && norm3([s.pos[0] - above[0], s.pos[1] - above[1], s.pos[2] - above[2]]) < 0.25 && norm3(s.vel) < 0.4) this.landLow = true;
-      a = pdAct(s, this.landLow ? [pad[0], pad[1], pad[2] - 0.4] : above);
+      a = pdAct(s, this.landLow ? [pad[0], pad[1], pad[2] - 0.4] : above, 1.5, 1.2, 2.0, this.p);
     }
     let groundCrash = false, grounded = false;
     this.windNow = this.wind.step(this.dt, this.rng);
     for (let i = 0; i < SUBSTEPS; i++) {
-      const inf = step(s, a, this.dt / SUBSTEPS, this.windNow);
+      const inf = step(s, a, this.dt / SUBSTEPS, this.windNow, this.p);
       groundCrash ||= inf.groundCrash;
       grounded ||= inf.grounded;
     }
@@ -400,6 +487,7 @@ export class Flight {
     this.t += this.dt;
     this.rays = sensorRays(s, this.level);
     const L = this.level, fl = this.flock;
+    if (this.shot && this.phase === "ruta") this.shot.step(this.dt, s.pos, s.vel);   // la toma avanza
     if (fl && this.phase === "ruta") {                    // los pájaros vuelan; la presa puede cambiar
       fl.step(this.dt, this.noise(fl.n), s.pos);
       this.target = fl.pick(s.pos, this.target);
@@ -407,7 +495,7 @@ export class Flight {
     const nG = L.goals.length;
     const dGoal = () => { const g = this.goal(); return norm3([g[0] - s.pos[0], g[1] - s.pos[1], g[2] - s.pos[2]]); };
     if (groundCrash) { this.phase = "choque"; this.reason = "suelo"; }
-    else if (L.collides(s.pos, P.radius)) { this.phase = "choque"; this.reason = "obstaculo"; }
+    else if (L.collides(s.pos, this.p.radius)) { this.phase = "choque"; this.reason = "obstaculo"; }
     else if (L.outOfBounds(s.pos)) { this.phase = "choque"; this.reason = "limites"; }
     else if (fl && this.phase === "ruta" && dGoal() < BIRDS.CATCH_R) {      // ¡cazado!
       fl.alive[this.target] = false;
@@ -415,7 +503,7 @@ export class Flight {
       this.caught = { i: this.target, pos: fl.pos[this.target].slice(), t: this.t };
       if (this.goalIdx >= fl.n) this.phase = "cazado";
       else this.target = fl.pick(s.pos, null);
-    } else if (!fl && this.phase === "ruta" && nG && dGoal() < GOAL_RADIUS) {
+    } else if (!fl && !this.film && this.phase === "ruta" && nG && dGoal() < GOAL_RADIUS) {
       this.goalIdx += 1;
       if (this.goalIdx >= nG) this.phase = this.landOn ? "aterrizaje" : "aterrizado";
     } else if (this.phase === "aterrizaje" && grounded && this.landLow) {

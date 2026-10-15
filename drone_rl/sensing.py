@@ -1,5 +1,5 @@
 """
-Lo que "siente" el dron: sensores de distancia y las 27 entradas de la red.
+Lo que "siente" el dron: sensores de distancia y las 38 entradas de la red.
 
 Está separado del entorno para que el entrenamiento (env.py) y Blender (runtime.py)
 usen EXACTAMENTE el mismo cálculo. Si cambiara algo aquí, la red vería el mundo distinto.
@@ -46,14 +46,32 @@ def sensor_rays(state: QuadState, level) -> np.ndarray:
 
 GOAL_VEL_SCALE = 5.0   # m/s de la meta (pájaros: ~1-4 m/s) -> ~[-1, 1]
 
+# Grabar: los tipos de toma (entradas 30-33, una sola en 1) y la cámara del dron
+TOMAS = ("fija", "revelar", "seguir", "orbita")
+CAM_HFOV = np.radians(80.0)     # campo de visión horizontal de la cámara
+CAM_VFOV = np.radians(50.0)     # vertical
+CAM_TILT = np.radians(15.0)     # sin gimbal, la cámara va fija mirando 15° hacia abajo
+N_OBS = 38
+
+
+def phys_features(p: QuadParams) -> np.ndarray:
+    """Entradas 34-37: qué dron maneja (para que la misma red vuele drones distintos)."""
+    return np.array([p.twr / 5.0, p.mass, p.drag * 20.0, p.att_resp / 10.0])
+
 
 def build_obs(state: QuadState, goal: np.ndarray, rays: np.ndarray, prev_action: np.ndarray,
-              p: QuadParams, goal_vel: np.ndarray | None = None) -> np.ndarray:
-    """Las 27 entradas de la red neuronal. Las 3 últimas (cómo se mueve la meta) valen 0 con aros quietos.
-    Van AL FINAL a propósito: un modelo viejo de 24 entradas usa obs[:24] y vuela igual que antes."""
+              p: QuadParams, goal_vel: np.ndarray | None = None, subject: np.ndarray | None = None,
+              toma: str | None = None) -> np.ndarray:
+    """Las 38 entradas de la red. Las nuevas van AL FINAL a propósito: un modelo viejo de 24 o 27
+    entradas usa solo las primeras y vuela igual que antes.
+      24-26 cómo se mueve la meta (0 con aros quietos)
+      27-29 dónde está el SUJETO que hay que grabar (sin sujeto: la meta)
+      30-33 qué toma se pide (fija, revelar, seguir, órbita; todo 0 si no está grabando)
+      34-37 la física de su dron (empuje/peso, masa, arrastre, respuesta)"""
     rel = yaw_frame(goal - state.pos, state.yaw)
     dist = np.linalg.norm(rel)
     vel_h = yaw_frame(state.vel, state.yaw)
+    subj = rel if subject is None else yaw_frame(np.asarray(subject, dtype=float) - state.pos, state.yaw)
     obs = np.concatenate([
         np.clip(rel / OBS_SCALE, -2, 2),                     # 3: dónde está la meta (relativa)
         [min(dist / OBS_SCALE, 2.0)],                        # 1: distancia a la meta
@@ -64,8 +82,45 @@ def build_obs(state: QuadState, goal: np.ndarray, rays: np.ndarray, prev_action:
         rays / RAY_LEN,                                      # 10: sensores (1 = libre)
         np.zeros(3) if goal_vel is None                      # 3: cómo se mueve la meta (en el marco del dron)
         else np.clip(yaw_frame(np.asarray(goal_vel, dtype=float), state.yaw) / GOAL_VEL_SCALE, -2, 2),
+        np.clip(subj / OBS_SCALE, -2, 2),                    # 3: dónde está el sujeto
+        [1.0 if toma == t else 0.0 for t in TOMAS],          # 4: qué toma
+        phys_features(p),                                    # 4: qué dron
     ])
     return obs.astype(np.float32)
+
+
+# Qué es una toma BUENA (estricto, como un camarógrafo de verdad)
+FRAME_H = np.radians(20.0)   # el sujeto a ±20° del centro (horizontal); a 10° ya baja a 0,75
+FRAME_V = np.radians(15.0)   # y a ±15° en vertical
+TRACK_R = 1.2                # m: qué tan pegado al punto de cámara de la ruta
+FLOW_V = 1.0                 # m/s: diferencia con la velocidad de la ruta (ritmo parejo, sin frenazos)
+SHAKE_REF = 0.8              # rad/s de giro de roll/pitch (sacudidas)
+PAN_REF = 6.0                # rad/s² de cambio del giro (yaw): paneo brusco
+
+
+def film_quality(state: QuadState, subject, cam_pos, cam_vel, ang_rate: float, yaw_acc: float = 0.0,
+                 gimbal: bool = False) -> dict:
+    """Qué tan buena es la imagen en este instante (0-1). La usan el entrenamiento (premio) y el juego
+    (calificación del video), con la MISMA cuenta (game/sim.js filmQuality). Es el producto de:
+      encuadre:     el sujeto cerca del centro del cuadro de la cámara (va en la nariz, 15° abajo sin gimbal)
+      seguimiento:  el dron pegado al punto de cámara de la toma (cam_pos)
+      ritmo:        a la velocidad de la ruta (cam_vel): ni se queda atrás ni frena de golpe
+      estable:      sin sacudidas de roll/pitch ni paneos bruscos (el gimbal quita casi todo)
+    """
+    d = np.asarray(subject, dtype=float) - state.pos
+    dh = float(np.hypot(d[0], d[1]))
+    b = float(np.arctan2(d[1], d[0]))
+    e_h = float(np.arctan2(np.sin(b - state.yaw), np.cos(b - state.yaw)))
+    elev = float(np.arctan2(d[2], dh))
+    cam = elev if gimbal else -CAM_TILT - state.pitch       # pitch > 0 = nariz abajo: la cámara mira más abajo
+    e_v = elev - cam
+    framing = max(0.0, 1.0 - (e_h / FRAME_H) ** 2) * max(0.0, 1.0 - (e_v / FRAME_V) ** 2)
+    track = float(np.exp(-(np.linalg.norm(np.asarray(cam_pos, dtype=float) - state.pos) / TRACK_R) ** 2))
+    flow = float(np.exp(-(np.linalg.norm(state.vel - np.asarray(cam_vel, dtype=float)) / FLOW_V) ** 2))
+    shake = ang_rate * (0.3 if gimbal else 1.0)
+    pan = abs(yaw_acc) * (0.5 if gimbal else 1.0)
+    steady = float(np.exp(-(shake / SHAKE_REF) ** 2) * np.exp(-(pan / PAN_REF) ** 2))
+    return {"framing": framing, "track": track, "flow": flow, "steady": steady, "q": framing * track * flow * steady}
 
 
 def clearance_penalty(rays: np.ndarray, safe: float = 1.2) -> float:

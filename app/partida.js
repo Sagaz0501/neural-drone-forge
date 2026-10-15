@@ -1,0 +1,335 @@
+// =====================================================================
+// LA PARTIDA: plata, reputación, el INVENTARIO (cada pieza comprada es una unidad con su vida: si compras
+// 3 juegos de motores tienes 3 unidades), el HANGAR (varios drones, cada uno con nombre, propósito, sus
+// piezas, su estado en el banco de armado y SU modelo de IA) y los pedidos hechos.
+// Se guarda en localStorage (y una copia en partida.json). Toda la economía está aquí (números en app/data/).
+//
+// Versión 3. Las partidas v1/v2 (un solo dron) se migran: cada pieza que tenías es una unidad y tu dron
+// pasa a ser el primero del hangar, ya armado, cableado y programado, con la IA base (models/modelo.zip).
+// =====================================================================
+import { calcular, pieza, POR_DEFECTO } from "./parts.js";
+
+const CLAVE = "dronmaker.partida";
+export const PLATA_INICIAL = 150;
+export const RANURAS = [
+  ["chasis", "chasis", "Chasis"], ["motores", "motores", "Motores"], ["helices", "helices", "Hélices"],
+  ["esc", "escs", "ESC (variadores)"], ["bateria", "baterias", "Batería"], ["controladora", "controladoras", "Controladora"],
+  ["radio", "radios", "Radio"], ["camara", "camaras", "Cámara"], ["montaje", "montajes", "Montaje de la cámara"],
+];
+export const RANURA = Object.fromEntries(RANURAS.map(([slot, ranura]) => [slot, ranura]));
+export const ESTILO = { color: "#b07a45", acento: "#ff7a1a", forma: "x" };
+/** Reputación que abre cada etapa de la tienda (etapa 1 desde el inicio). */
+export const REP_ETAPA = [0, 0, 5, 12, 20, 30];
+/** Cuánto te dan por una pieza usada (× precio × vida). */
+export const VENTA = 0.4;
+/** Reimprimir un chasis con otra forma: lo que cuesta el filamento (× precio con impresora). */
+export const REIMPRIMIR = 0.3;
+
+// ---------------- crear y migrar ----------------
+export function nuevaPartida() {
+  const p = { v: 3, plata: PLATA_INICIAL, rep: 0, inventario: [], sig: 1, drones: [], activo: null, hechos: {}, vuelos: 0,
+    creada: Date.now(), herramientas: [], empresa: "Garaje Films" };
+  // lo que venía con el garaje: un ESC viejo y tornillos (la radio ESP-NOW viene en el ESP32: es gratis)
+  for (const id of ["esc20", "mt_tornillos"]) agregarUnidad(p, id);
+  return p;
+}
+
+/**
+ * Modo desarrollador: lo importante es crear y entrenar modelos (el estudio PBDMM), no juntar plata. Todo abierto,
+ * plata de sobra, todas las herramientas y dos drones ya armados y probados en el banco. drones = {nombre: {slot: id}}.
+ */
+export function nuevaPartidaDev(cat, drones, extras = {}) {
+  const p = nuevaPartida();
+  Object.assign(p, { modo: "dev", plata: 99999, rep: REP_ETAPA.at(-1), empresa: "Estudio de IA",
+    herramientas: (cat.herramientas || []).map((h) => h.id) });
+  for (const [nombre, piezas] of Object.entries(drones)) {
+    const d = nuevoDron(p, nombre, "Pruebas de IA");
+    d.estilo = { ...ESTILO };
+    for (const [slot, id] of Object.entries(piezas)) d.slots[slot] = agregarUnidad(p, id).uid;
+    d.extras = (extras[nombre] || []).map((id) => agregarUnidad(p, id).uid);
+    const ch = unidad(p, d.slots.chasis);
+    if (ch) ch.diseno = { tipo: "forma", forma: "x" };
+    d.banco = bancoListo(d);                   // armado, cableado y programado (el banco lo completa al abrirlo)
+  }
+  p.activo = p.drones[0]?.id ?? null;
+  return p;
+}
+
+/** v1/v2 -> v3: cada pieza que tenías = 1 unidad; tu dron = el primero del hangar, listo para volar. */
+function migrar(p) {
+  if (p.v === 3) return p;
+  const old = { ...(p.dron || {}) }, inv = p.inventario || {}, est = p.estilo || { ...ESTILO };
+  const q = { v: 3, plata: p.plata, rep: p.rep, inventario: [], sig: 1, drones: [], activo: null, hechos: p.hechos || {},
+    vuelos: p.vuelos || 0, creada: p.creada || Date.now(), herramientas: p.herramientas || [], empresa: p.empresa || "Garaje Films" };
+  const uidDe = {};
+  for (const [id, u] of Object.entries(inv)) uidDe[id] = agregarUnidad(q, id, u.vida ?? 100).uid;
+  if (["chasis", "motores", "bateria", "controladora", "camara"].some((s) => old[s])) {
+    const d = nuevoDron(q, "Dron 1", "Videos");
+    d.estilo = { ...ESTILO, ...est };
+    d.modelo = "base";
+    for (const [slot] of RANURAS) {
+      const id = old[slot] || POR_DEFECTO[slot];
+      if (!id) continue;
+      if (!uidDe[id]) uidDe[id] = agregarUnidad(q, id).uid;
+      d.slots[slot] = uidDe[id];
+    }
+    d.extras = (old.extras || []).filter((id) => uidDe[id]).map((id) => uidDe[id]);
+    const ch = unidad(q, d.slots.chasis);
+    if (ch) ch.diseno = { tipo: "forma", forma: est.forma || "x" };
+    d.banco = bancoListo(d);                   // ya lo tenías volando: armado, cableado y programado
+  }
+  return q;
+}
+
+/** Un banco "como si ya lo hubieras armado todo" (para la migración y las pruebas). */
+export function bancoListo(d) {
+  return { instalado: { ...d.slots, extras: [...d.extras] }, helices: true, ia: d.modelo ? { modelo: d.modelo } : null, migrado: true };
+}
+
+export function cargar() {
+  try {
+    const s = localStorage.getItem(CLAVE);
+    if (!s) return null;
+    const p = JSON.parse(s);
+    if (p && p.v < 3) localStorage.setItem(`${CLAVE}_v${p.v}`, s);     // respaldo de la partida de antes de migrar
+    return p && [1, 2, 3].includes(p.v) ? migrar(p) : null;
+  } catch { return null; }
+}
+
+export function guardar(p) {
+  try { localStorage.setItem(CLAVE, JSON.stringify(p)); } catch { /* sin almacenamiento: se juega igual */ }
+  // copia en partida.json (scripts/jugar.py), para poder revisarla desde afuera del navegador
+  if (typeof fetch !== "function") return;
+  clearTimeout(guardar.t);                     // varios guardados seguidos: se manda solo el último
+  guardar.t = setTimeout(() => fetch("/api/partida", { method: "POST", body: JSON.stringify(p) }).catch(() => {}), 400);
+}
+
+export function borrar() {
+  try { localStorage.removeItem(CLAVE); } catch { /* nada */ }
+}
+
+/** Hasta qué etapa de la tienda llegas con tu reputación. */
+export function etapa(p) {
+  let e = 1;
+  for (let k = 1; k < REP_ETAPA.length; k++) if (p.rep >= REP_ETAPA[k]) e = k;
+  return e;
+}
+
+// ---------------- inventario (unidades) ----------------
+export function agregarUnidad(p, id, vida = 100) {
+  const u = { uid: "u" + p.sig++, id, vida };
+  p.inventario.push(u);
+  return u;
+}
+export const unidad = (p, uid) => p.inventario.find((u) => u.uid === uid) || null;
+export const unidades = (p, id) => p.inventario.filter((u) => u.id === id);
+export const tiene = (p, id) => p.inventario.some((u) => u.id === id);
+export const tieneHerramienta = (p, id) => (p.herramientas || []).includes(id);
+
+/** El dron donde está puesta una unidad (o null si está libre en el estante). */
+export function dronDe(p, uid) {
+  return p.drones.find((d) => Object.values(d.slots).includes(uid) || d.extras.includes(uid)) || null;
+}
+/** Unidades libres de una pieza (las mejores primero). */
+export const libres = (p, id) => unidades(p, id).filter((u) => !dronDe(p, u.uid)).sort((a, b) => b.vida - a.vida);
+
+/** Lo que cuesta una pieza: con la impresora 3D, los chasis imprimibles salen 40 % más baratos. */
+export function precioDe(p, pz) {
+  return pz.imprimible && tieneHerramienta(p, "impresora") ? Math.round(pz.precio * 0.6) : pz.precio;
+}
+
+/** ¿Se puede comprar? Devuelve un texto de error o null. */
+export function puedeComprar(p, cat, ranura, id) {
+  const pz = pieza(cat, ranura, id);
+  if (!pz) return "Esa pieza no existe.";
+  if (ranura === "herramientas" && tieneHerramienta(p, id)) return "Ya la tienes.";
+  if (pz.etapa > etapa(p)) return `Se desbloquea con ${REP_ETAPA[pz.etapa]} de reputación.`;
+  if (pz.impresora && !tieneHerramienta(p, "impresora")) return "Necesitas la impresora 3D para imprimirlo.";
+  return null;
+}
+
+/** Comprar n unidades (o una herramienta). Devuelve un texto de error o null. */
+export function comprar(p, cat, ranura, id, n = 1) {
+  const err = puedeComprar(p, cat, ranura, id);
+  if (err) return err;
+  const pz = pieza(cat, ranura, id), total = precioDe(p, pz) * n;
+  if (p.plata < total) return `Te faltan $${total - p.plata}.`;
+  p.plata -= total;
+  if (ranura === "herramientas") p.herramientas = [...(p.herramientas || []), id];
+  else for (let i = 0; i < n; i++) {
+    const u = agregarUnidad(p, id);
+    // sin impresora, los chasis "impresos" llegan impresos de la tienda (en X); con impresora, los imprimes tú
+    if (pz.imprimible && !tieneHerramienta(p, "impresora")) u.diseno = { tipo: "forma", forma: "x" };
+  }
+  return null;
+}
+
+/** Comprar un carrito [{ranura, id, n}]: todo o nada. */
+export function comprarCarrito(p, cat, items) {
+  let total = 0;
+  for (const it of items) {
+    const err = puedeComprar(p, cat, it.ranura, it.id);
+    if (err) return `${pieza(cat, it.ranura, it.id)?.nombre}: ${err}`;
+    total += precioDe(p, pieza(cat, it.ranura, it.id)) * it.n;
+  }
+  if (p.plata < total) return `Te faltan $${total - p.plata}.`;
+  for (const it of items) comprar(p, cat, it.ranura, it.id, it.n);
+  return null;
+}
+
+/** Vender una unidad libre: VENTA × precio × vida. Devuelve lo que te dieron o un texto de error. */
+export function vender(p, cat, uid) {
+  const u = unidad(p, uid);
+  if (!u) return "No existe.";
+  if (dronDe(p, uid)) return "Está puesta en un dron: quítala primero.";
+  const pz = buscarPieza(cat, u.id);
+  const plata = Math.round((pz?.precio || 0) * VENTA * (u.vida / 100));
+  p.inventario = p.inventario.filter((x) => x.uid !== uid);
+  p.plata += plata;
+  return plata;
+}
+
+/** Busca una pieza por id en cualquier ranura. */
+export function buscarPieza(cat, id) {
+  for (const [k, v] of Object.entries(cat)) if (Array.isArray(v)) { const pz = v.find((x) => x.id === id); if (pz) return { ...pz, ranura: k }; }
+  return null;
+}
+
+// ---------------- el hangar ----------------
+export function nuevoDron(p, nombre, proposito = "") {
+  let n = 1;
+  while (p.drones.some((d) => d.id === "d" + n)) n++;
+  const d = { id: "d" + n, nombre: nombre || `Dron ${n}`, proposito, slots: {}, extras: [], estilo: { ...ESTILO }, banco: {}, modelo: null,
+    canopy: null, visuales: {}, creado: Date.now() };
+  p.drones.push(d);
+  p.activo = d.id;
+  return d;
+}
+export const dron = (p, did) => p.drones.find((d) => d.id === did) || null;
+export const dronActivo = (p) => dron(p, p.activo) || p.drones[0] || null;
+
+/** Desarmar y borrar un dron: sus piezas vuelven al estante. */
+export function borrarDron(p, did) {
+  p.drones = p.drones.filter((d) => d.id !== did);
+  if (p.activo === did) p.activo = p.drones[0]?.id || null;
+}
+
+/** Elegir la pieza `id` para una ranura del dron: toma la mejor unidad libre. Devuelve error o null. */
+export function instalar(p, d, slot, id) {
+  const actual = unidad(p, d.slots[slot]);
+  if (actual?.id === id) return null;
+  const u = libres(p, id)[0];
+  if (!u) return "No tienes una libre: cómprala en la tienda o quítasela a otro dron.";
+  d.slots[slot] = u.uid;
+  return null;
+}
+export function quitar(p, d, slot) { delete d.slots[slot]; }
+
+/** Poner o quitar un extra (protectores, ToF, luces…) que tengas libre. */
+export function alternarExtra(p, d, id) {
+  const puesto = d.extras.find((uid) => unidad(p, uid)?.id === id);
+  if (puesto) { d.extras = d.extras.filter((x) => x !== puesto); return null; }
+  const u = libres(p, id)[0];
+  if (!u) return "No tienes uno libre: cómpralo en la tienda.";
+  d.extras.push(u.uid);
+  return null;
+}
+
+/** Los ids de las piezas del dron (el formato que usan parts.js, dron3d.js y el vuelo). */
+export function build(p, d) {
+  const b = { extras: [], estilo: d.estilo, canopy: d.canopy, visuales: d.visuales || {} };
+  for (const [slot] of RANURAS) {
+    const u = unidad(p, d.slots[slot]);
+    if (u) b[slot] = u.id;
+  }
+  b.extras = d.extras.map((uid) => unidad(p, uid)?.id).filter(Boolean);
+  const ch = unidad(p, d.slots.chasis);
+  if (ch?.diseno) {
+    b.diseno = ch.diseno;
+    if (ch.diseno.tipo === "stl") b.chasisStl = { masa_g: ch.diseno.masa_g, radio_m: ch.diseno.radio_m, helice_max: ch.diseno.helice_max };
+  }
+  if (d.canopy?.masa_g) b.extraMasa_g = d.canopy.masa_g;
+  return b;
+}
+
+/** El dron con sus números (o null si le faltan piezas). */
+export function dronArmado(p, cat, d, meta = null) {
+  if (!d) return null;
+  const b = build(p, d);
+  for (const [slot] of RANURAS) if (!b[slot]) return null;
+  return { build: b, stats: calcular(b, cat, meta) };
+}
+
+// ---------------- daños ----------------
+/** Unidades del dron que están rotas (vida 0): no puede volar hasta repararlas. */
+export function rotas(p, d) {
+  return [...Object.values(d.slots), ...d.extras].map((uid) => unidad(p, uid)).filter((u) => u && u.vida <= 0);
+}
+
+/** Cuánto cuesta dejar el dron como nuevo: precio × lo que perdió × 0,6. */
+export function costoReparar(p, cat, d) {
+  let c = 0;
+  for (const uid of Object.values(d.slots)) {
+    const u = unidad(p, uid), pz = u && buscarPieza(cat, u.id);
+    if (pz) c += pz.precio * (1 - u.vida / 100) * 0.6;
+  }
+  return Math.ceil(c);
+}
+
+export function reparar(p, cat, d) {
+  const c = costoReparar(p, cat, d);
+  if (c > p.plata) return `Te faltan $${c - p.plata}.`;
+  p.plata -= c;
+  for (const uid of Object.values(d.slots)) { const u = unidad(p, uid); if (u) u.vida = 100; }
+  return null;
+}
+
+/** Sin plata para reparar: lo arreglas tú con cinta y pegamento. Gratis, pero las piezas rotas quedan al 40 %. */
+export function arregloCasero(p, d) {
+  for (const u of rotas(p, d)) u.vida = 40;
+}
+
+/**
+ * Un choque: cada pieza pierde vida según la velocidad del golpe, el aguante del chasis y su durabilidad.
+ * Las hélices casi siempre se rompen. Devuelve [{nombre, perdio, vida}] para contarlo en pantalla.
+ */
+export function chocar(p, cat, d, velGolpe) {
+  const b = build(p, d), ch = pieza(cat, "chasis", b.chasis);
+  const exceso = Math.max(0, velGolpe - ch.aguante_ms * 0.5);
+  const out = [];
+  const golpeables = new Set(["chasis", "motores", "helices", "esc", "camara", "montaje"]);
+  const conProt = b.extras.includes("protectores") || ch.protectores;
+  for (const [slot, ranura] of RANURAS) {
+    const u = unidad(p, d.slots[slot]), pz = u && pieza(cat, ranura, u.id);
+    if (!pz || !golpeables.has(slot)) continue;
+    if (slot === "helices" && conProt && exceso < 2) continue;     // los protectores salvan las hélices
+    const dur = slot === "chasis" ? ch.durabilidad : pz.durabilidad ?? 70;
+    let perdio = slot === "helices" ? 60 + exceso * 20 : (exceso * 15 * 100) / dur * (slot === "chasis" ? 1 : 0.35);
+    perdio = Math.round(Math.min(100, perdio));
+    if (perdio <= 0) continue;
+    u.vida = Math.max(0, u.vida - perdio);
+    out.push({ nombre: pz.nombre, perdio, vida: u.vida });
+  }
+  return out;
+}
+
+/** Quemar una unidad (un corto en el banco): vida a 0 (o lo que diga `queda`). */
+export function quemar(p, uid, queda = 0) {
+  const u = unidad(p, uid);
+  if (u) u.vida = Math.min(u.vida, queda);
+  return u;
+}
+
+// ---------------- pedidos ----------------
+export const ESTRELLAS = [40, 65, 85];      // puntaje mínimo para 1, 2 y 3 estrellas (cada cliente puede pedir otras)
+export const estrellasDe = (puntaje, umbrales = ESTRELLAS) => umbrales.filter((x) => puntaje >= x).length;
+
+/** Cobrar un pedido según las estrellas. Devuelve {pago, rep}. */
+export function cobrar(p, misiones, pedido, estrellas) {
+  const pago = Math.round(pedido.pago * misiones.pago_por_estrellas[estrellas]);
+  const rep = misiones.reputacion_por_estrellas[estrellas];
+  p.plata += pago;
+  p.rep = Math.max(0, p.rep + rep);
+  p.hechos[pedido.id] = Math.max(p.hechos[pedido.id] ?? 0, estrellas);
+  return { pago, rep };
+}

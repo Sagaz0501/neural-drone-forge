@@ -21,8 +21,8 @@ from .sensing import build_obs, sensor_rays
 
 
 class NumpyPolicy:
-    """El actor de PPO (27 -> 128 -> 128 -> 4) como multiplicaciones de matrices con numpy.
-    Un modelo viejo de 24 entradas también sirve: usa solo las primeras 24."""
+    """El actor de PPO (38 -> 128 -> 128 -> 4) como multiplicaciones de matrices con numpy.
+    Un modelo viejo de 24 o 27 entradas también sirve: usa solo las primeras."""
 
     def __init__(self, path):
         d = np.load(path, allow_pickle=False)
@@ -42,10 +42,14 @@ class NumpyPolicy:
 
 
 class Flight:
-    """Un vuelo: la red sigue la ruta y, si hay plataforma, el piloto PD aterriza al final."""
+    """Un vuelo: la red sigue la ruta y, si hay plataforma, el piloto PD aterriza al final.
+    Grabar: subject = qué grabar y shot = la toma (tomas.Toma): la meta es su punto de cámara, que espera
+    al dron en el inicio de la ruta y después avanza (shot.step, igual que en el entrenamiento).
+    Con film=True (o con shot) la meta no se "pasa": el dron sigue grabando hasta que el juego cambie la fase."""
 
     def __init__(self, level, policy, p: QuadParams | None = None, control_hz: int = 50, substeps: int = 2,
-                 goal_radius: float = 0.5, land_on=None, wind: float = 0.0, seed=None, flock=None, noise_fn=None):
+                 goal_radius: float = 0.5, land_on=None, wind: float = 0.0, seed=None, flock=None, noise_fn=None,
+                 subject=None, toma=None, film: bool = False, shot=None):
         self.level, self.policy = level, policy
         self.wind = Wind(wind)                     # mismo viento con ráfagas que en el entrenamiento
         self.rng = np.random.default_rng(seed)
@@ -60,10 +64,15 @@ class Flight:
         self.bird_rng = np.random.default_rng(None if seed is None else seed + 1)
         self.noise_fn = noise_fn or (lambda n: self.bird_rng.normal(size=(n, 3)))
         self.target = None
+        self.subject = None if subject is None else np.asarray(subject, dtype=float)
+        self.shot = shot
+        self.toma, self.film = (shot.tipo if shot is not None else toma), (film or shot is not None)
 
     def reset(self, pos=None, yaw: float | None = None):
         start = self.level.spawn if pos is None else np.asarray(pos, dtype=float)
         self.goal_idx = 0
+        if self.shot is not None:
+            self.shot.reset()
         if self.flock is not None:
             self.target = self.flock.pick(start, None)
         g = self.goal() - start
@@ -80,11 +89,15 @@ class Flight:
         return self.info()
 
     def goal(self):
+        if self.shot is not None:
+            return self.shot.point()
         if self.flock is not None:
             return self.flock.pos[self.target]
         return self.level.goals[min(self.goal_idx, len(self.level.goals) - 1)]
 
     def goal_vel(self):
+        if self.shot is not None:
+            return self.shot.vel()
         return self.flock.est_vel[self.target] if self.flock is not None else None
 
     def step(self):
@@ -92,7 +105,7 @@ class Flight:
             return self.info()
         s = self.state
         if self.phase == "ruta":
-            obs = build_obs(s, self.goal(), self.rays, self.prev_action, self.p, self.goal_vel())
+            obs = build_obs(s, self.goal(), self.rays, self.prev_action, self.p, self.goal_vel(), self.subject, self.toma)
             a = self.policy(obs)                                  # <- la red neuronal decide
         else:
             # aterrizaje: el piloto PD baja despacio sobre la plataforma
@@ -113,6 +126,8 @@ class Flight:
         s = self.state
         self.rays = sensor_rays(s, self.level)
         fl = self.flock
+        if self.shot is not None and self.phase == "ruta":    # la toma avanza (o sigue esperando en el inicio)
+            self.shot.step(self.dt, s.pos, s.vel)
         if fl is not None and self.phase == "ruta":     # los pájaros vuelan y la presa puede cambiar
             fl.step(self.dt, self.noise_fn(fl.n), s.pos)
             self.target = fl.pick(s.pos, self.target)
@@ -130,7 +145,7 @@ class Flight:
                 self.phase = "cazado"
             else:
                 self.target = fl.pick(s.pos, None)
-        elif self.phase == "ruta" and np.linalg.norm(self.goal() - s.pos) < self.goal_radius:
+        elif self.phase == "ruta" and not self.film and np.linalg.norm(self.goal() - s.pos) < self.goal_radius:
             self.goal_idx += 1
             if self.goal_idx >= len(self.level.goals):
                 self.phase = "aterrizaje" if self.land_on is not None else "aterrizado"

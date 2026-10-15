@@ -6,19 +6,40 @@ se puede correr a mano y mirar desde Blender:
 
     python scripts/live_train.py --drones 50 --stage 0
 
-Protocolo (UDP en localhost, mensajes JSON, como telemetría de un dron real):
-    trainer -> Blender  :9001   "h" hola + misión · "f" posiciones · "l" nivel de un dron · "s" estadísticas
-                                "a" activaciones de la red del dron observado · "w" conexiones más fuertes
-    Blender -> trainer  :9002   {"lr":…, "ent":…, "log_std":…, "reward":{…}, "speed":"real|rapido", "pause":bool,
-                                 "env": {"density":…, "wind":…}, "watch": i, "save":true, "export":true, "stop":true}
+Protocolo (UDP en localhost, mensajes JSON, como telemetría de un dron real). Puertos: --port / --ctrl-port
+(Dron Maker usa 9011/9012; drone-rl, el otro proyecto, 9001/9002):
+    trainer -> Blender  "h" hola + misión · "f" posiciones · "l" nivel de un dron · "s" estadísticas
+                        "a" activaciones de la red del dron observado · "w" conexiones más fuertes
+    Blender -> trainer  {"lr":…, "ent":…, "log_std":…, "reward":{…}, "speed":"real|rapido", "pause":bool,
+                         "env": {"density":…, "wind":…}, "watch": i, "save":true, "export":true, "stop":true}
+    Grabar (nivel 11):  "l" lleva "film": {"subject": [x,y,z], "band": [d_min, d_max, z_min, z_max],
+                        "house": [cx, cy, largo_x, ancho_y, alto_paredes], "toma"}; "f" lleva "q" (calidad de imagen
+                        de cada dron, 0-1) y "fg" (cuánto lleva de la toma, 0-1). La historia por generación es
+                        [gen, pasos, éxito, choque, nivel, calidad media] (calidad = None fuera de grabar).
     "export": guarda el modelo actual y lo pasa a numpy (.npz) para probarlo en un escenario de Blender;
               responde con {"t": "x", "npz": ruta}.
 
-UN SOLO MODELO: todo el entrenamiento (cualquier nivel, cualquier número de drones) vive en
-models/modelo.zip. Si existe, se continúa; si no, se crea una red nueva al azar. Se guarda solo
-cada 10 generaciones y al detener. Su historia (pasos, generaciones, curva de éxito y en qué nivel
-se entrenó) va en models/modelo.json, así la curva del laboratorio muestra el desarrollo completo.
+QUÉ DRON: --dron drones/madera.json entrena con la física de un dron armado en el juego;
+--dron azar sortea la física en cada intento dentro de drones/rango_juego.json (así la red aprende a
+volar "cualquier" dron del juego). Lo que el modelo ya conoce queda en modelo.json y modelo_web.json
+(meta.rango_fisica): el juego lo lee para saber si la IA sabe volar el dron del jugador.
+
+UN MODELO POR DRON: --model dice cuál (por defecto models/modelo.zip, el modelo "base"; los drones del
+hangar tienen el suyo en models/drones/<slug>/modelo.zip). Si existe, se continúa; si no, se crea una red
+nueva al azar. Se guarda solo cada 10 generaciones y al detener. TODO lo que se escribe sale de la carpeta del
+modelo: modelo.json (historia: pasos, generaciones, curva de éxito, niveles), modelo_web.json (pesos para el
+navegador), modelo.npz ("export"), los *_guardando temporales y anteriores/ (copia antes de ampliar la red).
+El progreso en vivo va a --estado (por defecto models/entrenando.json; trae "modelo": "base" o el slug).
 Los N drones del laboratorio son N copias del MISMO cerebro: todo lo que viven entrena esa única red.
+
+SIN BLENDER (entrenar "en el fondo", lo lanza scripts/jugar.py): mandar UDP a un puerto donde nadie escucha no
+falla (send() ignora los errores). El control llega igual por --ctrl-port: cada datagrama es UN objeto JSON
+(utf-8), el mismo que manda Blender (drone_lab.py send_ctrl), con las claves que hagan falta:
+    {"stop": true}                 detener: termina la generación, guarda (zip + json + web) y sale
+    {"pause": true|false}          pausar / seguir (en pausa se sigue escribiendo el progreso cada 1 s)
+    {"save": true}                 guardar ya · {"export": true} guardar + npz
+    {"reward": {"crash": 20, …}}   premios en vivo · {"env": {"wind": 2.5, "density": 1}} ambiente
+    {"speed": "real"|"rapido"} · {"lr": 3e-4} · {"ent": 0.0} · {"log_std": -0.7} · {"watch": i}
 
 Cada GENERACIÓN = un ciclo de PPO:
     1. VOLAR:     los N drones vuelan n_steps pasos con la red actual (juntan experiencia)
@@ -48,7 +69,42 @@ except ImportError:
     from stable_baselines3.common.utils import constant_fn as _Const
 
 from drone_rl import ACT_LABELS, DEFAULT_REWARD, MISSIONS, OBS_LABELS, STAGES, DroneEnv
-from drone_rl.env import LEVEL_MISSION
+from drone_rl.env import FILM_STAGES, HUNT_STAGES, LEVEL_MISSION
+from drone_rl.physics import QuadParams
+
+STANDARD_RANGE = {"twr": [2.3, 2.7], "masa_kg": [0.55, 0.65]}     # el dron de siempre (0.6 kg, 2.5)
+
+
+def load_drone(arg):
+    """--dron: None (el dron de siempre), 'azar' (física al azar del juego) o un drones/*.json.
+    Devuelve (params, phys_range, nombre, rango que aprende {"twr": [..], "masa_kg": [..]})."""
+    if not arg:
+        return None, None, "estándar", STANDARD_RANGE
+    if arg == "azar":
+        r = json.loads((ROOT / "drones" / "rango_juego.json").read_text(encoding="utf-8"))
+        rng = {k: v for k, v in r.items() if not k.startswith("_")}
+        return None, rng, "al azar", {"twr": list(rng["twr"]), "masa_kg": list(rng["mass"])}
+    path = Path(arg).expanduser()
+    if not path.is_absolute():
+        path = ROOT / path
+    d = json.loads(path.read_text(encoding="utf-8"))
+    p = QuadParams.from_dict(d)
+    return p, None, d.get("nombre", path.stem), {"twr": [p.twr * 0.92, p.twr * 1.08], "masa_kg": [p.mass * 0.92, p.mass * 1.08]}
+
+
+def model_slug(model_path):
+    """'base' si es models/modelo.zip; si no, el nombre de su carpeta (models/drones/<slug>/modelo.zip)."""
+    p = Path(model_path).resolve()
+    if p.parent == (ROOT / "models").resolve():
+        return "base"
+    return p.parent.name
+
+
+def merge_range(a, b):
+    """Unión de dos rangos de física (lo que el modelo ya conocía + lo que aprende ahora)."""
+    if not a:
+        return {k: [round(v[0], 3), round(v[1], 3)] for k, v in b.items()}
+    return {k: [round(min(a[k][0], b[k][0]), 3), round(max(a[k][1], b[k][1]), 3)] for k in b}
 
 TOP_K = (300, 500, 512)        # conexiones a mandar por capa (las de mayor |peso|)
 CHUNK = 6000                   # bytes por datagrama (macOS: máximo ~9216)
@@ -80,7 +136,8 @@ class LiveLink(BaseCallback):
         self.density, self.wind = args.density, args.wind
         self.bird_speed, self.n_birds = args.bird_speed, args.birds
         self.ep_goals = []                           # caza: cuántos pájaros caza por intento
-        self.history = list(meta.get("historia", []))     # [gen, pasos, éxito, crash, nivel]
+        self.ep_film = []                            # grabar: calidad media de la imagen por intento
+        self.history = list(meta.get("historia", []))     # [gen, pasos, éxito, crash, nivel, calidad (grabar)]
         self.session = {"inicio": time.strftime("%Y-%m-%d %H:%M:%S"), "nivel": args.stage, "drones": args.drones}
         self.events = []
         self.next_tick = time.perf_counter()
@@ -138,26 +195,55 @@ class LiveLink(BaseCallback):
             spheres = [t[2] for t in keep if t[1] == "s"]
             cyls = [t[2] for t in keep if t[1] == "c"]
         fl = env.flock
-        self.send({"t": "l", "i": i, "spawn": r3(lv.spawn),
-                   "goals": [r3(g) for g in (fl.pos if fl is not None else lv.goals)],
-                   "birds": fl is not None,
-                   "boxes": [r3(a) + r3(b) for a, b in zip(lv.box_min, lv.box_max)],
-                   "spheres": spheres, "cylinders": cyls})
+        msg = {"t": "l", "i": i, "spawn": r3(lv.spawn),
+               "goals": [r3(g) for g in (fl.pos if fl is not None else lv.goals)],
+               "birds": fl is not None,
+               "boxes": [r3(a) + r3(b) for a, b in zip(lv.box_min, lv.box_max)],
+               "spheres": spheres, "cylinders": cyls}
+        if getattr(env, "subject", None) is not None and len(lv.box_min):
+            # grabar: la casa (sus paredes son la 1a caja de level.house_boxes), el sujeto y la zona del cliente
+            mn, mx = lv.box_min[0], lv.box_max[0]
+            msg["film"] = {"subject": r3(env.subject), "band": [round(float(x), 3) for x in env.band],
+                           "house": [round(float((mn[0] + mx[0]) / 2), 3), round(float((mn[1] + mx[1]) / 2), 3),
+                                     round(float(mx[0] - mn[0]), 3), round(float(mx[1] - mn[1]), 3),
+                                     round(float(mx[2]), 3)],
+                           "toma": env.toma, "path": [r3(q) for q in env.shot.path(24)] if env.shot is not None else []}
+        self.send(msg)
 
     def params(self):
         sigma = float(torch.exp(self.model.policy.log_std.detach()).mean()) if getattr(self, "model", None) is not None else 0.0
         return {"lr": self.lr, "ent": self.ent, "sigma": round(sigma, 3), "reward": self.reward, "speed": self.speed,
-                "drones": self.args.drones, "stage": self.args.stage, "paused": self.paused,
+                "drones": self.args.drones, "stage": self.args.stage, "paused": self.paused, "dron": self.args.dron_nombre,
                 "density": self.density, "wind": self.wind, "bird_speed": self.bird_speed, "n_birds": self.n_birds}
 
-    def send_stats(self):
+    def send_stats(self, force=False):
         w = max(2 * self.args.drones, 100)
         mean = lambda xs: float(np.mean(xs[-w:])) if xs else 0.0
-        self.send({"t": "s", "phase": self.phase, "gen": self.gen, "steps": int(self.num_timesteps),
-                   "eps": self.total_eps, "succ": mean(self.ep_succ), "crash": mean(self.ep_crash),
-                   "rew": mean(self.ep_rew), "hist": self.hist_to_send(), "params": self.params(),
-                   "spd": mean(self.ep_speed), "ang": mean(self.ep_ang), "front": mean(self.ep_front),
-                   "goals": mean(self.ep_goals), "msg": self.msg})
+        msg = {"t": "s", "phase": self.phase, "gen": self.gen, "steps": int(self.num_timesteps),
+               "eps": self.total_eps, "succ": mean(self.ep_succ), "crash": mean(self.ep_crash),
+               "rew": mean(self.ep_rew), "hist": self.hist_to_send(), "params": self.params(),
+               "spd": mean(self.ep_speed), "ang": mean(self.ep_ang), "front": mean(self.ep_front),
+               "goals": mean(self.ep_goals), "film": mean(self.ep_film), "msg": self.msg}
+        self.send(msg)
+        self.write_status(msg, force)
+
+    def write_status(self, msg, force=False):
+        """--estado (models/entrenando.json): lo mismo que ve Blender, para que el juego (app/) muestre el progreso."""
+        now = time.time()
+        if not force and now - getattr(self, "last_status", 0.0) < 0.5:
+            return
+        self.last_status = now
+        out = dict(msg, t=now, mision=STAGES[self.args.stage] if not self.args.level else Path(self.args.level).stem,
+                   stage=self.args.stage, dron=self.args.dron_nombre, gen_guardada=self.gen_done,
+                   modelo=self.args.modelo_slug, modelo_zip=str(self.model_path), pid=os.getpid())
+        out["hist"] = msg["hist"][-120:]
+        path = Path(self.args.estado)
+        tmp = path.with_name(path.stem + "_guardando.json")
+        try:
+            tmp.write_text(json.dumps(out, separators=(",", ":")))
+            os.replace(tmp, path)
+        except OSError:
+            pass
 
     def hist_to_send(self, n=300):
         h = self.history
@@ -168,12 +254,22 @@ class LiveLink(BaseCallback):
 
     # ---------------- el modelo único ----------------
     def save_model(self):
-        """Guarda models/modelo.zip (+ modelo.json) sin dejar nunca un archivo a medias."""
-        tmp = self.model_path.with_name("modelo_guardando.zip")
+        """Guarda el modelo (.zip + .json + _web.json, en su carpeta) sin dejar nunca un archivo a medias."""
+        tmp = self.model_path.with_name(self.model_path.stem + "_guardando.zip")
         self.model.save(tmp)
         os.replace(tmp, self.model_path)
         self.meta.update(generaciones=self.gen_done, pasos=int(self.num_timesteps), historia=self.history,
                          actualizado=time.strftime("%Y-%m-%d %H:%M"))
+        # qué sabe el modelo (lo lee el juego): qué drones vuela y qué tomas graba
+        self.meta["rango_fisica"] = merge_range(self.meta.get("rango_fisica") or STANDARD_RANGE, self.args.rango)
+        drones = self.meta.setdefault("drones", [])
+        if self.args.dron_nombre not in drones:
+            drones.append(self.args.dron_nombre)
+        if self.args.stage in FILM_STAGES:
+            tomas = self.meta.setdefault("tomas", [])
+            for t in self.envs()[0].tomas:
+                if t not in tomas:
+                    tomas.append(t)
         ses = dict(self.session, fin=time.strftime("%Y-%m-%d %H:%M"), pasos_fin=int(self.num_timesteps))
         sesiones = self.meta.setdefault("sesiones", [])
         if sesiones and sesiones[-1].get("inicio") == ses["inicio"]:
@@ -184,23 +280,24 @@ class LiveLink(BaseCallback):
         k = STAGES[self.args.stage] if not self.args.level else Path(self.args.level).stem
         niveles[k] = niveles.get(k, 0) + int(self.num_timesteps) - self.meta.get("_pasos_contados", self.steps0)
         self.meta["_pasos_contados"] = int(self.num_timesteps)
-        tmpj = self.model_path.with_name("modelo_guardando.json")
+        tmpj = self.model_path.with_name(self.model_path.stem + "_guardando.json")
         tmpj.write_text(json.dumps(self.meta, ensure_ascii=False))
         os.replace(tmpj, self.model_path.with_suffix(".json"))
         self.save_web()
 
     def save_web(self):
-        """models/modelo_web.json: los pesos del actor para el juego del navegador (game/)."""
+        """modelo_web.json (junto al zip): los pesos del actor para el juego del navegador."""
         layers = []
         for L in self.layers():
             W = L.weight.detach().cpu().numpy().astype(np.float32)
             b = L.bias.detach().cpu().numpy().astype(np.float32)
             layers.append({"in": int(W.shape[1]), "out": int(W.shape[0]),
                            "W": [float(f"{x:.7g}") for x in W.ravel()], "b": [float(f"{x:.7g}") for x in b]})
-        meta = {k: self.meta.get(k) for k in ("generaciones", "pasos", "niveles", "creado", "actualizado")}
+        meta = {k: self.meta.get(k) for k in ("generaciones", "pasos", "niveles", "creado", "actualizado",
+                                              "rango_fisica", "tomas", "drones")}
         meta["sizes"] = [layers[0]["in"]] + [L["out"] for L in layers]
         web = self.model_path.with_name(self.model_path.stem + "_web.json")
-        tmp = self.model_path.with_name("modelo_web_guardando.json")
+        tmp = self.model_path.with_name(self.model_path.stem + "_web_guardando.json")
         tmp.write_text(json.dumps({"meta": meta, "layers": layers}, separators=(",", ":")))
         os.replace(tmp, web)
 
@@ -215,7 +312,13 @@ class LiveLink(BaseCallback):
                 for p, alive in zip(e.flock.pos, e.flock.alive):
                     row += [round(float(p[0]), 2), round(float(p[1]), 2), round(float(p[2]), 2) if alive else -1]
             d.append(row)
-        self.send({"t": "f", "s": int(self.num_timesteps), "d": d, "ev": self.events, "w": self.watch})
+        msg = {"t": "f", "s": int(self.num_timesteps), "d": d, "ev": self.events, "w": self.watch}
+        envs = self.envs()
+        if envs and envs[0].stage in FILM_STAGES:   # grabar: calidad de imagen y avance de la toma de cada dron
+            msg["q"] = [round(float(getattr(e, "film_q", 0.0)), 2) for e in envs]
+            msg["fg"] = [round(e.shot.progress if e.shot is not None and e.shot.phase != "ir" else 0.0, 2) for e in envs]
+            msg["cp"] = [r3(e.shot.point()) if e.shot is not None else None for e in envs]   # el punto de cámara se mueve
+        self.send(msg)
         self.events = []
 
     # ---------------- la red neuronal, para verla en Blender ----------------
@@ -297,7 +400,7 @@ class LiveLink(BaseCallback):
                 self.paused = bool(m["pause"])
             if m.get("save"):
                 self.save_model()
-                self.msg = f"Modelo guardado (generación {self.gen}): models/modelo.zip"
+                self.msg = f"Modelo guardado (generación {self.gen}): {self.args.modelo_txt}"
             if m.get("resend"):                     # Blender reconstruyó su vista
                 self._on_training_start()
             if m.get("export"):
@@ -340,9 +443,11 @@ class LiveLink(BaseCallback):
     def _on_rollout_end(self):
         w = max(2 * self.args.drones, 100)
         if self.ep_succ:
+            film = (round(float(np.mean(self.ep_film[-w:])), 3)
+                    if self.args.stage in FILM_STAGES and self.ep_film else None)
             self.history.append([self.gen, int(self.num_timesteps),
                                  round(float(np.mean(self.ep_succ[-w:])), 3),
-                                 round(float(np.mean(self.ep_crash[-w:])), 3), self.args.stage])
+                                 round(float(np.mean(self.ep_crash[-w:])), 3), self.args.stage, film])
         self.phase = "learn"           # ahora PPO actualiza la red; los drones esperan
         self.send_frame()
         self.send_stats()
@@ -353,6 +458,9 @@ class LiveLink(BaseCallback):
             self.send_frame()
             time.sleep(0.05)
             self.poll_control()
+            if time.perf_counter() - getattr(self, "last_stats", 0.0) > 1.0:
+                self.send_stats()                    # en pausa: el progreso sigue "vivo" (t) para el juego
+                self.last_stats = time.perf_counter()
         if self.stop:
             return False
 
@@ -368,8 +476,10 @@ class LiveLink(BaseCallback):
                     self.ep_speed.append(float(info["avg_speed"]))
                     self.ep_ang.append(float(info["ang_rate"]))
                 self.ep_crash.append(float(info.get("crashed", False)))
-                if envs[i].stage >= 8:
+                if envs[i].stage in HUNT_STAGES:
                     self.ep_goals.append(float(info.get("goals_reached", 0)))
+                if "film_q" in info:
+                    self.ep_film.append(float(info["film_q"]))
                 ep = info.get("episode")             # lo agrega el Monitor de SB3
                 if ep:
                     self.ep_rew.append(float(ep["r"]))
@@ -399,16 +509,35 @@ class LiveLink(BaseCallback):
         return True
 
 
+def capas_red(args, model_path):
+    """Las capas ocultas de una red nueva: --capas, o "capas" en info.json de la carpeta del modelo (el estudio PBDMM
+    las escribe ahí, así sirve igual desde Blender), o [--net, --net]."""
+    if args.capas:
+        return [int(x) for x in args.capas.split(",") if x.strip()]
+    try:
+        capas = json.loads((Path(model_path).parent / "info.json").read_text()).get("capas")
+        if isinstance(capas, list) and 1 <= len(capas) <= 4 and all(isinstance(c, int) and 8 <= c <= 512 for c in capas):
+            return capas
+    except (OSError, ValueError):
+        pass
+    return [args.net, args.net]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--drones", type=int, default=50)
     ap.add_argument("--stage", type=int, default=0, choices=list(STAGES))
     ap.add_argument("--level", type=str, default=None, help="nivel JSON (todos los drones en el mismo nivel)")
     ap.add_argument("--model", type=str, default=str(ROOT / "models" / "modelo.zip"),
-                    help="EL modelo: si existe se continúa, si no se crea uno nuevo")
+                    help="el modelo (models/modelo.zip = 'base', models/drones/<slug>/modelo.zip = el de un dron): "
+                         "si existe se continúa, si no se crea uno nuevo. Todo lo demás se guarda en su carpeta")
+    ap.add_argument("--estado", type=str, default=str(ROOT / "models" / "entrenando.json"),
+                    help="dónde escribir el progreso en vivo (JSON) que lee el juego")
     ap.add_argument("--lr", type=float, default=3e-4)
     ap.add_argument("--ent", type=float, default=0.0)
     ap.add_argument("--net", type=int, default=128, help="neuronas por capa oculta (solo al crear el modelo)")
+    ap.add_argument("--capas", type=str, default=None,
+                    help='capas ocultas de una red NUEVA, ej. "64,64" (si no: "capas" de info.json junto al modelo, o --net x2)')
     ap.add_argument("--speed", choices=["real", "rapido"], default="real")
     ap.add_argument("--reward", type=str, default="{}", help='JSON, ej: {"crash": 20}')
     ap.add_argument("--steps", type=int, default=20_000_000)
@@ -421,7 +550,10 @@ def main():
     ap.add_argument("--wind", type=float, default=0.0, help="viento máx. con ráfagas (m/s)")
     ap.add_argument("--birds", type=int, default=5, help="caza: cuántos pájaros")
     ap.add_argument("--bird-speed", type=float, default=1.5, help="caza: velocidad de los pájaros (m/s)")
+    ap.add_argument("--dron", type=str, default=None,
+                    help="física: drones/madera.json (un dron del juego) o 'azar' (al azar en cada intento)")
     args = ap.parse_args()
+    params, phys_range, args.dron_nombre, args.rango = load_drone(args.dron)
 
     reward = dict(DEFAULT_REWARD)
     reward.update({k: float(v) for k, v in json.loads(args.reward).items() if k in reward})
@@ -430,13 +562,19 @@ def main():
     env = make_vec_env(DroneEnv, n_envs=n, seed=args.seed,
                        env_kwargs=dict(stage=args.stage, level_path=args.level, reward=reward,
                                        density=args.density, wind=args.wind,
-                                       n_birds=args.birds, bird_speed=args.bird_speed))
+                                       n_birds=args.birds, bird_speed=args.bird_speed,
+                                       params=params, phys_range=phys_range))
     n_steps = max(32, round(12_800 / n))         # ~12 800 pasos de experiencia por generación
     batch = min(1024, n_steps * n)
 
     name = Path(args.level).stem if args.level else STAGES[args.stage]
     model_path = Path(args.model).expanduser().resolve()
-    model_path.parent.mkdir(exist_ok=True)
+    model_path.parent.mkdir(parents=True, exist_ok=True)
+    args.modelo_slug = model_slug(model_path)
+    try:
+        args.modelo_txt = str(model_path.relative_to(ROOT))
+    except ValueError:
+        args.modelo_txt = str(model_path)
     meta_path = model_path.with_suffix(".json")
     existe = model_path.exists()
     meta = json.loads(meta_path.read_text()) if (existe and meta_path.exists()) else {}
@@ -445,21 +583,24 @@ def main():
     if existe:
         from drone_rl.upgrade import backup_before_widen, load_ppo
         co = {"n_steps": n_steps, "batch_size": batch, "learning_rate": args.lr, "ent_coef": args.ent}
+        from drone_rl.upgrade import obs_size
+        n_old = obs_size(model_path)
         model, ampliado = load_ppo(model_path, env=env, custom_objects=co)
-        if ampliado:          # modelo de antes de la caza (24 entradas): +3 entradas en cero, vuela igual
-            copia = backup_before_widen(model_path)
-            meta["red"] = [int(env.observation_space.shape[0])] + list(meta.get("red", [24, 128, 128, 4]))[1:]
-            meta.setdefault("ampliaciones", []).append({"fecha": time.strftime("%Y-%m-%d %H:%M"), "de": 24,
+        if ampliado:          # modelo con menos entradas (24 o 27): las nuevas entran en cero, vuela igual
+            copia = backup_before_widen(model_path, n_old)
+            meta["red"] = [int(env.observation_space.shape[0])] + list(meta.get("red", [n_old, 128, 128, 4]))[1:]
+            meta.setdefault("ampliaciones", []).append({"fecha": time.strftime("%Y-%m-%d %H:%M"), "de": n_old,
                                                         "a": int(env.observation_space.shape[0]),
                                                         "copia": copia.name})
             print(f"Modelo ampliado a {env.observation_space.shape[0]} entradas (copia del original: "
-                  f"models/anteriores/{copia.name})", flush=True)
+                  f"{copia})", flush=True)
         meta.setdefault("pasos", int(model.num_timesteps))
     else:
-        meta = {"creado": time.strftime("%Y-%m-%d %H:%M"), "red": [int(env.observation_space.shape[0]), args.net, args.net, 4],
+        capas = capas_red(args, model_path)
+        meta = {"creado": time.strftime("%Y-%m-%d %H:%M"), "red": [int(env.observation_space.shape[0]), *capas, 4],
                 "generaciones": 0, "pasos": 0, "historia": [], "sesiones": [], "niveles": {}}
         model = PPO("MlpPolicy", env, device="cpu",
-                    policy_kwargs=dict(net_arch=dict(pi=[args.net, args.net], vf=[args.net, args.net]),
+                    policy_kwargs=dict(net_arch=dict(pi=list(capas), vf=list(capas)),
                                        log_std_init=-0.7),
                     n_steps=n_steps, batch_size=batch, n_epochs=10, learning_rate=args.lr,
                     gamma=0.99, gae_lambda=0.95, clip_range=0.2, ent_coef=args.ent, seed=args.seed, verbose=0)
@@ -471,16 +612,17 @@ def main():
     estado = (f"continuando el modelo ({int(model.num_timesteps):,} pasos, generación {link.gen})" if existe
               else "modelo NUEVO (red al azar)")
     if ampliado:
-        estado += " · ampliado a 27 entradas para la caza (vuela igual que antes)"
-    print(f"Drone Lab: {n} drones · nivel {name} · {n_steps} pasos por dron por generación · {estado}", flush=True)
+        estado += f" · ampliado a {env.observation_space.shape[0]} entradas (vuela igual que antes)"
+    print(f"Drone Lab: {n} drones · nivel {name} · dron {args.dron_nombre} · {n_steps} pasos por dron por generación · {estado}",
+          flush=True)
     try:
         model.learn(total_timesteps=args.steps, callback=link, reset_num_timesteps=not existe)
     except KeyboardInterrupt:
         pass
     link.save_model()
-    link.msg = f"Modelo guardado (generación {link.gen}): models/{model_path.name}"
+    link.msg = f"Modelo guardado (generación {link.gen}): {args.modelo_txt}"
     link.phase = "stopped"
-    link.send_stats()
+    link.send_stats(force=True)
     link.send({"t": "bye", "model": str(model_path)})
     print(link.msg, flush=True)
 

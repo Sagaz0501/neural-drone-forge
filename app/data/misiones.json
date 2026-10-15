@@ -1,0 +1,346 @@
+{
+  "_nota": "Pedidos del tablero. Balancear = editar números. Un pedido de video es una LISTA DE TOMAS (como un guion): cada toma es una ruta de cámara (game/sim.js Toma, igual que drone_rl/tomas.py). Ángulos en grados, relativos al frente del sujeto (el lado que mira a la base). 'mundo' = escena que existe hoy; 'lugar' = la escena propia que tendrá después. Calificación y pago: docs/PLAN_JUEGO.md, sección 8.",
+  "pago_por_estrellas": [
+    0,
+    0.5,
+    1.0,
+    1.3
+  ],
+  "reputacion_por_estrellas": [
+    -1,
+    0,
+    1,
+    2
+  ],
+  "pedidos": [
+    {
+      "id": "casa_venta",
+      "cliente": "Doña Marta (inmobiliaria)",
+      "titulo": "Fotos de una casa en venta",
+      "etapa": 1,
+      "rep_min": 0,
+      "lugar": "casa",
+      "pago": 45,
+      "tomas": [
+        {
+          "tipo": "fija",
+          "nombre": "El frente",
+          "desc": "Quieto frente a la casa, que se vea la fachada y el letrero.",
+          "az": 0,
+          "d": 8.5,
+          "z": 3.2,
+          "dur": 6
+        },
+        {
+          "tipo": "orbita",
+          "nombre": "Media vuelta",
+          "desc": "Dar la vuelta por un lado de la casa sin perderla del centro.",
+          "a0": -40,
+          "sweep": 130,
+          "r": 8.5,
+          "z": 3.6,
+          "vel": 1.4
+        },
+        {
+          "tipo": "revelar",
+          "nombre": "Revelar desde el jardín",
+          "desc": "Arrancar bajo y cerca, subir alejándose: la casa aparece entera.",
+          "az": 25,
+          "d0": 6.5,
+          "d1": 11.5,
+          "z0": 2.8,
+          "z1": 6.0,
+          "dur": 10
+        }
+      ],
+      "capitulo": 1,
+      "estrellas": [
+        30,
+        50,
+        70
+      ],
+      "requisitos": {},
+      "entrenar": {
+        "nivel": 11,
+        "viento": 0,
+        "nota": "Grabar (tomas con ruta) con tu dron, sin viento."
+      },
+      "historia": "Doña Marta vende la casa de su mamá y no tiene plata para un fotógrafo. Tú tienes un dron de madera y muchas ganas."
+    },
+    {
+      "id": "finca",
+      "capitulo": 1,
+      "cliente": "Don Ernesto (Finca El Roble)",
+      "titulo": "Video de la finca El Roble",
+      "etapa": 1,
+      "rep_min": 1,
+      "lugar": "finca",
+      "pago": 80,
+      "estrellas": [
+        35,
+        55,
+        72
+      ],
+      "historia": "Don Ernesto vio el video de la casa y quiere uno de su finca para venderle leche a un supermercado. Allá arriba siempre sopla el viento.",
+      "requisitos": {
+        "twr_min": 2.2,
+        "barometro": true,
+        "alcance_m": true
+      },
+      "entrenar": {
+        "nivel": 11,
+        "viento": 2.5,
+        "nota": "Grabar con viento: nivel 11 con viento 2,5 m/s. Sin viento en el entrenamiento, la IA no sabe compensar las ráfagas."
+      },
+      "tomas": [
+        {
+          "tipo": "revelar",
+          "nombre": "Revelar el granero",
+          "desc": "Desde la puerta del granero, subir alejándose hasta que se vea toda la finca.",
+          "az": 0,
+          "d0": 7.5,
+          "d1": 13.5,
+          "z0": 4.0,
+          "z1": 7.5,
+          "dur": 12
+        },
+        {
+          "tipo": "orbita",
+          "nombre": "Vuelta amplia",
+          "desc": "Una vuelta grande y alta alrededor del granero (con el silo atrás).",
+          "a0": -70,
+          "sweep": 150,
+          "r": 10,
+          "z": 5.0,
+          "vel": 1.7
+        },
+        {
+          "tipo": "fija",
+          "nombre": "El silo",
+          "desc": "Quieto, alto, con el granero al centro y el silo al lado.",
+          "az": 55,
+          "d": 10,
+          "z": 6.0,
+          "dur": 6
+        }
+      ]
+    },
+    {
+      "id": "restaurante",
+      "capitulo": 2,
+      "cliente": "Doña Lucía (Restaurante La Brasa)",
+      "titulo": "Restaurante La Brasa para redes",
+      "etapa": 2,
+      "rep_min": 4,
+      "lugar": "restaurante",
+      "pago": 140,
+      "estrellas": [
+        45,
+        62,
+        78
+      ],
+      "historia": "Ya tienes un local y clientes que pagan de verdad. Doña Lucía quiere un video para Instagram, pero en la terraza hay gente comiendo y en el andén hay postes.",
+      "requisitos": {
+        "calidad_min": 50,
+        "protectores": true
+      },
+      "entrenar": {
+        "nivel": 12,
+        "viento": 0.8,
+        "nota": "Grabar entre postes (nivel 12) con tu dron. Para que la IA vea los postes, ponle los sensores ToF."
+      },
+      "tomas": [
+        {
+          "tipo": "fija",
+          "nombre": "La fachada",
+          "desc": "Quieto frente al restaurante, a la altura del letrero.",
+          "az": 0,
+          "d": 9,
+          "z": 3.8,
+          "dur": 6
+        },
+        {
+          "tipo": "orbita",
+          "nombre": "Entre los postes",
+          "desc": "Media vuelta por el andén, pasando entre los postes y la pared.",
+          "a0": 15,
+          "sweep": 100,
+          "r": 8,
+          "z": 3.5,
+          "vel": 1.2
+        },
+        {
+          "tipo": "revelar",
+          "nombre": "Revelar la calle",
+          "desc": "Desde el andén, subir alejándose sobre la calle.",
+          "az": 20,
+          "d0": 6.5,
+          "d1": 12,
+          "z0": 3.0,
+          "z1": 7.0,
+          "dur": 11
+        }
+      ]
+    },
+    {
+      "id": "concesionario",
+      "capitulo": 2,
+      "cliente": "Autos del Valle",
+      "titulo": "Un auto nuevo en el concesionario",
+      "etapa": 2,
+      "rep_min": 7,
+      "pago": 180,
+      "historia": "Tomas bajas y rápidas alrededor de un auto brillante: cualquier vibración se nota.",
+      "plan": {
+        "piezas": [
+          "cámara 4K",
+          "soft-mount de TPU o gimbal 2 ejes",
+          "ESC 45 A con filtro RPM"
+        ],
+        "ia": "nivel 11 con tomas bajas (1,5 m)"
+      }
+    },
+    {
+      "id": "ciclista",
+      "capitulo": 3,
+      "cliente": "Club de ciclismo",
+      "titulo": "Seguir a un ciclista",
+      "etapa": 3,
+      "rep_min": 12,
+      "pago": 260,
+      "historia": "El primer sujeto que se mueve: un ciclista a 6 m/s por el camino.",
+      "plan": {
+        "piezas": [
+          "motores 2306 + 4S (vel. máx. ≥ 8 m/s)",
+          "STM32F722 + GPS M10",
+          "ExpressLRS 2.4 GHz"
+        ],
+        "ia": "nivel 13 · Seguir (falta hacerlo)"
+      }
+    },
+    {
+      "id": "futbol",
+      "capitulo": 3,
+      "cliente": "Liga del barrio",
+      "titulo": "Partido de fútbol",
+      "etapa": 3,
+      "rep_min": 15,
+      "pago": 320,
+      "historia": "Un balón que cambia de rumbo, tomas altas y viento.",
+      "plan": {
+        "piezas": [
+          "gimbal 2 ejes",
+          "LiPo 4S 2200"
+        ],
+        "ia": "nivel 13 con viento"
+      }
+    },
+    {
+      "id": "matrimonio",
+      "capitulo": 4,
+      "cliente": "Laura y Andrés",
+      "titulo": "Matrimonio: salida de la iglesia",
+      "etapa": 4,
+      "rep_min": 20,
+      "pago": 500,
+      "historia": "Multi-cámara: tú y dos drones con IA, cada uno con su ángulo.",
+      "plan": {
+        "piezas": [
+          "STM32H743 + coprocesador IA K210",
+          "cine 4K con gimbal 3 ejes",
+          "luces LED"
+        ],
+        "ia": "nivel 13 + formación"
+      }
+    },
+    {
+      "id": "bosque",
+      "capitulo": 4,
+      "cliente": "Marca outdoor",
+      "titulo": "Una modelo en el bosque",
+      "etapa": 4,
+      "rep_min": 24,
+      "pago": 650,
+      "historia": "Seguir a alguien caminando entre troncos, a poca altura.",
+      "plan": {
+        "piezas": [
+          "cinewhoop 3\" con ductos",
+          "sensores ToF"
+        ],
+        "ia": "nivel 14 · Seguir en el bosque"
+      }
+    },
+    {
+      "id": "festival",
+      "capitulo": 5,
+      "cliente": "Festival Luna Llena",
+      "titulo": "Festival de música de noche",
+      "etapa": 5,
+      "rep_min": 30,
+      "pago": 900,
+      "historia": "De noche, con viento fuerte y tres drones con IA.",
+      "plan": {
+        "piezas": [
+          "luces LED WS2812",
+          "carbono 7\"",
+          "ExpressLRS 900 MHz"
+        ],
+        "ia": "nivel 13 con viento 4 m/s"
+      }
+    },
+    {
+      "id": "pelicula",
+      "capitulo": 5,
+      "cliente": "Productora Cóndor",
+      "titulo": "La película: la persecución",
+      "etapa": 5,
+      "rep_min": 35,
+      "pago": 2000,
+      "historia": "El final: una persecución filmada por cuatro drones autónomos.",
+      "plan": {
+        "piezas": [
+          "cuatro drones con IA",
+          "lo mejor de todo"
+        ],
+        "ia": "todo lo anterior"
+      }
+    }
+  ],
+  "capitulos": [
+    {
+      "n": 1,
+      "titulo": "El garaje",
+      "empresa": "Garaje Films",
+      "historia": "Tienes $150, un ESP32 y unos motores que sacaste de un dron de juguete. Arma algo que vuele, consigue tu primer cliente y aprende a grabar de verdad."
+    },
+    {
+      "n": 2,
+      "titulo": "Pequeño negocio",
+      "empresa": "Garaje Films",
+      "rep": 4,
+      "historia": "La gente ya te conoce. Llegan clientes con gente cerca, obstáculos y exigencias de calidad: hora de piezas serias (STM32, ExpressLRS, PETG)."
+    },
+    {
+      "n": 3,
+      "titulo": "Estudio de video",
+      "empresa": "Garaje Films Estudio",
+      "rep": 12,
+      "historia": "Ahora las cosas se mueven: ciclistas, partidos. Gimbal, GPS y mucha velocidad. Tu IA tiene que aprender a seguir."
+    },
+    {
+      "n": 4,
+      "titulo": "Flota con IA",
+      "empresa": "Garaje Films Estudio",
+      "rep": 20,
+      "historia": "Un dron ya no alcanza: tú diriges uno y tus drones con IA graban desde otros ángulos."
+    },
+    {
+      "n": 5,
+      "titulo": "El gran final",
+      "empresa": "Estudio Aéreo",
+      "rep": 30,
+      "historia": "Te llaman para filmar una película: una persecución con cuatro drones autónomos. Todo lo que aprendiste, junto."
+    }
+  ],
+  "final": "¡Lo lograste! De un dron de madera a un estudio de cine aéreo. Garaje Films ahora se llama Estudio Aéreo. Gracias por jugar: el modo libre está abierto."
+}

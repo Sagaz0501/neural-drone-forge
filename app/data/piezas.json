@@ -1,0 +1,714 @@
+{
+  "_nota": "Catálogo de piezas (docs/HISTORIA.md). Balancear = editar estos números. Unidades: gramos, pulgadas, mAh, A, m, US$. 'etapa' = cuándo aparece en la tienda (1 garaje, 2 negocio, 3 estudio, 4 flota, 5 final). Fórmulas en app/parts.js. 'vib' y 'rigidez' son solo del juego (nitidez del video): no cambian la física que ve la IA.",
+  "base": {
+    "nombre": "Cables, tornillos y conectores",
+    "masa_g": 30,
+    "_nota": "Masa fija de todo dron (no se compra). El ESC ya no va aquí."
+  },
+  "chasis": [
+    {
+      "id": "madera",
+      "nombre": "Contrachapado casero 250 mm",
+      "etapa": 1,
+      "precio": 15,
+      "masa_g": 330,
+      "helice_max": 7,
+      "arrastre": 0.05,
+      "durabilidad": 40,
+      "aguante_ms": 3.0,
+      "radio_m": 0.2,
+      "desc": "Pesado y se astilla, pero cualquiera lo arma.",
+      "rigidez": 1.25,
+      "imprimible": false
+    },
+    {
+      "id": "pla",
+      "nombre": "Impreso en PLA 220 mm",
+      "etapa": 1,
+      "precio": 40,
+      "masa_g": 170,
+      "helice_max": 5,
+      "arrastre": 0.035,
+      "durabilidad": 55,
+      "aguante_ms": 3.5,
+      "radio_m": 0.16,
+      "desc": "Liviano, pero se parte en choques fuertes. Con la impresora 3D: más barato y de la forma y color que quieras.",
+      "rigidez": 1.15,
+      "imprimible": true
+    },
+    {
+      "id": "petg",
+      "nombre": "Impreso en PETG 220 mm",
+      "etapa": 2,
+      "precio": 55,
+      "masa_g": 185,
+      "helice_max": 5,
+      "arrastre": 0.034,
+      "durabilidad": 70,
+      "aguante_ms": 4.0,
+      "radio_m": 0.16,
+      "rigidez": 1.05,
+      "imprimible": true,
+      "desc": "Como el PLA pero no se parte: aguanta golpes y calor."
+    },
+    {
+      "id": "aluminio",
+      "nombre": "Aluminio 230 mm",
+      "etapa": 2,
+      "precio": 90,
+      "masa_g": 190,
+      "helice_max": 7,
+      "arrastre": 0.03,
+      "durabilidad": 80,
+      "aguante_ms": 4.5,
+      "radio_m": 0.19,
+      "desc": "Aguanta golpes. Acepta hélices de 7\".",
+      "rigidez": 0.95,
+      "imprimible": false
+    },
+    {
+      "id": "cinewhoop3",
+      "nombre": "Cinewhoop 3\" con ductos",
+      "etapa": 2,
+      "precio": 110,
+      "masa_g": 150,
+      "helice_max": 3,
+      "arrastre": 0.045,
+      "durabilidad": 85,
+      "aguante_ms": 4.5,
+      "radio_m": 0.13,
+      "rigidez": 0.9,
+      "imprimible": false,
+      "protectores": true,
+      "desc": "Las hélices van dentro de ductos: puede rozar cosas y gente sin cortar a nadie. Lento pero muy estable."
+    },
+    {
+      "id": "carbono5",
+      "nombre": "Carbono 5\" freestyle",
+      "etapa": 3,
+      "precio": 140,
+      "masa_g": 120,
+      "helice_max": 5,
+      "arrastre": 0.022,
+      "durabilidad": 90,
+      "aguante_ms": 5.0,
+      "radio_m": 0.15,
+      "desc": "Liviano, rígido y ágil.",
+      "rigidez": 0.85,
+      "imprimible": false
+    },
+    {
+      "id": "carbono7",
+      "nombre": "Carbono 7\" largo alcance",
+      "etapa": 3,
+      "precio": 200,
+      "masa_g": 160,
+      "helice_max": 7,
+      "arrastre": 0.026,
+      "durabilidad": 90,
+      "aguante_ms": 5.0,
+      "radio_m": 0.21,
+      "desc": "Para vuelos largos y cargar cámaras pesadas.",
+      "rigidez": 0.85,
+      "imprimible": false
+    }
+  ],
+  "motores": [
+    {
+      "id": "m1806",
+      "nombre": "Motores reciclados 1806 2300KV",
+      "etapa": 1,
+      "precio": 20,
+      "masa_g": 22,
+      "empuje_g": 300,
+      "celdas": [
+        2,
+        3
+      ],
+      "helice_ref": 5,
+      "eficiencia_gW": 4.0,
+      "giro": 0.8,
+      "desc": "Sacados de un dron viejo. Empuje = por motor, a 3S con hélice de 5\".",
+      "corriente_a": 12,
+      "vib": 0.55
+    },
+    {
+      "id": "m2204",
+      "nombre": "Brushless básicos 2204 2300KV",
+      "etapa": 1,
+      "precio": 45,
+      "masa_g": 26,
+      "empuje_g": 480,
+      "celdas": [
+        2,
+        3
+      ],
+      "helice_ref": 5,
+      "eficiencia_gW": 4.5,
+      "giro": 0.9,
+      "desc": "El primer motor serio.",
+      "corriente_a": 18,
+      "vib": 0.4
+    },
+    {
+      "id": "m1404",
+      "nombre": "Motores 1404 4600KV (cinewhoop)",
+      "etapa": 2,
+      "precio": 70,
+      "masa_g": 9,
+      "empuje_g": 320,
+      "celdas": [
+        3,
+        4
+      ],
+      "helice_ref": 3,
+      "eficiencia_gW": 3.6,
+      "giro": 1.0,
+      "corriente_a": 10,
+      "vib": 0.35,
+      "desc": "Chiquitos y rápidos, para hélices de 3\" con ductos. Empuje = por motor, a 4S."
+    },
+    {
+      "id": "m2306",
+      "nombre": "Brushless 2306 2450KV",
+      "etapa": 2,
+      "precio": 90,
+      "masa_g": 32,
+      "empuje_g": 1000,
+      "celdas": [
+        3,
+        4
+      ],
+      "helice_ref": 5,
+      "eficiencia_gW": 5.0,
+      "giro": 1.0,
+      "desc": "Potente. Empuje a 4S.",
+      "corriente_a": 32,
+      "vib": 0.3
+    },
+    {
+      "id": "m2207",
+      "nombre": "Brushless pro 2207 1950KV",
+      "etapa": 3,
+      "precio": 150,
+      "masa_g": 33,
+      "empuje_g": 1250,
+      "celdas": [
+        4,
+        4
+      ],
+      "helice_ref": 5,
+      "eficiencia_gW": 5.5,
+      "giro": 1.15,
+      "desc": "De carreras. Solo 4S.",
+      "corriente_a": 38,
+      "vib": 0.25
+    },
+    {
+      "id": "m2806",
+      "nombre": "Brushless 2806.5 1300KV (largo alcance)",
+      "etapa": 3,
+      "precio": 170,
+      "masa_g": 45,
+      "empuje_g": 1400,
+      "celdas": [
+        4,
+        4
+      ],
+      "helice_ref": 7,
+      "eficiencia_gW": 7.5,
+      "giro": 0.85,
+      "desc": "Eficientes con hélice de 7\". Vuelos largos con cámara pesada.",
+      "corriente_a": 30,
+      "vib": 0.25
+    }
+  ],
+  "helices": [
+    {
+      "id": "h3",
+      "nombre": "Hélices 3\"",
+      "etapa": 1,
+      "precio": 4,
+      "masa_g": 8,
+      "pulgadas": 3,
+      "durabilidad": 30,
+      "desc": "Rápidas de reacción, poco empuje."
+    },
+    {
+      "id": "h5",
+      "nombre": "Hélices 5\"",
+      "etapa": 1,
+      "precio": 6,
+      "masa_g": 16,
+      "pulgadas": 5,
+      "durabilidad": 30,
+      "desc": "El punto medio."
+    },
+    {
+      "id": "h7",
+      "nombre": "Hélices 7\"",
+      "etapa": 2,
+      "precio": 10,
+      "masa_g": 28,
+      "pulgadas": 7,
+      "durabilidad": 30,
+      "desc": "Eficientes y lentas de reacción."
+    }
+  ],
+  "baterias": [
+    {
+      "id": "b2s1000",
+      "nombre": "LiPo 2S 1000 mAh",
+      "etapa": 1,
+      "precio": 10,
+      "masa_g": 60,
+      "celdas": 2,
+      "mah": 1000
+    },
+    {
+      "id": "b3s1300",
+      "nombre": "LiPo 3S 1300 mAh",
+      "etapa": 1,
+      "precio": 25,
+      "masa_g": 120,
+      "celdas": 3,
+      "mah": 1300
+    },
+    {
+      "id": "b3s2200",
+      "nombre": "LiPo 3S 2200 mAh",
+      "etapa": 1,
+      "precio": 40,
+      "masa_g": 185,
+      "celdas": 3,
+      "mah": 2200
+    },
+    {
+      "id": "b4s1500",
+      "nombre": "LiPo 4S 1500 mAh",
+      "etapa": 2,
+      "precio": 50,
+      "masa_g": 180,
+      "celdas": 4,
+      "mah": 1500
+    },
+    {
+      "id": "b4s2200",
+      "nombre": "LiPo 4S 2200 mAh",
+      "etapa": 2,
+      "precio": 65,
+      "masa_g": 245,
+      "celdas": 4,
+      "mah": 2200
+    },
+    {
+      "id": "b4s3000",
+      "nombre": "Li-ion 4S 3000 mAh (largo alcance)",
+      "etapa": 3,
+      "precio": 80,
+      "masa_g": 280,
+      "celdas": 4,
+      "mah": 3000,
+      "empuje_factor": 0.85,
+      "desc": "Mucha energía, pero no entrega tanta corriente: 15 % menos empuje."
+    }
+  ],
+  "controladoras": [
+    {
+      "id": "fc_basica",
+      "nombre": "ESP32 casero (ESP-FC)",
+      "etapa": 1,
+      "precio": 12,
+      "masa_g": 8,
+      "angulo_max": 30,
+      "respuesta": 6,
+      "ayudas": [],
+      "desc": "Un ESP32 con un sensor de movimiento (MPU6050): se nivela solo, la altura la cuidas tú."
+    },
+    {
+      "id": "fc_baro",
+      "nombre": "ESP32 + barómetro BMP280",
+      "etapa": 1,
+      "precio": 28,
+      "masa_g": 10,
+      "angulo_max": 35,
+      "respuesta": 8,
+      "ayudas": [
+        "altura"
+      ],
+      "desc": "Con el barómetro sabe a qué altura está: al soltar Espacio se queda ahí."
+    },
+    {
+      "id": "fc_f405",
+      "nombre": "STM32F405 + barómetro DPS310",
+      "etapa": 2,
+      "precio": 55,
+      "masa_g": 9,
+      "angulo_max": 35,
+      "respuesta": 9.5,
+      "ayudas": [
+        "altura"
+      ],
+      "desc": "La controladora de los drones de carreras: responde más rápido y más fino que el ESP32."
+    },
+    {
+      "id": "fc_gps",
+      "nombre": "STM32F722 + GPS M10",
+      "etapa": 2,
+      "precio": 95,
+      "masa_g": 25,
+      "angulo_max": 35,
+      "respuesta": 8,
+      "ayudas": [
+        "altura",
+        "frenar"
+      ],
+      "desc": "Controladora seria con GPS: al soltar las palancas frena y se queda quieta."
+    },
+    {
+      "id": "fc_ia",
+      "nombre": "STM32H743 + coprocesador IA K210",
+      "etapa": 3,
+      "precio": 240,
+      "masa_g": 30,
+      "angulo_max": 35,
+      "respuesta": 8,
+      "ayudas": [
+        "altura",
+        "frenar",
+        "ia"
+      ],
+      "desc": "Corre tu red neuronal en el dron: puede volar sola (con el Piloto IA)."
+    }
+  ],
+  "camaras": [
+    {
+      "id": "cam_juguete",
+      "nombre": "ESP32-CAM (OV2640) 720p",
+      "etapa": 1,
+      "precio": 10,
+      "masa_g": 15,
+      "calidad": 20,
+      "gimbal": false,
+      "arrastre": 0.0,
+      "desc": "La cámara de 10 dólares: graba, pero se ve como un video viejo."
+    },
+    {
+      "id": "cam_accion",
+      "nombre": "Cámara de acción 1080p",
+      "etapa": 1,
+      "precio": 70,
+      "masa_g": 60,
+      "calidad": 50,
+      "gimbal": false,
+      "arrastre": 0.004
+    },
+    {
+      "id": "cam_4k",
+      "nombre": "Cámara de acción 4K",
+      "etapa": 2,
+      "precio": 160,
+      "masa_g": 120,
+      "calidad": 70,
+      "gimbal": false,
+      "arrastre": 0.006
+    },
+    {
+      "id": "cam_gimbal2",
+      "nombre": "4K con gimbal 2 ejes",
+      "etapa": 2,
+      "precio": 240,
+      "masa_g": 160,
+      "calidad": 78,
+      "gimbal": true,
+      "gimbal_ejes": 2,
+      "arrastre": 0.008,
+      "desc": "El gimbal mantiene el horizonte y apunta a la altura del sujeto."
+    },
+    {
+      "id": "cam_gimbal",
+      "nombre": "Cine 4K con gimbal 3 ejes",
+      "etapa": 3,
+      "precio": 320,
+      "masa_g": 210,
+      "calidad": 90,
+      "gimbal": true,
+      "arrastre": 0.01,
+      "desc": "El gimbal quita casi todas las sacudidas de la imagen.",
+      "gimbal_ejes": 3
+    }
+  ],
+  "extras": [
+    {
+      "id": "protectores",
+      "nombre": "Protectores de hélice (impresos)",
+      "etapa": 1,
+      "precio": 10,
+      "masa_g": 24,
+      "arrastre": 0.004,
+      "da": [
+        "protectores"
+      ],
+      "desc": "Aros alrededor de las hélices: obligatorios si hay gente cerca."
+    },
+    {
+      "id": "tof",
+      "nombre": "Sensores ToF VL53L1X (x10)",
+      "etapa": 2,
+      "precio": 60,
+      "masa_g": 20,
+      "arrastre": 0.002,
+      "da": [
+        "sensores"
+      ],
+      "desc": "Los 10 sensores que usa la IA para esquivar."
+    },
+    {
+      "id": "luces",
+      "nombre": "Luces LED WS2812",
+      "etapa": 2,
+      "precio": 8,
+      "masa_g": 10,
+      "arrastre": 0.0,
+      "da": [
+        "luces"
+      ],
+      "desc": "Para eventos de noche."
+    },
+    {
+      "id": "gancho",
+      "nombre": "Gancho de carga",
+      "etapa": 5,
+      "precio": 120,
+      "masa_g": 40,
+      "arrastre": 0.004,
+      "da": [
+        "carga"
+      ],
+      "desc": "Para entregas (futuro)."
+    }
+  ],
+  "software_ia": [
+    {
+      "id": "ia_fija",
+      "nombre": "Piloto IA · Tomas fijas",
+      "etapa": 3,
+      "precio": 300,
+      "requiere": [
+        "ia"
+      ],
+      "tomas": [
+        "fija",
+        "revelar"
+      ],
+      "sabe": "Se pone en una posición alrededor del sujeto y graba estable (de frente, de lado, desde arriba)."
+    },
+    {
+      "id": "ia_esquivar",
+      "nombre": "Piloto IA · Entre obstáculos",
+      "etapa": 3,
+      "precio": 600,
+      "requiere": [
+        "ia",
+        "sensores"
+      ],
+      "tomas": [
+        "fija",
+        "revelar",
+        "obstaculos"
+      ],
+      "sabe": "Lo mismo, pero puede grabar en el bosque o entre columnas sin chocar."
+    },
+    {
+      "id": "ia_seguir",
+      "nombre": "Piloto IA · Seguir y orbitar",
+      "etapa": 4,
+      "precio": 1000,
+      "requiere": [
+        "ia",
+        "sensores"
+      ],
+      "tomas": [
+        "fija",
+        "revelar",
+        "obstaculos",
+        "seguir",
+        "orbita"
+      ],
+      "sabe": "Sigue algo que se mueve u orbita alrededor (partidos, autos, matrimonios). Para tomas multi-cámara."
+    }
+  ],
+  "_nota_ia": "Todo el software usa EL MISMO modelo: el último models/modelo_web.json que entrenaste en el Drone Lab. El software solo desbloquea qué tipos de toma le puedes pedir. Qué drones sabe volar lo dice el modelo (meta.rango_fisica); ver docs/PLAN_JUEGO.md, sección 4.4.",
+  "escs": [
+    {
+      "id": "esc20",
+      "nombre": "ESC 4 en 1 20 A (BLHeli_S)",
+      "etapa": 1,
+      "precio": 15,
+      "masa_g": 20,
+      "corriente_a": 20,
+      "filtro_rpm": false,
+      "desc": "El que venía con los motores reciclados."
+    },
+    {
+      "id": "esc35",
+      "nombre": "ESC 4 en 1 35 A (BLHeli_S)",
+      "etapa": 2,
+      "precio": 35,
+      "masa_g": 22,
+      "corriente_a": 35,
+      "filtro_rpm": false,
+      "desc": "Para motores 2306/2207 sin quedarse corto."
+    },
+    {
+      "id": "esc45",
+      "nombre": "ESC 4 en 1 45 A (BLHeli_32, filtro RPM)",
+      "etapa": 2,
+      "precio": 60,
+      "masa_g": 24,
+      "corriente_a": 45,
+      "filtro_rpm": true,
+      "desc": "DShot bidireccional: la controladora filtra la vibración de cada motor (imagen más nítida)."
+    },
+    {
+      "id": "esc55",
+      "nombre": "ESC 4 en 1 55 A (AM32, filtro RPM)",
+      "etapa": 3,
+      "precio": 85,
+      "masa_g": 26,
+      "corriente_a": 55,
+      "filtro_rpm": true,
+      "desc": "Sobra corriente para cualquier motor."
+    }
+  ],
+  "radios": [
+    {
+      "id": "rx_espnow",
+      "nombre": "ESP-NOW integrado (ESP32)",
+      "etapa": 1,
+      "precio": 0,
+      "masa_g": 0,
+      "alcance_m": 20,
+      "desc": "La antena de la placa del ESP32. Gratis, pero llega poco: más lejos, failsafe."
+    },
+    {
+      "id": "rx_espnow_ant",
+      "nombre": "ESP-NOW + antena externa",
+      "etapa": 1,
+      "precio": 12,
+      "masa_g": 3,
+      "alcance_m": 35,
+      "desc": "Un ESP32 con conector y una antena dipolo: un poco más de alcance."
+    },
+    {
+      "id": "rx_elrs24",
+      "nombre": "Receptor ExpressLRS 2.4 GHz",
+      "etapa": 2,
+      "precio": 25,
+      "masa_g": 2,
+      "alcance_m": 600,
+      "desc": "El estándar de hoy: enlace rápido y estable."
+    },
+    {
+      "id": "rx_elrs900",
+      "nombre": "Receptor ExpressLRS 900 MHz",
+      "etapa": 3,
+      "precio": 40,
+      "masa_g": 4,
+      "alcance_m": 2000,
+      "desc": "Largo alcance: atraviesa árboles y edificios."
+    }
+  ],
+  "montajes": [
+    {
+      "id": "mt_tornillos",
+      "nombre": "Cámara atornillada directo",
+      "etapa": 1,
+      "precio": 0,
+      "masa_g": 0,
+      "vib": 1.0,
+      "desc": "Toda la vibración de los motores llega a la imagen."
+    },
+    {
+      "id": "mt_gomas",
+      "nombre": "Gomas antivibración",
+      "etapa": 1,
+      "precio": 8,
+      "masa_g": 4,
+      "vib": 0.6,
+      "desc": "Cuatro gomitas entre el chasis y la cámara: la imagen tiembla mucho menos."
+    },
+    {
+      "id": "mt_tpu",
+      "nombre": "Soft-mount de TPU impreso",
+      "etapa": 2,
+      "precio": 15,
+      "masa_g": 6,
+      "vib": 0.45,
+      "impresora": true,
+      "desc": "Un soporte flexible impreso en TPU (necesita la impresora 3D)."
+    }
+  ],
+  "herramientas": [
+    {
+      "id": "impresora",
+      "nombre": "Impresora 3D",
+      "etapa": 1,
+      "precio": 60,
+      "desc": "Imprime chasis de PLA/PETG (40 % más baratos, de la forma y color que quieras) y soportes de TPU."
+    },
+    {
+      "id": "humo",
+      "nombre": "Probador de humo (smoke stopper)",
+      "etapa": 1,
+      "precio": 10,
+      "desc": "Se pone entre la batería y el dron la primera vez que lo conectas: si hay un corto, corta la corriente y no se quema nada."
+    },
+    {
+      "id": "multimetro",
+      "nombre": "Multímetro",
+      "etapa": 1,
+      "precio": 8,
+      "desc": "Mide continuidad y voltajes: en el banco te marca los cables malos ANTES de conectar la batería."
+    }
+  ],
+  "estilo": {
+    "colores": [
+      "#b07a45",
+      "#ff7a1a",
+      "#e8e8e8",
+      "#2a2c30",
+      "#c62828",
+      "#2b62d8",
+      "#1d8a4a",
+      "#ffd23f",
+      "#8c47e6"
+    ],
+    "formas": {
+      "x": "X (simétrico)",
+      "h": "H (brazos paralelos)",
+      "deadcat": "Deadcat (brazos de adelante abiertos)",
+      "stretch": "Stretch X (más largo que ancho: estable de frente)",
+      "marco": "Con marco (un aro une las puntas: aguanta golpes)"
+    },
+    "canopies": {
+      "_nota": "Carcasas (canopy) que se imprimen con la impresora 3D: tapan la electrónica. Solo cambian el peso (masa_g) y cómo se ve.",
+      "ninguna": {
+        "nombre": "Sin carcasa",
+        "masa_g": 0
+      },
+      "domo": {
+        "nombre": "Domo redondo",
+        "masa_g": 12
+      },
+      "caja": {
+        "nombre": "Caja con ventilación",
+        "masa_g": 15
+      },
+      "aleta": {
+        "nombre": "Aleta de carreras",
+        "masa_g": 9
+      }
+    }
+  }
+}

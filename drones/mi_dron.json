@@ -1,0 +1,33 @@
+{
+ "nombre": "mi_dron",
+ "piezas": {
+  "esc": "esc45",
+  "radio": "rx_elrs24",
+  "montaje": "mt_gomas",
+  "extras": [
+   "protectores",
+   "tof"
+  ],
+  "motores": "m2306",
+  "chasis": "aluminio",
+  "helices": "h5",
+  "camara": "cam_accion",
+  "controladora": "fc_f405",
+  "bateria": "b3s2200"
+ },
+ "fisica": {
+  "mass": 0.692,
+  "twr": 3.2514,
+  "drag": 0.04,
+  "max_angle_deg": 35.0,
+  "yaw_rate_deg": 205.28,
+  "att_resp": 10.8341,
+  "crash_speed": 4.5,
+  "radius": 0.19
+ },
+ "juego": {
+  "masa_g": 692,
+  "minutos": 8.47,
+  "precio": 514
+ }
+}

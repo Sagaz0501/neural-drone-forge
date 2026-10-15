@@ -46,9 +46,11 @@ export function rawSticks(keys, ctl) {
 }
 
 export class ManualPilot {
-  constructor(ctl, keys) {
+  /** p = la física del dron que vuelas (P por defecto; el juego le pasa la del dron armado). */
+  constructor(ctl, keys, p = P) {
     this.ctl = ctl;
     this.keys = keys;
+    this.p = p;
     this.reset();
   }
   reset() {
@@ -66,7 +68,7 @@ export class ManualPilot {
 
   /** Lo llama la simulación 50 veces por segundo. */
   act(s, dt = 1 / 50) {
-    const c = this.ctl;
+    const c = this.ctl, p = this.p;
     const raw = rawSticks(this.keys, c);
     this.sticks = raw;
     const tau = 0.02 + 0.3 * c.smooth;
@@ -75,7 +77,7 @@ export class ManualPilot {
     const sens = 0.25 + 0.75 * c.sens;
     let roll = this.cmd[1] * sens, pitch = this.cmd[2] * sens;
     // giro: teclas/control + el ángulo que pidió el ratón (sin pasar de 180°/s, lo que falta queda para después)
-    const maxStep = P.yawRate * dt;
+    const maxStep = p.yawRate * dt;
     const mouseStep = clip(this.pendingYaw, -maxStep, maxStep);
     this.pendingYaw -= mouseStep;
     const yaw = clip(this.cmd[3] * Math.min(1, sens + 0.15) + mouseStep / maxStep);
@@ -87,8 +89,8 @@ export class ManualPilot {
       this.alt = clip(this.alt + raw[0] * rate * dt, 0, 12);      // al soltar, la altura objetivo para EN SECO
       const vzDes = clip(raw[0] * rate * (this.alt > 0 && this.alt < 12) + 1.8 * (this.alt - s.pos[2]), -2.6, 2.6);   // + "hacia dónde va"
       const az = 3.2 * (vzDes - s.vel[2]);
-      const thr = (P.hover * (1 + az / P.g)) / Math.max(Math.cos(s.roll) * Math.cos(s.pitch), 0.5);
-      gas = throttleToAction(clip(thr, 0, 1));
+      const thr = (p.hover * (1 + az / p.g)) / Math.max(Math.cos(s.roll) * Math.cos(s.pitch), 0.5);
+      gas = throttleToAction(clip(thr, 0, 1), p);
       if (this.alt < 0.05 && s.pos[2] < 0.05) gas = -1;           // aterrizado: motores en mínimo
     } else {
       gas = this.cmd[0] * (0.25 + 0.5 * c.sens);
@@ -97,8 +99,8 @@ export class ManualPilot {
     // ---- frenar solo: al soltar avance/lado, inclinarse en contra de la velocidad ----
     if (c.brake && Math.abs(raw[1]) < 0.05 && Math.abs(raw[2]) < 0.05 && s.pos[2] > 0.15) {
       const ah = yawFrame([-1.7 * s.vel[0], -1.7 * s.vel[1], 0], s.yaw);
-      pitch = clip(Math.atan2(ah[0], P.g) / P.maxAngle, -0.6, 0.6);
-      roll = clip(-Math.atan2(ah[1], P.g) / P.maxAngle, -0.6, 0.6);
+      pitch = clip(Math.atan2(ah[0], p.g) / p.maxAngle, -0.6, 0.6);
+      roll = clip(-Math.atan2(ah[1], p.g) / p.maxAngle, -0.6, 0.6);
     }
     return [clip(gas), clip(roll), clip(pitch), clip(yaw)];
   }

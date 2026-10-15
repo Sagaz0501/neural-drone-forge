@@ -43,6 +43,20 @@ class QuadParams:
     def hover_throttle(self) -> float:
         return 1.0 / self.twr
 
+    @staticmethod
+    def from_dict(d: dict) -> "QuadParams":
+        """La física de un dron armado en el juego (drones/*.json, sección "fisica"; ángulos en grados)."""
+        f = d.get("fisica", d)
+        return QuadParams(mass=float(f["mass"]), twr=float(f["twr"]), drag=float(f["drag"]),
+                          max_angle=np.radians(float(f["max_angle_deg"])), yaw_rate=np.radians(float(f["yaw_rate_deg"])),
+                          att_resp=float(f["att_resp"]), crash_speed=float(f["crash_speed"]), radius=float(f["radius"]))
+
+    @staticmethod
+    def load(path) -> "QuadParams":
+        import json
+        from pathlib import Path
+        return QuadParams.from_dict(json.loads(Path(path).read_text(encoding="utf-8")))
+
 
 @dataclass
 class QuadState:

@@ -1,7 +1,7 @@
 // Comprueba que game/sim.js hace EXACTAMENTE lo mismo que el Python del proyecto.
 //   python game/make_fixture.py && node game/test_sim.mjs
 import { readFileSync } from "node:fs";
-import { Level, Policy, Flight, Flock, step, newState, sensorRays, buildObs } from "./sim.js";
+import { Level, Policy, Flight, Flock, Toma, step, newState, sensorRays, buildObs, filmQuality } from "./sim.js";
 
 const dir = new URL("./_fixture/", import.meta.url);
 const F = JSON.parse(readFileSync(new URL("fixture.json", dir)));
@@ -36,7 +36,7 @@ for (const c of F.obs) {
   a.forEach((x, i) => (eAct = Math.max(eAct, Math.abs(x - c.act[i]))));
 }
 check("10 sensores en cono", eRay, 1e-9);
-check("27 entradas de la red", eObs, 1e-6);
+check("38 entradas de la red", eObs, 1e-6);
 check("4 salidas de la red", eAct, 1e-5);
 
 // 3) física (con viento)
@@ -95,10 +95,10 @@ for (const [name, lvd, fr] of [["bosque + columnas", F.level, F.flight], ["circu
   check("pájaros en el bosque (800 pasos, esquivando)", eB, 1e-9);
   check("pasos con un pájaro dentro de un árbol", inside, 0);
 }
-// 6) caza completa con red de 27 entradas
+// 6) caza completa con red de 38 entradas
 {
   const H = F.hunt;
-  const pol27 = new Policy(JSON.parse(readFileSync(new URL("policy27.json", dir))));
+  const pol27 = new Policy(JSON.parse(readFileSync(new URL("policy38.json", dir))));
   let k = 0;
   const fk = new Flock(1.5).start(H.pos, H.head);
   const fl = new Flight(new Level({ goals: [] }), pol27, { flock: fk, noise: () => H.noise[k++] }).reset();
@@ -113,6 +113,40 @@ for (const [name, lvd, fr] of [["bosque + columnas", F.level, F.flight], ["circu
   check(`caza con la red (${n} pasos, ${fl.goalIdx} cazados, ${fl.phase}/${H.phase})`, e, 1e-3);
   check("presa/cazados distintos en la caza", eT, 0);
   if (fl.phase !== H.phase) { fails++; console.log("FALLA  final distinto:", fl.phase, "vs", H.phase); }
+}
+// 7) grabar: física del dron de madera, una órbita alrededor de la casa y la calidad de imagen
+{
+  const Fm = F.film, f = Fm.params, d2r = Math.PI / 180;
+  const wood = { mass: f.mass, g: 9.81, twr: f.twr, drag: f.drag, maxAngle: f.max_angle_deg * d2r, yawRate: f.yaw_rate_deg * d2r,
+    attResp: f.att_resp, crashSpeed: f.crash_speed, radius: f.radius, hover: 1 / f.twr };
+  const L = new Level(Fm.level);
+  const pol38 = new Policy(JSON.parse(readFileSync(new URL("policy38.json", dir))));
+  let eQ = 0, eS = 0;
+  for (const c of Fm.cases) {
+    const s = { pos: c.pos, vel: c.vel, roll: c.roll, pitch: c.pitch, yaw: c.yaw, throttle: 0 };
+    const q = filmQuality(s, Fm.subject, c.cp, c.cv, c.ang, c.yawacc, c.gimbal);
+    [q.framing, q.track, q.flow, q.steady, q.q].forEach((x, i) => (eQ = Math.max(eQ, Math.abs(x - c.q[i]))));
+  }
+  check("calidad de imagen (encuadre, seguimiento, ritmo, estable)", eQ, 1e-9);
+  for (const sc of Fm.shots) {
+    const t = Toma.fromDict(sc.toma);
+    sc.pts.forEach((ref, k) => { const [p, v] = t.at(k / 16); [...p, ...v].forEach((x, i) => (eS = Math.max(eS, Math.abs(x - ref[i])))); });
+  }
+  check("rutas de las tomas (fija, órbita, revelar)", eS, 1e-9);
+  const shot = Toma.fromDict(Fm.shot);
+  const fl = new Flight(L, pol38, { params: wood, subject: Fm.subject, shot }).reset(Fm.start, 0.3);
+  let e = 0, n = 0, eP = 0;
+  const PH = ["ir", "grabando", "lista"];
+  for (const ref of Fm.traj) {
+    fl.step();
+    e = Math.max(e, Math.hypot(fl.state.pos[0] - ref[0], fl.state.pos[1] - ref[1], fl.state.pos[2] - ref[2]), Math.abs(fl.state.yaw - ref[3]), Math.abs(shot.t - ref[4]));
+    if (PH.indexOf(shot.phase) !== ref[5]) eP++;
+    n++;
+    if (fl.phase !== "ruta") break;
+  }
+  check(`vuelo siguiendo una órbita con el dron de madera (${n} pasos, toma ${shot.phase})`, e, 1e-3);
+  check("fase de la toma distinta", eP, 0);
+  if (fl.phase !== Fm.phase) { fails++; console.log("FALLA  final distinto:", fl.phase, "vs", Fm.phase); }
 }
 console.log(fails ? `\n${fails} FALLAS` : "\nTodo igual que Python.");
 process.exit(fails ? 1 : 0);

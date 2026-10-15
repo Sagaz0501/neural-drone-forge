@@ -352,3 +352,69 @@ def forest_level(rng, density=1.0, n_goals=1):
     trees = random_forest(rng, lv.spawn, lv.goals, density)
     lv.cyl_xy, lv.cyl_r, lv.cyl_z, lv.sph_c, lv.sph_r = forest_shapes(trees)
     return lv, trees
+
+
+# ---------------- grabar: una casa ----------------
+def house_boxes(cx, cy, w, d, wall_h):
+    """Una casa como 3 cajas (la misma cuenta en el juego: app/casa.js): paredes + techo de dos aguas
+    aproximado con dos escalones. w = largo en x, d = ancho en y. Devuelve (mins, maxs)."""
+    rh = 0.35 * d                                    # alto del techo (la cumbrera va a lo largo de x)
+    eave = 0.3                                       # el alero sobresale
+    mins = [[cx - w / 2, cy - d / 2, 0.0],
+            [cx - w / 2 - eave, cy - d / 2 - eave, wall_h],
+            [cx - w / 2 - eave, cy - d / 4, wall_h + rh / 2]]
+    maxs = [[cx + w / 2, cy + d / 2, wall_h],
+            [cx + w / 2 + eave, cy + d / 2 + eave, wall_h + rh / 2],
+            [cx + w / 2 + eave, cy + d / 4, wall_h + rh]]
+    return np.array(mins, dtype=float), np.array(maxs, dtype=float)
+
+
+def film_house_level(rng):
+    """Nivel 'Grabar: toma fija': una casa a 10-16 m de la salida. El cliente quiere tomas desde cierta
+    distancia y altura (band = d_min, d_max, z_min, z_max); la meta es un punto de cámara en esa zona,
+    en un lado al azar de la casa. Devuelve (nivel, sujeto, band)."""
+    lv = Level(name="grabar_casa")
+    for _ in range(100):
+        a = rng.uniform(-np.pi, np.pi)
+        r = rng.uniform(10.0, 16.0)
+        cx, cy = r * np.cos(a), r * np.sin(a)
+        w, d, wall_h = rng.uniform(5.0, 7.5), rng.uniform(4.0, 6.0), rng.uniform(2.6, 3.2)
+        lv.box_min, lv.box_max = house_boxes(cx, cy, w, d, wall_h)
+        subject = np.array([cx, cy, wall_h * 0.6])
+        d_min = rng.uniform(5.5, 8.0)
+        band = (d_min, d_min + rng.uniform(4.0, 6.0), rng.uniform(2.5, 4.0), 0.0)
+        band = (band[0], band[1], band[2], band[2] + rng.uniform(3.0, 5.0))
+        for _ in range(30):
+            b = rng.uniform(-np.pi, np.pi)
+            dc, zc = (band[0] + band[1]) / 2, (band[2] + band[3]) / 2
+            cam = np.array([cx + dc * np.cos(b), cy + dc * np.sin(b), zc])
+            if np.all(np.abs(cam[:2]) < 26) and not lv.collides(cam, 1.0):
+                lv.goals = [cam]
+                return lv, subject, band
+    raise RuntimeError("No pude armar el nivel de grabar")
+
+
+def film_posts(rng, lv, shot, n=(5, 9), keep=1.5):
+    """Grabar entre postes (nivel 12): postes de luz / sombrillas (cilindros) alrededor del sujeto, cerca de la
+    ruta de la toma pero sin taparla (a más de `keep` m), ni la salida ni el inicio. Se agregan a lv."""
+    path = np.array(shot.path(48))
+    sx, sy = shot.subject[0], shot.subject[1]
+    xy, rr, zz = list(lv.cyl_xy), list(lv.cyl_r), list(lv.cyl_z)
+    target = int(rng.integers(n[0], n[1] + 1))
+    for _ in range(400):
+        if len(rr) >= target + len(lv.cyl_r):
+            break
+        a, d = rng.uniform(-np.pi, np.pi), rng.uniform(4.0, 14.0)
+        c = np.array([sx + d * np.cos(a), sy + d * np.sin(a)])
+        r = rng.uniform(0.12, 0.3)
+        if np.min(np.hypot(path[:, 0] - c[0], path[:, 1] - c[1])) < keep + r:
+            continue
+        if np.hypot(*(c - lv.spawn[:2])) < 2.5 or lv.collides(np.array([c[0], c[1], 1.0]), r + 0.8):
+            continue
+        if any(np.hypot(*(c - q)) < 2.0 for q in xy):
+            continue
+        xy.append(c)
+        rr.append(r)
+        zz.append([0.0, rng.uniform(4.0, 6.0)])
+    lv.cyl_xy, lv.cyl_r, lv.cyl_z = np.array(xy).reshape(-1, 2), np.array(rr), np.array(zz).reshape(-1, 2)
+    return lv

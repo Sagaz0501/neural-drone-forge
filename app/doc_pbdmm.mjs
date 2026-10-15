@@ -1,0 +1,83 @@
+// Escribe docs/PBDMM.md (la referencia del lenguaje) desde app/data/pbdmm.json: node app/doc_pbdmm.mjs
+import { readFileSync, writeFileSync } from "fs";
+const D = JSON.parse(readFileSync(new URL("./data/pbdmm.json", import.meta.url)));
+const E = JSON.parse(readFileSync(new URL("./data/entrenamiento.json", import.meta.url)));
+const L = [];
+const p = (s = "") => L.push(s);
+p("# PBDMM · Python Base Dron Model Maker");
+p();
+p(`> Versión ${D.version}. Este archivo se genera desde \`app/data/pbdmm.json\` con \`node app/doc_pbdmm.mjs\`: no lo edites a mano.`);
+p();
+p("PBDMM es el lenguaje del **modo desarrollador** de Dron Maker. Un programa describe **cómo se entrena** la IA de un dron:");
+p("qué modelo, qué misión, con qué dron, cuánto cerebro, qué premios, y qué hacer mientras aprende. Por detrás hace lo mismo");
+p("que el Laboratorio del juego: un pedido a `scripts/jugar.py`, que lanza `scripts/live_train.py` (PPO, stable-baselines3)");
+p("en segundo plano o en el Drone Lab de Blender.");
+p();
+p("Tiene cara de Python pero **no es Python**: lo interpreta el navegador (`app/pbdmm.js`), sin `import` ni `while` y con un");
+p("límite de operaciones. Un programa no puede tocar tu compu: solo puede pedir un entrenamiento.");
+p();
+p("## Un programa");
+p();
+p("```python");
+p(D.ejemplos.curriculum.trimEnd());
+p("```");
+p();
+p("- **Arriba del archivo** (se lee una vez): `modelo`, `red`, `mision`/`nivel`, `dron`, `drones`, `entrenar_en` y los valores iniciales de `premios`, `aprendizaje`, `viento` y `velocidad`.");
+p("- **Funciones especiales** (las llama el juego mientras entrena):");
+for (const [k, t] of D.hooks_doc) p(`  - \`def ${k}:\` ${t}`);
+p("- Dentro de esas funciones puedes cambiar `premios`, `aprendizaje`, `viento` y `velocidad` en vivo, y llamar `pausar`, `seguir`, `guardar`, `detener`, `avisar` y `print`.");
+p();
+p("## Funciones");
+let g = null;
+for (const f of D.funciones) {
+  if (f.grupo !== g) { g = f.grupo; p(); p(`### ${g}`); }
+  p();
+  p(`#### \`${f.firma}\``);
+  p();
+  p(`*${{ arriba: "Arriba del archivo", "función": "Dentro de una función", "las dos": "Arriba o dentro de una función" }[f.donde]}.* ${f.desc}`);
+  if (f.params.length) { p(); for (const [k, t] of f.params) p(`- \`${k}\`: ${t}`); }
+  p(); p("```python"); p(f.ejemplo); p("```");
+}
+p();
+p("## Premios y castigos (lo que el entrenador entiende)");
+p();
+p("| nombre | en español | tipo | qué hace |");
+p("|---|---|---|---|");
+const inv = Object.fromEntries(Object.entries(D.alias_premios).map(([a, k]) => [k, a]));
+for (const r of E.premios) p(`| \`${r.k}\` | \`${inv[r.k] || ""}\` | ${r.tipo} | ${r.desc} |`);
+p(`| \`near\` | \`cerca\` | premio | Por estar cerca de la meta (niveles de metas y hover). |`);
+p();
+p("## Misiones");
+p();
+p("| `mision(...)` | nivel | para | qué aprende |");
+p("|---|---|---|---|");
+for (const m of E.misiones) p(`| \`"${m.id}"\` | ${m.nivel} | ${m.para} | ${m.desc} |`);
+p();
+p(`Con \`nivel(n)\`: ${Object.entries(D.nombres_niveles).map(([k, v]) => `${k} ${v}`).join(" · ")}.`);
+p();
+p("## Lo que trae `e`");
+p();
+for (const [k, t] of D.e_doc) p(`- \`${k}\`: ${t}`);
+p();
+p("## La terminal del estudio");
+p();
+for (const [k, t] of D.comandos) p(`- \`${k}\`: ${t}`);
+p();
+p("## Python que sí hay");
+p();
+p(D.funciones.find((f) => f.nombre === "python").desc);
+p();
+p("## Aprende: cómo se entrena una IA");
+for (const l of D.lecciones) { p(); p(`### ${l.titulo}`); p(); p(l.texto); }
+p();
+p("## Ejemplos");
+for (const [k, src] of Object.entries(D.ejemplos)) { p(); p(`### ${k}`); p(); p("```python"); p(src.trimEnd()); p("```"); }
+p();
+p("## Por dentro");
+p();
+p("- `app/pbdmm.js`: léxico → árbol → intérprete (un subconjunto de Python) y `compilar()`: el programa → la configuración del entrenamiento + las funciones especiales. `pedidoDe(cfg)` arma el `POST /api/lab`; `estadoE(tr)` arma `e` desde `entrenando.json`.");
+p("- `app/estudio.js`: la pantalla (editor, terminal, ayuda, gráfica). Cada 1,5 s lee `GET /api/lab`; si la generación subió, llama `cada_generacion(e)`, y lo que pida (premios, lr…) va como `ajustar`.");
+p("- `scripts/jugar.py`: `POST /api/lab` acepta `lr`, `ent`, `capas` (red nueva → `info.json`) y la acción `guardar`. `live_train.py --capas` (o `capas` en `info.json`) arma la red.");
+p("- Pruebas: `node app/test_pbdmm.mjs`.");
+writeFileSync(new URL("../docs/PBDMM.md", import.meta.url), L.join("\n") + "\n");
+console.log(`docs/PBDMM.md: ${L.length} líneas`);

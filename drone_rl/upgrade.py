@@ -1,8 +1,9 @@
 """
-Cargar EL modelo aunque sea de antes de que la red tuviera 27 entradas.
+Cargar EL modelo aunque sea de antes de que la red tuviera todas sus entradas (hoy 38).
 
-La caza agregó 3 entradas al final ("cómo se mueve la meta"). Un modelo de 24 entradas se amplía así:
-la primera capa recibe 3 columnas nuevas de pesos EN CERO. Con eso la red hace exactamente lo mismo
+Cada vez que se agregan entradas van al final: la caza agregó 3 (24 -> 27, "cómo se mueve la meta") y
+grabar agregó 11 (27 -> 38: dónde está el sujeto, qué toma, qué dron). Un modelo viejo se amplía así:
+la primera capa recibe columnas nuevas de pesos EN CERO. Con eso la red hace exactamente lo mismo
 que antes (las entradas nuevas no cambian nada) y, al seguir entrenando, aprende a usarlas.
 Todo lo demás (las otras capas, el ruido de exploración, los pasos) se copia tal cual.
 """
@@ -10,7 +11,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-N_OBS = 27
+from .sensing import N_OBS
 
 
 def widen_state_dict(old_sd: dict, new_sd: dict) -> dict:
@@ -31,7 +32,7 @@ def widen_state_dict(old_sd: dict, new_sd: dict) -> dict:
 
 
 def load_ppo(path, env=None, device: str = "cpu", custom_objects: dict | None = None):
-    """Como PPO.load, pero si el modelo tiene menos entradas que la red actual (24 -> 27), lo amplía.
+    """Como PPO.load, pero si el modelo tiene menos entradas que la red actual (24/27 -> 38), lo amplía.
     Devuelve (modelo, ampliado: bool)."""
     from stable_baselines3 import PPO
     old = PPO.load(path, device=device, custom_objects=custom_objects)
@@ -56,12 +57,18 @@ def load_ppo(path, env=None, device: str = "cpu", custom_objects: dict | None = 
     return new, True
 
 
-def backup_before_widen(path) -> Path:
-    """Copia el modelo de 24 entradas a models/anteriores/ antes de ampliarlo (por si acaso)."""
+def obs_size(path) -> int:
+    """Cuántas entradas tiene un modelo guardado (sin cargar el entorno)."""
+    from stable_baselines3 import PPO
+    return int(PPO.load(path, device="cpu").observation_space.shape[0])
+
+
+def backup_before_widen(path, n_old: int = 24) -> Path:
+    """Copia el modelo viejo a models/anteriores/ antes de ampliarlo (por si acaso)."""
     import shutil
     import time
     path = Path(path)
-    dst = path.parent / "anteriores" / f"{path.stem}_24entradas_{time.strftime('%Y%m%d_%H%M')}.zip"
+    dst = path.parent / "anteriores" / f"{path.stem}_{n_old}entradas_{time.strftime('%Y%m%d_%H%M')}.zip"
     dst.parent.mkdir(exist_ok=True)
     shutil.copy2(path, dst)
     return dst

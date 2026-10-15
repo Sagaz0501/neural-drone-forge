@@ -1,0 +1,225 @@
+{
+  "_nota": "El Laboratorio de IA del juego: qué misiones se pueden entrenar (niveles del Drone Lab) y los premios/castigos con su explicación. 'premios' de cada misión = valores recomendados. Las claves son las de DEFAULT_REWARD en drone_rl/env.py.",
+  "misiones": [
+    {
+      "nivel": 11,
+      "nombre": "Grabar: tomas con ruta",
+      "para": "Casa en venta",
+      "desc": "Una casa al azar y una toma al azar: FIJA (quieto en un punto exacto), ÓRBITA (dar la vuelta a la casa por un arco) o REVELAR (subir alejándose). Tiene que llegar al inicio de la ruta y seguir el punto de cámara pegado, con la nariz (la cámara) en la casa, a su ritmo y sin sacudidas. La casa es un obstáculo.",
+      "exito": "Toma lograda = terminar la ruta con calidad media de imagen ≥ 50 % (encuadre × en la ruta × ritmo × estable).",
+      "premios": {
+        "progress": 2.0,
+        "goal": 10.0,
+        "crash": 15.0,
+        "time": 0.01,
+        "smooth": 0.05,
+        "tilt": 0.01,
+        "near": 0.3,
+        "clearance": 0.3,
+        "danger": 0.2,
+        "speed": 0.0,
+        "stability": 1.0,
+        "heading": 2.0,
+        "film": 4.0
+      },
+      "viento": 0.0,
+      "id": "grabar"
+    },
+    {
+      "nivel": 11,
+      "nombre": "Grabar con viento",
+      "para": "Finca El Roble",
+      "desc": "Lo mismo que Grabar, pero con viento de 2,5 m/s y ráfagas: tiene que compensar el empuje del viento sin salirse de la ruta. Sin esto, en la finca la toma se le sale.",
+      "exito": "Toma lograda = terminar la ruta con calidad media ≥ 50 %, con el viento empujando.",
+      "premios": {
+        "progress": 2.0,
+        "goal": 10.0,
+        "crash": 15.0,
+        "time": 0.01,
+        "smooth": 0.05,
+        "tilt": 0.01,
+        "near": 0.3,
+        "clearance": 0.3,
+        "danger": 0.2,
+        "speed": 0.0,
+        "stability": 1.2,
+        "heading": 2.0,
+        "film": 4.0
+      },
+      "viento": 2.5,
+      "id": "grabar_viento"
+    },
+    {
+      "nivel": 12,
+      "nombre": "Grabar entre postes",
+      "para": "Restaurante La Brasa",
+      "desc": "Lo mismo que Grabar, con 5-9 postes o sombrillas a 1,5 m de la ruta. Tiene que verlos con los 10 sensores de distancia (ponle los ToF a tu dron) y pasar entre ellos sin perder el encuadre.",
+      "exito": "Toma lograda = terminar la ruta con calidad media ≥ 50 % sin tocar ningún poste.",
+      "premios": {
+        "progress": 2.0,
+        "goal": 10.0,
+        "crash": 15.0,
+        "time": 0.01,
+        "smooth": 0.05,
+        "tilt": 0.01,
+        "near": 0.3,
+        "clearance": 0.6,
+        "danger": 0.3,
+        "speed": 0.0,
+        "stability": 1.0,
+        "heading": 2.0,
+        "film": 4.0
+      },
+      "viento": 0.8,
+      "id": "grabar_postes"
+    },
+    {
+      "nivel": 2,
+      "nombre": "Repaso: ir a metas",
+      "para": "No olvidar volar",
+      "desc": "Un aro al azar a 3-8 m, arrancando mirando a cualquier lado. Sirve para que aprenda a volar TU dron (más pesado y lento que el de antes) sin olvidar lo básico.",
+      "exito": "Pasar por el aro sin chocar.",
+      "premios": {
+        "progress": 2.0,
+        "goal": 10.0,
+        "crash": 10.0,
+        "time": 0.01,
+        "smooth": 0.05,
+        "tilt": 0.01,
+        "near": 0.3,
+        "clearance": 0.0,
+        "danger": 0.0,
+        "speed": 0.3,
+        "stability": 0.5,
+        "heading": 2.0,
+        "film": 3.0
+      },
+      "viento": 0.0,
+      "id": "repaso_metas"
+    },
+    {
+      "nivel": 3,
+      "nombre": "Repaso: esquivar columnas",
+      "para": "No olvidar esquivar",
+      "desc": "Un aro al azar con columnas en el camino. Repasarlo de vez en cuando con tu dron evita que olvide esquivar mientras aprende a grabar.",
+      "exito": "Pasar por el aro sin tocar ninguna columna.",
+      "premios": {
+        "progress": 2.0,
+        "goal": 10.0,
+        "crash": 10.0,
+        "time": 0.01,
+        "smooth": 0.05,
+        "tilt": 0.01,
+        "near": 0.3,
+        "clearance": 0.3,
+        "danger": 0.2,
+        "speed": 0.3,
+        "stability": 0.5,
+        "heading": 2.0,
+        "film": 3.0
+      },
+      "viento": 0.0,
+      "id": "repaso_columnas"
+    }
+  ],
+  "premios": [
+    {
+      "k": "film",
+      "nombre": "Grabar bien",
+      "tipo": "premio",
+      "max": 10,
+      "solo": [
+        11,
+        12
+      ],
+      "desc": "Por cada segundo grabado, según la calidad de imagen (0 a 1): la casa al centro del cuadro × pegado al punto de cámara × a su ritmo × sin sacudidas. Es EL premio de grabar."
+    },
+    {
+      "k": "heading",
+      "nombre": "Mirar al sujeto",
+      "tipo": "premio",
+      "max": 5,
+      "desc": "La nariz (la cámara) hacia la casa: paga en el acto cada grado que gira hacia ella y cobra por segundo si mira para otro lado. Sin esto llega a la zona mirando a cualquier lado."
+    },
+    {
+      "k": "progress",
+      "nombre": "Acercarse al punto",
+      "tipo": "premio",
+      "max": 6,
+      "desc": "Por cada metro que se acerca al punto de cámara (primero el inicio de la ruta, después el punto que avanza)."
+    },
+    {
+      "k": "goal",
+      "nombre": "Toma terminada",
+      "tipo": "premio",
+      "max": 40,
+      "desc": "Al terminar la ruta: este premio × la calidad media de la toma. Una toma mala casi no paga."
+    },
+    {
+      "k": "stability",
+      "nombre": "Sacudidas",
+      "tipo": "castigo",
+      "max": 5,
+      "desc": "Por cada segundo de giros bruscos de roll/pitch. Un video que tiembla no sirve: súbelo si ves que la imagen se sacude."
+    },
+    {
+      "k": "smooth",
+      "nombre": "Palancas bruscas",
+      "tipo": "castigo",
+      "max": 0.3,
+      "paso": 0.01,
+      "desc": "Por cambiar las palancas de golpe. Ojo: también cobra el ruido con el que explora; muy alto y deja de probar cosas."
+    },
+    {
+      "k": "crash",
+      "nombre": "Chocar",
+      "tipo": "castigo",
+      "max": 50,
+      "desc": "Al chocar con la casa, el piso o salirse del área. En el juego un choque cuesta plata: que le duela."
+    },
+    {
+      "k": "clearance",
+      "nombre": "Pasar pegado",
+      "tipo": "castigo",
+      "max": 3,
+      "paso": 0.05,
+      "desc": "Por pasar a menos de 1,2 m de algo. Lo siente ANTES de chocar con el techo o las paredes."
+    },
+    {
+      "k": "danger",
+      "nombre": "Ir rápido hacia algo",
+      "tipo": "castigo",
+      "max": 2,
+      "paso": 0.05,
+      "desc": "Por ir hacia un obstáculo con menos de 1 s para chocar. Aprende a frenar a tiempo."
+    },
+    {
+      "k": "tilt",
+      "nombre": "Inclinarse",
+      "tipo": "castigo",
+      "max": 0.3,
+      "paso": 0.01,
+      "desc": "Por andar inclinado. Un poco ayuda a que no haga maniobras exageradas."
+    },
+    {
+      "k": "time",
+      "nombre": "El tiempo corre",
+      "tipo": "castigo",
+      "max": 0.2,
+      "paso": 0.005,
+      "desc": "Un poquito cada paso: que no se demore en llegar."
+    },
+    {
+      "k": "speed",
+      "nombre": "Rapidez al llegar",
+      "tipo": "premio",
+      "max": 2,
+      "paso": 0.05,
+      "no": [
+        11,
+        12
+      ],
+      "desc": "Al pasar un aro, más premio si llegó rápido. Para grabar no sirve (va en 0)."
+    }
+  ]
+}

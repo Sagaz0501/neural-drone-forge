@@ -33,3 +33,16 @@ game/_fixture/
 setup_venv.log
 jugar.log
 *.log
+# lo que se comparten el juego, el servidor y Blender mientras entrenas
+models/entrenando*.json
+models/lab_*.json
+partida.json
+graphify-out/
+# un modelo por dron (el hangar) y los STL que importa el jugador: viven en tu máquina
+models/drones/
+stl/
+
+# la IA publicada con el repo (copia fija del modelo base: jugar.py la usa si no tienes models/modelo.zip)
+!models/publico/
+# el juego copia la partida aquí; las pruebas locales
+partida.json
