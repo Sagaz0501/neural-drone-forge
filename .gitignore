@@ -46,3 +46,6 @@ stl/
 !models/publico/
 # el juego copia la partida aquí; las pruebas locales
 partida.json
+
+# respaldos locales de la partida
+respaldos/

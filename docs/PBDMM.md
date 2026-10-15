@@ -302,7 +302,7 @@ Con `nivel(n)`: 0 Hover (quedarse quieto) · 1 Meta fija · 2 Metas al azar · 3
 - `info <modelo>`: todo de un modelo: red, de dónde salió, niveles, curva de éxito
 - `pausar <modelo> · seguir <modelo> · detener <modelo>`: controla un entrenamiento en el fondo (o el de Blender)
 - `copiar <modelo> <nuevo> · renombrar <modelo> <nuevo> · borrar <modelo>`: borrar lo manda a la papelera (models/drones/_papelera)
-- `archivos · nuevo <nombre> · abrir <nombre> · borrar_archivo <nombre>`: tus programas .pbd (se guardan en este navegador; descarga con el botón)
+- `archivos · nuevo <nombre> · abrir <nombre> · eliminar [nombre]`: tus programas .pbd (se guardan en este navegador; descarga con el botón). eliminar sin nombre = el abierto; también con la × de la lista
 - `ejemplo <nombre>`: abre un ejemplo: hover, grabar, curriculum, postes, cerebro_chico
 - `blender`: abre Blender con el Drone Lab (si lo tienes instalado)
 - `volar <modelo>`: pone ese modelo en el dron activo del hangar para probarlo en un pedido

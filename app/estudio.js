@@ -82,6 +82,8 @@ export function initEstudio(ctx) {
   function sincScroll() { const t = $("es-src"); $("es-hl").scrollTop = t.scrollTop; $("es-hl").scrollLeft = t.scrollLeft; $("es-gut").scrollTop = t.scrollTop; }
   function cargarEditor() {
     $("es-src").value = ES.archivos[ES.abierto] ?? "";
+    $("es-src").readOnly = !ES.abierto;
+    $("es-src").placeholder = ES.abierto ? "" : "Sin programa abierto: crea uno (+ Nuevo) o abre un ejemplo.";
     $("es-nombre").textContent = ES.abierto ? ES.abierto + ".pbd" : "(sin archivo)";
     ES.errLinea = null;
     pintar();
@@ -129,13 +131,22 @@ export function initEstudio(ctx) {
     const ul = $("es-archivos");
     ul.innerHTML = "";
     for (const n of Object.keys(ES.archivos).sort()) {
-      const b = document.createElement("button");
+      const fila = document.createElement("div"), b = document.createElement("button"), x = document.createElement("button");
+      fila.className = "es-fila";
       b.className = "es-item";
       b.setAttribute("aria-pressed", String(n === ES.abierto));
       b.textContent = n + ".pbd";
+      b.title = n + ".pbd";
       b.onclick = () => { ES.abierto = n; guardarArchivos(); renderArchivos(); cargarEditor(); };
-      ul.appendChild(b);
+      x.className = "es-borrar";
+      x.textContent = "×";
+      x.title = `Eliminar ${n}.pbd`;
+      x.setAttribute("aria-label", `Eliminar ${n}.pbd`);
+      x.onclick = () => borrarArchivo(n);
+      fila.append(b, x);
+      ul.appendChild(fila);
     }
+    if (!Object.keys(ES.archivos).length) ul.innerHTML = `<p class="muted" style="font-size:13px;margin:4px 8px">No tienes programas: + Nuevo o abre un ejemplo.</p>`;
     const ej = $("es-ejemplos");
     ej.innerHTML = "";
     for (const n of Object.keys(ES.data.ejemplos)) {
@@ -155,6 +166,15 @@ export function initEstudio(ctx) {
     ES.abierto = n;
     guardarArchivos(); renderArchivos(); cargarEditor();
     return n;
+  }
+  /** Elimina un programa de este navegador (pregunta antes; el modelo que haya entrenado no se toca). */
+  function borrarArchivo(n) {
+    if (!n || ES.archivos[n] === undefined) return linea(`No hay ${n || "ese"}.pbd (archivos para verlos)`, "bad");
+    if (!confirm(`¿Eliminar ${n}.pbd? Se borra de este navegador (los modelos que entrenó no se tocan). Si lo quieres guardar, primero dale Descargar.`)) return linea("No se eliminó.", "muted");
+    delete ES.archivos[n];
+    if (ES.abierto === n) ES.abierto = Object.keys(ES.archivos).sort()[0] || null;
+    guardarArchivos(); renderArchivos(); cargarEditor();
+    linea(`Eliminé ${n}.pbd`, "ok");
   }
   function descargar() {
     if (!ES.abierto) return;
@@ -233,14 +253,7 @@ export function initEstudio(ctx) {
           if (ES.archivos[n] === undefined) return linea(`No hay ${n}.pbd (archivos para verlos)`, "bad");
           ES.abierto = n; guardarArchivos(); renderArchivos(); cargarEditor(); return linea(`Abrí ${n}.pbd`, "ok");
         }
-        case "borrar_archivo": {
-          const n = nombreArchivo(a0);
-          if (ES.archivos[n] === undefined) return linea(`No hay ${n}.pbd`, "bad");
-          if (!confirm(`¿Borrar ${n}.pbd de este navegador?`)) return;
-          delete ES.archivos[n];
-          if (ES.abierto === n) ES.abierto = Object.keys(ES.archivos)[0] || null;
-          guardarArchivos(); renderArchivos(); cargarEditor(); return linea(`Borré ${n}.pbd`, "ok");
-        }
+        case "borrar_archivo": case "eliminar": return borrarArchivo(nombreArchivo(a0 || ES.abierto));
         case "ejemplo": {
           const src = ES.data.ejemplos[a0];
           if (!src) return linea(`Ejemplos: ${Object.keys(ES.data.ejemplos).join(", ")}`, "muted");
