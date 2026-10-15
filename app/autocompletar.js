@@ -7,6 +7,7 @@
 // Las opciones fijas de cada función están en data/pbdmm.json ("opciones"); las de tu juego ($drones,
 // $misiones, $niveles, $modelos, $premios) salen de F.
 // =====================================================================
+import { t } from "./i18n.js";
 
 /** Qué tipo de valor espera cada argumento: así ofrece tus variables que sirven ahí. */
 const ESPERA = { modelo: "str", mision: "str", dron: "str", entrenar_en: "str", velocidad: "str", desde: "str", nivel: "num", drones: "num",
@@ -25,10 +26,11 @@ export function delPrograma(src) {
 }
 
 const UN_ARG = new Set(["dron", "mision", "nivel", "drones", "entrenar_en", "velocidad", "viento"]);
-const PY = [["print(", "escribe en la terminal"], ["range(", "números del 0 a n-1"], ["len(", "cuántos hay"], ["round(", "redondear"],
-  ["str(", "a texto"], ["min(", "el menor"], ["max(", "el mayor"], ["abs(", "valor absoluto"], ["sum(", "suma una lista"]];
-const KWS = [["def ", "una función"], ["if ", "si…"], ["elif ", "si no, si…"], ["else:", "si no"], ["for ", "repetir"], ["return ", "devolver"],
-  ["global ", "usar una variable de afuera"], ["True", ""], ["False", ""], ["None", ""], ["and ", ""], ["or ", ""], ["not ", ""], ["pass", ""]];
+// funciones (no constantes): el texto se traduce cuando ya cargó el idioma
+const PY = () => [["print(", t("escribe en la terminal")], ["range(", t("números del 0 a n-1")], ["len(", t("cuántos hay")], ["round(", t("redondear")],
+  ["str(", t("a texto")], ["min(", t("el menor")], ["max(", t("el mayor")], ["abs(", t("valor absoluto")], ["sum(", t("suma una lista")]];
+const KWS = () => [["def ", t("una función")], ["if ", t("si…")], ["elif ", t("si no, si…")], ["else:", t("si no")], ["for ", t("repetir")], ["return ", t("devolver")],
+  ["global ", t("usar una variable de afuera")], ["True", ""], ["False", ""], ["None", ""], ["and ", ""], ["or ", ""], ["not ", ""], ["pass", ""]];
 
 /** Mira el texto antes del cursor (con un mini-léxico: textos, comentarios, paréntesis). */
 export function contexto(antes) {
@@ -84,12 +86,12 @@ export function opciones(cx, F) {
   let out = [];
   const mios = F.programa || { vars: [], fns: [] };
   const misVars = (tipo) => mios.vars.filter((v) => !tipo || tipo === "?" || tipoValor(v.prev) === tipo || tipoValor(v.prev) === "?")
-    .map((v) => ({ txt: v.nombre, label: v.nombre, det: `tu variable = ${v.prev.slice(0, 40)}${v.prev.length > 40 ? "…" : ""}` }));
+    .map((v) => ({ txt: v.nombre, label: v.nombre, det: t("tu variable = {v}", { v: v.prev.slice(0, 40) + (v.prev.length > 40 ? "…" : "") }) }));
   if (cx.tipo === "nombre") {
-    out = [...misVars(null), ...mios.fns.filter((n) => !D.hooks.includes(n)).map((n) => ({ txt: n + "(", label: n + "()", det: "tu función", fn: true })),
+    out = [...misVars(null), ...mios.fns.filter((n) => !D.hooks.includes(n)).map((n) => ({ txt: n + "(", label: n + "()", det: t("tu función"), fn: true })),
       ...fns.map((f) => ({ txt: f.nombre + "(", label: f.firma, det: corto(f.desc), fn: true })),
-      ...PY.map(([t, d]) => ({ txt: t, label: t + ")", det: d, fn: true })),
-      ...KWS.map(([t, d]) => ({ txt: t, label: t.trim(), det: d }))];
+      ...PY().map(([tx, d]) => ({ txt: tx, label: tx + ")", det: d, fn: true })),
+      ...KWS().map(([tx, d]) => ({ txt: tx, label: tx.trim(), det: d }))];
   } else if (cx.tipo === "def") {
     out = D.hooks_doc.map(([k, d]) => ({ txt: k + ":", label: "def " + k, det: corto(d) }));
   } else if (cx.tipo === "attr") {
@@ -121,17 +123,17 @@ export function opciones(cx, F) {
   return out.slice(0, 40);
 }
 
-const corto = (s) => { const t = String(s || ""); const i = t.search(/[.:](\s|$)/); return (i > 0 ? t.slice(0, i) : t).slice(0, 90); };
+const corto = (s) => { const x = String(s || ""); const i = x.search(/[.:](\s|$)/); return (i > 0 ? x.slice(0, i) : x).slice(0, 90); };
 const q = (s) => JSON.stringify(s);
 
 function expandir(v, d, F) {
   switch (v) {
-    case "$drones": return (F.drones || []).map((n) => ({ txt: q(n), label: q(n), det: "tu dron del hangar" }));
-    case "$misiones": return (F.misiones || []).map((m) => ({ txt: q(m.id), label: q(m.id), det: `nivel ${m.nivel} · ${m.nombre}` }));
+    case "$drones": return (F.drones || []).map((n) => ({ txt: q(n), label: q(n), det: t("tu dron del hangar") }));
+    case "$misiones": return (F.misiones || []).map((m) => ({ txt: q(m.id), label: q(m.id), det: t("nivel {n} · {nombre}", { n: m.nivel, nombre: m.nombre }) }));
     case "$niveles": return Object.entries(F.nombresNiveles || {}).map(([k, n]) => ({ txt: k, label: k, det: n }));
-    case "$modelos": return (F.modelos || []).filter((m) => m.slug !== "base").map((m) => ({ txt: q(m.slug), label: q(m.slug), det: `ya existe: sigue entrenándolo (gen ${m.gen ?? 0})` }));
-    case "$modelos_texto": return (F.modelos || []).filter((m) => m.slug !== "base" && m.tiene_modelo).map((m) => ({ txt: q(m.slug), label: q(m.slug), det: `parte de tu modelo (gen ${m.gen ?? 0})` }));
-    case "$premios": case "$castigos": return (F.premios || []).filter((p) => (p.tipo || "premio") === (v === "$castigos" ? "castigo" : "premio")).map((p) => ({ txt: (p.alias || p.k) + "=", label: (p.alias || p.k) + "=", det: `${p.rec !== undefined ? `normal ${p.rec} · ` : ""}${p.alias ? p.k + ": " : ""}${corto(p.desc)}` }));
+    case "$modelos": return (F.modelos || []).filter((m) => m.slug !== "base").map((m) => ({ txt: q(m.slug), label: q(m.slug), det: t("ya existe: sigue entrenándolo (gen {gen})", { gen: m.gen ?? 0 }) }));
+    case "$modelos_texto": return (F.modelos || []).filter((m) => m.slug !== "base" && m.tiene_modelo).map((m) => ({ txt: q(m.slug), label: q(m.slug), det: t("parte de tu modelo (gen {gen})", { gen: m.gen ?? 0 }) }));
+    case "$premios": case "$castigos": return (F.premios || []).filter((p) => (p.tipo || "premio") === (v === "$castigos" ? "castigo" : "premio")).map((p) => ({ txt: (p.alias || p.k) + "=", label: (p.alias || p.k) + "=", det: `${p.rec !== undefined ? t("normal {v}", { v: p.rec }) + " · " : ""}${p.alias ? p.k + ": " : ""}${corto(p.desc)}` }));
     default: return [{ txt: v, label: v, det: d }];
   }
 }

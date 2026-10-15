@@ -1,5 +1,13 @@
 # Cambios
 
+## v0.3 · English
+
+- **El juego en inglés:** la primera vez pregunta Español / English; se cambia en el inicio. 1.200 textos traducidos
+  (`app/i18n/en/`), los datos con una capa en inglés (`app/data/en/`), el HTML fijo traducido al cargar.
+  `node app/test_i18n.mjs` revisa que no falte nada. `README.en.md`. Plan y glosario: `docs/I18N.md`.
+- **`cargar [modelo] [dron]`** en la terminal del Estudio: guarda la generación de ahora (si entrena) y la sube al dron
+  con una animación de "subida".
+
 ## v0.2 · Fase 1, primera parte
 
 - **Blender = la pantalla del entrenamiento:** el panel Drone Lab ya no tiene controles; muestra qué entrena y tiene

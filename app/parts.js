@@ -6,6 +6,7 @@
 // No usa nada del navegador: corre en node (app/test_parts.mjs).
 // Las fórmulas están explicadas en docs/PLAN_JUEGO.md, sección 8.
 // =====================================================================
+import { t } from "./i18n.js";
 
 export const G = 9.81;
 export const BATERIA_USABLE = 0.8;       // no se descarga una LiPo por debajo del ~20 %
@@ -75,15 +76,15 @@ export function calcular(build, cat, modeloMeta = null) {
   const rx = pieza(cat, "radios", build.radio || POR_DEFECTO.radio);
   const mt = pieza(cat, "montajes", build.montaje || POR_DEFECTO.montaje);
   const ex = (build.extras || []).map((id) => pieza(cat, "extras", id)).filter(Boolean);
-  for (const [nombre, p] of [["chasis", ch], ["motores", mo], ["hélices", he], ["batería", ba], ["controladora", fc], ["cámara", ca],
-    ["ESC", es], ["radio", rx], ["montaje", mt]]) {
-    if (!p) errores.push(`Falta ${nombre}.`);
+  for (const [msg, p] of [[t("Falta el chasis."), ch], [t("Faltan los motores."), mo], [t("Faltan las hélices."), he], [t("Falta la batería."), ba],
+    [t("Falta la controladora."), fc], [t("Falta la cámara."), ca], [t("Falta el ESC."), es], [t("Falta la radio."), rx], [t("Falta el montaje."), mt]]) {
+    if (!p) errores.push(msg);
   }
   if (errores.length) return { ok: false, errores };
 
-  if (he.pulgadas > ch.helice_max) errores.push(`Las hélices de ${he.pulgadas}" no caben en el ${ch.nombre} (máx. ${ch.helice_max}").`);
-  if (ba.celdas > mo.celdas[1]) errores.push(`${ba.celdas}S quema los ${mo.nombre} (máx. ${mo.celdas[1]}S).`);
-  if (ba.celdas < mo.celdas[0]) errores.push(`Con ${ba.celdas}S los ${mo.nombre} no arrancan (mín. ${mo.celdas[0]}S).`);
+  if (he.pulgadas > ch.helice_max) errores.push(t("Las hélices de {pul}\" no caben en el {chasis} (máx. {max}\").", { pul: he.pulgadas, chasis: ch.nombre, max: ch.helice_max }));
+  if (ba.celdas > mo.celdas[1]) errores.push(t("{s}S quema los {motores} (máx. {max}S).", { s: ba.celdas, motores: mo.nombre, max: mo.celdas[1] }));
+  if (ba.celdas < mo.celdas[0]) errores.push(t("Con {s}S los {motores} no arrancan (mín. {min}S).", { s: ba.celdas, motores: mo.nombre, min: mo.celdas[0] }));
 
   // masa
   const masa_g = cat.base.masa_g + (build.extraMasa_g || 0) + ch.masa_g + 4 * mo.masa_g + he.masa_g + ba.masa_g + fc.masa_g + ca.masa_g
@@ -97,7 +98,7 @@ export function calcular(build, cat, modeloMeta = null) {
   const fEsc = Math.min(1, es.corriente_a / (mo.corriente_a ?? es.corriente_a)) ** 0.75;
   const empuje_g = 4 * mo.empuje_g * fh.empuje * fv * (ba.empuje_factor ?? 1) * fEsc;
   const twr = empuje_g / masa_g;
-  if (twr <= 1.05) errores.push(`No despega: empuje/peso ${twr.toFixed(2)} (necesita > 1.05).`);
+  if (twr <= 1.05) errores.push(t("No despega: empuje/peso {twr} (necesita > 1.05).", { twr: twr.toFixed(2) }));
 
   // arrastre (F = -c |v| v)
   const drag = ch.arrastre + ca.arrastre + ex.reduce((s, e) => s + (e.arrastre || 0), 0);
@@ -130,10 +131,10 @@ export function calcular(build, cat, modeloMeta = null) {
   let ia = null;
   if (build.software) {
     const sw = pieza(cat, "software_ia", build.software);
-    if (!sw) errores.push(`No existe el software ${build.software}.`);
+    if (!sw) errores.push(t("No existe el software {sw}.", { sw: build.software }));
     else {
       const falta = sw.requiere.filter((r) => !da.has(r));
-      if (falta.length) errores.push(`${sw.nombre} necesita: ${falta.join(", ")}.`);
+      if (falta.length) errores.push(t("{sw} necesita: {falta}.", { sw: sw.nombre, falta: falta.join(", ") }));
       const rango = rangoModelo(modeloMeta);
       const enRango = twr >= rango.twr[0] && twr <= rango.twr[1] && mass >= rango.masa_kg[0] && mass <= rango.masa_kg[1];
       ia = { id: sw.id, nombre: sw.nombre, tomas: sw.tomas, rango, enRango };

@@ -8,14 +8,14 @@ Un simulador de drones en el navegador donde **la protagonista es la IA**: const
 le enseñas a volar con aprendizaje por refuerzo *en tu propia computadora*, y puedes **ver el entrenamiento en
 Blender**: 50 drones probando a la vez y la red neuronal encendiéndose mientras aprende.
 
-[Jugar](#jugar-en-2-minutos) · [Modos](#dos-formas-de-jugar) · [Cómo aprende](#cómo-aprende-la-ia) · [PBDMM](#pbdmm-el-lenguaje-para-crear-ias) · [Roadmap](docs/ROADMAP.md) · [Documentación](#documentación)
+[English](README.en.md) · [Jugar](#jugar-en-2-minutos) · [Modos](#dos-formas-de-jugar) · [Cómo aprende](#cómo-aprende-la-ia) · [PBDMM](#pbdmm-el-lenguaje-para-crear-ias) · [Roadmap](docs/ROADMAP.md) · [Documentación](#documentación)
 
 ![25 drones aprendiendo a grabar casas en el Drone Lab de Blender](docs/media/blender_entrenamiento.gif)
 
 *25 drones aprendiendo a la vez en el Drone Lab de Blender: el cono de cada cámara pasa de rojo a verde cuando la
 toma es buena. [Ver el minuto completo (MP4)](docs/media/blender_entrenamiento.mp4).*
 
-*Demo jugable · en español · 100 % local (tu compu entrena, nada sale a internet) · MIT*
+*Demo jugable · en español e inglés · 100 % local (tu compu entrena, nada sale a internet) · MIT*
 
 </div>
 
@@ -170,7 +170,7 @@ que solo la IA puede cumplir, video con varios drones…) está en el **[Roadmap
 ```bash
 python -m pytest -q                                     # simulador + servidor
 python game/make_fixture.py && node game/test_sim.mjs   # el simulador de JS == el de Python
-node app/test_parts.mjs && node app/test_banco.mjs && node app/test_pbdmm.mjs && node app/test_modulos.mjs
+node app/test_parts.mjs && node app/test_banco.mjs && node app/test_pbdmm.mjs && node app/test_modulos.mjs && node app/test_i18n.mjs
 ```
 
 Corren solas en cada push ([GitHub Actions](.github/workflows/pruebas.yml)).

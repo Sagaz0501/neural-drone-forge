@@ -15,9 +15,10 @@
 // break/continue, comentarios #. Sin while ni import (un programa no puede colgar ni tocar tu compu).
 // Docs para el jugador: app/data/pbdmm.json. Pruebas: node app/test_pbdmm.mjs
 // =====================================================================
+import { t } from "./i18n.js";
 
 export class ErrorPB extends Error {
-  constructor(msg, linea) { super(linea ? `línea ${linea}: ${msg}` : msg); this.linea = linea || null; this.msgCorto = msg; }
+  constructor(msg, linea) { super(linea ? t("línea {n}: {msg}", { n: linea, msg }) : msg); this.linea = linea || null; this.msgCorto = msg; }
 }
 
 // ---------------- léxico ----------------
@@ -38,7 +39,7 @@ export function lexer(src) {
       if (i > indents.at(-1)) { indents.push(i); toks.push({ t: "INDENT", n }); }
       while (i < indents.at(-1)) {
         indents.pop(); toks.push({ t: "DEDENT", n });
-        if (i > indents.at(-1)) throw new ErrorPB("la sangría (los espacios al inicio) no cuadra con las líneas de arriba", n);
+        if (i > indents.at(-1)) throw new ErrorPB(t("la sangría (los espacios al inicio) no cuadra con las líneas de arriba"), n);
       }
     }
     while (i < L.length) {
@@ -60,12 +61,12 @@ export function lexer(src) {
       if (c === '"' || c === "'") { const [s, fin] = leerTexto(L, i, n); toks.push({ t: "STR", v: s, n }); i = fin; continue; }
       const op = OPS.find((o) => L.startsWith(o, i));
       if (!op) {                                  // lo que se escribe en otros lenguajes y en Python no
-        if (L.startsWith("&&", i)) throw new ErrorPB('en PBDMM (como en Python) "y" se escribe and, no &&: if e.exito > 0.9 and e.calidad > 0.8:', n);
-        if (L.startsWith("||", i)) throw new ErrorPB('en PBDMM (como en Python) "o" se escribe or, no ||', n);
-        if (c === "!") throw new ErrorPB('en PBDMM (como en Python) "no" se escribe not, no ! (para "distinto de" sí es !=)', n);
-        if (c === "{" || c === "}") throw new ErrorPB("las llaves { } son para diccionarios; los bloques van con : y sangría", n);
-        if (c === ";") throw new ErrorPB("en PBDMM no hace falta ; al final de la línea", n);
-        throw new ErrorPB(`no entiendo el símbolo "${c}"`, n);
+        if (L.startsWith("&&", i)) throw new ErrorPB(t('en PBDMM (como en Python) "y" se escribe and, no &&: if e.exito > 0.9 and e.calidad > 0.8:'), n);
+        if (L.startsWith("||", i)) throw new ErrorPB(t('en PBDMM (como en Python) "o" se escribe or, no ||'), n);
+        if (c === "!") throw new ErrorPB(t('en PBDMM (como en Python) "no" se escribe not, no ! (para "distinto de" sí es !=)'), n);
+        if (c === "{" || c === "}") throw new ErrorPB(t("las llaves { } son para diccionarios; los bloques van con : y sangría"), n);
+        if (c === ";") throw new ErrorPB(t("en PBDMM no hace falta ; al final de la línea"), n);
+        throw new ErrorPB(t('no entiendo el símbolo "{c}"', { c }), n);
       }
       if ("([{".includes(op)) { prof++; abiertos.push([op, n]); }
       if (")]}".includes(op)) { prof = Math.max(0, prof - 1); abiertos.pop(); }
@@ -75,7 +76,7 @@ export function lexer(src) {
   }
   if (prof > 0) {
     const [sim, ln] = abiertos.at(-1) || ["(", lineas.length];
-    throw new ErrorPB(`falta cerrar el ${{ "(": "paréntesis (", "[": "corchete [", "{": "llave {" }[sim]} que abriste en esta línea`, ln);
+    throw new ErrorPB(t("falta cerrar el {sim} que abriste en esta línea", { sim: { "(": t("paréntesis ("), "[": t("corchete ["), "{": t("llave {") }[sim] }), ln);
   }
   while (indents.length > 1) { indents.pop(); toks.push({ t: "DEDENT", n: lineas.length }); }
   toks.push({ t: "EOF", n: lineas.length });
@@ -89,7 +90,7 @@ function leerTexto(L, i, n) {
     if (L[j] === "\\" && j + 1 < L.length) { const e = L[j + 1]; s += e === "n" ? "\n" : e === "t" ? "\t" : e; j += 2; continue; }
     s += L[j++];
   }
-  if (j >= L.length) throw new ErrorPB("un texto sin cerrar: falta la comilla del final", n);
+  if (j >= L.length) throw new ErrorPB(t("un texto sin cerrar: falta la comilla del final"), n);
   return [s, j + 1];
 }
 
@@ -98,13 +99,13 @@ export function parsear(src) {
   const T = lexer(src);
   let p = 0;
   const ver = () => T[p], sig = () => T[p++];
-  const es = (t, v) => T[p].t === t && (v === undefined || T[p].v === v);
+  const es = (tt, v) => T[p].t === tt && (v === undefined || T[p].v === v);
   const op = (v) => es("OP", v), kw = (v) => es("KW", v);
-  const pedir = (t, v, msg) => {
-    if (!es(t, v)) throw new ErrorPB(msg || `esperaba "${v ?? t}" y encontré ${desc(ver())}`, ver().n);
+  const pedir = (tt, v, msg) => {
+    if (!es(tt, v)) throw new ErrorPB(msg || t('esperaba "{v}" y encontré {d}', { v: v ?? tt, d: desc(ver()) }), ver().n);
     return sig();
   };
-  const desc = (k) => (k.t === "NL" ? "el fin de la línea" : k.t === "EOF" ? "el fin del archivo" : k.t === "INDENT" ? "más sangría" : k.t === "DEDENT" ? "menos sangría" : `"${k.v}"`);
+  const desc = (k) => (k.t === "NL" ? t("el fin de la línea") : k.t === "EOF" ? t("el fin del archivo") : k.t === "INDENT" ? t("más sangría") : k.t === "DEDENT" ? t("menos sangría") : `"${k.v}"`);
 
   function programa() {
     const body = [];
@@ -112,29 +113,29 @@ export function parsear(src) {
     return body;
   }
   function bloque() {
-    pedir("OP", ":", `falta ":" al final de la línea (antes de ${desc(ver())})`);
+    pedir("OP", ":", t('falta ":" al final de la línea (antes de {d})', { d: desc(ver()) }));
     if (!es("NL")) { const s = simple(); finLinea(); return [s]; }
     sig();
-    pedir("INDENT", undefined, "después de \":\" las líneas de adentro van con sangría (4 espacios)");
+    pedir("INDENT", undefined, t('después de ":" las líneas de adentro van con sangría (4 espacios)'));
     const body = [];
     while (!es("DEDENT") && !es("EOF")) { if (es("NL")) { sig(); continue; } body.push(sentencia()); }
     if (es("DEDENT")) sig();
     return body;
   }
-  function finLinea() { if (es("NL")) sig(); else if (!es("EOF") && !es("DEDENT")) throw new ErrorPB(`sobra algo al final de la línea: ${desc(ver())}`, ver().n); }
+  function finLinea() { if (es("NL")) sig(); else if (!es("EOF") && !es("DEDENT")) throw new ErrorPB(t("sobra algo al final de la línea: {d}", { d: desc(ver()) }), ver().n); }
 
   function sentencia() {
     const n = ver().n;
     if (kw("def")) {
       sig();
-      const nombre = pedir("NAME", undefined, "después de def va el nombre de la función").v;
+      const nombre = pedir("NAME", undefined, t("después de def va el nombre de la función")).v;
       pedir("OP", "(");
       const params = [];
       while (!op(")")) {
-        const pn = pedir("NAME", undefined, "los parámetros son nombres").v;
+        const pn = pedir("NAME", undefined, t("los parámetros son nombres")).v;
         let def = null;
         if (op("=")) { sig(); def = expr(); }
-        else if (params.some((x) => x.def)) throw new ErrorPB("los parámetros con valor por defecto van al final", ver().n);
+        else if (params.some((x) => x.def)) throw new ErrorPB(t("los parámetros con valor por defecto van al final"), ver().n);
         params.push({ nombre: pn, def });
         if (!op(")")) pedir("OP", ",");
       }
@@ -152,12 +153,12 @@ export function parsear(src) {
     if (kw("for")) {
       sig();
       const v = nombresFor();
-      pedir("KW", "in", 'falta "in" (for x in lista:)');
+      pedir("KW", "in", t('falta "in" (for x in lista:)'));
       return { k: "for", v, it: expr(), body: bloque(), n };
     }
-    if (kw("while")) throw new ErrorPB("PBDMM no tiene while (un ciclo sin fin colgaría el entrenamiento): usa for x in range(n)", n);
-    if (kw("import") || kw("from")) throw new ErrorPB("PBDMM no importa módulos: todo lo que necesitas ya está (mira la ayuda)", n);
-    if (kw("class") || kw("lambda")) throw new ErrorPB(`PBDMM no tiene ${ver().v}`, n);
+    if (kw("while")) throw new ErrorPB(t("PBDMM no tiene while (un ciclo sin fin colgaría el entrenamiento): usa for x in range(n)"), n);
+    if (kw("import") || kw("from")) throw new ErrorPB(t("PBDMM no importa módulos: todo lo que necesitas ya está (mira la ayuda)"), n);
+    if (kw("class") || kw("lambda")) throw new ErrorPB(t("PBDMM no tiene {x}", { x: ver().v }), n);
     const s = simple();
     finLinea();
     return s;
@@ -177,7 +178,7 @@ export function parsear(src) {
     if (op("=") || op("+=") || op("-=") || op("*=") || op("/=") || op("//=") || op("**=")) {
       const o = sig().v;
       const ok = (x) => ["name", "attr", "idx"].includes(x.k);
-      if (!(ok(e) || (o === "=" && e.k === "list" && e.tupla && e.xs.every(ok)))) throw new ErrorPB("a la izquierda del = va un nombre de variable (o varios: a, b = 1, 2)", n);
+      if (!(ok(e) || (o === "=" && e.k === "list" && e.tupla && e.xs.every(ok)))) throw new ErrorPB(t("a la izquierda del = va un nombre de variable (o varios: a, b = 1, 2)"), n);
       return { k: "asig", obj: e, op: o === "=" ? null : o.slice(0, -1), e: tuplaO(expr), n };
     }
     return { k: "expr", e, n };
@@ -192,8 +193,8 @@ export function parsear(src) {
   }
   /** for x in … · for k, v in … */
   function nombresFor() {
-    const xs = [pedir("NAME", undefined, "después de for va el nombre de la variable").v];
-    while (op(",")) { sig(); xs.push(pedir("NAME", undefined, "después de la coma va otro nombre").v); }
+    const xs = [pedir("NAME", undefined, t("después de for va el nombre de la variable")).v];
+    while (op(",")) { sig(); xs.push(pedir("NAME", undefined, t("después de la coma va otro nombre")).v); }
     return xs.length === 1 ? xs[0] : xs;
   }
 
@@ -202,7 +203,7 @@ export function parsear(src) {
     const a = o_();
     if (kw("if")) {                                  // a if cond else b
       const n = sig().n, c = o_();
-      pedir("KW", "else", 'falta "else" (x if condición else y)');
+      pedir("KW", "else", t('falta "else" (x if condición else y)'));
       return { k: "ternario", c, a, b: expr(), n };
     }
     return a;
@@ -222,10 +223,10 @@ export function parsear(src) {
     }
     return ops.length ? { k: "cmp", ops, xs, n: a.n } : a;
   }
-  function suma() { let a = mult(); while (op("+") || op("-")) { const t = sig(); a = { k: "bin", o: t.v, a, b: mult(), n: t.n }; } return a; }
-  function mult() { let a = unario(); while (op("*") || op("/") || op("//") || op("%")) { const t = sig(); a = { k: "bin", o: t.v, a, b: unario(), n: t.n }; } return a; }
-  function unario() { if (op("-") || op("+")) { const t = sig(); return { k: "neg", o: t.v, a: unario(), n: t.n }; } return pot(); }
-  function pot() { const a = postfijo(); if (op("**")) { const t = sig(); return { k: "bin", o: "**", a, b: unario(), n: t.n }; } return a; }
+  function suma() { let a = mult(); while (op("+") || op("-")) { const tk = sig(); a = { k: "bin", o: tk.v, a, b: mult(), n: tk.n }; } return a; }
+  function mult() { let a = unario(); while (op("*") || op("/") || op("//") || op("%")) { const tk = sig(); a = { k: "bin", o: tk.v, a, b: unario(), n: tk.n }; } return a; }
+  function unario() { if (op("-") || op("+")) { const tk = sig(); return { k: "neg", o: tk.v, a: unario(), n: tk.n }; } return pot(); }
+  function pot() { const a = postfijo(); if (op("**")) { const tk = sig(); return { k: "bin", o: "**", a, b: unario(), n: tk.n }; } return a; }
   function postfijo() {
     let a = atomo();
     for (;;) {
@@ -235,26 +236,26 @@ export function parsear(src) {
           if (op("**")) { sig(); kws.push([null, expr()]); }                     // **diccionario
           else if (op("*")) { sig(); args.push({ k: "spread", e: expr(), n: ver().n }); }   // *lista
           else if (es("NAME") && T[p + 1]?.t === "OP" && T[p + 1].v === "=") { const k = sig().v; sig(); kws.push([k, expr()]); }
-          else { if (kws.length) throw new ErrorPB("los argumentos con nombre (x=1) van después de los demás", ver().n); args.push(expr()); }
-          if (!op(")")) pedir("OP", ",", `en la llamada falta "," o ")" (encontré ${desc(ver())})`);
+          else { if (kws.length) throw new ErrorPB(t("los argumentos con nombre (x=1) van después de los demás"), ver().n); args.push(expr()); }
+          if (!op(")")) pedir("OP", ",", t('en la llamada falta "," o ")" (encontré {d})', { d: desc(ver()) }));
         }
         sig();
         a = { k: "call", f: a, args, kws, n };
-      } else if (op(".")) { const n = sig().n; a = { k: "attr", a, nombre: pedir("NAME", undefined, "después del punto va un nombre").v, n }; }
+      } else if (op(".")) { const n = sig().n; a = { k: "attr", a, nombre: pedir("NAME", undefined, t("después del punto va un nombre")).v, n }; }
       else if (op("[")) { const n = sig().n; const i = expr(); pedir("OP", "]"); a = { k: "idx", a, i, n }; }
       else return a;
     }
   }
   function atomo() {
-    const t = ver();
-    if (t.t === "NUM") { sig(); return { k: "num", v: t.v, n: t.n }; }
-    if (t.t === "STR") { sig(); let v = t.v; while (es("STR")) v += sig().v; return { k: "str", v, n: t.n }; }
-    if (t.t === "FSTR") { sig(); return { k: "fstr", partes: fstring(t.v, t.n), n: t.n }; }
-    if (t.t === "NAME") { sig(); return { k: "name", v: t.v, n: t.n }; }
-    if (t.t === "KW" && (t.v === "True" || t.v === "False" || t.v === "None")) { sig(); return { k: "const", v: t.v === "True" ? true : t.v === "False" ? false : null, n: t.n }; }
+    const tk = ver();
+    if (tk.t === "NUM") { sig(); return { k: "num", v: tk.v, n: tk.n }; }
+    if (tk.t === "STR") { sig(); let v = tk.v; while (es("STR")) v += sig().v; return { k: "str", v, n: tk.n }; }
+    if (tk.t === "FSTR") { sig(); return { k: "fstr", partes: fstring(tk.v, tk.n), n: tk.n }; }
+    if (tk.t === "NAME") { sig(); return { k: "name", v: tk.v, n: tk.n }; }
+    if (tk.t === "KW" && (tk.v === "True" || tk.v === "False" || tk.v === "None")) { sig(); return { k: "const", v: tk.v === "True" ? true : tk.v === "False" ? false : null, n: tk.n }; }
     if (op("(")) {
       sig();
-      if (op(")")) { sig(); return { k: "list", xs: [], tupla: true, n: t.n }; }
+      if (op(")")) { sig(); return { k: "list", xs: [], tupla: true, n: tk.n }; }
       const e = tuplaO(expr); pedir("OP", ")"); return e;
     }
     if (op("[")) {
@@ -264,25 +265,25 @@ export function parsear(src) {
         if (kw("for")) {                               // [x * 2 for x in lista if x > 0]
           sig();
           const v = nombresFor();
-          pedir("KW", "in", 'falta "in" ([x for x in lista])');
+          pedir("KW", "in", t('falta "in" ([x for x in lista])'));
           const it = o_();
           let c = null;
           if (kw("if")) { sig(); c = o_(); }
           pedir("OP", "]");
-          return { k: "comp", e: a, v, it, c, n: t.n };
+          return { k: "comp", e: a, v, it, c, n: tk.n };
         }
         xs.push(a);
         if (!op("]")) pedir("OP", ",");
       }
       while (!op("]")) { xs.push(expr()); if (!op("]")) pedir("OP", ","); }
-      sig(); return { k: "list", xs, n: t.n };
+      sig(); return { k: "list", xs, n: tk.n };
     }
     if (op("{")) {
       sig(); const pares = [];
       while (!op("}")) { const k = expr(); pedir("OP", ":"); pares.push([k, expr()]); if (!op("}")) pedir("OP", ","); }
-      sig(); return { k: "dict", pares, n: t.n };
+      sig(); return { k: "dict", pares, n: tk.n };
     }
-    throw new ErrorPB(`no esperaba ${desc(t)} aquí`, t.n);
+    throw new ErrorPB(t("no esperaba {d} aquí", { d: desc(tk) }), tk.n);
   }
   function fstring(s, n) {
     const partes = [];
@@ -292,15 +293,15 @@ export function parsear(src) {
       if (s[i] === "}" && s[i + 1] === "}") { txt += "}"; i += 2; continue; }
       if (s[i] === "{") {
         const j = s.indexOf("}", i);
-        if (j < 0) throw new ErrorPB("en el f-texto falta cerrar una }", n);
+        if (j < 0) throw new ErrorPB(t("en el f-texto falta cerrar una }"), n);
         let dentro = s.slice(i + 1, j), fmt = null;
         const dos = dentro.lastIndexOf(":");
         if (dos > 0 && /^\.?\d*[f%]?$/.test(dentro.slice(dos + 1))) { fmt = dentro.slice(dos + 1); dentro = dentro.slice(0, dos); }
         if (txt) partes.push(txt); txt = "";
         let sub;
         try { sub = parsear(dentro); }
-        catch (err) { throw new ErrorPB(`en el f-texto, dentro de { }: ${err.msgCorto || err.message}`, n); }
-        if (sub.length !== 1 || sub[0].k !== "expr") throw new ErrorPB("dentro de { } va una expresión", n);
+        catch (err) { throw new ErrorPB(t("en el f-texto, dentro de { }: {err}", { err: err.msgCorto || err.message }), n); }
+        if (sub.length !== 1 || sub[0].k !== "expr") throw new ErrorPB(t("dentro de { } va una expresión"), n);
         renumerar(sub[0].e, n);                     // los errores de adentro dicen la línea del f-texto
         partes.push({ e: sub[0].e, fmt });
         i = j + 1; continue;
@@ -372,7 +373,7 @@ export class Interprete {
   }
   tiene(nombre) { return !!this.globales.get(nombre)?.__pb_fn; }
 
-  tick(n) { if (++this.pasos > this.pasosMax) throw new ErrorPB(`el programa hizo demasiadas operaciones (más de ${this.pasosMax}): ¿un for muy largo?`, n); }
+  tick(n) { if (++this.pasos > this.pasosMax) throw new ErrorPB(t("el programa hizo demasiadas operaciones (más de {n}): ¿un for muy largo?", { n: this.pasosMax }), n); }
 
   bloque(body, loc) {
     for (const s of body) {
@@ -389,7 +390,7 @@ export class Interprete {
       case "break": return CORTE.break;
       case "continue": return CORTE.continue;
       case "return":
-        if (!loc) throw new ErrorPB("return solo va dentro de una función (def)", s.n);
+        if (!loc) throw new ErrorPB(t("return solo va dentro de una función (def)"), s.n);
         return new Retorno(s.e ? this.ev(s.e, loc) : null);
       case "global":
         if (!loc) return;
@@ -419,8 +420,8 @@ export class Interprete {
         let v = this.ev(s.e, loc);
         if (s.op) v = binaria(s.op, this.ev(s.obj, loc), v, s.n);
         if (s.obj.k === "list") {                            // a, b = 1, 2
-          if (!Array.isArray(v) || v.length !== s.obj.xs.length) throw new ErrorPB(`a la izquierda hay ${s.obj.xs.length} nombres y a la derecha ${Array.isArray(v) ? v.length : "un " + tipoDe(v)}`, s.n);
-          s.obj.xs.forEach((t, i) => this.sent({ k: "asig", obj: t, op: null, e: { k: "const", v: v[i], n: s.n }, n: s.n }, loc));
+          if (!Array.isArray(v) || v.length !== s.obj.xs.length) throw new ErrorPB(t("a la izquierda hay {a} nombres y a la derecha {b}", { a: s.obj.xs.length, b: Array.isArray(v) ? v.length : t("un {tipo}", { tipo: tipoDe(v) }) }), s.n);
+          s.obj.xs.forEach((x, i) => this.sent({ k: "asig", obj: x, op: null, e: { k: "const", v: v[i], n: s.n }, n: s.n }, loc));
           return;
         }
         if (s.obj.k === "name") this.poner(s.obj.v, v, loc, s.n);
@@ -428,31 +429,31 @@ export class Interprete {
           const o = this.ev(s.obj.a, loc), i = this.ev(s.obj.i, loc);
           if (Array.isArray(o)) { const j = indice(o, i, s.n); o[j] = v; }
           else if (tipoDe(o) === "dict") o[String(i)] = v;
-          else throw new ErrorPB(`no se puede cambiar un elemento de un ${tipoDe(o)}`, s.n);
+          else throw new ErrorPB(t("no se puede cambiar un elemento de un {tipo}", { tipo: tipoDe(o) }), s.n);
         } else {
           const o = this.ev(s.obj.a, loc);
           if (o?.__pb_set) o.__pb_set(s.obj.nombre, v, s.n);
-          else throw new ErrorPB(`no se puede cambiar "${s.obj.nombre}" de un ${tipoDe(o)}`, s.n);
+          else throw new ErrorPB(t('no se puede cambiar "{nombre}" de un {tipo}', { nombre: s.obj.nombre, tipo: tipoDe(o) }), s.n);
         }
         return;
       }
     }
-    throw new ErrorPB("sentencia desconocida", s.n);
+    throw new ErrorPB(t("sentencia desconocida"), s.n);
   }
   iterable(it, n) {
     if (typeof it === "string") return [...it];
     if (tipoDe(it) === "dict") return Object.keys(it);
-    if (!Array.isArray(it)) throw new ErrorPB(`no se puede recorrer con for un ${tipoDe(it)}`, n);
+    if (!Array.isArray(it)) throw new ErrorPB(t("no se puede recorrer con for un {tipo}", { tipo: tipoDe(it) }), n);
     return it;
   }
   /** for x in … / for k, v in …: pone una o varias variables. */
   ponerVarios(v, x, loc, n) {
     if (typeof v === "string") return this.poner(v, x, loc, n);
-    if (!Array.isArray(x) || x.length !== v.length) throw new ErrorPB(`for ${v.join(", ")}: cada elemento tiene que traer ${v.length} cosas`, n);
+    if (!Array.isArray(x) || x.length !== v.length) throw new ErrorPB(t("for {v}: cada elemento tiene que traer {n} cosas", { v: v.join(", "), n: v.length }), n);
     v.forEach((nombre, i) => this.poner(nombre, x[i], loc, n));
   }
   poner(nombre, v, loc, n) {
-    if (nombre in this.builtins && !(loc && loc.vars.has(nombre))) throw new ErrorPB(`"${nombre}" es una función de PBDMM: usa otro nombre para tu variable`, n);
+    if (nombre in this.builtins && !(loc && loc.vars.has(nombre))) throw new ErrorPB(t('"{nombre}" es una función de PBDMM: usa otro nombre para tu variable', { nombre }), n);
     if (loc && !loc.globals.has(nombre)) loc.vars.set(nombre, v);
     else this.globales.set(nombre, v);
   }
@@ -460,8 +461,8 @@ export class Interprete {
     if (loc && loc.vars.has(nombre) && !loc.globals.has(nombre)) return loc.vars.get(nombre);
     if (this.globales.has(nombre)) return this.globales.get(nombre);
     if (nombre in this.builtins) return Object.assign(this.builtins[nombre], { nombre });
-    if (nombre === "e" && !loc) throw new ErrorPB('"e" (cómo va el entrenamiento) solo existe dentro de las funciones que llama el juego: def cada_generacion(e): …  Arriba del archivo todavía no está entrenando', n);
-    throw new ErrorPB(`no conozco "${nombre}"${sugerir(nombre, [...this.globales.keys(), ...Object.keys(this.builtins)])}`, n);
+    if (nombre === "e" && !loc) throw new ErrorPB(t('"e" (cómo va el entrenamiento) solo existe dentro de las funciones que llama el juego: def cada_generacion(e): …  Arriba del archivo todavía no está entrenando'), n);
+    throw new ErrorPB(t('no conozco "{nombre}"{sug}', { nombre, sug: sugerir(nombre, [...this.globales.keys(), ...Object.keys(this.builtins)]) }), n);
   }
   ev(e, loc) {
     this.tick(e.n);
@@ -476,7 +477,7 @@ export class Interprete {
         for (const x of this.iterable(this.ev(e.it, loc), e.n)) {
           this.ponerVarios(e.v, x, sub, e.n);
           if (!e.c || verdad(this.ev(e.c, sub))) out.push(this.ev(e.e, sub));
-          if (out.length > 100000) throw new ErrorPB("la lista es demasiado larga", e.n);
+          if (out.length > 100000) throw new ErrorPB(t("la lista es demasiado larga"), e.n);
         }
         return out;
       }
@@ -484,7 +485,7 @@ export class Interprete {
       case "not": return !verdad(this.ev(e.a, loc));
       case "and": { const a = this.ev(e.a, loc); return verdad(a) ? this.ev(e.b, loc) : a; }
       case "or": { const a = this.ev(e.a, loc); return verdad(a) ? a : this.ev(e.b, loc); }
-      case "neg": { const a = this.ev(e.a, loc); if (typeof a !== "number") throw new ErrorPB(`"${e.o}" va antes de un número, no de un ${tipoDe(a)}`, e.n); return e.o === "-" ? -a : a; }
+      case "neg": { const a = this.ev(e.a, loc); if (typeof a !== "number") throw new ErrorPB(t('"{o}" va antes de un número, no de un {tipo}', { o: e.o, tipo: tipoDe(a) }), e.n); return e.o === "-" ? -a : a; }
       case "bin": return binaria(e.o, this.ev(e.a, loc), this.ev(e.b, loc), e.n);
       case "cmp": {
         let a = this.ev(e.xs[0], loc);
@@ -501,56 +502,56 @@ export class Interprete {
         if (o?.__pb_obj || tipoDe(o) === "dict") {
           if (o?.__pb_obj && e.nombre in o) return o[e.nombre];
           if (tipoDe(o) === "dict" && ["get", "keys", "values", "items"].includes(e.nombre)) return metodo(o, e.nombre, e.n);
-          throw new ErrorPB(`no tiene "${e.nombre}"${sugerir(e.nombre, Object.keys(o).filter((k) => !k.startsWith("__")))}`, e.n);
+          throw new ErrorPB(t('no tiene "{nombre}"{sug}', { nombre: e.nombre, sug: sugerir(e.nombre, Object.keys(o).filter((k) => !k.startsWith("__"))) }), e.n);
         }
-        throw new ErrorPB(`un ${tipoDe(o)} no tiene "${e.nombre}"`, e.n);
+        throw new ErrorPB(t('un {tipo} no tiene "{nombre}"', { tipo: tipoDe(o), nombre: e.nombre }), e.n);
       }
       case "idx": {
         const o = this.ev(e.a, loc), i = this.ev(e.i, loc);
         if (Array.isArray(o) || typeof o === "string") return o[indice(o, i, e.n)];
-        if (tipoDe(o) === "dict" || o?.__pb_obj) { if (!(String(i) in o)) throw new ErrorPB(`no hay la clave ${repr(i, true)}`, e.n); return o[String(i)]; }
-        throw new ErrorPB(`no se puede usar [ ] con un ${tipoDe(o)}`, e.n);
+        if (tipoDe(o) === "dict" || o?.__pb_obj) { if (!(String(i) in o)) throw new ErrorPB(t("no hay la clave {k}", { k: repr(i, true) }), e.n); return o[String(i)]; }
+        throw new ErrorPB(t("no se puede usar [ ] con un {tipo}", { tipo: tipoDe(o) }), e.n);
       }
       case "call": {
         const f = this.ev(e.f, loc);
         const args = e.args.flatMap((x) => {
           if (x.k !== "spread") return [this.ev(x, loc)];
           const v = this.ev(x.e, loc);
-          if (!Array.isArray(v)) throw new ErrorPB(`*${tipoDe(v)}: el * va con una lista`, e.n);
+          if (!Array.isArray(v)) throw new ErrorPB(t("*{tipo}: el * va con una lista", { tipo: tipoDe(v) }), e.n);
           return v;
         });
         const kws = e.kws.flatMap(([k, x]) => {
           if (k !== null) return [[k, this.ev(x, loc)]];
           const v = this.ev(x, loc);
-          if (tipoDe(v) !== "dict") throw new ErrorPB(`**${tipoDe(v)}: el ** va con un diccionario`, e.n);
+          if (tipoDe(v) !== "dict") throw new ErrorPB(t("**{tipo}: el ** va con un diccionario", { tipo: tipoDe(v) }), e.n);
           return Object.entries(v);
         });
         return this.invocar(f, args, kws, e.n);
       }
     }
-    throw new ErrorPB("expresión desconocida", e.n);
+    throw new ErrorPB(t("expresión desconocida"), e.n);
   }
   invocar(f, args, kws, n) {
     if (typeof f === "function") {
       try { const r = f(args, Object.fromEntries(kws), n, this); return r === undefined ? null : r; }
       catch (err) { if (err instanceof ErrorPB) { if (!err.linea) { const e2 = new ErrorPB(err.message, n); throw e2; } throw err; } throw new ErrorPB(err.message, n); }
     }
-    if (!f?.__pb_fn) throw new ErrorPB(`${repr(f, true)} no es una función`, n);
+    if (!f?.__pb_fn) throw new ErrorPB(t("{f} no es una función", { f: repr(f, true) }), n);
     const loc = { vars: new Map(), globals: new Set() };
-    if (args.length > f.params.length) throw new ErrorPB(`${f.nombre}() recibe ${f.params.length} cosas y le diste ${args.length}`, n);
+    if (args.length > f.params.length) throw new ErrorPB(t("{f}() recibe {n} cosas y le diste {m}", { f: f.nombre, n: f.params.length, m: args.length }), n);
     f.params.forEach((p, i) => loc.vars.set(p.nombre, i < args.length ? args[i] : p.def ? this.ev(p.def, null) : undefined));
-    for (const [k, v] of kws) { if (!f.params.some((p) => p.nombre === k)) throw new ErrorPB(`${f.nombre}() no tiene el parámetro "${k}"`, n); loc.vars.set(k, v); }
+    for (const [k, v] of kws) { if (!f.params.some((p) => p.nombre === k)) throw new ErrorPB(t('{f}() no tiene el parámetro "{k}"', { f: f.nombre, k }), n); loc.vars.set(k, v); }
     const falta = f.params.find((p) => loc.vars.get(p.nombre) === undefined);
-    if (falta) throw new ErrorPB(`a ${f.nombre}() le falta "${falta.nombre}"`, n);
+    if (falta) throw new ErrorPB(t('a {f}() le falta "{p}"', { f: f.nombre, p: falta.nombre }), n);
     const r = this.bloque(f.body, loc);
     return r instanceof Retorno ? r.v : null;
   }
 }
 
 function indice(o, i, n) {
-  if (!Number.isInteger(i)) throw new ErrorPB("el índice va con un número entero", n);
+  if (!Number.isInteger(i)) throw new ErrorPB(t("el índice va con un número entero"), n);
   const j = i < 0 ? o.length + i : i;
-  if (j < 0 || j >= o.length) throw new ErrorPB(`el índice ${i} se sale (hay ${o.length})`, n);
+  if (j < 0 || j >= o.length) throw new ErrorPB(t("el índice {i} se sale (hay {n})", { i, n: o.length }), n);
   return j;
 }
 function formato(v, fmt) {
@@ -565,7 +566,7 @@ function binaria(o, a, b, n) {
     if (num) return a + b;
     if (ta === "str" && tb === "str") return a + b;
     if (ta === "list" && tb === "list") return [...a, ...b];
-    if (ta === "str" || tb === "str") throw new ErrorPB(`no se puede sumar texto con ${ta === "str" ? tb : ta}: usa str(x) o un f"…{x}…"`, n);
+    if (ta === "str" || tb === "str") throw new ErrorPB(t('no se puede sumar texto con {tipo}: usa str(x) o un f"…{x}…"', { tipo: ta === "str" ? tb : ta }), n);
   }
   if (o === "*") {
     if (num) return a * b;
@@ -574,7 +575,7 @@ function binaria(o, a, b, n) {
   }
   a = boolnum(a); b = boolnum(b);
   if (typeof a === "number" && typeof b === "number") {
-    if ((o === "/" || o === "//" || o === "%") && b === 0) throw new ErrorPB("división por cero", n);
+    if ((o === "/" || o === "//" || o === "%") && b === 0) throw new ErrorPB(t("división por cero"), n);
     switch (o) {
       case "-": return a - b;
       case "/": return a / b;
@@ -583,7 +584,7 @@ function binaria(o, a, b, n) {
       case "**": return a ** b;
     }
   }
-  throw new ErrorPB(`no se puede hacer ${repr(a, true)} ${o} ${repr(b, true)} (${ta} ${o} ${tb})`, n);
+  throw new ErrorPB(t("no se puede hacer {a} {o} {b} ({ta} {o} {tb})", { a: repr(a, true), o, b: repr(b, true), ta, tb }), n);
 }
 function igual(a, b) { return a === b || (typeof a === "object" && typeof b === "object" && a && b && JSON.stringify(a) === JSON.stringify(b)); }
 function comparar(o, a, b, n) {
@@ -596,17 +597,17 @@ function comparar(o, a, b, n) {
     if (typeof b === "string") r = typeof a === "string" && b.includes(a);
     else if (Array.isArray(b)) r = b.some((x) => igual(x, a));
     else if (tipoDe(b) === "dict" || b?.__pb_obj) r = String(a) in b;
-    else throw new ErrorPB(`"in" va con un texto, una lista o un diccionario, no con un ${tipoDe(b)}`, n);
+    else throw new ErrorPB(t('"in" va con un texto, una lista o un diccionario, no con un {tipo}', { tipo: tipoDe(b) }), n);
     return o === "in" ? r : !r;
   }
   const ok = (typeof a === "number" && typeof b === "number") || (typeof a === "string" && typeof b === "string");
-  if (!ok) throw new ErrorPB(`no se puede comparar ${tipoDe(a)} ${o} ${tipoDe(b)}${a === null || b === null ? " (¿todavía no hay datos? revisa que no sea None)" : ""}`, n);
+  if (!ok) throw new ErrorPB(t("no se puede comparar {a} {o} {b}{extra}", { a: tipoDe(a), o, b: tipoDe(b), extra: a === null || b === null ? t(" (¿todavía no hay datos? revisa que no sea None)") : "" }), n);
   return o === "<" ? a < b : o === "<=" ? a <= b : o === ">" ? a > b : a >= b;
 }
 function metodo(o, nombre, n) {
   const f = (fn) => Object.assign((args) => fn(...args), { nombre });
   if (Array.isArray(o)) {
-    const M = { append: (x) => { o.push(x); }, pop: (i = -1) => { if (!o.length) throw new ErrorPB("pop() de una lista vacía", n); return o.splice(indice(o, i, n), 1)[0]; }, count: (x) => o.filter((y) => igual(x, y)).length, index: (x) => { const i = o.findIndex((y) => igual(x, y)); if (i < 0) throw new ErrorPB(`${repr(x, true)} no está en la lista`, n); return i; } };
+    const M = { append: (x) => { o.push(x); }, pop: (i = -1) => { if (!o.length) throw new ErrorPB(t("pop() de una lista vacía"), n); return o.splice(indice(o, i, n), 1)[0]; }, count: (x) => o.filter((y) => igual(x, y)).length, index: (x) => { const i = o.findIndex((y) => igual(x, y)); if (i < 0) throw new ErrorPB(t("{x} no está en la lista", { x: repr(x, true) }), n); return i; } };
     if (M[nombre]) return f(M[nombre]);
   } else if (typeof o === "string") {
     const M = { upper: () => o.toUpperCase(), lower: () => o.toLowerCase(), strip: () => o.trim(), startswith: (x) => o.startsWith(x), endswith: (x) => o.endsWith(x), replace: (a, b) => o.split(a).join(b), split: (s) => (s === undefined ? o.trim().split(/\s+/) : o.split(s)) };
@@ -615,33 +616,33 @@ function metodo(o, nombre, n) {
     const M = { get: (k, d = null) => (String(k) in o ? o[String(k)] : d), keys: () => Object.keys(o), values: () => Object.values(o), items: () => Object.entries(o) };
     if (M[nombre]) return f(M[nombre]);
   }
-  throw new ErrorPB(`un ${tipoDe(o)} no tiene "${nombre}"`, n);
+  throw new ErrorPB(t('un {tipo} no tiene "{nombre}"', { tipo: tipoDe(o), nombre }), n);
 }
 function sugerir(x, opciones) {
   const d = (a, b) => { const m = Array.from({ length: a.length + 1 }, (_, i) => [i]); for (let j = 1; j <= b.length; j++) m[0][j] = j; for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) m[i][j] = Math.min(m[i - 1][j] + 1, m[i][j - 1] + 1, m[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); return m[a.length][b.length]; };
   const best = opciones.map((o) => [o, d(x, o)]).sort((a, b) => a[1] - b[1])[0];
-  return best && best[1] <= Math.max(1, Math.floor(x.length / 3)) ? ` (¿quisiste decir "${best[0]}"?)` : "";
+  return best && best[1] <= Math.max(1, Math.floor(x.length / 3)) ? t(' (¿quisiste decir "{x}"?)', { x: best[0] }) : "";
 }
-const num = (x, nombre, n) => { if (typeof x !== "number") throw new ErrorPB(`${nombre}() necesita un número y le diste ${tipoDe(x)}`, n); return x; };
+const num = (x, nombre, n) => { if (typeof x !== "number") throw new ErrorPB(t("{f}() necesita un número y le diste {tipo}", { f: nombre, tipo: tipoDe(x) }), n); return x; };
 
 /** Lo básico de Python. La salida de print la decide quien corre el programa (builtins.print). */
 const BASICOS = {
   print: (a, k) => { BASICOS._salida(a.map((x) => repr(x)).join(k.sep ?? " ")); },
   _salida: () => {},
   str: ([x]) => repr(x),
-  int: ([x], _, n) => { const v = typeof x === "string" ? parseFloat(x) : x; if (typeof v !== "number" || Number.isNaN(v)) throw new ErrorPB(`int() no entiende ${repr(x, true)}`, n); return Math.trunc(v); },
-  float: ([x], _, n) => { const v = typeof x === "string" ? parseFloat(x) : x; if (typeof v !== "number" || Number.isNaN(v)) throw new ErrorPB(`float() no entiende ${repr(x, true)}`, n); return v; },
+  int: ([x], _, n) => { const v = typeof x === "string" ? parseFloat(x) : x; if (typeof v !== "number" || Number.isNaN(v)) throw new ErrorPB(t("int() no entiende {x}", { x: repr(x, true) }), n); return Math.trunc(v); },
+  float: ([x], _, n) => { const v = typeof x === "string" ? parseFloat(x) : x; if (typeof v !== "number" || Number.isNaN(v)) throw new ErrorPB(t("float() no entiende {x}", { x: repr(x, true) }), n); return v; },
   round: ([x, d = 0], _, n) => { num(x, "round", n); const k = 10 ** d; return Math.round(x * k) / k; },
   abs: ([x], _, n) => Math.abs(num(x, "abs", n)),
   min: (a) => Math.min(...(a.length === 1 && Array.isArray(a[0]) ? a[0] : a)),
   max: (a) => Math.max(...(a.length === 1 && Array.isArray(a[0]) ? a[0] : a)),
   sum: ([xs]) => xs.reduce((s, x) => s + x, 0),
-  len: ([x], _, n) => { if (typeof x === "string" || Array.isArray(x)) return x.length; if (tipoDe(x) === "dict") return Object.keys(x).length; throw new ErrorPB(`len() de un ${tipoDe(x)}`, n); },
+  len: ([x], _, n) => { if (typeof x === "string" || Array.isArray(x)) return x.length; if (tipoDe(x) === "dict") return Object.keys(x).length; throw new ErrorPB(t("len() de un {tipo}", { tipo: tipoDe(x) }), n); },
   range: (a, _, n) => {
     const [ini, fin, paso] = a.length === 1 ? [0, a[0], 1] : [a[0], a[1], a[2] ?? 1];
-    if (![ini, fin, paso].every(Number.isInteger) || paso === 0) throw new ErrorPB("range() va con enteros", n);
+    if (![ini, fin, paso].every(Number.isInteger) || paso === 0) throw new ErrorPB(t("range() va con enteros"), n);
     const out = [];
-    for (let i = ini; paso > 0 ? i < fin : i > fin; i += paso) { out.push(i); if (out.length > 100000) throw new ErrorPB("range() demasiado largo", n); }
+    for (let i = ini; paso > 0 ? i < fin : i > fin; i += paso) { out.push(i); if (out.length > 100000) throw new ErrorPB(t("range() demasiado largo"), n); }
     return out;
   },
   list: ([x]) => (x === undefined ? [] : Array.isArray(x) ? [...x] : typeof x === "string" ? [...x] : Object.keys(x)),
@@ -677,34 +678,35 @@ export function compilar(src, data, host = {}) {
   const arbol = parsear(src);
   const cfg = { premios: {}, lineas: {} };
   let fase = "arriba";
-  const salida = (t) => (host.print || (() => {}))(t);
+  const salida = (txt) => (host.print || (() => {}))(txt);
+  const nomTipo = (x) => (x === "castigo" ? t("castigo") : t("premio"));
   const alias = data.alias_premios || {};
   const tipos = data.tiposPremio || {};
   const nombresDe = (tipo) => [...data.premiosValidos.filter((k) => (tipos[k] || "premio") === tipo), ...Object.keys(alias).filter((a) => (tipos[alias[a]] || "premio") === tipo)];
   /** El nombre del premio/castigo para el entrenador; premios() no acepta castigos ni al revés. */
   const premioKey = (k, n, tipo) => {
     const kk = alias[k] || k, fn = tipo === "castigo" ? "castigos" : "premios";
-    if (!data.premiosValidos.includes(kk)) throw new ErrorPB(`no hay un ${tipo} "${k}"${sugerir(k, nombresDe(tipo))}. Mira ayuda("${fn}")`, n);
+    if (!data.premiosValidos.includes(kk)) throw new ErrorPB(t('no hay un {tipo} "{k}"{sug}. Mira ayuda("{fn}")', { tipo: nomTipo(tipo), k, sug: sugerir(k, nombresDe(tipo)), fn }), n);
     const real = tipos[kk] || "premio";
-    if (real !== tipo) throw new ErrorPB(`"${k}" es un ${real}: va en ${real === "castigo" ? "castigos" : "premios"}(${k}=…), no en ${fn}()`, n);
+    if (real !== tipo) throw new ErrorPB(t('"{k}" es un {real}: va en {fn2}({k}=…), no en {fn}()', { k, real: nomTipo(real), fn2: real === "castigo" ? "castigos" : "premios", fn }), n);
     return kk;
   };
-  const soloArriba = (nombre, n) => { if (fase !== "arriba") throw new ErrorPB(`${nombre}() va arriba del archivo, no dentro de una función (no se puede cambiar mientras entrena)`, n); };
-  const unaVez = (k, n) => { if (cfg.lineas[k]) throw new ErrorPB(`${k}() ya lo pusiste en la línea ${cfg.lineas[k]}`, n); cfg.lineas[k] = n; };
-  const texto = (x, nombre, n) => { if (typeof x !== "string") throw new ErrorPB(`${nombre}() va con un texto entre comillas`, n); return x; };
-  const rango = (x, a, b, nombre, n) => { num(x, nombre, n); if (x < a || x > b) throw new ErrorPB(`${nombre}: ${x} está fuera de ${a} a ${b}`, n); return x; };
+  const soloArriba = (nombre, n) => { if (fase !== "arriba") throw new ErrorPB(t("{f}() va arriba del archivo, no dentro de una función (no se puede cambiar mientras entrena)", { f: nombre }), n); };
+  const unaVez = (k, n) => { if (cfg.lineas[k]) throw new ErrorPB(t("{f}() ya lo pusiste en la línea {n}", { f: k, n: cfg.lineas[k] }), n); cfg.lineas[k] = n; };
+  const texto = (x, nombre, n) => { if (typeof x !== "string") throw new ErrorPB(t("{f}() va con un texto entre comillas", { f: nombre }), n); return x; };
+  const rango = (x, a, b, nombre, n) => { num(x, nombre, n); if (x < a || x > b) throw new ErrorPB(t("{f}: {x} está fuera de {a} a {b}", { f: nombre, x, a, b }), n); return x; };
   const acciones = [];
   const accion = (a) => { acciones.push(a); };
   /** premios(…) y castigos(…): lo mismo para el entrenador (un diccionario de valores), cada uno con sus nombres. */
   const valores = (tipo, a, k, n) => {
     const fn = tipo === "castigo" ? "castigos" : "premios", ej = tipo === "castigo" ? "castigos(chocar=15, sacudidas=1)" : "premios(grabar=4, mirar=2)";
     if (a.length === 1 && tipoDe(a[0]) === "dict") k = { ...a[0], ...k };
-    else if (a.length) throw new ErrorPB(`${ej}: cada ${tipo} con su nombre`, n);
-    if (!Object.keys(k).length) throw new ErrorPB(`${fn}() necesita al menos uno, por ejemplo ${ej}`, n);
+    else if (a.length) throw new ErrorPB(t("{ej}: cada {tipo} con su nombre", { ej, tipo: nomTipo(tipo) }), n);
+    if (!Object.keys(k).length) throw new ErrorPB(t("{fn}() necesita al menos uno, por ejemplo {ej}", { fn, ej }), n);
     const c = {};
     for (const [kk, v] of Object.entries(k)) {
       num(v, fn, n);
-      if (v < 0 || v > 10) throw new ErrorPB(`${kk}=${repr(v)}: los ${fn} van de 0 a 10 (0 = apagado, 4 = lo normal, 10 = al máximo)`, n);
+      if (v < 0 || v > 10) throw new ErrorPB(t("{k}={v}: los {fn} van de 0 a 10 (0 = apagado, 4 = lo normal, 10 = al máximo)", { k: kk, v: repr(v), fn }), n);
       const key = premioKey(kk, n, tipo);
       c[key] = realDe(key, v, data.escala);                 // el entrenador recibe el valor real
     }
@@ -714,12 +716,12 @@ export function compilar(src, data, host = {}) {
 
   const B = {
     print: (a, k) => salida(a.map((x) => repr(x)).join(k.sep ?? " ")),
-    avisar: ([t]) => { if (host.avisar) host.avisar(repr(t)); salida("📣 " + repr(t)); },
+    avisar: ([x]) => { if (host.avisar) host.avisar(repr(x)); salida("📣 " + repr(x)); },
     modelo: ([nombre], k, n) => {
       soloArriba("modelo", n); unaVez("modelo", n);
       texto(nombre, "modelo", n);
       const slug = nombre.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40);
-      if (!slug || slug === "base" || slug.startsWith("_")) throw new ErrorPB(`"${nombre}" no sirve como nombre de modelo (usa letras y números; "base" es el de la campaña)`, n);
+      if (!slug || slug === "base" || slug.startsWith("_")) throw new ErrorPB(t('"{nombre}" no sirve como nombre de modelo (usa letras y números; "base" es el de la campaña)', { nombre }), n);
       cfg.modelo = slug; cfg.nombre = nombre;
       const desde = k.desde ?? "base";
       texto(desde, "modelo(desde=…)", n);
@@ -728,21 +730,21 @@ export function compilar(src, data, host = {}) {
     red: (a, k, n) => {
       soloArriba("red", n); unaVez("red", n);
       const capas = k.capas ?? a[0];
-      if (!Array.isArray(capas) || capas.length < 1 || capas.length > 4) throw new ErrorPB("red(capas=[64, 64]): de 1 a 4 capas", n);
-      capas.forEach((c) => { if (!Number.isInteger(c) || c < 8 || c > 512) throw new ErrorPB(`cada capa tiene de 8 a 512 neuronas (pusiste ${repr(c, true)})`, n); });
+      if (!Array.isArray(capas) || capas.length < 1 || capas.length > 4) throw new ErrorPB(t("red(capas=[64, 64]): de 1 a 4 capas"), n);
+      capas.forEach((c) => { if (!Number.isInteger(c) || c < 8 || c > 512) throw new ErrorPB(t("cada capa tiene de 8 a 512 neuronas (pusiste {x})", { x: repr(c, true) }), n); });
       cfg.capas = capas;
     },
     mision: ([id], _, n) => {
       soloArriba("mision", n); unaVez("mision", n);
       texto(id, "mision", n);
       const m = data.misiones.find((x) => x.id === id);
-      if (!m) throw new ErrorPB(`no hay una misión "${id}". Hay: ${data.misiones.map((x) => x.id).join(", ")}`, n);
+      if (!m) throw new ErrorPB(t('no hay una misión "{id}". Hay: {lista}', { id, lista: data.misiones.map((x) => x.id).join(", ") }), n);
       cfg.mision = id; cfg.nivel = m.nivel;
       if (cfg.viento === undefined && m.viento) cfg.vientoMision = m.viento;
     },
     nivel: ([x], _, n) => {
       soloArriba("nivel", n); unaVez("mision", n);
-      if (!Number.isInteger(x) || !data.niveles.includes(x)) throw new ErrorPB(`nivel() va con un número de nivel del Drone Lab: ${data.niveles.join(", ")}`, n);
+      if (!Number.isInteger(x) || !data.niveles.includes(x)) throw new ErrorPB(t("nivel() va con un número de nivel del Drone Lab: {lista}", { lista: data.niveles.join(", ") }), n);
       cfg.nivel = x; cfg.mision = null;
     },
     dron: ([x], _, n) => {
@@ -753,21 +755,21 @@ export function compilar(src, data, host = {}) {
       else if (low === "azar") cfg.dron = "AZAR";
       else {
         const d = (data.drones || []).find((y) => y.toLowerCase() === low);
-        if (!d) throw new ErrorPB(`no tienes un dron "${x}" en el hangar. Usa "estandar", "azar"${data.drones?.length ? " o uno tuyo: " + data.drones.map((y) => `"${y}"`).join(", ") : ""}`, n);
+        if (!d) throw new ErrorPB(t('no tienes un dron "{x}" en el hangar. Usa "estandar", "azar"{tuyos}', { x, tuyos: data.drones?.length ? t(" o uno tuyo: {lista}", { lista: data.drones.map((y) => `"${y}"`).join(", ") }) : "" }), n);
         cfg.dron = { hangar: d };
       }
     },
-    drones: ([x], _, n) => { soloArriba("drones", n); unaVez("drones", n); if (!Number.isInteger(x)) throw new ErrorPB("drones() va con un número entero", n); cfg.drones = rango(x, 1, 200, "drones", n); },
+    drones: ([x], _, n) => { soloArriba("drones", n); unaVez("drones", n); if (!Number.isInteger(x)) throw new ErrorPB(t("drones() va con un número entero"), n); cfg.drones = rango(x, 1, 200, "drones", n); },
     entrenar_en: ([x], _, n) => {
       soloArriba("entrenar_en", n); unaVez("entrenar_en", n);
       texto(x, "entrenar_en", n);
       const v = { fondo: "fondo", "segundo plano": "fondo", blender: "blender" }[x.toLowerCase()];
-      if (!v) throw new ErrorPB('entrenar_en("fondo") o entrenar_en("blender")', n);
+      if (!v) throw new ErrorPB(t('entrenar_en("fondo") o entrenar_en("blender")'), n);
       cfg.donde = v;
     },
     velocidad: ([x], _, n) => {
       texto(x, "velocidad", n);
-      if (!["rapido", "real"].includes(x)) throw new ErrorPB('velocidad("rapido") o velocidad("real") (real = lo ves en Blender a velocidad normal)', n);
+      if (!["rapido", "real"].includes(x)) throw new ErrorPB(t('velocidad("rapido") o velocidad("real") (real = lo ves en Blender a velocidad normal)'), n);
       if (fase === "arriba") cfg.velocidad = x; else { accion({ velocidad: x }); host.ajustar?.({ velocidad: x }); }
     },
     viento: ([x], _, n) => {
@@ -778,24 +780,24 @@ export function compilar(src, data, host = {}) {
       const c = {};
       if (k.lr !== undefined) c.lr = rango(k.lr, 1e-6, 1e-2, "lr", n);
       if (k.exploracion !== undefined) c.ent = rango(k.exploracion, 0, 0.1, "exploracion", n);
-      if (a.length) throw new ErrorPB("aprendizaje(lr=0.0003, exploracion=0.0): con nombre", n);
-      if (!Object.keys(c).length) throw new ErrorPB("aprendizaje() necesita lr=… o exploracion=…", n);
+      if (a.length) throw new ErrorPB(t("aprendizaje(lr=0.0003, exploracion=0.0): con nombre"), n);
+      if (!Object.keys(c).length) throw new ErrorPB(t("aprendizaje() necesita lr=… o exploracion=…"), n);
       if (fase === "arriba") Object.assign(cfg, c); else { accion(c); host.ajustar?.(c); }
     },
     premios: (a, k, n) => valores("premio", a, k, n),
     castigos: (a, k, n) => valores("castigo", a, k, n),
-    pausar: (_, __, n) => { if (fase === "arriba") throw new ErrorPB("pausar() va dentro de una función (por ejemplo cada_generacion)", n); accion({ pausar: true }); host.pausar?.(); },
-    seguir: (_, __, n) => { if (fase === "arriba") throw new ErrorPB("seguir() va dentro de una función", n); accion({ seguir: true }); host.seguir?.(); },
-    detener: (_, __, n) => { if (fase === "arriba") throw new ErrorPB("detener() va dentro de una función (por ejemplo: if e.exito > 0.9: detener())", n); accion({ detener: true }); host.detener?.(); },
-    guardar: (_, __, n) => { if (fase === "arriba") throw new ErrorPB("guardar() va dentro de una función", n); accion({ guardar: true }); host.guardar?.(); },
+    pausar: (_, __, n) => { if (fase === "arriba") throw new ErrorPB(t("pausar() va dentro de una función (por ejemplo cada_generacion)"), n); accion({ pausar: true }); host.pausar?.(); },
+    seguir: (_, __, n) => { if (fase === "arriba") throw new ErrorPB(t("seguir() va dentro de una función"), n); accion({ seguir: true }); host.seguir?.(); },
+    detener: (_, __, n) => { if (fase === "arriba") throw new ErrorPB(t("detener() va dentro de una función (por ejemplo: if e.exito > 0.9: detener())"), n); accion({ detener: true }); host.detener?.(); },
+    guardar: (_, __, n) => { if (fase === "arriba") throw new ErrorPB(t("guardar() va dentro de una función"), n); accion({ guardar: true }); host.guardar?.(); },
   };
   const interp = new Interprete(B);
   interp.correr(arbol);
   fase = "corriendo";
 
   // valida y completa
-  if (!cfg.modelo) throw new ErrorPB('falta modelo("nombre"): cada programa entrena UN modelo con nombre');
-  if (cfg.nivel === undefined) throw new ErrorPB('falta mision("…") (o nivel(n)): qué tiene que aprender. Mira ayuda("mision")');
+  if (!cfg.modelo) throw new ErrorPB(t('falta modelo("nombre"): cada programa entrena UN modelo con nombre'));
+  if (cfg.nivel === undefined) throw new ErrorPB(t('falta mision("…") (o nivel(n)): qué tiene que aprender. Mira ayuda("mision")'));
   cfg.donde = cfg.donde || "fondo";
   cfg.drones = cfg.drones || 50;
   cfg.dron = cfg.dron || "ESTANDAR";
@@ -807,19 +809,19 @@ export function compilar(src, data, host = {}) {
     const src = data.modelos.find((m) => m.slug === cfg.desde);
     if (!src || !src.tiene_modelo) {
       const tuyos = data.modelos.filter((m) => m.slug !== "base" && m.tiene_modelo).map((m) => `"${m.slug}"`);
-      throw new ErrorPB(`no tienes un modelo "${cfg.desde}" guardado para empezar desde él${sugerir(cfg.desde, data.modelos.map((m) => m.slug))}. ${tuyos.length ? `Tus modelos: ${tuyos.join(", ")}` : "Todavía no tienes modelos propios"} (o "base" / "cero")`, cfg.lineas.modelo);
+      throw new ErrorPB(t('no tienes un modelo "{m}" guardado para empezar desde él{sug}. {tuyos} (o "base" / "cero")', { m: cfg.desde, sug: sugerir(cfg.desde, data.modelos.map((m) => m.slug)), tuyos: tuyos.length ? t("Tus modelos: {lista}", { lista: tuyos.join(", ") }) : t("Todavía no tienes modelos propios") }), cfg.lineas.modelo);
     }
-    if (cfg.desde === cfg.modelo) throw new ErrorPB("un modelo no puede empezar desde sí mismo", cfg.lineas.modelo);
+    if (cfg.desde === cfg.modelo) throw new ErrorPB(t("un modelo no puede empezar desde sí mismo"), cfg.lineas.modelo);
   }
   const yaExiste = data.modelos?.find((m) => m.slug === cfg.modelo && m.tiene_modelo);
   cfg.yaExiste = yaExiste ? { gen: yaExiste.gen ?? 0 } : null;           // entonces desde= no cuenta: sigue el suyo
-  if (cfg.capas && cfg.desde !== "cero") throw new ErrorPB('red(capas=…) solo sirve con modelo(…, desde="cero"): una red que ya existe no cambia de tamaño', cfg.lineas.red);
-  if (cfg.donde === "fondo" && cfg.modelo === "base") throw new ErrorPB("el modelo base solo se entrena en Blender");
+  if (cfg.capas && cfg.desde !== "cero") throw new ErrorPB(t('red(capas=…) solo sirve con modelo(…, desde="cero"): una red que ya existe no cambia de tamaño'), cfg.lineas.red);
+  if (cfg.donde === "fondo" && cfg.modelo === "base") throw new ErrorPB(t("el modelo base solo se entrena en Blender"));
   const premiosMision = cfg.mision ? data.misiones.find((x) => x.id === cfg.mision)?.premios || {} : {};
   cfg.premiosFinal = { ...premiosMision, ...cfg.premios };
   const hooks = (data.hooks || ["al_empezar", "cada_generacion", "al_terminar"]).filter((h) => interp.tiene(h));
   const desconocidas = [...interp.globales.entries()].filter(([k, v]) => v?.__pb_fn && !hooks.includes(k) && /^(al_|cada_)/.test(k)).map(([k]) => k);
-  if (desconocidas.length) throw new ErrorPB(`el juego no llama "${desconocidas[0]}": las funciones especiales son ${(data.hooks || []).join(", ")}`, interp.globales.get(desconocidas[0]).n);
+  if (desconocidas.length) throw new ErrorPB(t('el juego no llama "{f}": las funciones especiales son {lista}', { f: desconocidas[0], lista: (data.hooks || []).join(", ") }), interp.globales.get(desconocidas[0]).n);
 
   return {
     cfg, interp, hooks,

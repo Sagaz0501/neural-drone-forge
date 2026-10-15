@@ -4,22 +4,23 @@
 // =====================================================================
 import * as THREE from "three";
 import { buildDrone, popIn, tickPop, disposeDrone } from "./dron3d.js";
+import { t } from "./i18n.js";
 
 function canvasTex(w, h, paint, repeat = [1, 1]) {
   const c = document.createElement("canvas");
   c.width = w; c.height = h;
   paint(c.getContext("2d"), w, h);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.repeat.set(...repeat);
-  t.anisotropy = 4;
-  return t;
+  const tt = new THREE.CanvasTexture(c);
+  tt.colorSpace = THREE.SRGBColorSpace;
+  tt.wrapS = tt.wrapT = THREE.RepeatWrapping;
+  tt.repeat.set(...repeat);
+  tt.anisotropy = 4;
+  return tt;
 }
 
 function rnd(seed) {
   let a = seed >>> 0;
-  return () => { a = (a + 0x6D2B79F5) >>> 0; let t = Math.imul(a ^ (a >>> 15), a | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  return () => { a = (a + 0x6D2B79F5) >>> 0; let tt = Math.imul(a ^ (a >>> 15), a | 1); tt ^= tt + Math.imul(tt ^ (tt >>> 7), tt | 61); return ((tt ^ (tt >>> 14)) >>> 0) / 4294967296; };
 }
 
 export class Garaje {
@@ -278,7 +279,7 @@ export class Garaje {
     const s = this.portatil.userData.screen, g = s.ctx;
     g.fillStyle = "#0e1a16"; g.fillRect(0, 0, 256, 160);
     g.fillStyle = "#ffbb00"; g.fillRect(0, 0, 256, 18);
-    g.fillStyle = "#111"; g.font = "bold 12px monospace"; g.fillText("CONFIGURADOR", 6, 13);
+    g.fillStyle = "#111"; g.font = "bold 12px monospace"; g.fillText(t("CONFIGURADOR"), 6, 13);
     g.fillStyle = "#cfe"; g.font = "11px monospace";
     String(txt).split("\n").slice(-8).forEach((l, i) => g.fillText(l.slice(0, 40), 6, 34 + i * 14));
     if (pct !== null) { g.strokeStyle = "#47f08a"; g.strokeRect(6, 140, 244, 12); g.fillStyle = "#47f08a"; g.fillRect(8, 142, 240 * pct, 8); }
@@ -295,7 +296,7 @@ export class Garaje {
     flecha.scale.setScalar(k * 1.4);
     this.flechas.add(flecha);
     sfx("motor", dur);
-    await this.animar(dur, (t) => { flecha.rotation.y += (sentido === "cw" ? -1 : 1) * 0.35; flecha.material.opacity = Math.min(1, t * 6, (1 - t) * 6); });
+    await this.animar(dur, (tt) => { flecha.rotation.y += (sentido === "cw" ? -1 : 1) * 0.35; flecha.material.opacity = Math.min(1, tt * 6, (1 - tt) * 6); });
     this.flechas.remove(flecha);
   }
   esquina(pos) {
@@ -334,10 +335,10 @@ export class Garaje {
     this.imprimiendo = obj;
     const h = size.y * k + 0.012, base = bed.getWorldPosition(new THREE.Vector3()).y;
     sfx("impresora", dur);
-    await this.animar(dur, (t) => {
-      const y = 0.012 + h * t;
+    await this.animar(dur, (tt) => {
+      const y = 0.012 + h * tt;
       plane.constant = base + y;
-      head.position.set(Math.sin(t * 90) * 0.12, y + 0.03, Math.cos(t * 67) * 0.1);
+      head.position.set(Math.sin(tt * 90) * 0.12, y + 0.03, Math.cos(tt * 67) * 0.1);
     });
     obj.traverse((o) => { if (o.isMesh) o.material.clippingPlanes = []; });
     head.position.set(0, 0.32, 0);
@@ -456,7 +457,7 @@ function makePortatil() {
   const back = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.22, 0.01), body); back.position.y = 0.11; lid.add(back);
   const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.31, 0.19), new THREE.MeshBasicMaterial({ map: tex })); scr.position.set(0, 0.11, 0.0055); lid.add(scr);
   g.userData.screen = { ctx: c.getContext("2d"), tex };
-  const ctx = c.getContext("2d"); ctx.fillStyle = "#0e1a16"; ctx.fillRect(0, 0, 256, 160); ctx.fillStyle = "#47f08a"; ctx.font = "12px monospace"; ctx.fillText("Dron Maker · configurador", 10, 80); tex.needsUpdate = true;
+  const ctx = c.getContext("2d"); ctx.fillStyle = "#0e1a16"; ctx.fillRect(0, 0, 256, 160); ctx.fillStyle = "#47f08a"; ctx.font = "12px monospace"; ctx.fillText(t("Dron Maker · configurador"), 10, 80); tex.needsUpdate = true;
   return g;
 }
 
@@ -484,8 +485,8 @@ export function sfx(kind, dur = 1) {
     AC = AC || new (window.AudioContext || window.webkitAudioContext)();
     const t0 = AC.currentTime, out = AC.createGain();
     out.gain.value = 0.12; out.connect(AC.destination);
-    const tono = (f, t, d, type = "square", v = 1) => { const o = AC.createOscillator(), g = AC.createGain(); o.type = type; o.frequency.value = f; g.gain.setValueAtTime(v, t0 + t); g.gain.exponentialRampToValueAtTime(0.001, t0 + t + d); o.connect(g).connect(out); o.start(t0 + t); o.stop(t0 + t + d + 0.02); return o; };
-    const ruido = (t, d, v = 1, f = 1200) => { const n = AC.createBufferSource(), b = AC.createBuffer(1, AC.sampleRate * d, AC.sampleRate), a = b.getChannelData(0); for (let i = 0; i < a.length; i++) a[i] = (Math.random() * 2 - 1) * (1 - i / a.length); n.buffer = b; const fl = AC.createBiquadFilter(); fl.frequency.value = f; const g = AC.createGain(); g.gain.value = v; n.connect(fl).connect(g).connect(out); n.start(t0 + t); };
+    const tono = (f, tt, d, type = "square", v = 1) => { const o = AC.createOscillator(), g = AC.createGain(); o.type = type; o.frequency.value = f; g.gain.setValueAtTime(v, t0 + tt); g.gain.exponentialRampToValueAtTime(0.001, t0 + tt + d); o.connect(g).connect(out); o.start(t0 + tt); o.stop(t0 + tt + d + 0.02); return o; };
+    const ruido = (tt, d, v = 1, f = 1200) => { const n = AC.createBufferSource(), b = AC.createBuffer(1, AC.sampleRate * d, AC.sampleRate), a = b.getChannelData(0); for (let i = 0; i < a.length; i++) a[i] = (Math.random() * 2 - 1) * (1 - i / a.length); n.buffer = b; const fl = AC.createBiquadFilter(); fl.frequency.value = f; const g = AC.createGain(); g.gain.value = v; n.connect(fl).connect(g).connect(out); n.start(t0 + tt); };
     if (kind === "click") { tono(1800, 0, 0.04, "square", 0.6); ruido(0, 0.05, 0.5, 3000); }
     else if (kind === "pop") { ruido(0, 0.35, 2.5, 2500); tono(90, 0, 0.3, "sawtooth", 0.8); }
     else if (kind === "arranque") { [523, 659, 784].forEach((f, i) => tono(f, i * 0.16, 0.14, "square", 0.5)); tono(1047, 0.7, 0.25, "square", 0.4); }   // los pitidos del ESC

@@ -4,6 +4,7 @@
 // las cámaras y la red neuronal del instante. Nada de esto toca la partida: no da plata ni daña el dron.
 // =====================================================================
 import { Visor, dibujarGraficas, resultadoTxt, dibujarRed, conexionesFuertes } from "./simulacion.js";
+import { t } from "./i18n.js";
 
 export function initSim(ctx) {
   const { $, esc, api, toast } = ctx;
@@ -15,7 +16,7 @@ export function initSim(ctx) {
    */
   async function preguntarModelo(titulo, sugerido, paraAvance) {
     const ms = ((await api("/api/modelos")).modelos || []).filter((m) => m.tiene_modelo);
-    if (!ms.length) { toast("No hay modelos guardados todavía.", 4000); return null; }
+    if (!ms.length) { toast(t("No hay modelos guardados todavía."), 4000); return null; }
     // sugerido: la IA del dron; si no, la que entrena; si no, la que entrenaste por última vez
     const reciente = [...ms].sort((a, b) => String(b.actualizado || "").localeCompare(String(a.actualizado || "")))[0];
     const pref = sugerido || ms.find((m) => m.entrenando)?.slug || reciente?.slug;
@@ -27,10 +28,10 @@ export function initSim(ctx) {
       for (const m of ms) {
         const b = document.createElement("button");
         b.className = "card";
-        const tags = [m.entrenando ? `<span class="tag ok">entrenando (${m.donde})</span>` : "", m.slug === pref ? `<span class="tag">sugerido</span>` : "",
-          paraAvance ? (m.avance ? `<span class="tag">con avance</span>` : `<span class="tag muted">sin avance</span>`) : ""].join(" ");
-        const ult = m.ultimo ? ` · éxito ${Math.round((m.ultimo[2] || 0) * 100)} % en el nivel ${m.ultimo[4]}` : "";
-        b.innerHTML = `<b>${esc(m.slug)}</b> ${tags}<small>generación guardada <b>${m.gen ?? 0}</b>${ult}${m.red ? ` · red ${m.red.join("→")}` : ""}${m.actualizado ? ` · guardado ${esc(m.actualizado)}` : ""}</small>`;
+        const tags = [m.entrenando ? `<span class="tag ok">${t("entrenando ({donde})", { donde: m.donde })}</span>` : "", m.slug === pref ? `<span class="tag">${t("sugerido")}</span>` : "",
+          paraAvance ? (m.avance ? `<span class="tag">${t("con avance")}</span>` : `<span class="tag muted">${t("sin avance")}</span>`) : ""].join(" ");
+        const ult = m.ultimo ? " · " + t("éxito {p} % en el nivel {n}", { p: Math.round((m.ultimo[2] || 0) * 100), n: m.ultimo[4] }) : "";
+        b.innerHTML = `<b>${esc(m.slug)}</b> ${tags}<small>${t("generación guardada <b>{gen}</b>", { gen: m.gen ?? 0 })}${ult}${m.red ? " · " + t("red {red}", { red: m.red.join("→") }) : ""}${m.actualizado ? " · " + t("guardado {fecha}", { fecha: esc(m.actualizado) }) : ""}</small>`;
         b.onclick = () => { ctx.modal("sim-elegir", false); listo(m.slug); };
         box.appendChild(b);
       }
@@ -51,28 +52,28 @@ export function initSim(ctx) {
 
   /** Avance del modelo: de dónde salió y a dónde llegó (primer intento, peor, mejor, último) + "Ahora" (una prueba nueva). */
   async function abrirAvance(slug, volver, { preguntar = false } = {}) {
-    if (preguntar) { slug = await preguntarModelo("¿El avance de qué IA?", slug, true); if (!slug) return; }
+    if (preguntar) { slug = await preguntarModelo(t("¿El avance de qué IA?"), slug, true); if (!slug) return; }
     slug = await resolver(slug);
     const r = await api(`/api/avance?modelo=${encodeURIComponent(slug)}`);
     if (!r.ok) {
       const ms = (await api("/api/modelos")).modelos || [];
       const con = ms.filter((m) => m.avance).map((m) => `"${m.slug}"`);
-      toast(`"${esc(slug)}": ${r.msg || "no hay intentos guardados todavía."}${con.length ? ` Tienen avance: ${con.join(", ")}.` : ""}`, 6000);
+      toast(`"${esc(slug)}": ${r.msg || t("no hay intentos guardados todavía.")}${con.length ? " " + t("Tienen avance: {lista}.", { lista: con.join(", ") }) : ""}`, 6000);
       return;
     }
     SM.niveles = r.niveles;
     const stages = Object.keys(r.niveles).filter((s) => r.niveles[s].mejor || r.niveles[s].peor);
-    if (!stages.length) { toast("Todavía no hay intentos guardados: entrénalo un rato.", 4000); return; }
+    if (!stages.length) { toast(t("Todavía no hay intentos guardados: entrénalo un rato."), 4000); return; }
     // el nivel que se grabó más recientemente
     SM.stage = stages.sort((a, b) => ultimo(r.niveles[b]) - ultimo(r.niveles[a]))[0];
     abrir(slug, "avance", volver);
     elegirNivel(SM.stage);
   }
   const ultimo = (nv) => Math.max(nv.mejor?.t || 0, nv.peor?.t || 0);
-  const TITULO = { primero: "Primer intento", peor: "El peor", mejor: "El mejor", ultimo: "El último" };
+  const TITULO_ = () => ({ primero: t("Primer intento"), peor: t("El peor"), mejor: t("El mejor"), ultimo: t("El último") });
   function elegirNivel(st) {
     SM.stage = st;
-    const nv = SM.niveles[st];
+    const nv = SM.niveles[st], TITULO = TITULO_();
     // en orden de generación (el mismo intento puede ser el primero y el peor: una sola pestaña)
     const items = [];
     for (const k of ["primero", "peor", "mejor", "ultimo"]) {
@@ -87,24 +88,24 @@ export function initSim(ctx) {
   }
   /** "Ahora": una prueba nueva con la generación de este momento, como última pestaña del avance. */
   async function ahora() {
-    toast("Simulando una prueba con la generación de ahora…", 1500);
+    toast(t("Simulando una prueba con la generación de ahora…"), 1500);
     const r = await api("/api/simular", { modelo: SM.slug });
-    if (!r.ok) { toast(r.msg || "No pude simular.", 5000); return; }
+    if (!r.ok) { toast(r.msg || t("No pude simular."), 5000); return; }
     SM.lista = SM.lista.filter((x) => !x.ahora);
-    SM.lista.push({ titulo: "Ahora", rep: r, ahora: true });
+    SM.lista.push({ titulo: t("Ahora"), rep: r, ahora: true });
     mostrar(SM.lista.length - 1);
   }
 
   /** Simular prueba: una prueba nueva al azar con la última generación guardada (no detiene el entrenamiento). */
   async function abrirSimular(slug, volver, { preguntar = false } = {}) {
-    if (preguntar) { slug = await preguntarModelo("¿Con qué IA simulo la prueba?", slug, false); if (!slug) return; }
+    if (preguntar) { slug = await preguntarModelo(t("¿Con qué IA simulo la prueba?"), slug, false); if (!slug) return; }
     slug = await resolver(slug);
-    toast("Simulando una prueba…", 1500);
+    toast(t("Simulando una prueba…"), 1500);
     const r = await api("/api/simular", { modelo: slug });
-    if (!r.ok) { toast(r.msg || "No pude simular.", 5000); return; }
+    if (!r.ok) { toast(r.msg || t("No pude simular."), 5000); return; }
     SM.niveles = null;
     abrir(slug, "prueba", volver);
-    SM.lista = [{ titulo: "Prueba", rep: r }];
+    SM.lista = [{ titulo: t("Prueba"), rep: r }];
     mostrar(0);
   }
 
@@ -120,7 +121,7 @@ export function initSim(ctx) {
   async function selectorModelos() {
     const sel = $("sim-modelo"), ms = ((await api("/api/modelos")).modelos || []).filter((m) => m.tiene_modelo);
     sel.innerHTML = "";
-    for (const m of ms) sel.add(new Option(`${m.slug}${m.entrenando ? " · entrenando" : ""}${SM.modo === "avance" && !m.avance ? " (sin avance)" : ""}`, m.slug, false, m.slug === SM.slug));
+    for (const m of ms) sel.add(new Option(`${m.slug}${m.entrenando ? " · " + t("entrenando") : ""}${SM.modo === "avance" && !m.avance ? ` (${t("sin avance")})` : ""}`, m.slug, false, m.slug === SM.slug));
     sel.onchange = () => (SM.modo === "avance" ? abrirAvance(sel.value, SM.volver) : abrirSimular(sel.value, SM.volver));
   }
   async function cargarConexiones(slug) {
@@ -138,9 +139,9 @@ export function initSim(ctx) {
     ctx.G.sim?.dispose();
     ctx.G.sim = new Visor(ctx.renderer, it.rep, { quality: ctx.G.quality });
     const rep = it.rep;
-    $("sim-h").textContent = SM.modo === "avance" ? "Avance del modelo" : "Simular prueba";
-    $("sim-sub").innerHTML = `IA <b>"${esc(SM.slug)}"</b> · ${esc(rep.mision || `nivel ${rep.stage}`)} · generación ${rep.gen ?? "?"} · dron ${esc(rep.dron || "estándar")}` +
-      (SM.modo === "avance" && !it.ahora ? ` · ${hace(rep.t)}` : " · la última generación guardada · no es un pedido: no da plata ni daña nada");
+    $("sim-h").textContent = SM.modo === "avance" ? t("Avance del modelo") : t("Simular prueba");
+    $("sim-sub").innerHTML = t('IA <b>"{m}"</b> · {mision} · generación {gen} · dron {dron}', { m: esc(SM.slug), mision: esc(rep.mision || t("nivel {n}", { n: rep.stage })), gen: rep.gen ?? "?", dron: esc(rep.dron || t("estándar")) }) +
+      (SM.modo === "avance" && !it.ahora ? ` · ${hace(rep.t)}` : " · " + t("la última generación guardada · no es un pedido: no da plata ni daña nada"));
     // pestañas (mejor / peor) y, si entrenó en varios niveles, cuál
     const tabs = $("sim-tabs");
     tabs.innerHTML = "";
@@ -154,8 +155,8 @@ export function initSim(ctx) {
     if (SM.niveles && Object.keys(SM.niveles).length > 1) {
       const sel = document.createElement("select");
       sel.className = "sim-sel";
-      sel.setAttribute("aria-label", "Nivel");
-      for (const st of Object.keys(SM.niveles)) sel.add(new Option(SM.niveles[st].mejor?.mision || `nivel ${st}`, st, false, st === SM.stage));
+      sel.setAttribute("aria-label", t("Nivel"));
+      for (const st of Object.keys(SM.niveles)) sel.add(new Option(SM.niveles[st].mejor?.mision || t("nivel {n}", { n: st }), st, false, st === SM.stage));
       sel.onchange = () => elegirNivel(sel.value);
       tabs.appendChild(sel);
     }
@@ -163,13 +164,13 @@ export function initSim(ctx) {
     $("sim-t").max = String(ctx.G.sim.dur);
     pintarControles();
   }
-  const hace = (t) => { const m = Math.round((Date.now() / 1000 - t) / 60); return m < 1 ? "hace un momento" : m < 60 ? `hace ${m} min` : m < 1440 ? `hace ${Math.round(m / 60)} h` : `hace ${Math.round(m / 1440)} días`; };
+  const hace = (ts) => { const m = Math.round((Date.now() / 1000 - ts) / 60); return m < 1 ? t("hace un momento") : m < 60 ? t("hace {n} min", { n: m }) : m < 1440 ? t("hace {n} h", { n: Math.round(m / 60) }) : t("hace {n} días", { n: Math.round(m / 1440) }); };
 
   function pintarControles() {
     const V = ctx.G.sim;
     if (!V) return;
     $("sim-play").textContent = V.play ? "⏸" : "▶";
-    $("sim-play").setAttribute("aria-label", V.play ? "Pausa" : "Reproducir");
+    $("sim-play").setAttribute("aria-label", V.play ? t("Pausa") : t("Reproducir"));
     document.querySelectorAll("#sim-vel button").forEach((b) => b.setAttribute("aria-pressed", String(Number(b.dataset.v) === V.vel)));
     document.querySelectorAll("#sim-cam button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === V.camMode)));
   }
@@ -187,12 +188,12 @@ export function initSim(ctx) {
     const R = V.red();
     if (R) {
       const top = dibujarRed($("sim-red"), { ...R, w: SM.conex[SM.slug] }, { altoMin: 300, altoMax: 420 });
-      $("sim-red-top").textContent = "Lo que más siente: " + top.join(" · ");
+      $("sim-red-top").textContent = t("Lo que más siente: {lista}", { lista: top.join(" · ") });
     }
     dibujarGraficas($("sim-graf"), V);
     const e = V.estado();
-    $("sim-ahora").innerHTML = `altura <b>${e.pos[2].toFixed(1)} m</b> · velocidad <b>${e.vel.toFixed(1)} m/s</b>` +
-      (V.rep.toma ? ` · calidad <b>${Math.round((e.q || 0) * 100)} %</b> · toma ${Math.round((e.prog || 0) * 100)} %` : "") + ` · premio <b>${(e.premio ?? 0).toFixed(1)}</b>`;
+    $("sim-ahora").innerHTML = t("altura <b>{z} m</b> · velocidad <b>{v} m/s</b>", { z: e.pos[2].toFixed(1), v: e.vel.toFixed(1) }) +
+      (V.rep.toma ? " · " + t("calidad <b>{q} %</b> · toma {p} %", { q: Math.round((e.q || 0) * 100), p: Math.round((e.prog || 0) * 100) }) : "") + " · " + t("premio <b>{v}</b>", { v: (e.premio ?? 0).toFixed(1) });
   }
 
   function cerrar() {

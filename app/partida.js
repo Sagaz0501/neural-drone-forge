@@ -8,6 +8,7 @@
 // pasa a ser el primero del hangar, ya armado, cableado y programado, con la IA base (models/modelo.zip).
 // =====================================================================
 import { calcular, pieza, POR_DEFECTO } from "./parts.js";
+import { t } from "./i18n.js";
 
 const CLAVE = "dronmaker.partida";
 export const PLATA_INICIAL = 150;
@@ -40,10 +41,10 @@ export function nuevaPartida() {
  */
 export function nuevaPartidaDev(cat, drones, extras = {}) {
   const p = nuevaPartida();
-  Object.assign(p, { modo: "dev", plata: 99999, rep: REP_ETAPA.at(-1), empresa: "Estudio de IA",
+  Object.assign(p, { modo: "dev", plata: 99999, rep: REP_ETAPA.at(-1), empresa: t("Estudio de IA"),
     herramientas: (cat.herramientas || []).map((h) => h.id) });
   for (const [nombre, piezas] of Object.entries(drones)) {
-    const d = nuevoDron(p, nombre, "Pruebas de IA");
+    const d = nuevoDron(p, nombre, t("Pruebas de IA"));
     d.estilo = { ...ESTILO };
     for (const [slot, id] of Object.entries(piezas)) d.slots[slot] = agregarUnidad(p, id).uid;
     d.extras = (extras[nombre] || []).map((id) => agregarUnidad(p, id).uid);
@@ -64,7 +65,7 @@ function migrar(p) {
   const uidDe = {};
   for (const [id, u] of Object.entries(inv)) uidDe[id] = agregarUnidad(q, id, u.vida ?? 100).uid;
   if (["chasis", "motores", "bateria", "controladora", "camara"].some((s) => old[s])) {
-    const d = nuevoDron(q, "Dron 1", "Videos");
+    const d = nuevoDron(q, t("Dron {n}", { n: 1 }), t("Videos"));
     d.estilo = { ...ESTILO, ...est };
     d.modelo = "base";
     for (const [slot] of RANURAS) {
@@ -141,10 +142,10 @@ export function precioDe(p, pz) {
 /** ¿Se puede comprar? Devuelve un texto de error o null. */
 export function puedeComprar(p, cat, ranura, id) {
   const pz = pieza(cat, ranura, id);
-  if (!pz) return "Esa pieza no existe.";
-  if (ranura === "herramientas" && tieneHerramienta(p, id)) return "Ya la tienes.";
-  if (pz.etapa > etapa(p)) return `Se desbloquea con ${REP_ETAPA[pz.etapa]} de reputación.`;
-  if (pz.impresora && !tieneHerramienta(p, "impresora")) return "Necesitas la impresora 3D para imprimirlo.";
+  if (!pz) return t("Esa pieza no existe.");
+  if (ranura === "herramientas" && tieneHerramienta(p, id)) return t("Ya la tienes.");
+  if (pz.etapa > etapa(p)) return t("Se desbloquea con {rep} de reputación.", { rep: REP_ETAPA[pz.etapa] });
+  if (pz.impresora && !tieneHerramienta(p, "impresora")) return t("Necesitas la impresora 3D para imprimirlo.");
   return null;
 }
 
@@ -153,7 +154,7 @@ export function comprar(p, cat, ranura, id, n = 1) {
   const err = puedeComprar(p, cat, ranura, id);
   if (err) return err;
   const pz = pieza(cat, ranura, id), total = precioDe(p, pz) * n;
-  if (p.plata < total) return `Te faltan $${total - p.plata}.`;
+  if (p.plata < total) return t("Te faltan ${n}.", { n: total - p.plata });
   p.plata -= total;
   if (ranura === "herramientas") p.herramientas = [...(p.herramientas || []), id];
   else for (let i = 0; i < n; i++) {
@@ -172,7 +173,7 @@ export function comprarCarrito(p, cat, items) {
     if (err) return `${pieza(cat, it.ranura, it.id)?.nombre}: ${err}`;
     total += precioDe(p, pieza(cat, it.ranura, it.id)) * it.n;
   }
-  if (p.plata < total) return `Te faltan $${total - p.plata}.`;
+  if (p.plata < total) return t("Te faltan ${n}.", { n: total - p.plata });
   for (const it of items) comprar(p, cat, it.ranura, it.id, it.n);
   return null;
 }
@@ -180,8 +181,8 @@ export function comprarCarrito(p, cat, items) {
 /** Vender una unidad libre: VENTA × precio × vida. Devuelve lo que te dieron o un texto de error. */
 export function vender(p, cat, uid) {
   const u = unidad(p, uid);
-  if (!u) return "No existe.";
-  if (dronDe(p, uid)) return "Está puesta en un dron: quítala primero.";
+  if (!u) return t("No existe.");
+  if (dronDe(p, uid)) return t("Está puesta en un dron: quítala primero.");
   const pz = buscarPieza(cat, u.id);
   const plata = Math.round((pz?.precio || 0) * VENTA * (u.vida / 100));
   p.inventario = p.inventario.filter((x) => x.uid !== uid);
@@ -199,7 +200,7 @@ export function buscarPieza(cat, id) {
 export function nuevoDron(p, nombre, proposito = "") {
   let n = 1;
   while (p.drones.some((d) => d.id === "d" + n)) n++;
-  const d = { id: "d" + n, nombre: nombre || `Dron ${n}`, proposito, slots: {}, extras: [], estilo: { ...ESTILO }, banco: {}, modelo: null,
+  const d = { id: "d" + n, nombre: nombre || t("Dron {n}", { n }), proposito, slots: {}, extras: [], estilo: { ...ESTILO }, banco: {}, modelo: null,
     canopy: null, visuales: {}, creado: Date.now() };
   p.drones.push(d);
   p.activo = d.id;
@@ -219,7 +220,7 @@ export function instalar(p, d, slot, id) {
   const actual = unidad(p, d.slots[slot]);
   if (actual?.id === id) return null;
   const u = libres(p, id)[0];
-  if (!u) return "No tienes una libre: cómprala en la tienda o quítasela a otro dron.";
+  if (!u) return t("No tienes una libre: cómprala en la tienda o quítasela a otro dron.");
   d.slots[slot] = u.uid;
   return null;
 }
@@ -230,7 +231,7 @@ export function alternarExtra(p, d, id) {
   const puesto = d.extras.find((uid) => unidad(p, uid)?.id === id);
   if (puesto) { d.extras = d.extras.filter((x) => x !== puesto); return null; }
   const u = libres(p, id)[0];
-  if (!u) return "No tienes uno libre: cómpralo en la tienda.";
+  if (!u) return t("No tienes uno libre: cómpralo en la tienda.");
   d.extras.push(u.uid);
   return null;
 }
@@ -278,7 +279,7 @@ export function costoReparar(p, cat, d) {
 
 export function reparar(p, cat, d) {
   const c = costoReparar(p, cat, d);
-  if (c > p.plata) return `Te faltan $${c - p.plata}.`;
+  if (c > p.plata) return t("Te faltan ${n}.", { n: c - p.plata });
   p.plata -= c;
   for (const uid of Object.values(d.slots)) { const u = unidad(p, uid); if (u) u.vida = 100; }
   return null;

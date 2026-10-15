@@ -1,0 +1,135 @@
+{
+  "pedidos": [
+    {
+      "id": "casa_venta",
+      "cliente": "Doña Marta (real estate)",
+      "titulo": "Photos of a house for sale",
+      "tomas": [
+        { "nombre": "The front", "desc": "Hold still in front of the house, showing the facade and the sign." },
+        { "nombre": "Half orbit", "desc": "Go around one side of the house without losing it from the center." },
+        { "nombre": "Reveal from the garden", "desc": "Start low and close, then rise while pulling away: the whole house comes into view." }
+      ],
+      "entrenar": { "nota": "Filming (shots with a route) with your drone, no wind." },
+      "historia": "Doña Marta is selling her mother's house and can't afford a photographer. You've got a wooden drone and plenty of drive."
+    },
+    {
+      "id": "finca",
+      "cliente": "Don Ernesto (El Roble farm)",
+      "titulo": "Video of El Roble farm",
+      "historia": "Don Ernesto saw the house video and wants one of his farm to sell milk to a supermarket. Up there the wind always blows.",
+      "entrenar": { "nota": "Filming in the wind: level 11 with 2.5 m/s wind. Without wind in training, the AI can't compensate for gusts." },
+      "tomas": [
+        { "nombre": "Reveal the barn", "desc": "From the barn door, rise while pulling away until the whole farm is in view." },
+        { "nombre": "Wide orbit", "desc": "A big, high loop around the barn (with the silo behind it)." },
+        { "nombre": "The silo", "desc": "Hold still, high up, with the barn in the center and the silo beside it." }
+      ]
+    },
+    {
+      "id": "restaurante",
+      "cliente": "Doña Lucía (La Brasa restaurant)",
+      "titulo": "La Brasa restaurant for social media",
+      "historia": "You have a shop now and clients who pay for real. Doña Lucía wants a video for Instagram, but there are people eating on the terrace and poles on the sidewalk.",
+      "entrenar": { "nota": "Filming between poles (level 12) with your drone. For the AI to see the poles, give it the ToF sensors." },
+      "tomas": [
+        { "nombre": "The facade", "desc": "Hold still in front of the restaurant, at the height of the sign." },
+        { "nombre": "Between the poles", "desc": "Half a loop along the sidewalk, passing between the poles and the wall." },
+        { "nombre": "Reveal the street", "desc": "From the sidewalk, rise while pulling away over the street." }
+      ]
+    },
+    {
+      "id": "concesionario",
+      "titulo": "A new car at the dealership",
+      "historia": "Low, fast shots around a shiny car: any vibration shows.",
+      "plan": {
+        "piezas": ["4K camera", "TPU soft-mount or 2-axis gimbal", "45 A ESC with RPM filter"],
+        "ia": "level 11 with low shots (1.5 m)"
+      }
+    },
+    {
+      "id": "ciclista",
+      "cliente": "Cycling club",
+      "titulo": "Follow a cyclist",
+      "historia": "The first subject that moves: a cyclist at 6 m/s along the road.",
+      "plan": {
+        "piezas": ["2306 motors + 4S (top speed ≥ 8 m/s)", "STM32F722 + M10 GPS", "ExpressLRS 2.4 GHz"],
+        "ia": "level 13 · Follow (not built yet)"
+      }
+    },
+    {
+      "id": "futbol",
+      "cliente": "Neighborhood league",
+      "titulo": "Soccer match",
+      "historia": "A ball that keeps changing direction, high shots and wind.",
+      "plan": {
+        "piezas": ["2-axis gimbal", "LiPo 4S 2200"],
+        "ia": "level 13 with wind"
+      }
+    },
+    {
+      "id": "matrimonio",
+      "cliente": "Laura and Andrés",
+      "titulo": "Wedding: leaving the church",
+      "historia": "Multi-camera: you and two AI drones, each with its own angle.",
+      "plan": {
+        "piezas": ["STM32H743 + K210 AI coprocessor", "cinema 4K with 3-axis gimbal", "LED lights"],
+        "ia": "level 13 + formation"
+      }
+    },
+    {
+      "id": "bosque",
+      "cliente": "Outdoor brand",
+      "titulo": "A model in the forest",
+      "historia": "Follow someone walking between tree trunks, flying low.",
+      "plan": {
+        "piezas": ["3\" cinewhoop with ducts", "ToF sensors"],
+        "ia": "level 14 · Follow in the forest"
+      }
+    },
+    {
+      "id": "festival",
+      "cliente": "Full Moon Festival",
+      "titulo": "Night music festival",
+      "historia": "At night, in strong wind, with three AI drones.",
+      "plan": {
+        "piezas": ["WS2812 LED lights", "carbon 7\"", "ExpressLRS 900 MHz"],
+        "ia": "level 13 with 4 m/s wind"
+      }
+    },
+    {
+      "id": "pelicula",
+      "cliente": "Cóndor Productions",
+      "titulo": "The movie: the chase",
+      "historia": "The finale: a chase filmed by four autonomous drones.",
+      "plan": {
+        "piezas": ["four AI drones", "the best of everything"],
+        "ia": "everything above"
+      }
+    }
+  ],
+  "capitulos": [
+    {
+      "titulo": "The garage",
+      "historia": "You have $150, an ESP32 and some motors you pulled out of a toy drone. Build something that flies, land your first client and learn to film for real."
+    },
+    {
+      "titulo": "Small business",
+      "historia": "People know you now. Clients show up with people nearby, obstacles and quality demands: time for serious parts (STM32, ExpressLRS, PETG)."
+    },
+    {
+      "titulo": "Video studio",
+      "empresa": "Garaje Films Studio",
+      "historia": "Now things move: cyclists, matches. Gimbal, GPS and lots of speed. Your AI has to learn to follow."
+    },
+    {
+      "titulo": "AI fleet",
+      "empresa": "Garaje Films Studio",
+      "historia": "One drone isn't enough anymore: you fly one and your AI drones film from other angles."
+    },
+    {
+      "titulo": "The grand finale",
+      "empresa": "Aerial Studio",
+      "historia": "They call you to film a movie: a chase with four autonomous drones. Everything you've learned, all together."
+    }
+  ],
+  "final": "You did it! From a wooden drone to an aerial film studio. Garaje Films is now called Aerial Studio. Thanks for playing: free mode is unlocked."
+}

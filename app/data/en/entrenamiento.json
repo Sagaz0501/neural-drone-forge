@@ -1,0 +1,53 @@
+{
+  "misiones": [
+    {
+      "id": "grabar",
+      "nombre": "Filming: shots with a route",
+      "para": "House for sale",
+      "desc": "A random house and a random shot: FIXED (hold still at an exact point), ORBIT (circle the house along an arc) or REVEAL (rise while pulling away). It has to reach the start of the route and stick to the camera point, with its nose (the camera) on the house, at the right pace and without shaking. The house is an obstacle.",
+      "exito": "Shot done = finish the route with an average image quality ≥ 50 % (framing × on the route × pace × steady)."
+    },
+    {
+      "id": "grabar_viento",
+      "nombre": "Filming in the wind",
+      "para": "El Roble farm",
+      "desc": "Same as Filming, but with 2.5 m/s wind and gusts: it has to compensate for the wind's push without leaving the route. Without this, at the farm the shot drifts off.",
+      "exito": "Shot done = finish the route with an average quality ≥ 50 %, with the wind pushing."
+    },
+    {
+      "id": "grabar_postes",
+      "nombre": "Filming between poles",
+      "para": "La Brasa restaurant",
+      "desc": "Same as Filming, with 5-9 poles or umbrellas 1.5 m from the route. It has to see them with the 10 distance sensors (give your drone the ToF sensors) and pass between them without losing the framing.",
+      "exito": "Shot done = finish the route with an average quality ≥ 50 % without touching any pole."
+    },
+    {
+      "id": "repaso_metas",
+      "nombre": "Review: reach targets",
+      "para": "Don't forget how to fly",
+      "desc": "A random ring 3-8 m away, starting out facing any direction. It helps the AI learn to fly YOUR drone (heavier and slower than before) without forgetting the basics.",
+      "exito": "Fly through the ring without crashing."
+    },
+    {
+      "id": "repaso_columnas",
+      "nombre": "Review: dodge columns",
+      "para": "Don't forget how to dodge",
+      "desc": "A random ring with columns in the way. Reviewing it now and then with your drone keeps it from forgetting how to dodge while it learns to film.",
+      "exito": "Fly through the ring without touching any column."
+    }
+  ],
+  "premios": [
+    { "k": "film", "nombre": "Film well", "desc": "For every second filmed, according to image quality (0 to 1): house centered in frame × stuck to the camera point × at its pace × no shaking. This is THE filming reward." },
+    { "k": "heading", "nombre": "Face the subject", "desc": "Nose (the camera) toward the house: pays right away for every degree it turns toward it and charges per second if it looks elsewhere. Without this it reaches the area facing any direction." },
+    { "k": "progress", "nombre": "Approach the point", "desc": "For every meter it gets closer to the camera point (first the start of the route, then the moving point)." },
+    { "k": "goal", "nombre": "Shot finished", "desc": "When it finishes the route: this reward × the shot's average quality. A bad shot barely pays." },
+    { "k": "stability", "nombre": "Shaking", "desc": "For every second of sharp roll/pitch turns. A shaky video is useless: raise it if you see the image shaking." },
+    { "k": "smooth", "nombre": "Jerky sticks", "desc": "For changing the sticks abruptly. Careful: it also charges for the noise it explores with; set it too high and it stops trying things." },
+    { "k": "crash", "nombre": "Crashing", "desc": "When it hits the house, the ground or leaves the area. In the game a crash costs money: make it hurt." },
+    { "k": "clearance", "nombre": "Flying too close", "desc": "For passing within 1.2 m of something. It feels it BEFORE hitting the ceiling or the walls." },
+    { "k": "danger", "nombre": "Rushing toward something", "desc": "For heading toward an obstacle with less than 1 s until impact. It learns to brake in time." },
+    { "k": "tilt", "nombre": "Tilting", "desc": "For flying tilted. A little helps keep it from making exaggerated maneuvers." },
+    { "k": "time", "nombre": "The clock is ticking", "desc": "A tiny bit every step: so it doesn't dawdle getting there." },
+    { "k": "speed", "nombre": "Arriving fast", "desc": "When passing a ring, more reward if it got there fast. Useless for filming (set to 0)." }
+  ]
+}

@@ -4,6 +4,7 @@
 // pasa más señal. Lo usan el Estudio PBDMM (la red en vivo) y el visor de simulaciones (app/simulacion.js).
 //   R = { capas: [38, 128, 128, 4], in: [38], h: [[..], [..]], mu: [4], in_lbl?, act_lbl?, w?: [[[origen, destino, peso]]] }
 // =====================================================================
+import { t } from "./i18n.js";
 
 const clip = (v) => Math.max(-1, Math.min(1, v || 0));
 const col = (v, a) => (v >= 0 ? `rgba(255,158,94,${a})` : `rgba(60,203,255,${a})`);
@@ -48,7 +49,7 @@ export function dibujarRed(cv, R, { altoMin = 360, altoMax = 520 } = {}) {
     g.textAlign = "left"; g.fillStyle = "#eaf2ef"; g.fillText(`${nombre} ${v >= 0 ? "+" : ""}${v.toFixed(2)}`, xs[L - 1] + 9, y);
   });
   g.textAlign = "center"; g.fillStyle = "#7d938a";
-  capas.forEach((n, l) => g.fillText(l === 0 ? `${n} sensores` : l === L - 1 ? "palancas" : String(n), xs[l], H - 4));
+  capas.forEach((n, l) => g.fillText(l === 0 ? t("{n} sensores", { n }) : l === L - 1 ? t("palancas") : String(n), xs[l], H - 4));
   // lo que más está sintiendo (un sensor de distancia en 1 = no ve nada cerca: no cuenta)
   return R.in.map((v, j) => [Math.abs(v), j, v]).filter(([, j, v]) => !(/^sensor/.test(lbl[j] || "") && v >= 0.98))
     .sort((a, b) => b[0] - a[0]).slice(0, 4).map(([, j, v]) => `${lbl[j] || j} ${v >= 0 ? "+" : ""}${v.toFixed(2)}`);

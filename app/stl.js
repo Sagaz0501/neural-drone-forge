@@ -5,6 +5,7 @@
 // Unidades: los STL vienen en milímetros con Z hacia arriba; el juego usa metros con Y hacia arriba.
 // =====================================================================
 import * as THREE from "three";
+import { t } from "./i18n.js";
 
 /** ArrayBuffer -> Float32Array de triángulos (x,y,z × 3 por triángulo), en mm, Z arriba. */
 export function leerSTL(buf) {
@@ -25,7 +26,7 @@ export function leerSTL(buf) {
   const re = /vertex\s+([-+\d.eE]+)\s+([-+\d.eE]+)\s+([-+\d.eE]+)/g;
   let m;
   while ((m = re.exec(txt))) nums.push(+m[1], +m[2], +m[3]);
-  if (!nums.length || nums.length % 9) throw new Error("No parece un STL (ni binario ni ASCII).");
+  if (!nums.length || nums.length % 9) throw new Error(t("No parece un STL (ni binario ni ASCII)."));
   return new Float32Array(nums);
 }
 
@@ -96,12 +97,12 @@ export function exportarSTL(obj, nombre = "dron_maker") {
   for (let i = 0; i < head.length; i++) dv.setUint8(i, head.charCodeAt(i) & 127);
   dv.setUint32(80, n, true);
   for (let i = 0; i < n; i++) {
-    const o = 84 + i * 50, t = tris.slice(i * 9, i * 9 + 9);
-    const ux = t[3] - t[0], uy = t[4] - t[1], uz = t[5] - t[2], wx = t[6] - t[0], wy = t[7] - t[1], wz = t[8] - t[2];
+    const o = 84 + i * 50, tri = tris.slice(i * 9, i * 9 + 9);
+    const ux = tri[3] - tri[0], uy = tri[4] - tri[1], uz = tri[5] - tri[2], wx = tri[6] - tri[0], wy = tri[7] - tri[1], wz = tri[8] - tri[2];
     let nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nz = ux * wy - uy * wx;
     const l = Math.hypot(nx, ny, nz) || 1;
     dv.setFloat32(o, nx / l, true); dv.setFloat32(o + 4, ny / l, true); dv.setFloat32(o + 8, nz / l, true);
-    for (let k = 0; k < 9; k++) dv.setFloat32(o + 12 + k * 4, t[k], true);
+    for (let k = 0; k < 9; k++) dv.setFloat32(o + 12 + k * 4, tri[k], true);
   }
   return new Blob([buf], { type: "model/stl" });
 }
@@ -113,7 +114,7 @@ export const STL_CACHE = new Map();
 export async function cargarSTL(item) {
   if (STL_CACHE.has(item.id)) return STL_CACHE.get(item.id);
   const r = await fetch(item.url || `/stl/${item.id}.stl`);
-  if (!r.ok) throw new Error(`No pude bajar ${item.id}`);
+  if (!r.ok) throw new Error(t("No pude bajar {id}", { id: item.id }));
   const tri = leerSTL(await r.arrayBuffer());
   const meta = analizar(tri, { escala: item.escala || 1 });
   const out = { geo: geometria(tri, { escala: item.escala || 1, centro: meta.centro }), meta, tri };

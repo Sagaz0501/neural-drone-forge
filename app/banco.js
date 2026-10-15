@@ -15,6 +15,7 @@
 // Lo que vive en el DRON: qué está instalado, los cables, la prueba de humo, las hélices, la IA cargada.
 // =====================================================================
 import { pieza } from "./parts.js";
+import { t } from "./i18n.js";
 
 // ---------------- pines ----------------
 // tipos: fuentes "vbat+" (batería, 7-17 V) "5v+" "3v3+"; entradas "vbat_in" "5v_in" "3v3_in"; "gnd";
@@ -22,7 +23,8 @@ import { pieza } from "./parts.js";
 // "esc_conn" "fc_conn" (el arnés de 8 pines entre ESC y controladora); "ufl" (conector de antena) "ant".
 const NIVEL_OUT = { "vbat+": 3, "5v+": 2, "3v3+": 1 };
 const NIVEL_IN = { vbat_in: 3, "5v_in": 2, "3v3_in": 1 };
-const VOLT = { 3: "la batería (12 V)", 2: "5 V", 1: "3,3 V" };
+/** El voltaje en palabras (una función: t() corre después de cargar el idioma). */
+const volt = (n) => (n === 3 ? t("la batería (12 V)") : n === 2 ? "5 V" : t("3,3 V"));
 const SEÑAL = new Set(["tx", "rx", "sda", "scl", "led_out", "led_in", "m_out", "m_in", "esc_conn", "fc_conn", "ufl", "ant"]);
 
 /** Dónde va cada motor (vista de arriba) y lo que espera Betaflight: M1 atrás der., M2 adelante der.… */
@@ -45,16 +47,18 @@ export const FIRMWARES = [
 ];
 
 const P = (id, nombre, tipo, lado, bus) => ({ id, nombre, tipo, lado, bus });
+/** Lo mismo pero con el nombre traducido (los que tienen palabras). */
+const PT = (id, nombre, tipo, lado, bus) => P(id, t(nombre), tipo, lado, bus);
 
 /** Los pines de cada controladora. */
 function pinesFC(id) {
   if (CHIP[id] === "esp32") {
-    return [P("conn", "ESC (8 pines)", "fc_conn", "l"), P("5v", "5V", "5v+", "r"), P("3v3", "3V3", "3v3+", "r"), P("gnd1", "GND", "gnd", "r"),
+    return [PT("conn", "ESC (8 pines)", "fc_conn", "l"), P("5v", "5V", "5v+", "r"), P("3v3", "3V3", "3v3+", "r"), P("gnd1", "GND", "gnd", "r"),
       P("gnd2", "GND", "gnd", "r"), P("tx2", "GPIO17 · TX2", "tx", "r", "UART2"), P("rx2", "GPIO16 · RX2", "rx", "r", "UART2"),
       P("sda", "GPIO21 · SDA", "sda", "r"), P("scl", "GPIO22 · SCL", "scl", "r"), P("led", "GPIO4 · LED", "led_out", "r"),
-      P("ant", "Antena u.FL", "ufl", "r")];
+      PT("ant", "Antena u.FL", "ufl", "r")];
   }
-  return [P("conn", "ESC (8 pines)", "fc_conn", "l"), P("vbat", "VBAT", "vbat+", "r"), P("5v", "5V", "5v+", "r"), P("3v3", "3V3", "3v3+", "r"),
+  return [PT("conn", "ESC (8 pines)", "fc_conn", "l"), P("vbat", "VBAT", "vbat+", "r"), P("5v", "5V", "5v+", "r"), P("3v3", "3V3", "3v3+", "r"),
     P("gnd1", "GND", "gnd", "r"), P("gnd2", "GND", "gnd", "r"), P("gnd3", "GND", "gnd", "r"),
     P("tx1", "TX1", "tx", "r", "UART1"), P("rx1", "RX1", "rx", "r", "UART1"), P("tx2", "TX2", "tx", "r", "UART2"), P("rx2", "RX2", "rx", "r", "UART2"),
     P("sda", "SDA", "sda", "r"), P("scl", "SCL", "scl", "r"), P("led", "LED", "led_out", "r")];
@@ -68,33 +72,33 @@ export function componentes(cat, b, d) {
   const out = [], uid = (slot) => d?.slots?.[slot] ?? null;
   const exUid = (id) => (d?.extras || []).find((u, i) => (b.extras || [])[i] === id) ?? null;
   const fc = b.controladora, chip = CHIP[fc];
-  out.push({ k: "xt60", nombre: "Cable de batería XT60", slot: "bateria", uid: "xt60", x: 30, y: 300, w: 120,
-    pines: [P("pos", "+ (rojo)", "vbat+", "r"), P("neg", "− (negro)", "gnd", "r")] });
+  out.push({ k: "xt60", nombre: t("Cable de batería XT60"), slot: "bateria", uid: "xt60", x: 30, y: 300, w: 120,
+    pines: [PT("pos", "+ (rojo)", "vbat+", "r"), PT("neg", "− (negro)", "gnd", "r")] });
   if (b.esc) out.push({ k: "esc", nombre: pieza(cat, "escs", b.esc)?.nombre || "ESC", slot: "esc", uid: uid("esc"), x: 200, y: 230, w: 220,
     pines: [P("bat+", "BAT+", "vbat_in", "l"), P("bat-", "BAT−", "gnd", "l"), P("m1", "M1", "m_out", "t"), P("m2", "M2", "m_out", "t"),
-      P("m3", "M3", "m_out", "t"), P("m4", "M4", "m_out", "t"), P("conn", "FC (8 pines)", "esc_conn", "r")] });
+      P("m3", "M3", "m_out", "t"), P("m4", "M4", "m_out", "t"), PT("conn", "FC (8 pines)", "esc_conn", "r")] });
   if (b.motores) {
-    const mo = pieza(cat, "motores", b.motores)?.nombre || "Motor";
-    [["FL", 30], ["FR", 180], ["RL", 330], ["RR", 480]].forEach(([pos, x]) => out.push({ k: "m" + pos, nombre: `Motor ${POS[pos]}`, sub: mo, slot: "motores",
-      uid: uid("motores"), x, y: 30, w: 135, pines: [P("fases", "3 fases", "m_in", "b")] }));
+    const mo = pieza(cat, "motores", b.motores)?.nombre || t("Motor");
+    [["FL", 30], ["FR", 180], ["RL", 330], ["RR", 480]].forEach(([pos, x]) => out.push({ k: "m" + pos, nombre: t("Motor {pos}", { pos: t(POS[pos]) }), sub: mo, slot: "motores",
+      uid: uid("motores"), x, y: 30, w: 135, pines: [PT("fases", "3 fases", "m_in", "b")] }));
   }
-  if (fc) out.push({ k: "fc", nombre: pieza(cat, "controladoras", fc)?.nombre || "Controladora", slot: "controladora", uid: uid("controladora"),
+  if (fc) out.push({ k: "fc", nombre: pieza(cat, "controladoras", fc)?.nombre || t("Controladora"), slot: "controladora", uid: uid("controladora"),
     x: 500, y: 170, w: 220, pines: pinesFC(fc) });
   let y = 30;
   const lado = (c) => { c.x = 790; c.y = y; c.w = 190; y += 26 + c.pines.length * 24 + 22; out.push(c); };
   if (b.radio === "rx_elrs24" || b.radio === "rx_elrs900") lado({ k: "rx", nombre: pieza(cat, "radios", b.radio).nombre, slot: "radio", uid: uid("radio"),
     pines: [P("5v", "5V", "5v_in", "l"), P("gnd", "GND", "gnd", "l"), P("tx", "TX", "tx", "l"), P("rx", "RX", "rx", "l")] });
-  if (b.radio === "rx_espnow_ant") lado({ k: "ant", nombre: "Antena dipolo 2.4 GHz", slot: "radio", uid: uid("radio"), pines: [P("ufl", "u.FL", "ant", "l")] });
+  if (b.radio === "rx_espnow_ant") lado({ k: "ant", nombre: t("Antena dipolo 2.4 GHz"), slot: "radio", uid: uid("radio"), pines: [P("ufl", "u.FL", "ant", "l")] });
   if (fc === "fc_gps" || fc === "fc_ia") lado({ k: "gps", nombre: "GPS M10", slot: "controladora", uid: uid("controladora"),
     pines: [P("5v", "5V", "5v_in", "l"), P("gnd", "GND", "gnd", "l"), P("tx", "TX", "tx", "l"), P("rx", "RX", "rx", "l")] });
   if (b.camara) {
     const ca = pieza(cat, "camaras", b.camara);
-    lado({ k: "cam", nombre: ca?.nombre || "Cámara", slot: "camara", uid: uid("camara"),
+    lado({ k: "cam", nombre: ca?.nombre || t("Cámara"), slot: "camara", uid: uid("camara"),
       pines: ca?.gimbal ? [P("vin", "VIN 9-26 V", "vbat_in", "l"), P("gnd", "GND", "gnd", "l")] : [P("5v", "5V", "5v_in", "l"), P("gnd", "GND", "gnd", "l")] });
   }
-  if ((b.extras || []).includes("tof")) lado({ k: "tof", nombre: "Hub de sensores ToF (x10)", slot: "extra:tof", uid: exUid("tof"),
+  if ((b.extras || []).includes("tof")) lado({ k: "tof", nombre: t("Hub de sensores ToF (x10)"), slot: "extra:tof", uid: exUid("tof"),
     pines: [P("3v3", "3V3", "3v3_in", "l"), P("gnd", "GND", "gnd", "l"), P("sda", "SDA", "sda", "l"), P("scl", "SCL", "scl", "l")] });
-  if ((b.extras || []).includes("luces")) lado({ k: "led", nombre: "Tira LED WS2812", slot: "extra:luces", uid: exUid("luces"),
+  if ((b.extras || []).includes("luces")) lado({ k: "led", nombre: t("Tira LED WS2812"), slot: "extra:luces", uid: exUid("luces"),
     pines: [P("5v", "5V", "5v_in", "l"), P("gnd", "GND", "gnd", "l"), P("din", "DIN", "led_in", "l")] });
   if (chip) out.find((c) => c.k === "fc").chip = chip;
   return out;
@@ -156,21 +160,21 @@ export function revisar(comps, cables) {
       if (other.tipo === "gnd") {
         malos.add(i);
         if (out.c.k === "xt60") { cortoBat = true; if (other.c.k === "esc" && other.id === "bat-") pos2bat = i; }
-        else dano(out.c, `Corto entre ${out.nombre} y GND: se quemó el regulador de la ${out.c.nombre}.`);
+        else dano(out.c, t("Corto entre {pin} y GND: se quemó el regulador de la {pieza}.", { pin: out.nombre, pieza: out.c.nombre }));
         return;
       }
       if (NIVEL_OUT[other.tipo]) {
-        if (NIVEL_OUT[other.tipo] !== lo) { malos.add(i); dano(other.c.k === "xt60" ? out.c : other.c, `Uniste ${out.nombre} con ${other.nombre}: dos voltajes distintos peleando. Se quemó la ${(other.c.k === "xt60" ? out.c : other.c).nombre}.`); }
+        if (NIVEL_OUT[other.tipo] !== lo) { malos.add(i); dano(other.c.k === "xt60" ? out.c : other.c, t("Uniste {a} con {b}: dos voltajes distintos peleando. Se quemó la {pieza}.", { a: out.nombre, b: other.nombre, pieza: (other.c.k === "xt60" ? out.c : other.c).nombre })); }
         return;
       }
       if (NIVEL_IN[other.tipo]) {
         const li = NIVEL_IN[other.tipo];
-        if (lo > li) { malos.add(i); dano(other.c, `Le diste ${VOLT[lo]} a ${other.c.nombre}, que va con ${VOLT[li]}: se quemó.`); }
-        else if (lo < li) falla(other.c.k, `${other.c.nombre} no enciende: necesita ${VOLT[li]} y le diste ${VOLT[lo]}.`, i);
+        if (lo > li) { malos.add(i); dano(other.c, t("Le diste {v} a {pieza}, que va con {vok}: se quemó.", { v: volt(lo), pieza: other.c.nombre, vok: volt(li) })); }
+        else if (lo < li) falla(other.c.k, t("{pieza} no enciende: necesita {vok} y le diste {v}.", { pieza: other.c.nombre, vok: volt(li), v: volt(lo) }), i);
         else okW.push([out, other]);
         return;
       }
-      if (SEÑAL.has(other.tipo)) { malos.add(i); dano(other.c, `Le metiste ${VOLT[lo]} al pin de señal ${other.nombre} de ${other.c.nombre}: se quemó.`); return; }
+      if (SEÑAL.has(other.tipo)) { malos.add(i); dano(other.c, t("Le metiste {v} al pin de señal {pin} de {pieza}: se quemó.", { v: volt(lo), pin: other.nombre, pieza: other.c.nombre })); return; }
     }
     // sin fuentes de voltaje
     const set = new Set([ta, tb]);
@@ -178,25 +182,25 @@ export function revisar(comps, cables) {
     if (set.has("gnd") && (NIVEL_IN[ta] || NIVEL_IN[tb])) {
       const inp = NIVEL_IN[ta] ? A : B, g = inp === A ? B : A;
       if (g.c.k === "xt60" && inp.c.k === "esc") { neg2bat = i; return; }
-      falla(inp.c.k, `${inp.nombre} de ${inp.c.nombre} está conectado a GND: así no le llega voltaje.`, i);
+      falla(inp.c.k, t("{pin} de {pieza} está conectado a GND: así no le llega voltaje.", { pin: inp.nombre, pieza: inp.c.nombre }), i);
       return;
     }
-    if (set.has("gnd")) { falla((ta === "gnd" ? B : A).c.k, `${(ta === "gnd" ? B : A).nombre} de ${(ta === "gnd" ? B : A).c.nombre} va a GND: esa señal no sirve así.`, i); return; }
-    if (ta === "m_out" && tb === "m_out") { malos.add(i); dano(A.c, "Uniste dos salidas de motor del ESC: corto entre fases, el ESC se quemó."); return; }
+    if (set.has("gnd")) { const sg = ta === "gnd" ? B : A; falla(sg.c.k, t("{pin} de {pieza} va a GND: esa señal no sirve así.", { pin: sg.nombre, pieza: sg.c.nombre }), i); return; }
+    if (ta === "m_out" && tb === "m_out") { malos.add(i); dano(A.c, t("Uniste dos salidas de motor del ESC: corto entre fases, el ESC se quemó.")); return; }
     if (set.has("m_out") && set.has("m_in")) { okW.push([A, B]); return; }
     if (set.has("esc_conn") && set.has("fc_conn")) { okW.push([A, B]); return; }
     if (set.has("ufl") && set.has("ant")) { okW.push([A, B]); return; }
     if (set.has("led_out") && set.has("led_in")) { okW.push([A, B]); return; }
     if (set.has("tx") && set.has("rx")) { okW.push([A, B]); return; }
-    if (ta === tb && (ta === "tx" || ta === "rx")) { falla(A.c.k === "fc" ? B.c.k : A.c.k, `${A.nombre} con ${B.nombre}: TX va con RX (se cruzan). Así no se hablan.`, i); return; }
+    if (ta === tb && (ta === "tx" || ta === "rx")) { falla(A.c.k === "fc" ? B.c.k : A.c.k, t("{a} con {b}: TX va con RX (se cruzan). Así no se hablan.", { a: A.nombre, b: B.nombre }), i); return; }
     if ((ta === "sda" && tb === "sda") || (ta === "scl" && tb === "scl")) { okW.push([A, B]); return; }
-    falla(A.c.k, `El cable de ${A.nombre} (${A.c.nombre}) a ${B.nombre} (${B.c.nombre}) no tiene sentido: no hace nada.`, i);
+    falla(A.c.k, t("El cable de {a} ({pa}) a {b} ({pb}) no tiene sentido: no hace nada.", { a: A.nombre, pa: A.c.nombre, b: B.nombre, pb: B.c.nombre }), i);
   });
   const esc = comps.find((c) => c.k === "esc");
   if (cortoBat) {
-    if (pos2bat >= 0 && neg2bat >= 0 && esc) dano(esc, "¡Polaridad invertida! El + de la batería al BAT− del ESC: el ESC se quemó.");
-    else danos.push({ k: "xt60", msg: "¡Corto en la batería! El + y el − se tocan: chispazo y la batería se infló.", slot: "bateria", uid: "bateria", queda: 50, nombre: "Batería" });
-  } else if (neg2bat >= 0) falla("esc", "El − de la batería está en BAT+ del ESC: así no enciende.", neg2bat);
+    if (pos2bat >= 0 && neg2bat >= 0 && esc) dano(esc, t("¡Polaridad invertida! El + de la batería al BAT− del ESC: el ESC se quemó."));
+    else danos.push({ k: "xt60", msg: t("¡Corto en la batería! El + y el − se tocan: chispazo y la batería se infló."), slot: "bateria", uid: "bateria", queda: 50, nombre: t("Batería") });
+  } else if (neg2bat >= 0) falla("esc", t("El − de la batería está en BAT+ del ESC: así no enciende."), neg2bat);
 
   // ---- quién quedó conectado con quién ----
   const con = (k1, p1, k2, p2) => okW.some(([A, B]) => (A.c.k === k1 && A.id === p1 && B.c.k === k2 && (!p2 || B.id === p2)) || (B.c.k === k1 && B.id === p1 && A.c.k === k2 && (!p2 || A.id === p2)));
@@ -205,18 +209,18 @@ export function revisar(comps, cables) {
   const has = (k) => comps.some((c) => c.k === k);
   const fc = comps.find((c) => c.k === "fc");
   if (esc) {
-    if (!con("xt60", "pos", "esc", "bat+")) faltan.push({ k: "esc", msg: "Suelda el + (rojo) del cable XT60 al BAT+ del ESC." });
-    if (!con("xt60", "neg", "esc", "bat-")) faltan.push({ k: "esc", msg: "Suelda el − (negro) del cable XT60 al BAT− del ESC." });
-    if (fc && !con("esc", "conn", "fc", "conn")) faltan.push({ k: "fc", msg: "Conecta el arnés de 8 pines entre el ESC y la controladora." });
+    if (!con("xt60", "pos", "esc", "bat+")) faltan.push({ k: "esc", msg: t("Suelda el + (rojo) del cable XT60 al BAT+ del ESC.") });
+    if (!con("xt60", "neg", "esc", "bat-")) faltan.push({ k: "esc", msg: t("Suelda el − (negro) del cable XT60 al BAT− del ESC.") });
+    if (fc && !con("esc", "conn", "fc", "conn")) faltan.push({ k: "fc", msg: t("Conecta el arnés de 8 pines entre el ESC y la controladora.") });
   }
   const motores = {};
   for (const pos of ["FL", "FR", "RL", "RR"]) {
     if (!has("m" + pos)) continue;
     const pads = pinCon("m" + pos, "fases").filter((q) => q.c.k === "esc");
-    if (!pads.length) faltan.push({ k: "m" + pos, msg: `Suelda el motor de ${POS[pos]} a una salida del ESC (M1-M4).` });
-    if (pads.length > 1 && esc) dano(esc, `El motor de ${POS[pos]} está en dos salidas del ESC a la vez: corto entre fases, el ESC se quemó.`);
+    if (!pads.length) faltan.push({ k: "m" + pos, msg: t("Suelda el motor de {pos} a una salida del ESC (M1-M4).", { pos: t(POS[pos]) }) });
+    if (pads.length > 1 && esc) dano(esc, t("El motor de {pos} está en dos salidas del ESC a la vez: corto entre fases, el ESC se quemó.", { pos: t(POS[pos]) }));
     for (const q of pads) {
-      if (motores[q.id]) falla("esc", `Dos motores en ${q.nombre}: se reparten una salida y ninguno gira bien.`);
+      if (motores[q.id]) falla("esc", t("Dos motores en {pad}: se reparten una salida y ninguno gira bien.", { pad: q.nombre }));
       motores[q.id] = pos;
     }
   }
@@ -225,30 +229,30 @@ export function revisar(comps, cables) {
   const uarts = {};
   for (const k of ["rx", "gps"]) {
     if (!has(k) || !fc) continue;
-    const nom = k === "rx" ? "el receptor" : "el GPS";
-    if (!alimentado(k, "5v")) faltan.push({ k, msg: `Dale 5V a ${nom}.` });
-    if (!tieneGnd(k)) faltan.push({ k, msg: `Conecta el GND de ${nom}.` });
-    const t = pinCon(k, "tx").find((q) => q.c.k === "fc" && q.tipo === "rx"), r = pinCon(k, "rx").find((q) => q.c.k === "fc" && q.tipo === "tx");
-    if (!t || !r) faltan.push({ k, msg: `Cruza los datos de ${nom}: su TX al RX de un UART y su RX al TX del MISMO UART.` });
-    else if (t.bus !== r.bus) falla(k, `${nom[0].toUpperCase() + nom.slice(1)} tiene el TX en ${t.bus} y el RX en ${r.bus}: tienen que ir al mismo UART.`);
-    else uarts[k] = t.bus;
+    const nom = k === "rx" ? t("el receptor") : t("el GPS"), Nom = nom[0].toUpperCase() + nom.slice(1);
+    if (!alimentado(k, "5v")) faltan.push({ k, msg: t("Dale 5V a {nom}.", { nom }) });
+    if (!tieneGnd(k)) faltan.push({ k, msg: t("Conecta el GND de {nom}.", { nom }) });
+    const tx = pinCon(k, "tx").find((q) => q.c.k === "fc" && q.tipo === "rx"), r = pinCon(k, "rx").find((q) => q.c.k === "fc" && q.tipo === "tx");
+    if (!tx || !r) faltan.push({ k, msg: t("Cruza los datos de {nom}: su TX al RX de un UART y su RX al TX del MISMO UART.", { nom }) });
+    else if (tx.bus !== r.bus) falla(k, t("{Nom} tiene el TX en {a} y el RX en {b}: tienen que ir al mismo UART.", { Nom, a: tx.bus, b: r.bus }));
+    else uarts[k] = tx.bus;
   }
-  if (uarts.rx && uarts.gps && uarts.rx === uarts.gps) falla("gps", `El receptor y el GPS están en el mismo ${uarts.rx}: cada uno necesita su UART.`);
-  if (has("ant") && fc && !con("ant", "ufl", "fc", "ant")) faltan.push({ k: "ant", msg: fc.chip === "esp32" ? "Conecta la antena al conector u.FL del ESP32." : "Esa antena es para el ESP32: tu controladora no tiene u.FL (necesitas un receptor ExpressLRS)." });
+  if (uarts.rx && uarts.gps && uarts.rx === uarts.gps) falla("gps", t("El receptor y el GPS están en el mismo {uart}: cada uno necesita su UART.", { uart: uarts.rx }));
+  if (has("ant") && fc && !con("ant", "ufl", "fc", "ant")) faltan.push({ k: "ant", msg: fc.chip === "esp32" ? t("Conecta la antena al conector u.FL del ESP32.") : t("Esa antena es para el ESP32: tu controladora no tiene u.FL (necesitas un receptor ExpressLRS).") });
   const cam = comps.find((c) => c.k === "cam");
   if (cam) {
-    if (!alimentado("cam", cam.pines[0].id)) faltan.push({ k: "cam", msg: cam.pines[0].tipo === "vbat_in" ? "La cámara con gimbal va directo a la batería (VBAT, 9-26 V)." : "Dale 5V a la cámara." });
-    if (!tieneGnd("cam")) faltan.push({ k: "cam", msg: "Conecta el GND de la cámara." });
+    if (!alimentado("cam", cam.pines[0].id)) faltan.push({ k: "cam", msg: cam.pines[0].tipo === "vbat_in" ? t("La cámara con gimbal va directo a la batería (VBAT, 9-26 V).") : t("Dale 5V a la cámara.") });
+    if (!tieneGnd("cam")) faltan.push({ k: "cam", msg: t("Conecta el GND de la cámara.") });
   }
   if (has("tof")) {
-    if (!alimentado("tof", "3v3")) faltan.push({ k: "tof", msg: "Los ToF van con 3V3." });
-    if (!tieneGnd("tof")) faltan.push({ k: "tof", msg: "Conecta el GND de los ToF." });
-    if (!pinCon("tof", "sda").some((q) => q.c.k === "fc") || !pinCon("tof", "scl").some((q) => q.c.k === "fc")) faltan.push({ k: "tof", msg: "Los ToF hablan por I2C: SDA con SDA y SCL con SCL." });
+    if (!alimentado("tof", "3v3")) faltan.push({ k: "tof", msg: t("Los ToF van con 3V3.") });
+    if (!tieneGnd("tof")) faltan.push({ k: "tof", msg: t("Conecta el GND de los ToF.") });
+    if (!pinCon("tof", "sda").some((q) => q.c.k === "fc") || !pinCon("tof", "scl").some((q) => q.c.k === "fc")) faltan.push({ k: "tof", msg: t("Los ToF hablan por I2C: SDA con SDA y SCL con SCL.") });
   }
   if (has("led")) {
-    if (!alimentado("led", "5v")) faltan.push({ k: "led", msg: "Los LED van con 5V." });
-    if (!tieneGnd("led")) faltan.push({ k: "led", msg: "Conecta el GND de los LED." });
-    if (!con("led", "din", "fc", "led")) faltan.push({ k: "led", msg: "El DIN de los LED va al pin LED de la controladora." });
+    if (!alimentado("led", "5v")) faltan.push({ k: "led", msg: t("Los LED van con 5V.") });
+    if (!tieneGnd("led")) faltan.push({ k: "led", msg: t("Conecta el GND de los LED.") });
+    if (!con("led", "din", "fc", "led")) faltan.push({ k: "led", msg: t("El DIN de los LED va al pin LED de la controladora.") });
   }
   return { danos, cortos: cortoBat, fallas, faltan, uarts, motores, malos, ok: !danos.length && !fallas.length && !faltan.length };
 }
@@ -329,29 +333,30 @@ export function estado(cat, d, b, unidadDe, opts = {}) {
   const pasos = [];
   const add = (k, nombre, ok, nota = "") => pasos.push({ k, nombre, ok: !!ok, nota });
   const chP = pieza(cat, "chasis", b.chasis);
-  if (chP?.imprimible && opts.impresora) add("imprimir", "Imprimir el chasis", chU?.diseno, chU?.diseno ? "" : "Elige la forma (o tu STL) y dale imprimir.");
+  if (chP?.imprimible && opts.impresora) add("imprimir", t("Imprimir el chasis"), chU?.diseno, chU?.diseno ? "" : t("Elige la forma (o tu STL) y dale imprimir."));
   const faltaInst = ["chasis", "motores", "esc", "controladora", "radio", "camara", "montaje", "bateria"].filter((s) => d.slots[s] && B.instalado[s] !== d.slots[s]);
   const exFalta = d.extras.filter((u) => !(B.instalado.extras || []).includes(u)).length + (B.instalado.extras || []).filter((u) => !d.extras.includes(u)).length;
-  add("armar", "Armar", !faltaInst.length && !exFalta && !(chP?.imprimible && opts.impresora && !chU?.diseno),
-    faltaInst.length || exFalta ? `Falta instalar: ${[...faltaInst.map((s) => ({ esc: "ESC", controladora: "controladora", camara: "cámara", bateria: "batería" })[s] || s), ...(exFalta ? ["extras"] : [])].join(", ")}.` : "");
+  const NOMBRE_SLOT = { chasis: t("chasis"), motores: t("motores"), esc: "ESC", controladora: t("controladora"), radio: t("radio"), camara: t("cámara"), montaje: t("montaje"), bateria: t("batería") };
+  add("armar", t("Armar"), !faltaInst.length && !exFalta && !(chP?.imprimible && opts.impresora && !chU?.diseno),
+    faltaInst.length || exFalta ? t("Falta instalar: {lista}.", { lista: [...faltaInst.map((s) => NOMBRE_SLOT[s] || s), ...(exFalta ? [t("extras")] : [])].join(", ") }) : "");
   const armado = pasos.at(-1).ok;
-  add("cablear", "Cablear", armado && rev.ok, !armado ? "Primero arma." : rev.danos.length ? "Hay cables que van a quemar algo." : rev.fallas.length ? rev.fallas[0].msg : rev.faltan.length ? `${rev.faltan.length} conexiones por hacer.` : "");
+  add("cablear", t("Cablear"), armado && rev.ok, !armado ? t("Primero arma.") : rev.danos.length ? t("Hay cables que van a quemar algo.") : rev.fallas.length ? rev.fallas[0].msg : rev.faltan.length ? t("{n} conexiones por hacer.", { n: rev.faltan.length }) : "");
   const sig = firma(comps, B.cables);
-  add("humo", "Prueba de humo", armado && rev.ok && B.humo === sig, B.humo === sig ? "" : "Conecta la batería (con el probador de humo si lo tienes).");
+  add("humo", t("Prueba de humo"), armado && rev.ok && B.humo === sig, B.humo === sig ? "" : t("Conecta la batería (con el probador de humo si lo tienes)."));
   const fwOk = fcU?.fw?.ok && FIRMWARES.find((f) => f.id === fcU.fw.id)?.chip === CHIP[fcU.id];
-  add("firmware", "Firmware", fwOk, fcU?.fw ? (fwOk ? FIRMWARES.find((f) => f.id === fcU.fw.id).nombre : "Firmware equivocado: la placa no arranca.") : "Conecta el USB y flashea.");
+  add("firmware", t("Firmware"), fwOk, fcU?.fw ? (fwOk ? t(FIRMWARES.find((f) => f.id === fcU.fw.id).nombre) : t("Firmware equivocado: la placa no arranca.")) : t("Conecta el USB y flashea."));
   const necesitaRx = b.radio === "rx_elrs24" || b.radio === "rx_elrs900";
   const puertosOk = !fcU ? false : ["rx", "gps"].every((k) => !rev.uarts[k] || fcU.puertos?.[k] === rev.uarts[k]);
   const espnowMal = (b.radio === "rx_espnow" || b.radio === "rx_espnow_ant") && CHIP[b.controladora] !== "esp32";
   const bindOk = !espnowMal && (necesitaRx ? rxU?.bind : fcU?.bind || rxU?.bind);
-  add("config", "Configurar", fwOk && fcU?.cal && puertosOk && bindOk,
-    espnowMal ? "La radio ESP-NOW es del ESP32: con una STM32 necesitas un receptor ExpressLRS." : !fcU?.cal ? "Calibra el acelerómetro." : !puertosOk ? "Activa el puerto del receptor/GPS en el UART donde lo soldaste." : !bindOk ? "Empareja la radio." : "");
+  add("config", t("Configurar"), fwOk && fcU?.cal && puertosOk && bindOk,
+    espnowMal ? t("La radio ESP-NOW es del ESP32: con una STM32 necesitas un receptor ExpressLRS.") : !fcU?.cal ? t("Calibra el acelerómetro.") : !puertosOk ? t("Activa el puerto del receptor/GPS en el UART donde lo soldaste.") : !bindOk ? t("Empareja la radio.") : "");
   const pm = pruebaMotores(rev, fcU, escU, d.slots.motores);
   const motProbados = fwOk && B.humo === sig && fcU?.motoresProbados === `${d.slots.esc}|${d.slots.motores}|${sig}`;
-  add("motores", "Motores", motProbados && pm.every((r) => r.ok),
-    motProbados ? "El orden o el sentido cambió: vuelve a probarlos." : "Prueba el orden y el sentido de los 4 motores (sin hélices).");
-  add("helices", "Hélices", B.instalado.helices === d.slots.helices && B.helices, "Pon las hélices (siempre de último).");
-  add("prueba", "Prueba atada", B.prueba === estadoFirma(d, comps, B.cables), "Enciéndelo amarrado a la mesa: si algo está mal, se voltea.");
+  add("motores", t("Motores"), motProbados && pm.every((r) => r.ok),
+    motProbados ? t("El orden o el sentido cambió: vuelve a probarlos.") : t("Prueba el orden y el sentido de los 4 motores (sin hélices)."));
+  add("helices", t("Hélices"), B.instalado.helices === d.slots.helices && B.helices, t("Pon las hélices (siempre de último)."));
+  add("prueba", t("Prueba atada"), B.prueba === estadoFirma(d, comps, B.cables), t("Enciéndelo amarrado a la mesa: si algo está mal, se voltea."));
   const listo = pasos.every((p) => p.ok);
   const iaOk = !!(d.modelo && B.ia?.modelo === d.modelo);
   return { pasos, listo, listoIA: listo && iaOk, iaOk, rev, comps, motores: pm, sig, prueba: estadoFirma(d, comps, B.cables) };

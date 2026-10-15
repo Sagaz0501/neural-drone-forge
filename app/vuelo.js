@@ -17,9 +17,10 @@ import { buildDrone, disposeDrone } from "./dron3d.js";
 import { RutasView } from "./casa.js";
 import { mundoLugar } from "./lugares.js";
 import { estrellasDe } from "./partida.js";
+import { t } from "./i18n.js";
 
 export const TOMA_OK = 0.5;       // calidad media para que una toma cuente (drone_rl/env.py FILM_OK)
-const NOMBRE_TOMA = { fija: "fija", orbita: "órbita", revelar: "revelar", seguir: "seguir" };
+const NOMBRE_TOMA = { fija: () => t("fija"), orbita: () => t("órbita"), revelar: () => t("revelar"), seguir: () => t("seguir") };
 const VIDEO_RES = { cam_juguete: [426, 240], cam_accion: [640, 360], cam_4k: [960, 540], cam_gimbal2: [960, 540], cam_gimbal: [1280, 720] };
 const MIMES = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm", "video/mp4"];
 
@@ -76,9 +77,9 @@ function padTexture() {
   g.beginPath(); g.arc(64, 64, 52, 0, 7); g.stroke();
   g.fillStyle = "#eaf2ef"; g.font = "700 72px 'Chakra Petch', sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
   g.fillText("H", 64, 68);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  return t;
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
 }
 
 export class Vuelo {
@@ -99,7 +100,7 @@ export class Vuelo {
     // el guion del pedido: una lista de tomas (rutas de cámara) que se graban en orden
     this.shots = casa.shots;
     this.k = 0;                                          // toma de ahora
-    this.res = this.shots.map((t) => ({ nombre: t.nombre, tipo: t.tipo, n: 0, q: 0, framing: 0, track: 0, flow: 0, steady: 0, lista: false }));
+    this.res = this.shots.map((s) => ({ nombre: s.nombre, tipo: s.tipo, n: 0, q: 0, framing: 0, track: 0, flow: 0, steady: 0, lista: false }));
     if (M.zona) this.scene.remove(M.zona);
     this.rutasView = this.shots.length ? new RutasView(this.shots) : null;   // las rutas (solo las ve el piloto)
     M.zona = this.rutasView ? this.rutasView.group : new THREE.Group();
@@ -241,10 +242,10 @@ export class Vuelo {
       if (this.battery <= 0) {
         this.dead = true;
         if (fl.phase === "aterrizaje") fl.phase = "ruta";
-        this.o.onToast("¡Batería agotada! Los motores se apagaron.", 3000);
+        this.o.onToast(t("¡Batería agotada! Los motores se apagaron."), 3000);
       } else if (this.battery < 0.2 && !this.toldLow) {
         this.toldLow = true;
-        this.o.onToast("Batería baja (20 %): vuelve a la base", 3000);
+        this.o.onToast(t("Batería baja (20 %): vuelve a la base"), 3000);
       }
     }
     if (s.pos[2] > 0.3) this.tookOff = true;
@@ -253,7 +254,7 @@ export class Vuelo {
     const dist = Math.hypot(s.pos[0], s.pos[1], s.pos[2]);
     this.senal = Math.max(0, 1 - dist / this.alcance);
     if (!this.failsafe) {
-      if (dist > 0.85 * this.alcance && !this.avisoSenal) { this.avisoSenal = true; this.o.onToast("Señal débil: estás llegando al límite de tu radio", 2500); }
+      if (dist > 0.85 * this.alcance && !this.avisoSenal) { this.avisoSenal = true; this.o.onToast(t("Señal débil: estás llegando al límite de tu radio"), 2500); }
       if (dist < 0.75 * this.alcance) this.avisoSenal = false;
       this.lejosT = dist > this.alcance ? this.lejosT + dt : 0;
       if (this.lejosT > 0.3) {
@@ -261,14 +262,14 @@ export class Vuelo {
         this.toggleRec(false);
         fl.landOn = [s.pos[0], s.pos[1], 0];
         fl.phase = "aterrizaje";
-        this.o.onToast(`¡Failsafe! Se perdió la señal a ${Math.round(dist)} m (tu radio llega a ${this.alcance} m): el dron aterriza solo`, 5000);
+        this.o.onToast(t("¡Failsafe! Se perdió la señal a {d} m (tu radio llega a {alcance} m): el dron aterriza solo", { d: Math.round(dist), alcance: this.alcance }), 5000);
       }
     }
     // ---- las tomas: graba sola mientras el punto de cámara recorre la ruta ----
     if (sh) {
       const r = this.res[this.k];
       if (sh.phase === "grabando" || (sh.phase === "lista" && !r.lista)) {
-        if (!this.rec) { this.toggleRec(true); this.o.onToast(`¡Grabando ${sh.nombre}! Sigue el punto sin perder el encuadre`, 2200); }
+        if (!this.rec) { this.toggleRec(true); this.o.onToast(t("¡Grabando {nombre}! Sigue el punto sin perder el encuadre", { nombre: sh.nombre }), 2200); }
         r.n++; r.q += this.q.q; r.framing += this.q.framing; r.track += this.q.track; r.flow += this.q.flow; r.steady += this.q.steady;
       }
       if (sh.phase === "lista" && !r.lista) {
@@ -278,8 +279,8 @@ export class Vuelo {
         this.k++;
         const next = this.shot;
         fl.shot = next; if (next) { fl.toma = next.tipo; next.reset(); }
-        this.o.onToast(`${r.nombre}: ${Math.round(qm * 100)} % ${qm >= TOMA_OK ? "✓" : "(floja)"}` +
-          (next ? ` · siguiente: ${next.nombre}` : " · ¡todas las tomas! Vuelve a la base y aterriza"), 3500);
+        this.o.onToast(`${r.nombre}: ${Math.round(qm * 100)} % ${qm >= TOMA_OK ? "✓" : t("(floja)")} · ` +
+          (next ? t("siguiente: {nombre}", { nombre: next.nombre }) : t("¡todas las tomas! Vuelve a la base y aterriza")), 3500);
       }
     }
     // la IA: hace las tomas en orden y al terminar (o si no puede: 150 s o poca batería) vuelve a la base
@@ -289,7 +290,7 @@ export class Vuelo {
         this.toggleRec(false);
         fl.landOn = [0, 0, 0];
         fl.phase = "aterrizaje";
-        this.o.onToast(this.done ? "La IA terminó las tomas: vuelve a la base" : "La IA no alcanzó: vuelve a la base", 3000);
+        this.o.onToast(this.done ? t("La IA terminó las tomas: vuelve a la base") : t("La IA no alcanzó: vuelve a la base"), 3000);
       }
     }
     if (this.rec) this.recT += dt;
@@ -305,7 +306,7 @@ export class Vuelo {
       if (this.groundT > 0.8) {
         const home = Math.hypot(s.pos[0], s.pos[1]) < 2.5;
         if (this.done || !this.o.pedido) return this.finish({ crash: false, home });
-        if (this.groundT < 0.8 + dt * 1.5) this.o.onToast(`Aterrizaste, pero faltan ${this.shots.length - this.k} tomas. Despega otra vez (Espacio).`, 3500);
+        if (this.groundT < 0.8 + dt * 1.5) this.o.onToast(t("Aterrizaste, pero faltan {n} tomas. Despega otra vez (Espacio).", { n: this.shots.length - this.k }), 3500);
         this.tookOff = false;
       }
     }
@@ -320,7 +321,7 @@ export class Vuelo {
     // cada toma: su calidad media (las que no se grabaron cuentan 0); el video: 75 % tomas + 25 % la cámara
     const tomas = this.res.map((r) => {
       const n = Math.max(r.n, 1);
-      return { nombre: r.nombre, tipo: NOMBRE_TOMA[r.tipo] || r.tipo, lista: r.lista, q: r.q / n,
+      return { nombre: r.nombre, tipo: NOMBRE_TOMA[r.tipo]?.() || r.tipo, lista: r.lista, q: r.q / n,
         framing: r.framing / n, track: r.track / n, flow: r.flow / n, steady: r.steady / n };
     });
     const cal = this.st.calidad / 100, nitidez = this.st.nitidez ?? 1;

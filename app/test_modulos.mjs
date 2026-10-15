@@ -7,7 +7,9 @@ const dir = new URL(".", import.meta.url);
 for (const f of readdirSync(dir).filter((x) => x.endsWith(".js"))) {
   const src = readFileSync(new URL(f, dir), "utf8");
   const importados = [...src.matchAll(/^import\s*\{([^}]*)\}\s*from/gm)].flatMap((m) => m[1].split(",").map((x) => x.trim().split(/\s+as\s+/).pop()).filter(Boolean));
-  const tapados = importados.filter((n) => new RegExp(`\\bfunction\\s+${n}\\s*\\(|\\b(const|let|var)\\s+${n}\\s*=`).test(src));
+  // function n( · const/let/var n · for (const n of …) · (a, n) => · n =>  (todas tapan lo importado en su bloque)
+  const tapa = (n) => new RegExp(`\\bfunction\\s+${n}\\s*\\(|\\b(const|let|var)\\s+${n}\\b(?!\\s*:)|\\(([^()]*[,\\s])?${n}(\\s*=[^,)]*)?(,[^()]*)?\\)\\s*=>|(^|[^.\\w$])${n}\\s*=>`, "m");
+  const tapados = importados.filter((n) => tapa(n).test(src));
   ok(!tapados.length, `${f}: nada importado queda tapado por una función o variable local${tapados.length ? " → " + tapados.join(", ") : ""}`);
 }
 console.log(fallas ? `\n${fallas} pruebas fallaron.` : "\nTodas las pruebas pasan.");

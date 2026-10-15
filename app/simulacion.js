@@ -10,8 +10,9 @@ import * as THREE from "three";
 import { V, makeSky, makeLights, makeDrone, poseDrone, RING_COL } from "../game/scene.js";
 import { Toma, CAM } from "../game/sim.js";
 import { dibujarRed, conexionesFuertes } from "./redviz.js";
+import { t } from "./i18n.js";
 
-const RAZON = { suelo: "golpe contra el piso", obstaculo: "chocó con algo", limites: "se salió del área" };
+const RAZON = () => ({ suelo: t("golpe contra el piso"), obstaculo: t("chocó con algo"), limites: t("se salió del área") });
 
 /** Un visor 3D de una grabación (rep: formato de scripts/simulacion.py). */
 export class Visor {
@@ -113,8 +114,8 @@ export class Visor {
   }
 
   /** El estado en el tiempo t (interpolado entre cuadros). */
-  estado(t = this.t) {
-    const C = this.rep.cuadros, f = Math.min(this.n - 1, Math.max(0, t / this.rep.dt)), i = Math.floor(f), j = Math.min(this.n - 1, i + 1), a = f - i;
+  estado(tt = this.t) {
+    const C = this.rep.cuadros, f = Math.min(this.n - 1, Math.max(0, tt / this.rep.dt)), i = Math.floor(f), j = Math.min(this.n - 1, i + 1), a = f - i;
     const L = (x, y) => x + (y - x) * a, Lang = (x, y) => x + Math.atan2(Math.sin(y - x), Math.cos(y - x)) * a;
     return {
       i, pos: [0, 1, 2].map((k) => L(C.pos[i][k], C.pos[j][k])),
@@ -173,10 +174,10 @@ export class Visor {
   }
 
   /** La red en el tiempo t (la muestra más cercana). */
-  red(t = this.t) {
+  red(tt = this.t) {
     const R = this.rep.red;
     if (!R || !R.in.length) return null;
-    const k = Math.min(R.in.length - 1, Math.max(0, Math.round(t / R.dt)));
+    const k = Math.min(R.in.length - 1, Math.max(0, Math.round(tt / R.dt)));
     return { capas: R.capas, in: R.in[k], h: R.h[k], mu: R.mu[k], in_lbl: R.in_lbl, act_lbl: R.act_lbl };
   }
 
@@ -201,11 +202,11 @@ export function dibujarGraficas(cv, visor) {
   const maxZ = Math.max(1, ...C.pos.map((p) => p[2])), maxV = Math.max(1, ...vels);
   const pmin = Math.min(0, ...C.premio), pmax = Math.max(1e-6, ...C.premio);
   const series = [
-    ["altura", "#eaf2ef", C.pos.map((p) => p[2] / maxZ), `${maxZ.toFixed(1)} m`],
-    ["vel.", "#ffd23f", vels.map((v) => v / maxV), `${maxV.toFixed(1)} m/s`],
-    ["premio", "#ff7a1a", C.premio.map((v) => (v - pmin) / (pmax - pmin || 1)), `${C.premio.at(-1)?.toFixed(1)}`],
+    [t("altura"), "#eaf2ef", C.pos.map((p) => p[2] / maxZ), `${maxZ.toFixed(1)} m`],
+    [t("vel."), "#ffd23f", vels.map((v) => v / maxV), `${maxV.toFixed(1)} m/s`],
+    [t("premio"), "#ff7a1a", C.premio.map((v) => (v - pmin) / (pmax - pmin || 1)), `${C.premio.at(-1)?.toFixed(1)}`],
   ];
-  if (rep.toma) series.push(["calidad", "#47f08a", C.q, "0-1"]);
+  if (rep.toma) series.push([t("calidad"), "#47f08a", C.q, "0-1"]);
   for (const [, color, ys] of series) {
     g.strokeStyle = color; g.lineWidth = 1.6; g.beginPath();
     ys.forEach((v, i) => (i ? g.lineTo(x(i), yN(v)) : g.moveTo(x(i), yN(v))));
@@ -218,17 +219,17 @@ export function dibujarGraficas(cv, visor) {
   g.font = "10px ui-monospace, Menlo, monospace"; g.textBaseline = "alphabetic";
   let lx = P;
   for (const [nombre, color, , maxTxt] of series) {
-    g.fillStyle = color; const t = `${nombre} (${maxTxt})`; g.fillText(t, lx, H - 2); lx += g.measureText(t).width + 12;
+    g.fillStyle = color; const txt = `${nombre} (${maxTxt})`; g.fillText(txt, lx, H - 2); lx += g.measureText(txt).width + 12;
   }
 }
 
 /** El texto del resultado de una grabación. */
 export function resultadoTxt(rep) {
   const r = rep.resultado || {};
-  const que = r.exito ? `<b class="ok">✓ Lo logró</b>` : r.choque ? `<b class="bad">✗ ${RAZON[r.razon] || "chocó"}</b>` : `<b class="warn">Se acabó el tiempo</b>`;
-  const partes = [que, `${r.t?.toFixed(1)} s`, `premio ${r.premio}`];
-  if (rep.toma) partes.push(`calidad media ${Math.round((r.calidad || 0) * 100)} %`, `${r.segundos_buenos} s grabados bien`);
-  else if (r.metas) partes.push(`${r.metas} metas`);
+  const que = r.exito ? `<b class="ok">✓ ${t("Lo logró")}</b>` : r.choque ? `<b class="bad">✗ ${RAZON()[r.razon] || t("chocó")}</b>` : `<b class="warn">${t("Se acabó el tiempo")}</b>`;
+  const partes = [que, `${r.t?.toFixed(1)} s`, t("premio {v}", { v: r.premio })];
+  if (rep.toma) partes.push(t("calidad media {v} %", { v: Math.round((r.calidad || 0) * 100) }), t("{s} s grabados bien", { s: r.segundos_buenos }));
+  else if (r.metas) partes.push(t("{n} metas", { n: r.metas }));
   return partes.join(" · ");
 }
 

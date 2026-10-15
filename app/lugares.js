@@ -9,6 +9,7 @@ import { V } from "../game/scene.js";
 import { makeRng } from "../game/sim.js";
 import { makeTree } from "../game/worlds.js";
 import { CASA, houseBoxes, casaView, tomasPedido } from "./casa.js";
+import { t } from "./i18n.js";
 
 const mat = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85, ...o });
 function put(g, mesh, x, y, z) {
@@ -24,7 +25,7 @@ function textTex(lines, w = 512, h = 128, bg = "#f4f1ea", fg = "#222") {
   const g = c.getContext("2d");
   g.fillStyle = bg; g.fillRect(0, 0, w, h);
   g.fillStyle = fg; g.textAlign = "center"; g.textBaseline = "middle";
-  lines.forEach(([t, size, y, col]) => { g.fillStyle = col || fg; g.font = `700 ${size}px 'Chakra Petch', sans-serif`; g.fillText(t, w / 2, y); });
+  lines.forEach(([txt, size, y, col]) => { g.fillStyle = col || fg; g.font = `700 ${size}px 'Chakra Petch', sans-serif`; g.fillText(txt, w / 2, y); });
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
@@ -56,13 +57,13 @@ const frenteDe = (cx, cy) => Math.atan2(-cy, -cx);
 function treesAround(seed, subject, keep) {
   const rng = makeRng(seed), trees = [], [hx, hy] = subject;
   const segDist = (p, a, b) => {
-    const ab = [b[0] - a[0], b[1] - a[1]], t = Math.max(0, Math.min(1, ((p[0] - a[0]) * ab[0] + (p[1] - a[1]) * ab[1]) / (ab[0] ** 2 + ab[1] ** 2 || 1)));
-    return Math.hypot(p[0] - a[0] - ab[0] * t, p[1] - a[1] - ab[1] * t);
+    const ab = [b[0] - a[0], b[1] - a[1]], u = Math.max(0, Math.min(1, ((p[0] - a[0]) * ab[0] + (p[1] - a[1]) * ab[1]) / (ab[0] ** 2 + ab[1] ** 2 || 1)));
+    return Math.hypot(p[0] - a[0] - ab[0] * u, p[1] - a[1] - ab[1] * u);
   };
   for (let k = 0; k < 600 && trees.length < 16; k++) {
     const x = rng.uniform(-26, 28), y = rng.uniform(-26, 26);
     if (Math.hypot(x - hx, y - hy) < keep || Math.hypot(x, y) < 7 || segDist([x, y], [0, 0], [hx, hy]) < 7) continue;
-    if (trees.some((t) => Math.hypot(t.x - x, t.y - y) < 4.5)) continue;
+    if (trees.some((tr) => Math.hypot(tr.x - x, tr.y - y) < 4.5)) continue;
     trees.push(makeTree(rng, rng() < 0.55 ? "arbol" : "pino", x, y));
   }
   return trees;
@@ -70,7 +71,7 @@ function treesAround(seed, subject, keep) {
 
 // ---------------- la casa (capítulo 1) ----------------
 const casa = {
-  nombre: "La casa de Doña Marta",
+  get nombre() { return t("La casa de Doña Marta"); },
   build() {
     const h = CASA, subject = [h.cx, h.cy, h.wallH * 0.6];
     return { subject, frente: frenteDe(h.cx, h.cy), boxes: houseBoxes(h.cx, h.cy, h.w, h.d, h.wallH), cylinders: [], spheres: [],
@@ -81,7 +82,7 @@ const casa = {
 // ---------------- la finca El Roble (capítulo 1): granero, silo, viento ----------------
 const FINCA = { cx: 17, cy: -7, w: 9, d: 7, wallH: 4.2, silo: [13.5, -12, 1.6, 9] };
 const finca = {
-  nombre: "Finca El Roble",
+  get nombre() { return t("Finca El Roble"); },
   build() {
     const f = FINCA, subject = [f.cx, f.cy, f.wallH * 0.6];
     const [sx, sy, sr, sh] = f.silo;
@@ -150,7 +151,7 @@ const RESTO = { cx: 13, cy: 2, w: 7, d: 11, wallH: 6.5 };
 const LAMPS = [[5.5, -4], [5.5, 0.5], [10, -7.5], [16.5, -7.5]];
 const UMBRELLAS = [[6.6, 5.4], [6.6, 8.2], [9.0, 9.4]];
 const restaurante = {
-  nombre: "Restaurante La Brasa",
+  get nombre() { return t("Restaurante La Brasa"); },
   build() {
     const r = RESTO, subject = [r.cx, r.cy, 1.6];                // la puerta y la terraza
     return {
@@ -231,17 +232,17 @@ export const LUGARES = { casa, finca, restaurante };
  */
 export function tomasVariante(tomas, seed) {
   const rng = makeRng(seed), U = (a, b) => rng.uniform(a, b), cl = (x, a, b) => Math.max(a, Math.min(b, x));
-  return tomas.map((t) => {
-    const v = { ...t };
-    if (t.tipo === "fija") {
-      v.az = t.az + U(-40, 40); v.d = cl(t.d * U(0.85, 1.2), 6.5, 12); v.z = cl(t.z + U(-0.7, 0.9), 1.6, 7);
-    } else if (t.tipo === "orbita") {
-      if (rng.uniform(0, 1) < 0.5) { v.a0 = t.a0 + t.sweep; v.sweep = -t.sweep; }      // el mismo arco, al revés
+  return tomas.map((tm) => {
+    const v = { ...tm };
+    if (tm.tipo === "fija") {
+      v.az = tm.az + U(-40, 40); v.d = cl(tm.d * U(0.85, 1.2), 6.5, 12); v.z = cl(tm.z + U(-0.7, 0.9), 1.6, 7);
+    } else if (tm.tipo === "orbita") {
+      if (rng.uniform(0, 1) < 0.5) { v.a0 = tm.a0 + tm.sweep; v.sweep = -tm.sweep; }      // el mismo arco, al revés
       v.a0 = v.a0 + U(-25, 25); v.sweep = v.sweep * U(0.85, 1.15);
-      v.r = cl(t.r * U(0.88, 1.15), 7, 13); v.z = cl(t.z + U(-0.6, 0.8), 1.8, 8); v.vel = cl(t.vel * U(0.85, 1.15), 1, 2);
+      v.r = cl(tm.r * U(0.88, 1.15), 7, 13); v.z = cl(tm.z + U(-0.6, 0.8), 1.8, 8); v.vel = cl(tm.vel * U(0.85, 1.15), 1, 2);
     } else {
-      v.az = t.az + U(-35, 35); v.d0 = cl(t.d0 * U(0.9, 1.1), 5.5, 8); v.d1 = v.d0 + (t.d1 - t.d0) * U(0.85, 1.15);
-      v.z0 = cl(t.z0 + U(-0.5, 0.5), 1.6, 6); v.z1 = cl(t.z1 + U(-0.8, 0.8), v.z0 + 1.5, 9);
+      v.az = tm.az + U(-35, 35); v.d0 = cl(tm.d0 * U(0.9, 1.1), 5.5, 8); v.d1 = v.d0 + (tm.d1 - tm.d0) * U(0.85, 1.15);
+      v.z0 = cl(tm.z0 + U(-0.5, 0.5), 1.6, 6); v.z1 = cl(tm.z1 + U(-0.8, 0.8), v.z0 + 1.5, 9);
     }
     return v;
   });
@@ -250,7 +251,7 @@ export function tomasVariante(tomas, seed) {
 /** ¿La ruta queda a más de 1,2 m de todo, dentro del área y sobre el piso? (como drone_rl: CLEAR 1,2 m, |x|,|y| < 26) */
 function rutaLibre(shots, L) {
   const CLEAR = 1.2;
-  for (const t of shots) for (const [x, y, z] of t.path(40)) {
+  for (const sh of shots) for (const [x, y, z] of sh.path(40)) {
     if (Math.abs(x) > 26 || Math.abs(y) > 26 || z < 1.2) return false;
     for (const b of L.boxes || []) {
       const dx = Math.max(b.min[0] - x, 0, x - b.max[0]), dy = Math.max(b.min[1] - y, 0, y - b.max[1]), dz = Math.max(b.min[2] - z, 0, z - b.max[2]);
@@ -281,6 +282,6 @@ export function mundoLugar(id, pedido) {
 /** Distancia máxima a la base que piden las rutas de un pedido (para el alcance de la radio). */
 export function alcanceNecesario(shots) {
   let m = 0;
-  for (const t of shots) for (const p of t.path(48)) m = Math.max(m, Math.hypot(p[0], p[1], p[2]));
+  for (const sh of shots) for (const p of sh.path(48)) m = Math.max(m, Math.hypot(p[0], p[1], p[2]));
   return m + 1.5;
 }

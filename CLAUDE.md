@@ -130,6 +130,8 @@ python game/make_fixture.py && node game/test_sim.mjs    # JS == Python ("Todo i
 node app/test_parts.mjs                # piezas -> física
 node app/test_banco.mjs                # banco de armado + partida v3 (migra la partida.json si existe)
 node app/test_pbdmm.mjs                # el lenguaje PBDMM (intérprete, errores, compilar los ejemplos)
+node app/test_i18n.mjs                 # las traducciones (cada t() con su inglés, el HTML, las capas de datos)
+node app/test_modulos.mjs              # que nada importado quede tapado por una variable local
 node app/doc_pbdmm.mjs                 # vuelve a escribir docs/PBDMM.md si cambias app/data/pbdmm.json
 node app/exportar_dron.mjs             # vuelve a escribir drones/madera.json si cambian las piezas
 ```
@@ -179,6 +181,11 @@ Node v22 está en `/opt/homebrew/bin/node`. Blender 5.2 en `/Applications/Blende
   reales (ESP32, STM32F405/F722/H743, ExpressLRS, BLHeli_32…), ESC que limita el empuje, radio con
   failsafe, vibración → nitidez del video, pintura y forma del chasis (impresora 3D). Los demás pedidos
   están planeados ("Próximamente"). Siguiente: concesionario (tomas bajas) y la toma **seguir** (nivel 13).
+- **Idiomas (15-10-2026):** español (original) + inglés. `app/i18n.js`: `t("texto en español", {vars})` (la clave es el
+  español), diccionarios `app/i18n/en/<parte>.json`, capas de datos `app/data/en/*.json` (se mezclan por id/k o por
+  posición), `traducirHTML()` para index.html, la elección en `localStorage["dronmaker.idioma"]` (la primera vez se
+  pregunta). TODO texto nuevo visible va con t() y su traducción (`node app/test_i18n.mjs`). Plan, fases y glosario:
+  `docs/I18N.md`. Falta: alias en inglés de PBDMM (fase 3), mensajes del servidor/Blender (fase 4).
 - **Fase 1 (15-10-2026):** Blender solo MUESTRA (panel de solo lectura + Modo video; el panel viejo con
   `DRONMAKER_LAB_AVANZADO=1`). Tres botones por IA: **Avance del modelo** (mejor y peor intento por nivel: live_train
   `LiveLink.grabar` -> `<carpeta del modelo>/avance.json`, `GET /api/avance`), **Simular prueba** (`POST /api/simular`:

@@ -6,6 +6,7 @@
 import * as THREE from "three";
 import { V } from "../game/scene.js";
 import { Toma } from "../game/sim.js";
+import { t } from "./i18n.js";
 
 /** Igual que drone_rl/level.py house_boxes: paredes + techo en dos escalones. w = largo en x, d = ancho en y. */
 export function houseBoxes(cx, cy, w, d, wallH) {
@@ -28,19 +29,19 @@ export const frente = () => Math.atan2(0 - CASA.cy, 0 - CASA.cx);
  */
 export function tomasPedido(pedido, subject, fr = frente()) {
   const f = fr, rad = (g) => (g * Math.PI) / 180, [sx, sy] = subject;
-  return (pedido?.tomas || []).map((t) => {
+  return (pedido?.tomas || []).map((tm) => {
     let toma;
-    if (t.tipo === "fija") {
-      const a = f + rad(t.az);
-      toma = new Toma("fija", subject, t.dur, { x: sx + t.d * Math.cos(a), y: sy + t.d * Math.sin(a), z: t.z });
-    } else if (t.tipo === "orbita") {
-      const sweep = rad(t.sweep);
-      toma = new Toma("orbita", subject, Math.max(6, (t.r * Math.abs(sweep)) / t.vel), { r: t.r, z: t.z, a0: f + rad(t.a0), sweep });
+    if (tm.tipo === "fija") {
+      const a = f + rad(tm.az);
+      toma = new Toma("fija", subject, tm.dur, { x: sx + tm.d * Math.cos(a), y: sy + tm.d * Math.sin(a), z: tm.z });
+    } else if (tm.tipo === "orbita") {
+      const sweep = rad(tm.sweep);
+      toma = new Toma("orbita", subject, Math.max(6, (tm.r * Math.abs(sweep)) / tm.vel), { r: tm.r, z: tm.z, a0: f + rad(tm.a0), sweep });
     } else {
-      toma = new Toma("revelar", subject, t.dur, { az: f + rad(t.az), d0: t.d0, d1: t.d1, z0: t.z0, z1: t.z1 });
+      toma = new Toma("revelar", subject, tm.dur, { az: f + rad(tm.az), d0: tm.d0, d1: tm.d1, z0: tm.z0, z1: tm.z1 });
     }
-    toma.nombre = t.nombre;
-    toma.desc = t.desc;
+    toma.nombre = tm.nombre;
+    toma.desc = tm.desc;
     return toma;
   });
 }
@@ -129,8 +130,8 @@ export function casaView() {
   const x2 = c.getContext("2d");
   x2.fillStyle = "#f4f1ea"; x2.fillRect(0, 0, 256, 160);
   x2.fillStyle = "#c62828"; x2.fillRect(0, 0, 256, 54);
-  x2.fillStyle = "#fff"; x2.font = "700 40px 'Chakra Petch', sans-serif"; x2.textAlign = "center"; x2.fillText("SE VENDE", 128, 42);
-  x2.fillStyle = "#222"; x2.font = "600 26px 'Chakra Petch', sans-serif"; x2.fillText("Inmobiliaria", 128, 98); x2.fillText("Doña Marta", 128, 134);
+  x2.fillStyle = "#fff"; x2.font = "700 40px 'Chakra Petch', sans-serif"; x2.textAlign = "center"; x2.fillText(t("SE VENDE"), 128, 42);
+  x2.fillStyle = "#222"; x2.font = "600 26px 'Chakra Petch', sans-serif"; x2.fillText(t("Inmobiliaria"), 128, 98); x2.fillText("Doña Marta", 128, 134);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   const sign = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.62, 1.0), mat(0xf4f1ea));
@@ -161,8 +162,8 @@ export class RutasView {
   constructor(shots) {
     this.group = new THREE.Group();
     this.shots = shots;
-    this.lines = shots.map((t) => {
-      const pts = t.path(64).map((q) => V(...q));
+    this.lines = shots.map((tm) => {
+      const pts = tm.path(64).map((q) => V(...q));
       const line = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 96, 0.05, 6, false),
         new THREE.MeshBasicMaterial({ color: 0x3ccbff, transparent: true, opacity: 0.25, depthWrite: false }));
       this.group.add(line);
@@ -178,7 +179,7 @@ export class RutasView {
     this.group.add(this.ring, this.ghost, this.stem);
   }
   /** k = toma de ahora (shots.length = todas hechas) · q = calidad de este instante (colorea el fantasma). */
-  update(k, q, t) {
+  update(k, q, time) {
     this.lines.forEach((l, i) => {
       l.material.color.setHex(i < k ? 0x47f08a : 0x3ccbff);
       l.material.opacity = i === k ? 0.85 : i < k ? 0.3 : 0.18;
@@ -190,7 +191,7 @@ export class RutasView {
     this.ring.visible = sh.phase === "ir";
     this.ring.position.copy(V(...st));
     this.ring.lookAt(V(s[0], s[1], st[2]));                        // el aro mira hacia la casa: entras de frente
-    this.ring.scale.setScalar(1 + 0.08 * Math.sin(t * 5));
+    this.ring.scale.setScalar(1 + 0.08 * Math.sin(time * 5));
     this.ghost.position.copy(V(...p));
     this.halo.material.color.setRGB(q < 0.5 ? 1 : 1 - 1.6 * (q - 0.5), q < 0.5 ? 0.25 + 1.3 * q : 0.95, 0.25);
     this.stem.scale.y = Math.max(p[2], 0.01);

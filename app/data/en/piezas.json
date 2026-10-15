@@ -1,0 +1,90 @@
+{
+  "base": { "nombre": "Wires, screws and connectors" },
+  "chasis": [
+    { "id": "madera", "nombre": "Homemade plywood 250 mm", "desc": "Heavy and it splinters, but anyone can build it." },
+    { "id": "pla", "nombre": "3D-printed PLA 220 mm", "desc": "Light, but it snaps in hard crashes. With the 3D printer: cheaper, in any shape and color you want." },
+    { "id": "petg", "nombre": "3D-printed PETG 220 mm", "desc": "Like PLA but it doesn't snap: handles hits and heat." },
+    { "id": "aluminio", "nombre": "Aluminum 230 mm", "desc": "Takes a beating. Fits 7\" propellers." },
+    { "id": "cinewhoop3", "nombre": "Cinewhoop 3\" with ducts", "desc": "The propellers sit inside ducts: it can brush against things and people without cutting anyone. Slow but very stable." },
+    { "id": "carbono5", "nombre": "Carbon 5\" freestyle", "desc": "Light, stiff and agile." },
+    { "id": "carbono7", "nombre": "Carbon 7\" long range", "desc": "For long flights and carrying heavy cameras." }
+  ],
+  "motores": [
+    { "id": "m1806", "nombre": "Recycled 1806 2300KV motors", "desc": "Pulled from an old drone. Thrust = per motor, on 3S with a 5\" propeller." },
+    { "id": "m2204", "nombre": "Basic 2204 2300KV brushless", "desc": "Your first serious motor." },
+    { "id": "m1404", "nombre": "1404 4600KV motors (cinewhoop)", "desc": "Tiny and fast, for 3\" ducted propellers. Thrust = per motor, on 4S." },
+    { "id": "m2306", "nombre": "2306 2450KV brushless", "desc": "Powerful. Thrust on 4S." },
+    { "id": "m2207", "nombre": "Pro 2207 1950KV brushless", "desc": "Racing motors. 4S only." },
+    { "id": "m2806", "nombre": "2806.5 1300KV brushless (long range)", "desc": "Efficient with a 7\" propeller. Long flights with a heavy camera." }
+  ],
+  "helices": [
+    { "id": "h3", "nombre": "3\" propellers", "desc": "Quick to react, little thrust." },
+    { "id": "h5", "nombre": "5\" propellers", "desc": "The middle ground." },
+    { "id": "h7", "nombre": "7\" propellers", "desc": "Efficient and slow to react." }
+  ],
+  "baterias": [
+    { "id": "b4s3000", "nombre": "Li-ion 4S 3000 mAh (long range)", "desc": "Lots of energy, but it can't deliver as much current: 15 % less thrust." }
+  ],
+  "controladoras": [
+    { "id": "fc_basica", "nombre": "Homemade ESP32 (ESP-FC)", "desc": "An ESP32 with a motion sensor (MPU6050): it levels itself, but altitude is up to you." },
+    { "id": "fc_baro", "nombre": "ESP32 + BMP280 barometer", "desc": "With the barometer it knows its altitude: let go of Space and it holds there." },
+    { "id": "fc_f405", "nombre": "STM32F405 + DPS310 barometer", "desc": "The flight controller of racing drones: responds faster and finer than the ESP32." },
+    { "id": "fc_gps", "nombre": "STM32F722 + M10 GPS", "desc": "A serious flight controller with GPS: let go of the sticks and it brakes and holds still." },
+    { "id": "fc_ia", "nombre": "STM32H743 + K210 AI coprocessor", "desc": "Runs your neural network on the drone: it can fly itself (with the AI Pilot)." }
+  ],
+  "camaras": [
+    { "id": "cam_juguete", "desc": "The 10-dollar camera: it records, but it looks like an old video." },
+    { "id": "cam_accion", "nombre": "1080p action camera" },
+    { "id": "cam_4k", "nombre": "4K action camera" },
+    { "id": "cam_gimbal2", "nombre": "4K with 2-axis gimbal", "desc": "The gimbal keeps the horizon level and aims at the subject's height." },
+    { "id": "cam_gimbal", "nombre": "Cinema 4K with 3-axis gimbal", "desc": "The gimbal removes almost all the shake from the image." }
+  ],
+  "extras": [
+    { "id": "protectores", "nombre": "Propeller guards (printed)", "desc": "Rings around the propellers: required when people are nearby." },
+    { "id": "tof", "nombre": "VL53L1X ToF sensors (x10)", "desc": "The 10 sensors the AI uses to dodge obstacles." },
+    { "id": "luces", "nombre": "WS2812 LED lights", "desc": "For night events." },
+    { "id": "gancho", "nombre": "Cargo hook", "desc": "For deliveries (coming later)." }
+  ],
+  "software_ia": [
+    { "id": "ia_fija", "nombre": "AI Pilot · Fixed shots", "sabe": "Takes a position around the subject and films steadily (from the front, the side, from above)." },
+    { "id": "ia_esquivar", "nombre": "AI Pilot · Through obstacles", "sabe": "The same, but it can film in the forest or between columns without crashing." },
+    { "id": "ia_seguir", "nombre": "AI Pilot · Follow and orbit", "sabe": "Follows something that moves or orbits around it (matches, cars, weddings). For multi-camera shots." }
+  ],
+  "escs": [
+    { "id": "esc20", "nombre": "4-in-1 ESC 20 A (BLHeli_S)", "desc": "The one that came with the recycled motors." },
+    { "id": "esc35", "nombre": "4-in-1 ESC 35 A (BLHeli_S)", "desc": "For 2306/2207 motors without falling short." },
+    { "id": "esc45", "nombre": "4-in-1 ESC 45 A (BLHeli_32, RPM filter)", "desc": "Bidirectional DShot: the flight controller filters each motor's vibration (sharper image)." },
+    { "id": "esc55", "nombre": "4-in-1 ESC 55 A (AM32, RPM filter)", "desc": "More than enough current for any motor." }
+  ],
+  "radios": [
+    { "id": "rx_espnow", "nombre": "Built-in ESP-NOW (ESP32)", "desc": "The ESP32's on-board antenna. Free, but short range: any farther and it's failsafe." },
+    { "id": "rx_espnow_ant", "nombre": "ESP-NOW + external antenna", "desc": "An ESP32 with a connector and a dipole antenna: a bit more range." },
+    { "id": "rx_elrs24", "nombre": "ExpressLRS 2.4 GHz receiver", "desc": "Today's standard: a fast, stable link." },
+    { "id": "rx_elrs900", "nombre": "ExpressLRS 900 MHz receiver", "desc": "Long range: goes through trees and buildings." }
+  ],
+  "montajes": [
+    { "id": "mt_tornillos", "nombre": "Camera screwed on directly", "desc": "All the motor vibration reaches the image." },
+    { "id": "mt_gomas", "nombre": "Anti-vibration dampers", "desc": "Four little rubber dampers between the frame and the camera: the image shakes much less." },
+    { "id": "mt_tpu", "nombre": "Printed TPU soft-mount", "desc": "A flexible mount printed in TPU (needs the 3D printer)." }
+  ],
+  "herramientas": [
+    { "id": "impresora", "nombre": "3D printer", "desc": "Prints PLA/PETG frames (40 % cheaper, in any shape and color you want) and TPU mounts." },
+    { "id": "humo", "nombre": "Smoke stopper", "desc": "Goes between the battery and the drone the first time you plug it in: if there's a short, it cuts the power and nothing burns." },
+    { "id": "multimetro", "nombre": "Multimeter", "desc": "Measures continuity and voltage: on the workbench it flags bad wires BEFORE you connect the battery." }
+  ],
+  "estilo": {
+    "formas": {
+      "x": "X (symmetric)",
+      "h": "H (parallel arms)",
+      "deadcat": "Deadcat (front arms spread out)",
+      "stretch": "Stretch X (longer than wide: stable going forward)",
+      "marco": "Framed (a ring joins the arm tips: takes hits)"
+    },
+    "canopies": {
+      "ninguna": { "nombre": "No canopy" },
+      "domo": { "nombre": "Round dome" },
+      "caja": { "nombre": "Vented box" },
+      "aleta": { "nombre": "Racing fin" }
+    }
+  }
+}
