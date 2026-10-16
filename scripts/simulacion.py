@@ -10,6 +10,7 @@ Las usan dos lados y producen el mismo formato (lo dibuja app/simulacion.js):
 Formato de una grabación (todo en metros, z arriba, como drone_rl):
   {"v": 1, "tipo": "prueba"|"mejor"|"peor", "modelo", "gen", "stage", "mision", "dron", "t" (epoch),
    "dt": segundos entre cuadros, "nivel": Level.to_dict(), "sujeto": [x,y,z]|None, "toma": Toma.to_dict()|None,
+   "tomas": [Toma.to_dict()]|None (set de fotos: todas; "meta" de cada cuadro = cuál va),
    "fisica": {"mass", "twr", "radius"},
    "cuadros": {"pos": [[x,y,z]], "rot": [[roll,pitch,yaw]], "act": [[gas,roll,pitch,yaw]], "q": [calidad 0-1],
                "prog": [avance de la toma 0-1], "premio": [premio acumulado], "meta": [índice de la meta]},
@@ -118,6 +119,7 @@ def inicio(env: DroneEnv) -> dict:
     p = env.p
     return {"nivel": env.level.to_dict(), "sujeto": r3(env.subject) if env.subject is not None else None,
             "toma": sh.to_dict() if sh is not None else None,
+            "tomas": [x.to_dict() for x in env.shots] if len(getattr(env, "shots", [])) > 1 else None,   # set de fotos
             "fisica": {"mass": round(float(p.mass), 3), "twr": round(float(p.twr), 3), "radius": round(float(p.radius), 3)}}
 
 

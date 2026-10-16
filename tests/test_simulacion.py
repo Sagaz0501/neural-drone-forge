@@ -59,3 +59,13 @@ def test_avance_primero_y_ultimo(tmp_path):
     assert av.candidatos(11, 0.5, ahora=1030) == ["peor"]                 # el último se renueva cada minuto
     assert av.candidatos(11, 0.8, ahora=1100) == ["peor", "ultimo"]
     assert "primero" not in av.candidatos(11, 9.0, ahora=1100)             # el primero no se reemplaza nunca
+
+
+def test_simular_set_de_fotos(tmp_path):
+    """Nivel 14 (set de fotos): la grabación trae todas las tomas y el "meta" de cada cuadro dice cuál va."""
+    rep = S.simular(tmp_path, WEB, "prueba", entrenando={"stage": 14, "dron": "estándar", "params": {}}, seed=4)
+    assert rep["stage"] == 14 and rep["mision"] == "Set de fotos"
+    assert 2 <= len(rep["tomas"]) <= 4 and all(t["tipo"] == "fija" and 2.5 <= t["dur"] <= 3.5 for t in rep["tomas"])
+    assert rep["toma"] == rep["tomas"][0]
+    assert max(rep["cuadros"]["meta"]) < len(rep["tomas"])
+    json.dumps(rep)

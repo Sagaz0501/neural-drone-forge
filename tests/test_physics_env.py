@@ -101,7 +101,7 @@ def test_circuit_two_laps():
     env.reset(seed=0)
     assert len(env.level.goals) == 8                       # 4 aros x 2 vueltas
     assert len(OBS_LABELS) == env.observation_space.shape[0]
-    assert set(MISSIONS) == set(range(13))
+    assert set(MISSIONS) == set(range(15))
     assert run_pilot(5, episodes=5) == 1.0                 # el piloto PD completa las 2 vueltas
 
 
@@ -435,3 +435,88 @@ def test_widen_27_to_38_flies_the_same(tmp_path):
         obs, _, te, tr, _ = env.step(a38)
         if te or tr:
             break
+
+
+def test_photo_stages_solvable():
+    """Fotos (niveles 13 y 14, Fase 1b): una toma fija corta, o un set de 2-4 seguidas. El piloto clásico las logra;
+    en el set la meta pasa a la foto siguiente y el éxito pide TODAS las fotos buenas."""
+    for stage, need in ((13, 10), (14, 9)):
+        env = DroneEnv(stage=stage)
+        ok, ns = 0, set()
+        for ep in range(12):
+            env.reset(seed=ep)
+            assert env.toma == "fija" and all(2.5 <= sh.dur <= 3.5 for sh in env.shots)
+            ns.add(len(env.shots))
+            done = False
+            while not done:
+                _, _, te, tr, info = env.step(film_pilot(env))
+                done = te or tr
+            assert not info["crashed"], (stage, ep, info["crash_reason"])
+            assert len(info["fotos"]) == info["n_fotos"] == len(env.shots) or not info["success"]
+            assert info["success"] == (info["goals_reached"] == len(env.shots))
+            ok += info["success"]
+        assert ok >= need, (stage, ok)
+        assert ns == ({1} if stage == 13 else {2, 3, 4})
+
+
+def test_phase1b_rewards():
+    """El catálogo nuevo: apagado por defecto (los modelos de antes entrenan igual) y cada uno mide lo suyo."""
+    from drone_rl.env import DEFAULT_REWARD, SPEED_LIMIT
+    for k in ("framing", "settle", "altitude", "pan", "overspeed", "energy"):
+        assert DEFAULT_REWARD[k] == 0.0
+
+    def premio(stage, rw, setup, act=None, seed=3):
+        env = DroneEnv(stage=stage, reward=dict(DEFAULT_REWARD, **rw))
+        env.reset(seed=seed)
+        setup(env)
+        _, r, *_ = env.step(hover_action() if act is None else act)
+        return r
+
+    def rapido(v):
+        def f(env):
+            env.state.pos = np.array([0.0, 0.0, 3.0])
+            env.state.vel = np.array([v, 0.0, 0.0])
+        return f
+    base = premio(2, {}, rapido(SPEED_LIMIT + 2))
+    assert premio(2, {"overspeed": 5.0}, rapido(SPEED_LIMIT + 2)) < base - 0.1          # 2 m/s de más: cobra
+    assert premio(2, {"overspeed": 5.0}, rapido(SPEED_LIMIT - 1)) == premio(2, {}, rapido(SPEED_LIMIT - 1))  # bajo el límite: nada
+    full = np.array([1.0, 0.0, 0.0, 0.0])
+    assert premio(2, {"energy": 5.0}, rapido(0), full) < premio(2, {}, rapido(0), full) - 0.01   # gas a fondo: cobra
+
+    def en_la_foto(v):
+        def f(env):
+            sh = env.shot
+            env.state.pos = sh.start() + np.array([0.3, 0.0, 0.0])
+            env.state.vel = np.array([v, 0.0, 0.0])
+            d = env.subject - env.state.pos
+            env.state.yaw = float(np.arctan2(d[1], d[0]))
+        return f
+    quieto = premio(13, {"settle": 5.0}, en_la_foto(0.1)) - premio(13, {}, en_la_foto(0.1))
+    movido = premio(13, {"settle": 5.0}, en_la_foto(1.8)) - premio(13, {}, en_la_foto(1.8))
+    assert quieto > 3.0 and quieto > movido + 2.0                                  # llegar quieto paga más
+    assert premio(13, {"framing": 5.0}, en_la_foto(0.1)) > premio(13, {}, en_la_foto(0.1))   # encuadrado y llegando
+
+    def subiendo(env):
+        en_la_foto(0.1)(env)
+        env.state.vel = np.array([0.0, 0.0, 1.5])
+    assert premio(13, {"altitude": 5.0}, subiendo) < premio(13, {}, subiendo) - 0.05
+
+
+def test_reward_keys_everywhere():
+    """Cada premio del entrenador existe en el servidor (jugar.py), en Blender (drone_lab.py) y en el catálogo del juego."""
+    import json
+    import re
+    from pathlib import Path
+    from drone_rl.env import DEFAULT_REWARD
+    root = Path(__file__).resolve().parents[1]
+    srv = (root / "scripts" / "jugar.py").read_text(encoding="utf-8")
+    keys_srv = set(re.findall(r'"(\w+)"', srv[srv.index("REWARD_KEYS = ("):srv.index("FIS_KEYS")]))
+    lab = (root / "blender" / "drone_lab.py").read_text(encoding="utf-8")
+    keys_lab = set(re.findall(r'"(\w+)"', lab[lab.index("REWARD_KEYS = ["):lab.index("]", lab.index("REWARD_KEYS = ["))]))
+    ent = json.loads((root / "app" / "data" / "entrenamiento.json").read_text(encoding="utf-8"))
+    keys_ent = {p["k"] for p in ent["premios"]} | {"near"}
+    assert set(DEFAULT_REWARD) == keys_srv == keys_lab == keys_ent == set(ent["escala_premios"])
+    for k in DEFAULT_REWARD:
+        assert f"rw_{k}:" in lab, k                      # la propiedad de Blender
+    for m in ent["misiones"]:
+        assert set(m["premios"]) == set(DEFAULT_REWARD), m["id"]

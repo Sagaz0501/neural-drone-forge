@@ -42,10 +42,17 @@ export class Visor {
     S.add(base);
     // la ruta de la cámara (grabar) y el punto que avanza
     if (rep.toma) {
-      this.toma = Toma.fromDict(rep.toma);
-      const pts = this.toma.path(64).map((q) => V(...q));
-      const tubo = pts.length > 1 ? new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 96, 0.05, 6, false) : new THREE.SphereGeometry(0.2);
-      S.add(new THREE.Mesh(tubo, new THREE.MeshBasicMaterial({ color: 0x3ccbff, transparent: true, opacity: 0.55, depthWrite: false })));
+      // set de fotos (niveles 14): todas las tomas; el "meta" de cada cuadro dice cuál va
+      this.tomas = (rep.tomas || [rep.toma]).map((d) => Toma.fromDict(d));
+      this.toma = this.tomas[0];
+      for (const tm of this.tomas) {
+        const pts = tm.path(64).map((q) => V(...q));
+        const fija = tm.tipo === "fija";
+        const tubo = !fija && pts.length > 1 ? new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 96, 0.05, 6, false) : new THREE.TorusGeometry(0.45, 0.04, 8, 32);
+        const m = new THREE.Mesh(tubo, new THREE.MeshBasicMaterial({ color: 0x3ccbff, transparent: true, opacity: 0.55, depthWrite: false }));
+        if (fija) { m.position.copy(pts[0]); m.lookAt(V(...tm.subject)); }
+        S.add(m);
+      }
       this.fantasma = new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 12), new THREE.MeshBasicMaterial({ color: 0xffffff }));
       S.add(this.fantasma);
       if (rep.sujeto) {
@@ -140,7 +147,7 @@ export class Visor {
       pr.userData.disc.visible = this.play; pr.userData.blade.visible = !this.play;
     }
     this.lineaHecha.geometry.setDrawRange(0, e.i + 1);
-    if (this.fantasma) this.fantasma.position.copy(V(...this.toma.at(e.prog)[0]));
+    if (this.fantasma) this.fantasma.position.copy(V(...(this.tomas[e.meta] || this.toma).at(e.prog)[0]));
     const foco = V(...e.pos);
     this.lights.sun.position.copy(foco).add(this.lights.offset);
     this.lights.sun.target.position.copy(foco);

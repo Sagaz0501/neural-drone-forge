@@ -123,6 +123,8 @@ async function loadModelos() {
     ? t("IA base: generación {gen}", { gen: base.gen ?? "?" }) + (G.modelos.length > 1 ? " · " + t("{n} IA de drones", { n: G.modelos.length - 1 }) : "") : t("IA: no encontré el modelo (abre el juego con python scripts/jugar.py).");
 }
 const infoModelo = (slug) => G.modelos.find((m) => m.slug === slug) || null;
+/** Las tomas que pide un pedido, como las anota el entrenador en meta.tomas (las fotos: "foto", niveles 13-14). */
+const tiposDe = (pe, shots) => (pe?.tipo === "foto" || pe?.tipo === "inspeccion" ? ["foto"] : [...new Set(shots.map((tm) => tm.tipo))]);
 const sabeGrabar = (ia, tipos = ["fija", "orbita", "revelar"]) => !!(ia?.policy && ia.policy.layers[0].nin >= 38 && tipos.every((tp) => (ia.meta?.tomas || []).includes(tp)));
 
 // ---------------- pantallas ----------------
@@ -603,7 +605,7 @@ async function openBrief(pe, mismaRuta = false) {
   $("br-req").innerHTML = req.map(([c, txt]) => `<li class="${c}">${txt}</li>`).join("");
   const duro = req.filter((r) => r[2]);
   $("b-volar").disabled = $("b-volar-ia").disabled = duro.length > 0 || !st?.ok;
-  const ia = $("br-ia"), tipos = [...new Set(shots.map((tm) => tm.tipo))];
+  const ia = $("br-ia"), tipos = tiposDe(pe, shots);
   const entrenar = pe.entrenar ? `<br><b>${t("Para que lo haga la IA:")}</b> ${pe.entrenar.nota}` : "";
   const mod = d?.modelo, I = mod ? (G.ias[mod] === undefined ? await loadModel(mod) : G.ias[mod]) : null;
   const castigo = ` <span class="muted">${t("Si la IA no entrega el video (le faltan tomas o se estrella), pierdes {n} de reputación.", { n: REP_FALLA_IA })}</span>`;
@@ -622,7 +624,12 @@ async function openBrief(pe, mismaRuta = false) {
   modal("brief");
 }
 $("b-cerrar-brief").onclick = () => modal("brief", false);
-$("b-brief-lab").onclick = () => { modal("brief", false); abrirLab(); };
+$("b-brief-lab").onclick = () => {
+  const en = G.pedido?.entrenar, m = en && (ent.misiones.find((x) => x.id === en.mision) ||
+    ent.misiones.find((x) => x.nivel === en.nivel && Math.abs((x.viento || 0) - (en.viento || 0)) < 1));
+  if (m && LAB.mision !== m.id) { LAB.mision = m.id; LAB.premios = { ...m.premios }; LAB.viento = m.viento; saveLab(); }
+  modal("brief", false); abrirLab();
+};
 $("b-volar").onclick = () => startVuelo(G.pedido, "yo");
 $("b-volar-ia").onclick = async () => {
   const d = D();
@@ -644,8 +651,8 @@ function riesgosIA(d, pe) {
   if (slug === "base" && d?.modelo) out.push(t("La IA \"{m}\" todavía no tiene un modelo guardado: vuela la IA base, que no conoce este dron.", { m: esc(d.modelo) }));
   else if (slug === "base") out.push(t("Este dron no tiene IA propia: vuela la IA base, que no conoce este dron."));
   else if (!(I.meta.generaciones > 0)) out.push(t("La IA \"{m}\" es completamente nueva (sin entrenar).", { m: esc(slug) }));
-  const tipos = pe ? [...new Set(mundoLugar(pe.lugar, pe).shots.map((tm) => tm.tipo))] : [];
-  if (tipos.length && !sabeGrabar(I, tipos)) out.push(t("Todavía no entrenó estas tomas ({lista}).", { lista: tipos.map((x) => ({ fija: t("fija"), orbita: t("órbita"), revelar: t("revelar") })[x] || x).join(", ") }));
+  const tipos = pe ? tiposDe(pe, mundoLugar(pe.lugar, pe).shots) : [];
+  if (tipos.length && !sabeGrabar(I, tipos)) out.push(t("Todavía no entrenó estas tomas ({lista}).", { lista: tipos.map((x) => ({ fija: t("fija"), orbita: t("órbita"), revelar: t("revelar"), foto: t("fotos") })[x] || x).join(", ") }));
   const st = PT.dronArmado(P(), cat, d)?.stats, rango = rangoModelo(I.meta);
   if (st && !(st.twr >= rango.twr[0] && st.twr <= rango.twr[1] && st.mass >= rango.masa_kg[0] && st.mass <= rango.masa_kg[1]))
     out.push(t("No conoce un dron como este (empuje/peso {twr}, {masa} kg).", { twr: fmt(st.twr, 2), masa: fmt(st.mass, 2) }));
@@ -792,7 +799,7 @@ function renderLabEstado() {
   if (bl.msg) msgs.push(`Blender: ${bl.msg}`);
   if (bl.error) msgs.push(`<span class="bad">${t("Error en Blender: {error}", { error: bl.error })}</span>`);
   if (tr.activo) msgs.push(t("Entrenando la IA <b>\"{m}\"</b> ({donde}) · {mision} · {pasos} pasos · guardada la generación {gen}.", { m: esc(tr.modelo || slug), donde: tr.donde === "fondo" ? t("segundo plano") : "Blender",
-    mision: ({ film_fixed: t("Grabar: tomas con ruta"), film_posts: t("Grabar entre postes"), goal_random: t("metas"), obstacles: t("columnas") })[tr.mision] || tr.mision, pasos: (tr.steps || 0).toLocaleString(idioma()), gen: tr.gen_guardada ?? "–" }));
+    mision: ({ film_fixed: t("Grabar: tomas con ruta"), film_posts: t("Grabar entre postes"), photo: t("Foto"), photo_set: t("Set de fotos"), goal_random: t("metas"), obstacles: t("columnas") })[tr.mision] || tr.mision, pasos: (tr.steps || 0).toLocaleString(idioma()), gen: tr.gen_guardada ?? "–" }));
   if (tr.msg) msgs.push(tr.msg);
   $("lab-msg").innerHTML = msgs.join("<br>");
   // los entrenamientos en segundo plano (cualquier dron)

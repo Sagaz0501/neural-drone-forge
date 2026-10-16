@@ -55,8 +55,8 @@ Todo nombre del lenguaje tiene su equivalente en inglés, y **los dos funcionan 
 |---|---|
 | funciones: `modelo()`, `red()`, `mision()`, `nivel()`, `dron()`, `drones()`, `entrenar_en()`, `velocidad()`, `viento()`, `aprendizaje()`, `premios()`, `castigos()`, `pausar()`, `seguir()`, `guardar()`, `detener()`, `avisar()`, `dron_info()`, `mision_info()`, `modelo_info()`, `hangar()`, `inventario()`, `revisar()`, `ficha()`, `tabla()`, `barra()`, `color()`, `explicar()`, `narrar()` | `model()`, `network()`, `mission()`, `level()`, `drone()`, `drones()`, `train_on()`, `speed()`, `wind()`, `learning()`, `rewards()`, `penalties()`, `pause()`, `resume()`, `save()`, `stop()`, `notify()`, `drone_info()`, `mission_info()`, `model_info()`, `hangar()`, `inventory()`, `check()`, `sheet()`, `table()`, `bar()`, `color()`, `explain()`, `narrate()` |
 | argumentos: `desde=`, `capas=`, `exploracion=`, `cada=` | `start_from=`, `layers=`, `exploration=`, `every=` |
-| valores: `"cero"`, `"fondo"`, `"rapido"`, `"estandar"`, `"azar"`, `"grabar"`, `"grabar_viento"`, `"grabar_postes"`, `"repaso_metas"`, `"repaso_columnas"` | `"zero"`, `"background"`, `"fast"`, `"standard"`, `"random"`, `"film"`, `"film_wind"`, `"film_poles"`, `"review_goals"`, `"review_columns"` |
-| premios y castigos: `grabar=`, `mirar=`, `acercarse=`, `meta=`, `cerca=`, `rapidez=`, `chocar=`, `sacudidas=`, `brusco=`, `pegado=`, `peligro=`, `inclinar=`, `tiempo=` | `film=`, `heading=`, `progress=`, `goal=`, `near=`, `speed=`, `crash=`, `stability=`, `smooth=`, `clearance=`, `danger=`, `tilt=`, `time=` |
+| valores: `"cero"`, `"fondo"`, `"rapido"`, `"estandar"`, `"azar"`, `"grabar"`, `"grabar_viento"`, `"grabar_postes"`, `"repaso_metas"`, `"repaso_columnas"`, `"foto"`, `"set_fotos"` | `"zero"`, `"background"`, `"fast"`, `"standard"`, `"random"`, `"film"`, `"film_wind"`, `"film_poles"`, `"review_goals"`, `"review_columns"`, `"photo"`, `"photo_set"` |
+| premios y castigos: `grabar=`, `mirar=`, `acercarse=`, `meta=`, `cerca=`, `rapidez=`, `chocar=`, `sacudidas=`, `brusco=`, `pegado=`, `peligro=`, `inclinar=`, `tiempo=`, `encuadre=`, `quieto=`, `altura=`, `paneo=`, `exceso_velocidad=`, `gas=` | `film=`, `heading=`, `progress=`, `goal=`, `near=`, `speed=`, `crash=`, `stability=`, `smooth=`, `clearance=`, `danger=`, `tilt=`, `time=`, `framing=`, `settle=`, `altitude=`, `pan=`, `overspeed=`, `energy=` |
 | funciones especiales: `def al_empezar(e)`, `def cada_generacion(e)`, `def al_terminar(e)` | `def on_start(e)`, `def every_generation(e)`, `def on_end(e)` |
 | lo que trae e: `e.generacion`, `e.generaciones_sesion`, `e.exito`, `e.choque`, `e.premio`, `e.calidad`, `e.mejor_exito`, `e.historia_exito`, `e.pasos`, `e.minutos`, `e.nivel`, `e.pausado`, `e.exploracion`, `e.ruido`, `e.viento`, `e.premios`, `e.cambio`, `e.diagnosticos` | `e.generation`, `e.session_generations`, `e.success`, `e.crash`, `e.reward`, `e.quality`, `e.best_success`, `e.success_history`, `e.steps`, `e.minutes`, `e.level`, `e.paused`, `e.exploration`, `e.noise`, `e.wind`, `e.rewards`, `e.change`, `e.diagnostics` |
 | comandos: `ayuda`, `correr`, `revisar`, `parar`, `estado`, `modelos`, `pausar`, `seguir`, `detener`, `guardar`, `copiar`, `renombrar`, `borrar`, `archivos`, `nuevo`, `abrir`, `eliminar`, `ejemplo`, `cargar`, `volar`, `avance`, `simular`, `limpiar`, `traducir`, `info`, `blender` | `help`, `run`, `check`, `detach`, `status`, `models`, `pause`, `resume`, `stop`, `save`, `copy`, `rename`, `delete`, `files`, `new`, `open`, `remove`, `example`, `load`, `fly`, `progress`, `simulate`, `clear`, `translate`, `info`, `blender` |
@@ -92,7 +92,7 @@ red(capas=[64, 64])
 
 *Arriba del archivo.* Qué practica: el mundo, la tarea y cuándo cuenta como éxito. Trae sus premios recomendados (los cambias con premios() y castigos()). Además DEVUELVE la misión como objeto (PBDMM 2): m.pide, m.viento, m.premios (ver mision_info).
 
-- `id`: "grabar", "grabar_viento", "grabar_postes", "repaso_metas" o "repaso_columnas"
+- `id`: "grabar", "grabar_viento", "grabar_postes", "foto", "set_fotos", "repaso_metas" o "repaso_columnas"
 
 ```python
 mision("grabar_postes")
@@ -100,9 +100,9 @@ mision("grabar_postes")
 
 #### `nivel(n)`
 
-*Arriba del archivo.* En vez de mision(): cualquier nivel del Drone Lab, del 0 (quedarse quieto) al 12 (grabar entre postes). Sin premios recomendados: pon los tuyos.
+*Arriba del archivo.* En vez de mision(): cualquier nivel del Drone Lab, del 0 (quedarse quieto) al 14 (set de fotos). Sin premios recomendados: pon los tuyos.
 
-- `n`: 0 hover · 1 meta fija · 2 metas al azar · 3 columnas · 4 varias metas · 5 circuito · 6 bosque · 7 bosque con aros · 8-10 caza · 11 grabar · 12 grabar entre postes
+- `n`: 0 hover · 1 meta fija · 2 metas al azar · 3 columnas · 4 varias metas · 5 circuito · 6 bosque · 7 bosque con aros · 8-10 caza · 11 grabar · 12 grabar entre postes · 13 foto · 14 set de fotos
 
 ```python
 nivel(0)
@@ -183,6 +183,8 @@ aprendizaje(lr=0.0003, exploracion=0.005)
 - `goal / meta`: premio al llegar o al terminar la toma
 - `near / cerca`: premio por estar cerca de la meta
 - `speed / rapidez`: premio por llegar rápido a un aro
+- `framing / encuadre`: premio por segundo con el sujeto al centro del cuadro (grabando o llegando)
+- `settle / quieto`: premio al empezar la toma o la foto, más cuanto más quieto llega
 
 ```python
 premios(grabar=6, mirar=4)
@@ -199,6 +201,10 @@ premios(grabar=6, mirar=4)
 - `danger / peligro`: castigo por ir rápido hacia algo
 - `tilt / inclinar`: castigo por andar inclinado
 - `time / tiempo`: castigo pequeño cada paso (que no se demore)
+- `altitude / altura`: castigo por subir o bajar cuando la toma no lo pide
+- `pan / paneo`: castigo por giros bruscos de la nariz (tirones en el video)
+- `overspeed / exceso_velocidad`: castigo por ir a más de 3 m/s
+- `energy / gas`: castigo por gas de más (cuida la batería)
 
 ```python
 castigos(chocar=5, sacudidas=6)
@@ -422,21 +428,27 @@ Todos van de **0 a 10**: 0 = apagado, **4 = lo normal**, 10 = al máximo. Lo que
 El juego los traduce al valor que usa el entrenador (`real = nivel / 10 × escala`, con `escala_premios` de `app/data/entrenamiento.json`).
 Lo que no pongas queda como lo recomienda la misión.
 
-| en PBDMM | tipo | qué hace | grabar | grabar_viento | grabar_postes | repaso_metas | repaso_columnas | 10 = (real) |
-|---|---|---|---|---|---|---|---|---|
-| `grabar` (film) | premio | Por cada segundo grabado, según la calidad de imagen (0 a 1): la casa al centro del cuadro × pegado al punto de cámara × a su ritmo × sin sacudidas. Es EL premio de grabar. | 4 | 4 | 4 | 3 | 3 | 10 |
-| `mirar` (heading) | premio | La nariz (la cámara) hacia la casa: paga en el acto cada grado que gira hacia ella y cobra por segundo si mira para otro lado. Sin esto llega a la zona mirando a cualquier lado. | 4 | 4 | 4 | 4 | 4 | 5 |
-| `acercarse` (progress) | premio | Por cada metro que se acerca al punto de cámara (primero el inicio de la ruta, después el punto que avanza). | 4 | 4 | 4 | 4 | 4 | 5 |
-| `meta` (goal) | premio | Al terminar la ruta: este premio × la calidad media de la toma. Una toma mala casi no paga. | 4 | 4 | 4 | 4 | 4 | 25 |
-| `rapidez` (speed) | premio | Al pasar un aro, más premio si llegó rápido. Para grabar no sirve (va en 0). | 0 | 0 | 0 | 4 | 4 | 0.75 |
-| `cerca` (near) | premio | Por estar cerca de la meta (niveles de metas y hover). | 4 | 4 | 4 | 4 | 4 | 0.75 |
-| `sacudidas` (stability) | castigo | Por cada segundo de giros bruscos de roll/pitch. Un video que tiembla no sirve: súbelo si ves que la imagen se sacude. | 4 | 5 | 4 | 2 | 2 | 2.5 |
-| `brusco` (smooth) | castigo | Por cambiar las palancas de golpe. Ojo: también cobra el ruido con el que explora; muy alto y deja de probar cosas. | 4 | 4 | 4 | 4 | 4 | 0.125 |
-| `chocar` (crash) | castigo | Al chocar con la casa, el piso o salirse del área. En el juego un choque cuesta plata: que le duela. | 3 | 3 | 3 | 2 | 2 | 50 |
-| `pegado` (clearance) | castigo | Por pasar a menos de 1,2 m de algo. Lo siente ANTES de chocar con el techo o las paredes. | 2 | 2 | 4 | 0 | 2 | 1.5 |
-| `peligro` (danger) | castigo | Por ir hacia un obstáculo con menos de 1 s para chocar. Aprende a frenar a tiempo. | 4 | 4 | 6 | 0 | 4 | 0.5 |
-| `inclinar` (tilt) | castigo | Por andar inclinado. Un poco ayuda a que no haga maniobras exageradas. | 4 | 4 | 4 | 4 | 4 | 0.025 |
-| `tiempo` (time) | castigo | Un poquito cada paso: que no se demore en llegar. | 4 | 4 | 4 | 4 | 4 | 0.025 |
+| en PBDMM | tipo | qué hace | grabar | grabar_viento | grabar_postes | foto | set_fotos | repaso_metas | repaso_columnas | 10 = (real) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `grabar` (film) | premio | Por cada segundo grabado, según la calidad de imagen (0 a 1): la casa al centro del cuadro × pegado al punto de cámara × a su ritmo × sin sacudidas. Es EL premio de grabar. | 4 | 4 | 4 | 4 | 4 | 3 | 3 | 10 |
+| `mirar` (heading) | premio | La nariz (la cámara) hacia la casa: paga en el acto cada grado que gira hacia ella y cobra por segundo si mira para otro lado. Sin esto llega a la zona mirando a cualquier lado. | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 5 |
+| `acercarse` (progress) | premio | Por cada metro que se acerca al punto de cámara (primero el inicio de la ruta, después el punto que avanza). | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 5 |
+| `meta` (goal) | premio | Al terminar la ruta: este premio × la calidad media de la toma. Una toma mala casi no paga. | 4 | 4 | 4 | 6 | 6 | 4 | 4 | 25 |
+| `rapidez` (speed) | premio | Al pasar un aro, más premio si llegó rápido. Para grabar no sirve (va en 0). | 0 | 0 | 0 | 0 | 0 | 4 | 4 | 0.75 |
+| `encuadre` (framing) | premio | Por segundo con el sujeto AL CENTRO del cuadro (solo el encuadre, sin importar la ruta), grabando y en los últimos 3 m antes de la toma: llega a la foto ya encuadrado. | 0 | 0 | 0 | 4 | 4 | 0 | 0 | 5 |
+| `quieto` (settle) | premio | Al empezar la toma (o la foto): más premio cuanto más quieto llega (parado = todo; a 2 m/s = nada). Una foto sacada frenando sale movida. | 0 | 0 | 0 | 4 | 4 | 0 | 0 | 10 |
+| `cerca` (near) | premio | Por estar cerca de la meta (niveles de metas y hover). | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 0.75 |
+| `sacudidas` (stability) | castigo | Por cada segundo de giros bruscos de roll/pitch. Un video que tiembla no sirve: súbelo si ves que la imagen se sacude. | 4 | 5 | 4 | 4 | 4 | 2 | 2 | 2.5 |
+| `brusco` (smooth) | castigo | Por cambiar las palancas de golpe. Ojo: también cobra el ruido con el que explora; muy alto y deja de probar cosas. | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 0.125 |
+| `chocar` (crash) | castigo | Al chocar con la casa, el piso o salirse del área. En el juego un choque cuesta plata: que le duela. | 3 | 3 | 3 | 3 | 3 | 2 | 2 | 50 |
+| `pegado` (clearance) | castigo | Por pasar a menos de 1,2 m de algo. Lo siente ANTES de chocar con el techo o las paredes. | 2 | 2 | 4 | 2 | 2 | 0 | 2 | 1.5 |
+| `peligro` (danger) | castigo | Por ir hacia un obstáculo con menos de 1 s para chocar. Aprende a frenar a tiempo. | 4 | 4 | 6 | 4 | 4 | 0 | 4 | 0.5 |
+| `inclinar` (tilt) | castigo | Por andar inclinado. Un poco ayuda a que no haga maniobras exageradas. | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 0.025 |
+| `tiempo` (time) | castigo | Un poquito cada paso: que no se demore en llegar. | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 0.025 |
+| `altura` (altitude) | castigo | Por segundo y por m/s que sube o baja cuando la toma no lo pide (grabando o llegando a la toma). Distinto de las sacudidas: esto es el sube y baja. | 0 | 0 | 0 | 4 | 4 | 0 | 0 | 2.5 |
+| `paneo` (pan) | castigo | Por segundo de giros de la nariz que arrancan o frenan de golpe. En el video se nota como un tirón. | 0 | 0 | 0 | 4 | 4 | 0 | 0 | 1.25 |
+| `exceso_velocidad` (overspeed) | castigo | Por segundo y por cada m/s por encima de 3 m/s. Cerca de una casa o de gente no se vuela a fondo. | 0 | 0 | 0 | 4 | 4 | 0 | 0 | 1.25 |
+| `gas` (energy) | castigo | Por segundo de gas por encima del que necesita para flotar (subir de golpe, acelerar y frenar). Cuida la batería en los sets largos. | 0 | 0 | 0 | 0 | 4 | 0 | 0 | 0.5 |
 
 ## Misiones
 
@@ -445,10 +457,12 @@ Lo que no pongas queda como lo recomienda la misión.
 | `"grabar"` | 11 | Casa en venta | Una casa al azar y una toma al azar: FIJA (quieto en un punto exacto), ÓRBITA (dar la vuelta a la casa por un arco) o REVELAR (subir alejándose). Tiene que llegar al inicio de la ruta y seguir el punto de cámara pegado, con la nariz (la cámara) en la casa, a su ritmo y sin sacudidas. La casa es un obstáculo. |
 | `"grabar_viento"` | 11 | Finca El Roble | Lo mismo que Grabar, pero con viento de 2,5 m/s y ráfagas: tiene que compensar el empuje del viento sin salirse de la ruta. Sin esto, en la finca la toma se le sale. |
 | `"grabar_postes"` | 12 | Restaurante La Brasa | Lo mismo que Grabar, con 5-9 postes o sombrillas a 1,5 m de la ruta. Tiene que verlos con los 10 sensores de distancia (ponle los ToF a tu dron) y pasar entre ellos sin perder el encuadre. |
+| `"foto"` | 13 | Fotos e inspecciones (📷 🔎) | Una casa al azar y UNA foto: un punto a 7-10,5 m de la fachada, o cerca y alto mirando el techo (inspección). Tiene que llegar, FRENAR y quedarse quieto 2,5-3,5 s con el sujeto al centro. Así son los trabajos 📷 y 🔎 del celular. |
+| `"set_fotos"` | 14 | Pedidos de 2-4 fotos | Lo mismo que Foto, pero 2-4 fotos seguidas alrededor de la casa, en orden: cada una 40-90° más allá de la anterior. Después de cada foto tiene que ir a la siguiente sin chocar con la casa. |
 | `"repaso_metas"` | 2 | No olvidar volar | Un aro al azar a 3-8 m, arrancando mirando a cualquier lado. Sirve para que aprenda a volar TU dron (más pesado y lento que el de antes) sin olvidar lo básico. |
 | `"repaso_columnas"` | 3 | No olvidar esquivar | Un aro al azar con columnas en el camino. Repasarlo de vez en cuando con tu dron evita que olvide esquivar mientras aprende a grabar. |
 
-Con `nivel(n)`: 0 Hover (quedarse quieto) · 1 Meta fija · 2 Metas al azar · 3 Columnas · 4 Varias metas · 5 Circuito (2 vueltas) · 6 Bosque · 7 Bosque: 3 aros · 8 Caza: 5 pájaros · 9 Caza entre columnas · 10 Caza en el bosque · 11 Grabar: tomas con ruta · 12 Grabar entre postes.
+Con `nivel(n)`: 0 Hover (quedarse quieto) · 1 Meta fija · 2 Metas al azar · 3 Columnas · 4 Varias metas · 5 Circuito (2 vueltas) · 6 Bosque · 7 Bosque: 3 aros · 8 Caza: 5 pájaros · 9 Caza entre columnas · 10 Caza en el bosque · 11 Grabar: tomas con ruta · 12 Grabar entre postes · 13 Foto · 14 Set de fotos.
 
 ## Lo que trae `e`
 

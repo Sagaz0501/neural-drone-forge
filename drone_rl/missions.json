@@ -110,5 +110,21 @@
     "exito": "Terminar la ruta con calidad media de imagen >= 0,5 sin tocar ningún poste ni la casa.",
     "falla": "chocar con un poste, la casa o el piso a más de 4 m/s, salir del área de 30 m, o que se acabe el tiempo",
     "premio": "igual que Grabar: + calidad de imagen por segundo grabado, + 'toma terminada' x calidad media; - pasar pegado y - ir rápido hacia algo ayudan a no tocar los postes"
+  },
+  "13": {
+    "nombre": "Foto",
+    "tiempo": 30,
+    "objetivo": "Una casa a 10-16 m y UNA foto: un punto fijo a 7-10,5 m de la casa (o cerca y alto, para revisar el techo). Hay que llegar al punto, FRENAR y quedarse quieto 2,5-3,5 s con la casa al centro del cuadro: así es una foto en el juego (los trabajos 📷 y 🔎 del celular).",
+    "exito": "La foto con calidad media >= 0,5: llegar quieto, la casa al centro, sin moverse del punto ni sacudirse.",
+    "falla": "chocar con la casa o con el piso a más de 4 m/s, salir del área de 30 m, o que se acabe el tiempo",
+    "premio": "+2 por metro hacia el punto, + calidad x 'grabar' por segundo, + 'toma completa' x calidad, + 'llegar quieto' al empezar, + 'encuadre', - 'altura' si sube o baja, - sacudidas, -10 al chocar"
+  },
+  "14": {
+    "nombre": "Set de fotos",
+    "tiempo": 60,
+    "objetivo": "Una casa y un SET de 2-4 fotos alrededor de ella, en orden (cada una 40-90° más allá de la anterior). Cada foto: llegar, frenar y quedarse quieto con la casa al centro; después ir a la siguiente sin chocar con la casa.",
+    "exito": "TODAS las fotos con calidad >= 0,5. Una foto mala y el set no sirve (como un cliente que pide 3 fotos).",
+    "falla": "chocar con la casa o con el piso a más de 4 m/s, salir del área de 30 m, o que se acabe el tiempo",
+    "premio": "Lo mismo que Foto, por cada foto: 'toma completa' x calidad de cada una, + 'llegar quieto' en cada punto"
   }
 }

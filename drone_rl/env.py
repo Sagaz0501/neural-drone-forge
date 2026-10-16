@@ -22,6 +22,8 @@ Currículum (de fácil a difícil), parámetro `stage`:
    11 film_fixed   : GRABAR: una casa y una toma con ruta (fija, órbita o revelar, tomas.py): llegar al inicio,
                     y seguir el punto de cámara por la ruta SIN perder el encuadre de la casa
    12 film_posts   : GRABAR ENTRE POSTES: lo mismo, con postes / sombrillas a 1,5 m de la ruta (usar los sensores)
+   13 photo        : FOTO: una toma fija corta (2,5-3,5 s): llegar, frenar y quedarse quieto con la casa al centro
+   14 photo_set    : SET DE FOTOS: 2-4 fotos seguidas alrededor de la casa, en orden (todas buenas = éxito)
 Opciones para cualquier nivel: density (bosque más claro/denso) y wind (viento con ráfagas, m/s).
 Física: params (un dron fijo, ej. QuadParams.load("drones/madera.json")) o phys_range (física al azar
 en cada intento, dentro de esos rangos: así la red aprende a volar drones distintos).
@@ -41,14 +43,16 @@ from .level import (Level, film_house_level, film_posts, forest_level, forest_sh
                     random_pillars)
 from .physics import QuadParams, QuadState, Wind, step
 from .physics import yaw_frame
-from .tomas import Toma, random_toma  # noqa: F401
+from .tomas import START_V, Toma, random_foto, random_fotos, random_toma  # noqa: F401
 from .sensing import (N_OBS, OBS_SCALE, RAY_DIRS_LOCAL, RAY_LEN, build_obs, clearance_penalty, danger_penalty,  # noqa: F401
                       film_quality, sensor_rays)
 
 STAGES = {0: "hover", 1: "goal_fixed", 2: "goal_random", 3: "obstacles", 4: "multi_goal", 5: "circuit",
-          6: "forest", 7: "forest_multi", 8: "hunt", 9: "hunt_columns", 10: "hunt_forest", 11: "film_fixed", 12: "film_posts"}
+          6: "forest", 7: "forest_multi", 8: "hunt", 9: "hunt_columns", 10: "hunt_forest", 11: "film_fixed", 12: "film_posts",
+          13: "photo", 14: "photo_set"}
 HUNT_STAGES = (8, 9, 10)
-FILM_STAGES = (11, 12)
+FILM_STAGES = (11, 12, 13, 14)
+PHOTO_STAGES = (13, 14)       # fotos: tomas fijas cortas (una, o un set de 2-4 seguidas)
 FILM_OK = 0.5            # grabar: calidad media de la toma para que cuente como lograda (sensing.film_quality)
 FILM_TOMAS = ("fija", "orbita", "revelar")
 
@@ -92,8 +96,20 @@ DEFAULT_REWARD = {
                          # espaldas) + premio/castigo inmediato por cada grado que gira hacia/lejos del aro
                          # (grabar: la nariz -la cámara- hacia el SUJETO)
     "film": 3.0,         # grabar: premio por segundo de buena imagen (encuadre x zona x estable, de 0 a 1)
+    # ---- Fase 1b (docs/ROADMAP.md): el catálogo nuevo. Todos en 0 = apagados (los modelos de antes no cambian) ----
+    "framing": 0.0,      # cámara: premio por segundo con el sujeto AL CENTRO del cuadro (solo el encuadre), grabando
+                         # y en los últimos 3 m antes de la toma (para llegar ya encuadrado)
+    "settle": 0.0,       # cámara: al arrancar la toma, premio x qué tan QUIETO llegó (1 = parado, 0 = a 2 m/s)
+    "altitude": 0.0,     # vuelo: castigo por segundo por subir/bajar (m/s) cuando la toma pide otra cosa
+                         # (grabando o llegando a la toma)
+    "pan": 0.0,          # cámara: castigo por segundo por paneos bruscos (aceleración del giro de la nariz)
+    "overspeed": 0.0,    # seguridad: castigo por segundo por cada m/s por encima de SPEED_LIMIT
+    "energy": 0.0,       # energía: castigo por segundo por el gas por encima del necesario para flotar
 }
 ANG_RATE_REF = 4.0       # rad/s: un giro de roll/pitch así de rápido cuenta como "1" en el castigo de estabilidad
+SPEED_LIMIT = 3.0        # m/s: el límite de velocidad del castigo "overspeed" (las rutas de cámara van a 0-2 m/s)
+YAW_ACC_REF = 8.0        # rad/s²: un paneo así de brusco cuenta como "1" en el castigo "pan"
+APPROACH_R = 3.0         # m: "llegando a la toma" (framing y altitude ya cuentan)
 
 
 class DroneEnv(gym.Env):
@@ -121,6 +137,7 @@ class DroneEnv(gym.Env):
         self.phys_range = phys_range
         self.subject, self.band, self.toma = None, None, None     # grabar
         self.shot = None                                          # grabar: la toma con su ruta (tomas.Toma)
+        self.shots, self.shot_q = [], []                          # fotos: el set de tomas y la calidad de cada una
         self.tomas = tuple(tomas) if tomas else FILM_TOMAS        # qué tomas se sortean
         self.dt = 1.0 / control_hz
         self.substeps = physics_substeps
@@ -183,9 +200,18 @@ class DroneEnv(gym.Env):
             lv.cyl_xy, lv.cyl_r, lv.cyl_z, lv.sph_c, lv.sph_r = forest_shapes(self.trees)
         if self.stage in FILM_STAGES:          # grabar una casa: la meta es el punto de cámara
             lv, self.subject, _ = film_house_level(rng)
-            self.shot = random_toma(rng, self.subject, lv, self.tomas)
+            wall_h, top = float(lv.box_min[1][2]), float(np.max(lv.box_max[:, 2]))
+            techo = np.array([self.subject[0], self.subject[1], (wall_h + top) / 2])   # inspección: el techo
+            if self.stage == 13:
+                self.shots = [random_foto(rng, self.subject, lv, techo=techo)]
+            elif self.stage == 14:
+                self.shots = random_fotos(rng, self.subject, lv, int(rng.integers(2, 5)), techo=techo)
+            else:
+                self.shots = [random_toma(rng, self.subject, lv, self.tomas)]
+            self.shot = self.shots[0]
+            self.subject = self.shot.subject          # una foto de inspección mira el techo
             self.toma, self.band = self.shot.tipo, self.shot.band()
-            lv.goals = [self.shot.start()]
+            lv.goals = [sh.start() for sh in self.shots]
             if self.stage == 12:                   # postes cerca de la ruta: hay que verlos con los sensores
                 film_posts(rng, lv, self.shot)
         return lv
@@ -204,6 +230,7 @@ class DroneEnv(gym.Env):
         if self.phys_range:
             self.p = self._random_params()
         self.subject, self.band, self.toma, self.shot = None, None, None, None
+        self.shots, self.shot_q = [], []
         self.level = self._make_level()
         self.state = QuadState(pos=self.level.spawn.copy())
         self.goal_idx = 0
@@ -313,10 +340,12 @@ class DroneEnv(gym.Env):
         yaw_rate = float(np.arctan2(np.sin(self.state.yaw - self.prev_yaw), np.cos(self.state.yaw - self.prev_yaw))) / self.dt
         yaw_acc = (yaw_rate - self.yaw_rate) / self.dt                  # paneo brusco (grabar)
         self.prev_yaw, self.yaw_rate = self.state.yaw, yaw_rate
-        recording = False
+        recording, started = False, False
         if self.shot is not None:                      # grabar: la toma espera al dron en el inicio y después avanza
             recording = self.shot.phase == "grabando"
+            before = self.shot.phase
             self.shot.step(self.dt, self.state.pos, self.state.vel)
+            started = before == "ir" and self.shot.phase == "grabando"
         if self.flock is not None:                     # los pájaros se mueven (y eligen huir) a la vez que el dron
             self.flock.speed = self.bird_speed
             self.flock.step(self.dt, self.np_random.normal(size=(self.flock.n, 3)), self.state.pos)
@@ -366,6 +395,13 @@ class DroneEnv(gym.Env):
         if rw.get("stability", 0.0):                                     # vuelo estable: sin sacudidas ni trompos
             # solo roll/pitch: castigar el yaw aquí le cobraba justo el giro para ponerse de frente
             reward -= rw["stability"] * self.dt * (ang_rate / ANG_RATE_REF) ** 2
+        speed = float(np.linalg.norm(self.state.vel))
+        if rw.get("overspeed", 0.0):                                     # límite de velocidad
+            reward -= rw["overspeed"] * self.dt * max(0.0, speed - SPEED_LIMIT)
+        if rw.get("energy", 0.0):                                        # gas de más (subir, acelerar de golpe)
+            reward -= rw["energy"] * self.dt * max(0.0, self.state.throttle - self.p.hover_throttle)
+        if rw.get("pan", 0.0):                                           # paneo brusco (se nota en el video)
+            reward -= rw["pan"] * self.dt * min((yaw_acc / YAW_ACC_REF) ** 2, 4.0)
         self.prev_dist = dist
         self.prev_action = action
 
@@ -381,11 +417,27 @@ class DroneEnv(gym.Env):
                 self.film_sum += fq["q"]
                 self.film_n += 1
                 self.film_good += self.dt
-            if self.shot.phase == "lista":                   # se acabó la ruta: ¿quedó buena?
+            near = (self.shot.phase == "ir" or started) and float(np.linalg.norm(self.shot.start() - pos)) < APPROACH_R
+            if recording or near:                            # Fase 1b: encuadre y altura, grabando o llegando
+                reward += rw.get("framing", 0.0) * fq["framing"] * self.dt
+                vz_ok = self.shot.vel()[2] if recording else 0.0
+                reward -= rw.get("altitude", 0.0) * min(abs(self.state.vel[2] - vz_ok), 3.0) * self.dt
+            if started:                                      # llegó: paga qué tan quieto (la foto sale movida si no)
+                reward += rw.get("settle", 0.0) * max(0.0, 1.0 - speed / START_V)
+            if self.shot.phase == "lista":                   # se acabó la ruta (o la foto): ¿quedó buena?
                 q_mean = self.film_sum / max(self.film_n, 1)
                 reward += rw["goal"] * q_mean
-                terminated = True
-                success = q_mean >= FILM_OK
+                self.shot_q.append(q_mean)
+                if len(self.shot_q) < len(self.shots):       # set de fotos: la siguiente
+                    self.shot = self.shots[len(self.shot_q)]
+                    self.subject, self.band = self.shot.subject, self.shot.band()
+                    self.goal_idx = len(self.shot_q)
+                    self.film_sum, self.film_n = 0.0, 0
+                    dist = self._goal_dist()
+                    self.prev_dist, self.prev_phi = dist, self._heading_phi()
+                else:
+                    terminated = True
+                    success = all(q >= FILM_OK for q in self.shot_q)
         elif self.hold_steps:
             # tarea de "quedarse": premio continuo por estar cerca (más cerca = más premio)
             reward += rw["near"] * np.exp(-dist)
@@ -424,7 +476,8 @@ class DroneEnv(gym.Env):
             "success": success,
             "crashed": crashed,
             "crash_reason": "suelo" if ground_crash else "obstaculo" if hit_obstacle else "limites" if oob else None,
-            "goals_reached": (self.goal_idx if not self.hold_steps else int(success)) if not film else int(success),
+            "goals_reached": (self.goal_idx if not self.hold_steps else int(success)) if not film
+                             else sum(q >= FILM_OK for q in self.shot_q) if self.stage in PHOTO_STAGES else int(success),
             "dist": dist,
             "pos": pos.copy(),          # para ver dónde chocó (el entorno se reinicia solo)
         }
@@ -435,6 +488,10 @@ class DroneEnv(gym.Env):
             info["front"] = self.front_n / self.move_n if self.move_n else None
             if film:
                 info["film_good"] = self.film_good
-                info["film_q"] = self.film_sum / max(self.film_n, 1)
+                qs = self.shot_q + ([self.film_sum / self.film_n] if self.film_n and len(self.shot_q) < len(self.shots) else [])
+                info["film_q"] = float(np.mean(qs)) if self.stage in PHOTO_STAGES and qs else self.film_sum / max(self.film_n, 1)
                 info["toma"] = self.toma
+                if self.stage in PHOTO_STAGES:
+                    info["fotos"] = [round(float(q), 3) for q in self.shot_q]
+                    info["n_fotos"] = len(self.shots)
         return self._obs(rays), float(reward), terminated, truncated, info

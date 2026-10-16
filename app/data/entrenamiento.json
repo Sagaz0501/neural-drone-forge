@@ -20,7 +20,13 @@
         "speed": 0.0,
         "stability": 1.0,
         "heading": 2.0,
-        "film": 4.0
+        "film": 4.0,
+        "framing": 0.0,
+        "settle": 0.0,
+        "altitude": 0.0,
+        "pan": 0.0,
+        "overspeed": 0.0,
+        "energy": 0.0
       },
       "viento": 0.0,
       "id": "grabar",
@@ -45,7 +51,13 @@
         "speed": 0.0,
         "stability": 1.2,
         "heading": 2.0,
-        "film": 4.0
+        "film": 4.0,
+        "framing": 0.0,
+        "settle": 0.0,
+        "altitude": 0.0,
+        "pan": 0.0,
+        "overspeed": 0.0,
+        "energy": 0.0
       },
       "viento": 2.5,
       "id": "grabar_viento",
@@ -70,7 +82,13 @@
         "speed": 0.0,
         "stability": 1.0,
         "heading": 2.0,
-        "film": 4.0
+        "film": 4.0,
+        "framing": 0.0,
+        "settle": 0.0,
+        "altitude": 0.0,
+        "pan": 0.0,
+        "overspeed": 0.0,
+        "energy": 0.0
       },
       "viento": 0.8,
       "id": "grabar_postes",
@@ -78,6 +96,66 @@
       "requisitos_ia": {
         "sensores": true
       }
+    },
+    {
+      "nivel": 13,
+      "nombre": "Foto",
+      "para": "Fotos e inspecciones (📷 🔎)",
+      "id": "foto",
+      "desc": "Una casa al azar y UNA foto: un punto a 7-10,5 m de la fachada, o cerca y alto mirando el techo (inspección). Tiene que llegar, FRENAR y quedarse quieto 2,5-3,5 s con el sujeto al centro. Así son los trabajos 📷 y 🔎 del celular.",
+      "exito": "Foto lograda = calidad media ≥ 50 % mientras está quieto en el punto.",
+      "premios": {
+        "progress": 2.0,
+        "goal": 15.0,
+        "crash": 15.0,
+        "time": 0.01,
+        "smooth": 0.05,
+        "tilt": 0.01,
+        "near": 0.3,
+        "clearance": 0.3,
+        "danger": 0.2,
+        "speed": 0.0,
+        "stability": 1.0,
+        "heading": 2.0,
+        "film": 4.0,
+        "framing": 2.0,
+        "settle": 4.0,
+        "altitude": 1.0,
+        "pan": 0.5,
+        "overspeed": 0.5,
+        "energy": 0.0
+      },
+      "viento": 0.0
+    },
+    {
+      "nivel": 14,
+      "nombre": "Set de fotos",
+      "para": "Pedidos de 2-4 fotos",
+      "id": "set_fotos",
+      "desc": "Lo mismo que Foto, pero 2-4 fotos seguidas alrededor de la casa, en orden: cada una 40-90° más allá de la anterior. Después de cada foto tiene que ir a la siguiente sin chocar con la casa.",
+      "exito": "Set logrado = TODAS las fotos con calidad ≥ 50 %.",
+      "premios": {
+        "progress": 2.0,
+        "goal": 15.0,
+        "crash": 15.0,
+        "time": 0.01,
+        "smooth": 0.05,
+        "tilt": 0.01,
+        "near": 0.3,
+        "clearance": 0.3,
+        "danger": 0.2,
+        "speed": 0.0,
+        "stability": 1.0,
+        "heading": 2.0,
+        "film": 4.0,
+        "framing": 2.0,
+        "settle": 4.0,
+        "altitude": 1.0,
+        "pan": 0.5,
+        "overspeed": 0.5,
+        "energy": 0.2
+      },
+      "viento": 0.0
     },
     {
       "nivel": 2,
@@ -98,7 +176,13 @@
         "speed": 0.3,
         "stability": 0.5,
         "heading": 2.0,
-        "film": 3.0
+        "film": 3.0,
+        "framing": 0.0,
+        "settle": 0.0,
+        "altitude": 0.0,
+        "pan": 0.0,
+        "overspeed": 0.0,
+        "energy": 0.0
       },
       "viento": 0.0,
       "id": "repaso_metas"
@@ -122,7 +206,13 @@
         "speed": 0.3,
         "stability": 0.5,
         "heading": 2.0,
-        "film": 3.0
+        "film": 3.0,
+        "framing": 0.0,
+        "settle": 0.0,
+        "altitude": 0.0,
+        "pan": 0.0,
+        "overspeed": 0.0,
+        "energy": 0.0
       },
       "viento": 0.0,
       "id": "repaso_columnas"
@@ -136,37 +226,44 @@
       "max": 10,
       "solo": [
         11,
-        12
+        12,
+        13,
+        14
       ],
-      "desc": "Por cada segundo grabado, según la calidad de imagen (0 a 1): la casa al centro del cuadro × pegado al punto de cámara × a su ritmo × sin sacudidas. Es EL premio de grabar."
+      "desc": "Por cada segundo grabado, según la calidad de imagen (0 a 1): la casa al centro del cuadro × pegado al punto de cámara × a su ritmo × sin sacudidas. Es EL premio de grabar.",
+      "grupo": "camara"
     },
     {
       "k": "heading",
       "nombre": "Mirar al sujeto",
       "tipo": "premio",
       "max": 5,
-      "desc": "La nariz (la cámara) hacia la casa: paga en el acto cada grado que gira hacia ella y cobra por segundo si mira para otro lado. Sin esto llega a la zona mirando a cualquier lado."
+      "desc": "La nariz (la cámara) hacia la casa: paga en el acto cada grado que gira hacia ella y cobra por segundo si mira para otro lado. Sin esto llega a la zona mirando a cualquier lado.",
+      "grupo": "camara"
     },
     {
       "k": "progress",
       "nombre": "Acercarse al punto",
       "tipo": "premio",
       "max": 6,
-      "desc": "Por cada metro que se acerca al punto de cámara (primero el inicio de la ruta, después el punto que avanza)."
+      "desc": "Por cada metro que se acerca al punto de cámara (primero el inicio de la ruta, después el punto que avanza).",
+      "grupo": "mision"
     },
     {
       "k": "goal",
       "nombre": "Toma terminada",
       "tipo": "premio",
       "max": 40,
-      "desc": "Al terminar la ruta: este premio × la calidad media de la toma. Una toma mala casi no paga."
+      "desc": "Al terminar la ruta: este premio × la calidad media de la toma. Una toma mala casi no paga.",
+      "grupo": "mision"
     },
     {
       "k": "stability",
       "nombre": "Sacudidas",
       "tipo": "castigo",
       "max": 5,
-      "desc": "Por cada segundo de giros bruscos de roll/pitch. Un video que tiembla no sirve: súbelo si ves que la imagen se sacude."
+      "desc": "Por cada segundo de giros bruscos de roll/pitch. Un video que tiembla no sirve: súbelo si ves que la imagen se sacude.",
+      "grupo": "vuelo"
     },
     {
       "k": "smooth",
@@ -174,14 +271,16 @@
       "tipo": "castigo",
       "max": 0.3,
       "paso": 0.01,
-      "desc": "Por cambiar las palancas de golpe. Ojo: también cobra el ruido con el que explora; muy alto y deja de probar cosas."
+      "desc": "Por cambiar las palancas de golpe. Ojo: también cobra el ruido con el que explora; muy alto y deja de probar cosas.",
+      "grupo": "vuelo"
     },
     {
       "k": "crash",
       "nombre": "Chocar",
       "tipo": "castigo",
       "max": 50,
-      "desc": "Al chocar con la casa, el piso o salirse del área. En el juego un choque cuesta plata: que le duela."
+      "desc": "Al chocar con la casa, el piso o salirse del área. En el juego un choque cuesta plata: que le duela.",
+      "grupo": "seguridad"
     },
     {
       "k": "clearance",
@@ -189,7 +288,8 @@
       "tipo": "castigo",
       "max": 3,
       "paso": 0.05,
-      "desc": "Por pasar a menos de 1,2 m de algo. Lo siente ANTES de chocar con el techo o las paredes."
+      "desc": "Por pasar a menos de 1,2 m de algo. Lo siente ANTES de chocar con el techo o las paredes.",
+      "grupo": "seguridad"
     },
     {
       "k": "danger",
@@ -197,7 +297,8 @@
       "tipo": "castigo",
       "max": 2,
       "paso": 0.05,
-      "desc": "Por ir hacia un obstáculo con menos de 1 s para chocar. Aprende a frenar a tiempo."
+      "desc": "Por ir hacia un obstáculo con menos de 1 s para chocar. Aprende a frenar a tiempo.",
+      "grupo": "seguridad"
     },
     {
       "k": "tilt",
@@ -205,7 +306,8 @@
       "tipo": "castigo",
       "max": 0.3,
       "paso": 0.01,
-      "desc": "Por andar inclinado. Un poco ayuda a que no haga maniobras exageradas."
+      "desc": "Por andar inclinado. Un poco ayuda a que no haga maniobras exageradas.",
+      "grupo": "vuelo"
     },
     {
       "k": "time",
@@ -213,7 +315,8 @@
       "tipo": "castigo",
       "max": 0.2,
       "paso": 0.005,
-      "desc": "Un poquito cada paso: que no se demore en llegar."
+      "desc": "Un poquito cada paso: que no se demore en llegar.",
+      "grupo": "mision"
     },
     {
       "k": "speed",
@@ -223,9 +326,89 @@
       "paso": 0.05,
       "no": [
         11,
-        12
+        12,
+        13,
+        14
       ],
-      "desc": "Al pasar un aro, más premio si llegó rápido. Para grabar no sirve (va en 0)."
+      "desc": "Al pasar un aro, más premio si llegó rápido. Para grabar no sirve (va en 0).",
+      "grupo": "mision"
+    },
+    {
+      "k": "framing",
+      "nombre": "Encuadre",
+      "tipo": "premio",
+      "grupo": "camara",
+      "max": 5,
+      "paso": 0.1,
+      "solo": [
+        11,
+        12,
+        13,
+        14
+      ],
+      "desc": "Por segundo con el sujeto AL CENTRO del cuadro (solo el encuadre, sin importar la ruta), grabando y en los últimos 3 m antes de la toma: llega a la foto ya encuadrado."
+    },
+    {
+      "k": "settle",
+      "nombre": "Llegar quieto",
+      "tipo": "premio",
+      "grupo": "camara",
+      "max": 10,
+      "solo": [
+        11,
+        12,
+        13,
+        14
+      ],
+      "desc": "Al empezar la toma (o la foto): más premio cuanto más quieto llega (parado = todo; a 2 m/s = nada). Una foto sacada frenando sale movida."
+    },
+    {
+      "k": "altitude",
+      "nombre": "Cambiar de altura",
+      "tipo": "castigo",
+      "grupo": "vuelo",
+      "max": 2.5,
+      "paso": 0.05,
+      "solo": [
+        11,
+        12,
+        13,
+        14
+      ],
+      "desc": "Por segundo y por m/s que sube o baja cuando la toma no lo pide (grabando o llegando a la toma). Distinto de las sacudidas: esto es el sube y baja."
+    },
+    {
+      "k": "pan",
+      "nombre": "Paneo brusco",
+      "tipo": "castigo",
+      "grupo": "camara",
+      "max": 1.25,
+      "paso": 0.05,
+      "solo": [
+        11,
+        12,
+        13,
+        14
+      ],
+      "desc": "Por segundo de giros de la nariz que arrancan o frenan de golpe. En el video se nota como un tirón."
+    },
+    {
+      "k": "overspeed",
+      "nombre": "Exceso de velocidad",
+      "tipo": "castigo",
+      "grupo": "seguridad",
+      "max": 1.25,
+      "paso": 0.05,
+      "desc": "Por segundo y por cada m/s por encima de 3 m/s. Cerca de una casa o de gente no se vuela a fondo."
+    },
+    {
+      "k": "energy",
+      "nombre": "Gas de más",
+      "tipo": "castigo",
+      "grupo": "energia",
+      "max": 0.5,
+      "paso": 0.01,
+      "desc": "Por segundo de gas por encima del que necesita para flotar (subir de golpe, acelerar y frenar). Cuida la batería en los sets largos."
     }
   ],
   "escala_premios": {
@@ -241,7 +424,13 @@
     "clearance": 1.5,
     "danger": 0.5,
     "tilt": 0.025,
-    "time": 0.025
+    "time": 0.025,
+    "framing": 5,
+    "settle": 10,
+    "altitude": 2.5,
+    "pan": 1.25,
+    "overspeed": 1.25,
+    "energy": 0.5
   },
   "_nota_escala": "En el juego los premios y castigos van de 0 a 10 (0 = apagado, ~4 = lo normal, 10 = al máximo). escala_premios = el valor REAL que recibe el entrenador cuando pones 10 (lineal: real = nivel / 10 × escala). Los 'premios' de cada misión siguen en valores reales (los del entrenador)."
 }

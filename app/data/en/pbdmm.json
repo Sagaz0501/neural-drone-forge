@@ -12,7 +12,9 @@
   "9": "Hunt between columns",
   "10": "Hunt in the forest",
   "11": "Filming: shots with a route",
-  "12": "Filming between poles"
+  "12": "Filming between poles",
+  "13": "Photo",
+  "14": "Photo set"
  },
  "funciones": [
   {
@@ -118,7 +120,7 @@
    "params": [
     [
      "id",
-     "\"film\", \"film_wind\", \"film_poles\", \"review_goals\" or \"review_columns\""
+     "\"film\", \"film_wind\", \"film_poles\", \"photo\", \"photo_set\", \"review_goals\" or \"review_columns\""
     ]
    ],
    "firma": "mission(id)",
@@ -135,11 +137,11 @@
   {
    "nombre": "nivel",
    "grupo": "What it learns",
-   "desc": "Instead of mission(): any Drone Lab level, from 0 (hold still) to 12 (filming between poles). No recommended rewards: set your own.",
+   "desc": "Instead of mission(): any Drone Lab level, from 0 (hold still) to 14 (photo set). No recommended rewards: set your own.",
    "params": [
     [
      "n",
-     "0 hover · 1 fixed target · 2 random targets · 3 columns · 4 several targets · 5 circuit · 6 forest · 7 forest with rings · 8-10 hunt · 11 filming · 12 filming between poles"
+     "0 hover · 1 fixed target · 2 random targets · 3 columns · 4 several targets · 5 circuit · 6 forest · 7 forest with rings · 8-10 hunt · 11 filming · 12 filming between poles · 13 photo · 14 photo set"
     ]
    ],
    "firma": "level(n)",
@@ -395,6 +397,14 @@
     [
      "speed",
      "reward for reaching a ring fast"
+    ],
+    [
+     "framing",
+     "reward per second with the subject centered in the frame (filming or arriving)"
+    ],
+    [
+     "settle",
+     "reward when the shot or photo starts, bigger the stiller it arrives"
     ]
    ],
    "firma": "rewards(film=4, heading=4, …)",
@@ -443,6 +453,22 @@
     [
      "time",
      "small penalty every step (so it doesn't dawdle)"
+    ],
+    [
+     "altitude",
+     "penalty for climbing or dropping when the shot doesn't ask for it"
+    ],
+    [
+     "pan",
+     "penalty for jerky nose turns (jolts in the video)"
+    ],
+    [
+     "overspeed",
+     "penalty for flying faster than 3 m/s"
+    ],
+    [
+     "energy",
+     "penalty for extra throttle (saves battery)"
     ]
    ],
    "firma": "penalties(crash=3, stability=4, …)",

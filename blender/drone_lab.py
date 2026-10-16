@@ -52,14 +52,17 @@ STAGE_ITEMS = [
     ("10", "Caza en el bosque", "Cazar los pájaros debajo de las copas, entre troncos y arbustos"),
     ("11", "Grabar: tomas con ruta", "Fija, órbita o revelar: llegar al inicio de la ruta y seguir el punto de cámara sin perder el encuadre de la casa"),
     ("12", "Grabar entre postes", "Lo mismo que Grabar, con postes / sombrillas a 1,5 m de la ruta: usar los sensores"),
+    ("13", "Foto", "Una foto: llegar a un punto, frenar y quedarse quieto 2,5-3,5 s con la casa (o el techo) al centro"),
+    ("14", "Set de fotos", "2-4 fotos seguidas alrededor de la casa, en orden: todas buenas = éxito"),
     ("LEVEL", "Nivel JSON", "Un nivel exportado desde Blender (todos los drones en el mismo nivel)"),
 ]
 STAGE_NAMES = {"hover": "Hover", "goal_fixed": "Meta fija", "goal_random": "Metas", "obstacles": "Columnas",
                "multi_goal": "Varias metas", "circuit": "Circuito", "forest": "Bosque", "forest_multi": "Bosque 3 aros", "hunt": "Caza",
-               "hunt_columns": "Caza columnas", "hunt_forest": "Caza bosque", "film_fixed": "Grabar", "film_posts": "Grabar entre postes"}
+               "hunt_columns": "Caza columnas", "hunt_forest": "Caza bosque", "film_fixed": "Grabar", "film_posts": "Grabar entre postes",
+               "photo": "Foto", "photo_set": "Set de fotos"}
 COLORS = {"fly": (0.9, 0.9, 0.95, 1), 1: (1.0, 0.12, 0.08, 1), 2: (0.1, 1.0, 0.35, 1), 3: (1.0, 0.75, 0.1, 1)}
 REWARD_KEYS = ["progress", "goal", "crash", "time", "smooth", "tilt", "near", "clearance", "danger", "speed",
-               "stability", "heading", "film"]
+               "stability", "heading", "film", "framing", "settle", "altitude", "pan", "overspeed", "energy"]
 
 
 def S():
@@ -1361,7 +1364,7 @@ def draw_hud():
     if p.get("stage") in (8, 9, 10):
         lines.append(f"caza: {s.get('goals', 0):.1f} de {p.get('n_birds', 5)} pájaros por intento · "
                      f"pájaros a {p.get('bird_speed', 2):g} m/s")
-    if p.get("stage") in (11, 12):
+    if p.get("stage") in (11, 12, 13, 14):
         lines.append(f"GRABAR: tomas logradas {s.get('succ', 0) * 100:.0f} % · choques {s.get('crash', 0) * 100:.0f} % · "
                      f"calidad media {s.get('film', 0) * 100:.0f} % · dron {p.get('dron', '-')}")
         lines.append("cono de la cámara: rojo = mala imagen · amarillo · verde = buena · aro = punto de cámara")
@@ -1527,6 +1530,20 @@ class DroneLabProps(bpy.types.PropertyGroup):
                                           update=_on_live_change,
                                           description="Castiga (por segundo) los giros bruscos de roll/pitch (sacudidas). "
                                                       "Más alto = vuelo más suave. Girar sobre sí mismo lo maneja 'Ir de frente'")
+    # Fase 1b (drone_rl/env.py DEFAULT_REWARD): apagados por defecto
+    rw_framing: bpy.props.FloatProperty(name="Premio por encuadre", default=0.0, min=0, max=10, update=_on_live_change,
+                                        description="Por segundo con el sujeto al centro del cuadro (grabando o llegando a la toma)")
+    rw_settle: bpy.props.FloatProperty(name="Premio por llegar quieto", default=0.0, min=0, max=20, update=_on_live_change,
+                                       description="Al empezar la toma (o la foto): más premio cuanto más quieto llega")
+    rw_altitude: bpy.props.FloatProperty(name="Castigo por cambiar de altura", default=0.0, min=0, max=10,
+                                         update=_on_live_change,
+                                         description="Por segundo y por m/s que sube o baja cuando la toma no lo pide")
+    rw_pan: bpy.props.FloatProperty(name="Castigo por paneo brusco", default=0.0, min=0, max=10, update=_on_live_change,
+                                    description="Por segundo de giros de la nariz que arrancan o frenan de golpe")
+    rw_overspeed: bpy.props.FloatProperty(name="Castigo por exceso de velocidad", default=0.0, min=0, max=10,
+                                          update=_on_live_change, description="Por segundo y por m/s por encima de 3 m/s")
+    rw_energy: bpy.props.FloatProperty(name="Castigo por gas de más", default=0.0, min=0, max=10, update=_on_live_change,
+                                       description="Por segundo de gas por encima del que necesita para flotar (batería)")
     # ---- ambiente (cambia en vivo, desde el próximo intento de cada dron) ----
     densidad: bpy.props.FloatProperty(name="Densidad del bosque", default=1.0, min=0.3, max=2.5, update=_on_env_change,
                                       description="Bosque y Caza en el bosque: 0.5 = claro · 1 = normal · 2 = denso")
@@ -1744,7 +1761,7 @@ class DRONELAB_OT_probar(bpy.types.Operator):
         p = lab_scene().drone_lab
         st = S()
         stage = self.stage if self.stage >= 0 else test_stage(p)
-        if stage in (11, 12):               # grabar se prueba en el juego nuevo: misión de la casa, "Que grabe la IA"
+        if stage in (11, 12, 13, 14):       # grabar se prueba en el juego nuevo: misión de la casa, "Que grabe la IA"
             st["test_msg"] = ("Grabar se prueba en Dron Maker: Tablero → Fotos de una casa → Que grabe la IA. "
                               "Usa la última generación guardada (cada 10)")
             return bpy.ops.dronelab.jugar(pagina="app")
@@ -1962,7 +1979,7 @@ class VIEW3D_PT_drone_lab(bpy.types.Panel):
         box.prop(p, "watch")
         c = box.column(align=True)
         c.scale_y = 0.8
-        if p.stage in ("11", "12") or (st.get("hello") or {}).get("stage") in (11, 12):
+        if p.stage in ("11", "12", "13", "14") or (st.get("hello") or {}).get("stage") in (11, 12, 13, 14):
             wrapped(c, "Casa = el sujeto · anillo celeste = la zona del cliente · aro = punto de cámara (se llena "
                        "de verde mientras graba) · cono = lo que ve la cámara: rojo mala imagen → verde buena. "
                        "Destellos: verde toma lograda · rojo choque · amarillo se acabó el tiempo.", width)
@@ -2019,7 +2036,7 @@ class VIEW3D_PT_drone_lab(bpy.types.Panel):
             for title, field in (("Objetivo", "objetivo"), ("Éxito", "exito"), ("Falla", "falla"), ("Premio", "premio")):
                 wrapped(c, f"{title}: {mis[field]}", width)
             c.separator()
-            if p.stage in ("11", "12"):
+            if p.stage in ("11", "12", "13", "14"):
                 wrapped(c, "Casa = el sujeto · anillo celeste en el piso = zona del cliente (distancia) y aros "
                            "arriba = alturas · aro = punto de cámara (se llena de verde mientras graba) · cono = lo "
                            "que ve la cámara: rojo mala imagen → amarillo → verde buena. Destellos: verde toma "

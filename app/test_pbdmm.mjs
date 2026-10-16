@@ -100,6 +100,13 @@ const body = pedidoDe(compilar(data.ejemplos.hover, D, host).cfg, () => null);
 ok(body.base_de === "cero" && body.capas.join() === "64,64" && body.nivel === 0 && body.premios.near === 0.6 && body.premios.crash === 20 && body.premios.tilt === 0.02 && body.donde === "fondo", "el pedido al servidor: " + JSON.stringify(body).slice(0, 140));
 const b2 = pedidoDe(compilar('modelo("v3x")\nmision("grabar")\ndron("sagaz_dron_v3")', D, host).cfg, (n) => ({ nombre: n, fisica: {} }));
 ok(b2.dron?.nombre === "Sagaz_Dron_V3", "dron del hangar (sin importar mayúsculas)");
+// Fase 1b: las misiones de fotos y el catálogo nuevo (escala: real = nivel / 10 × escala_premios)
+const b3 = pedidoDe(compilar('modelo("fotos1")\nmision("set_fotos")\npremios(encuadre=8, quieto=4)\ncastigos(gas=10, paneo=2, altura=4, exceso_velocidad=4)', D, host).cfg, () => null);
+ok(b3.nivel === 14 && b3.premios.framing === 4 && b3.premios.settle === 4 && b3.premios.energy === 0.5 && b3.premios.pan === 0.25 && b3.premios.altitude === 1 && b3.premios.overspeed === 0.5,
+  "mision(\"set_fotos\") -> nivel 14 con encuadre, quieto, gas, paneo, altura y exceso_velocidad: " + JSON.stringify(b3.premios));
+const b4 = pedidoDe(compilar('model("photo1")\nmission("photo")\nrewards(framing=6)\npenalties(energy=2)', D, host).cfg, () => null);
+ok(b4.nivel === 13 && b4.premios.framing === 3 && b4.premios.energy === 0.1, "en inglés: mission(\"photo\"), rewards(framing=…), penalties(energy=…)");
+ok(/es un castigo/.test(falla(() => compilar('modelo("x")\nmision("foto")\npremios(gas=3)', D, host))?.message || ""), "gas es un castigo (no va en premios)");
 for (const [k, src] of Object.entries(data.ejemplos)) ok(!falla(() => compilar(src, D, host)), `el ejemplo "${k}" compila`);
 {
   const Pv = compilar('NOMBRE = "halcon"\nV = 2\nN = 32\nmodelo(f"{NOMBRE}_v{V}", desde="cero")\nred(capas=[N * 2, N])\nMI_DRON = "Sagaz_Dron_V3"\ndron(MI_DRON)\nP = {"grabar": 6, "mirar": 4}\nmision("grabar")\npremios(**P)\ncastigos(**{"chocar": 3})', D, host);
@@ -176,9 +183,9 @@ ok(/no tienes un dron/.test(e?.message || ""), "dron que no está en el hangar")
   o = op("premios(mirar=2, gra");
   ok(o[0].txt === "grabar=" && o[0].det.includes("film"), "premios(…, gra -> grabar= (film)");
   o = op("premios(");
-  ok(o.map((x) => x.txt).sort().join() === "acercarse=,cerca=,grabar=,meta=,mirar=,rapidez=", "premios( -> solo premios: " + o.map((x) => x.txt));
+  ok(o.map((x) => x.txt).sort().join() === "acercarse=,cerca=,encuadre=,grabar=,meta=,mirar=,quieto=,rapidez=", "premios( -> solo premios: " + o.map((x) => x.txt));
   o = op("castigos(");
-  ok(o.map((x) => x.txt).sort().join() === "brusco=,chocar=,inclinar=,pegado=,peligro=,sacudidas=,tiempo=", "castigos( -> solo castigos: " + o.map((x) => x.txt));
+  ok(o.map((x) => x.txt).sort().join() === "altura=,brusco=,chocar=,exceso_velocidad=,gas=,inclinar=,paneo=,pegado=,peligro=,sacudidas=,tiempo=", "castigos( -> solo castigos: " + o.map((x) => x.txt));
   o = op("    print(f\"{e.ex");
   ok(o.length === 0, "dentro de un texto f\"…\" no molesta");
   o = op("def cada_generacion(e):\n    if e.ex");

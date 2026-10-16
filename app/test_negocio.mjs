@@ -115,6 +115,12 @@ const tu = partida({ drones: [{ id: "d1", nombre: "Kit" }] });
 NG.asegurar(tu, D);
 ok(!NG.asignar(tu, D, tu.negocio.pedidos[0].id, "d1").ok, "flota: el pedido del tutorial lo vuelas tú");
 
+// 3c) Fase 1b: cada trabajo dice qué misión del Laboratorio le enseña a la IA
+const e1 = NG.paraVolar(fl, D, NG.crearPedido(fl, D, "marta", "foto_casa", 1, rngFijo)).entrenar;
+const e2 = NG.paraVolar(fl, D, NG.crearPedido(fl, D, "marta", "inspeccion_casa", 2, rngFijo)).entrenar;
+const e3 = NG.paraVolar(fl, D, NG.crearPedido(fl, D, "marta", "video_casa", 1, rngFijo)).entrenar;
+ok(e1.nivel === 13 && e1.mision === "foto" && e2.nivel === 14 && e2.mision === "set_fotos" && e3.nivel === 11, "entrenarPara: 1 foto -> Foto (13), varias -> Set de fotos (14), video -> Grabar (11)");
+
 // 4) requisitos
 const st = { twr: 1.9, calidad: 30, alcance_m: 20, minutos: 4, ayudas: [], nitidez: 0.7 };
 const L = REQ.requisitos({ twr_min: 2.2, barometro: true, protectores: true, calidad_min: 50 }, st, { segundos: 20, viento: 2.5, alcance: 25 });

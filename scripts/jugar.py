@@ -110,7 +110,8 @@ def _fresh_web_model(quiet, folder):
 
 BLENDER = os.environ.get("BLENDER", "/Applications/Blender.app/Contents/MacOS/Blender")
 REWARD_KEYS = ("progress", "goal", "crash", "time", "smooth", "tilt", "near", "clearance", "danger", "speed",
-               "stability", "heading", "film")
+               "stability", "heading", "film",
+               "framing", "settle", "altitude", "pan", "overspeed", "energy")    # Fase 1b (= drone_rl/env.py DEFAULT_REWARD)
 FIS_KEYS = ("mass", "twr", "drag", "max_angle_deg", "yaw_rate_deg", "att_resp", "crash_speed", "radius")
 
 

@@ -127,5 +127,8 @@
  "🤖 {dron} no pudo con «{titulo}»: {motivo}. El pedido sigue abierto.": "🤖 {dron} couldn't do “{titulo}”: {motivo}. The job stays open.",
  "la foto quedó floja": "the photo came out weak",
  "no llegó a tomar la foto": "it never got to take the photo",
- "🤖 {dron} no pudo con «{titulo}»: {motivo}. Hoy vencía.": "🤖 {dron} couldn't do “{titulo}”: {motivo}. It was due today."
+ "🤖 {dron} no pudo con «{titulo}»: {motivo}. Hoy vencía.": "🤖 {dron} couldn't do “{titulo}”: {motivo}. It was due today.",
+ "Set de fotos (nivel 14) con tu dron: llegar a cada punto, frenar y quedarse quieto, y pasar al siguiente.": "Photo set (level 14) with your drone: reach each point, brake and hold still, then move on to the next.",
+ "Foto (nivel 13) con tu dron: llegar, frenar y quedarse quieto con el sujeto al centro.": "Photo (level 13) with your drone: arrive, brake and hold still with the subject centered.",
+ "Set de fotos": "Photo set"
 }

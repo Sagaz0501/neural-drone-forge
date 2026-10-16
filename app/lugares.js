@@ -74,7 +74,7 @@ const casa = {
   get nombre() { return t("La casa de Doña Marta"); },
   build() {
     const h = CASA, subject = [h.cx, h.cy, h.wallH * 0.6];
-    return { subject, frente: frenteDe(h.cx, h.cy), boxes: houseBoxes(h.cx, h.cy, h.w, h.d, h.wallH), cylinders: [], spheres: [],
+    return { subject, techo: [h.cx, h.cy, h.wallH + 0.175 * h.d], frente: frenteDe(h.cx, h.cy), boxes: houseBoxes(h.cx, h.cy, h.w, h.d, h.wallH), cylinders: [], spheres: [],
       trees: treesAround(7, subject, 16), wind: 0, view: casaView };
   },
 };
@@ -88,7 +88,7 @@ const finca = {
     const [sx, sy, sr, sh] = f.silo;
     const bales = [[7.5, -21], [9, -22], [26, 3]];
     return {
-      subject, frente: frenteDe(f.cx, f.cy), wind: 2.5,
+      subject, techo: [f.cx, f.cy, f.wallH + 0.175 * f.d], frente: frenteDe(f.cx, f.cy), wind: 2.5,
       boxes: [...houseBoxes(f.cx, f.cy, f.w, f.d, f.wallH), ...bales.map(([x, y]) => ({ min: [x - 0.6, y - 0.6, 0], max: [x + 0.6, y + 0.6, 1.1] }))],
       cylinders: [{ center: [sx, sy], radius: sr, z: [0, sh] }], spheres: [{ center: [sx, sy, sh], radius: sr }],
       trees: treesAround(11, subject, 20),
@@ -268,6 +268,9 @@ function rutaLibre(shots, L) {
 /** El mundo de un pedido: el lugar armado + las tomas del pedido + todo lo de colisión para el vuelo. */
 export function mundoLugar(id, pedido) {
   const L = (LUGARES[id] || casa).build();
+  // una inspección (🔎) fotografía el TECHO: el sujeto es la mitad del techo, no la pared (con la cámara fija 15° abajo,
+  // la pared quedaba fuera del cuadro desde esa altura). drone_rl/env.py hace lo mismo en los niveles de fotos.
+  if (pedido?.tipo === "inspeccion" && L.techo) L.subject = L.techo;
   let shots = tomasPedido(pedido, L.subject, L.frente);
   if (pedido && pedido.variante != null && pedido.tomas?.length && !pedido.fijo) {     // fijo: el del tutorial, siempre igual
     for (let k = 0; k < 40; k++) {                           // una variante que no choque con nada (si no, la original)

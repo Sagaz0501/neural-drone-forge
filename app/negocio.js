@@ -129,10 +129,26 @@ export function crearPedido(p, D, cid, tid, dif, rng, o = {}) {
 export function paraVolar(p, D, pe) {
   const C = cliente(D, pe.cliente);
   return {
+    entrenar: entrenarPara(D, pe),
     id: pe.id, negocio: true, tipo: pe.tipo, dif: pe.dif, cliente: `${C.avatar} ${C.nombre} (${C.quien})`, clienteId: pe.cliente,
     titulo: pe.titulo, lugar: pe.lugar, tomas: pe.tomas, pago: pe.pago, estrellas: pe.estrellas, requisitos: pe.requisitos,
     viento_ms: pe.viento, fijo: pe.tutorial, historia: "",
   };
+}
+
+/**
+ * Qué misión del Laboratorio le enseña a la IA este trabajo (Fase 1b): fotos e inspecciones -> Foto (nivel 13) o
+ * Set de fotos (14); un video -> lo que diga su pedido de la campaña (misiones.json "entrenar").
+ */
+export function entrenarPara(D, pe) {
+  if (pe.tipo === "foto" || pe.tipo === "inspeccion") {
+    const set = pe.n > 1;
+    return { nivel: set ? 14 : 13, mision: set ? "set_fotos" : "foto", viento: pe.viento || 0,
+      nota: set ? t("Set de fotos (nivel 14) con tu dron: llegar a cada punto, frenar y quedarse quieto, y pasar al siguiente.")
+        : t("Foto (nivel 13) con tu dron: llegar, frenar y quedarse quieto con el sujeto al centro.") };
+  }
+  const T = trabajo(D, pe.plantilla), base = T && D.misiones.pedidos.find((x) => x.id === T.tomas_de);
+  return base?.entrenar ? { ...base.entrenar, viento: pe.viento || 0 } : null;
 }
 
 // ---------------- el día ----------------

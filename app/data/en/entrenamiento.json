@@ -34,6 +34,20 @@
       "para": "Don't forget how to dodge",
       "desc": "A random ring with columns in the way. Reviewing it now and then with your drone keeps it from forgetting how to dodge while it learns to film.",
       "exito": "Fly through the ring without touching any column."
+    },
+    {
+      "id": "foto",
+      "nombre": "Photo",
+      "para": "Photos and inspections (📷 🔎)",
+      "desc": "A random house and ONE photo: a point 7-10.5 m from the front, or close and high looking at the roof (inspection). It has to arrive, BRAKE and hold still for 2.5-3.5 s with the subject centered. That's how the 📷 and 🔎 jobs on the phone work.",
+      "exito": "Photo done = average quality ≥ 50 % while holding still at the point."
+    },
+    {
+      "id": "set_fotos",
+      "nombre": "Photo set",
+      "para": "Jobs with 2-4 photos",
+      "desc": "Same as Photo, but 2-4 photos in a row around the house, in order: each one 40-90° past the previous one. After each photo it has to fly to the next one without hitting the house.",
+      "exito": "Set done = ALL photos with quality ≥ 50 %."
     }
   ],
   "premios": [
@@ -48,6 +62,12 @@
     { "k": "danger", "nombre": "Rushing toward something", "desc": "For heading toward an obstacle with less than 1 s until impact. It learns to brake in time." },
     { "k": "tilt", "nombre": "Tilting", "desc": "For flying tilted. A little helps keep it from making exaggerated maneuvers." },
     { "k": "time", "nombre": "The clock is ticking", "desc": "A tiny bit every step: so it doesn't dawdle getting there." },
-    { "k": "speed", "nombre": "Arriving fast", "desc": "When passing a ring, more reward if it got there fast. Useless for filming (set to 0)." }
+    { "k": "speed", "nombre": "Arriving fast", "desc": "When passing a ring, more reward if it got there fast. Useless for filming (set to 0)." },
+    { "k": "framing", "nombre": "Framing", "desc": "Per second with the subject CENTERED in the frame (framing only, regardless of the route), while filming and in the last 3 m before the shot: it arrives at the photo already framed." },
+    { "k": "settle", "nombre": "Arrive still", "desc": "When the shot (or photo) starts: the stiller it arrives, the bigger the reward (stopped = all of it; at 2 m/s = nothing). A photo taken while braking comes out blurry." },
+    { "k": "altitude", "nombre": "Changing height", "desc": "Per second and per m/s it climbs or drops when the shot doesn't ask for it (filming or arriving at the shot). Different from shaking: this is bobbing up and down." },
+    { "k": "pan", "nombre": "Jerky pan", "desc": "Per second of nose turns that start or stop abruptly. In the video it shows as a jolt." },
+    { "k": "overspeed", "nombre": "Speeding", "desc": "Per second and per m/s above 3 m/s. Near a house or people you don't fly flat out." },
+    { "k": "energy", "nombre": "Extra throttle", "desc": "Per second of throttle above what it needs to hover (sudden climbs, speeding up and braking). Saves battery on long sets." }
   ]
 }

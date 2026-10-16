@@ -70,7 +70,7 @@ except ImportError:
     from stable_baselines3.common.utils import constant_fn as _Const
 
 from drone_rl import ACT_LABELS, DEFAULT_REWARD, MISSIONS, OBS_LABELS, STAGES, DroneEnv
-from drone_rl.env import FILM_STAGES, HUNT_STAGES, LEVEL_MISSION
+from drone_rl.env import FILM_STAGES, HUNT_STAGES, LEVEL_MISSION, PHOTO_STAGES
 from drone_rl.physics import QuadParams
 import simulacion as SIM                       # noqa: E402  (scripts/simulacion.py: las grabaciones del Avance)
 
@@ -278,7 +278,8 @@ class LiveLink(BaseCallback):
             drones.append(self.args.dron_nombre)
         if self.args.stage in FILM_STAGES:
             tomas = self.meta.setdefault("tomas", [])
-            for t in self.envs()[0].tomas:
+            # las fotos (niveles 13-14) son tomas fijas cortas: el juego lee "foto" para saber que las practicó
+            for t in (("fija", "foto") if self.args.stage in PHOTO_STAGES else self.envs()[0].tomas):
                 if t not in tomas:
                     tomas.append(t)
         ses = dict(self.session, fin=time.strftime("%Y-%m-%d %H:%M"), pasos_fin=int(self.num_timesteps))

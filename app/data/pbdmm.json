@@ -19,7 +19,9 @@
     9,
     10,
     11,
-    12
+    12,
+    13,
+    14
   ],
   "nombres_niveles": {
     "0": "Hover (quedarse quieto)",
@@ -34,7 +36,9 @@
     "9": "Caza entre columnas",
     "10": "Caza en el bosque",
     "11": "Grabar: tomas con ruta",
-    "12": "Grabar entre postes"
+    "12": "Grabar entre postes",
+    "13": "Foto",
+    "14": "Set de fotos"
   },
   "alias_premios": {
     "grabar": "film",
@@ -49,7 +53,13 @@
     "inclinar": "tilt",
     "tiempo": "time",
     "rapidez": "speed",
-    "cerca": "near"
+    "cerca": "near",
+    "encuadre": "framing",
+    "quieto": "settle",
+    "altura": "altitude",
+    "paneo": "pan",
+    "exceso_velocidad": "overspeed",
+    "gas": "energy"
   },
   "funciones": [
     {
@@ -159,7 +169,7 @@
       "params": [
         [
           "id",
-          "\"grabar\", \"grabar_viento\", \"grabar_postes\", \"repaso_metas\" o \"repaso_columnas\""
+          "\"grabar\", \"grabar_viento\", \"grabar_postes\", \"foto\", \"set_fotos\", \"repaso_metas\" o \"repaso_columnas\""
         ]
       ],
       "ejemplo": "mision(\"grabar_postes\")",
@@ -177,11 +187,11 @@
       "firma": "nivel(n)",
       "donde": "arriba",
       "grupo": "Qué aprende",
-      "desc": "En vez de mision(): cualquier nivel del Drone Lab, del 0 (quedarse quieto) al 12 (grabar entre postes). Sin premios recomendados: pon los tuyos.",
+      "desc": "En vez de mision(): cualquier nivel del Drone Lab, del 0 (quedarse quieto) al 14 (set de fotos). Sin premios recomendados: pon los tuyos.",
       "params": [
         [
           "n",
-          "0 hover · 1 meta fija · 2 metas al azar · 3 columnas · 4 varias metas · 5 circuito · 6 bosque · 7 bosque con aros · 8-10 caza · 11 grabar · 12 grabar entre postes"
+          "0 hover · 1 meta fija · 2 metas al azar · 3 columnas · 4 varias metas · 5 circuito · 6 bosque · 7 bosque con aros · 8-10 caza · 11 grabar · 12 grabar entre postes · 13 foto · 14 set de fotos"
         ]
       ],
       "ejemplo": "nivel(0)",
@@ -444,6 +454,14 @@
         [
           "speed / rapidez",
           "premio por llegar rápido a un aro"
+        ],
+        [
+          "framing / encuadre",
+          "premio por segundo con el sujeto al centro del cuadro (grabando o llegando)"
+        ],
+        [
+          "settle / quieto",
+          "premio al empezar la toma o la foto, más cuanto más quieto llega"
         ]
       ],
       "ejemplo": "premios(grabar=6, mirar=4)",
@@ -493,6 +511,22 @@
         [
           "time / tiempo",
           "castigo pequeño cada paso (que no se demore)"
+        ],
+        [
+          "altitude / altura",
+          "castigo por subir o bajar cuando la toma no lo pide"
+        ],
+        [
+          "pan / paneo",
+          "castigo por giros bruscos de la nariz (tirones en el video)"
+        ],
+        [
+          "overspeed / exceso_velocidad",
+          "castigo por ir a más de 3 m/s"
+        ],
+        [
+          "energy / gas",
+          "castigo por gas de más (cuida la batería)"
         ]
       ],
       "ejemplo": "castigos(chocar=5, sacudidas=6)",
@@ -1024,7 +1058,13 @@
       "pegado": "clearance",
       "peligro": "danger",
       "inclinar": "tilt",
-      "tiempo": "time"
+      "tiempo": "time",
+      "encuadre": "framing",
+      "quieto": "settle",
+      "altura": "altitude",
+      "paneo": "pan",
+      "exceso_velocidad": "overspeed",
+      "gas": "energy"
     },
     "hooks": {
       "al_empezar": "on_start",
@@ -1063,7 +1103,9 @@
       "grabar_viento": "film_wind",
       "grabar_postes": "film_poles",
       "repaso_metas": "review_goals",
-      "repaso_columnas": "review_columns"
+      "repaso_columnas": "review_columns",
+      "foto": "photo",
+      "set_fotos": "photo_set"
     },
     "comandos": {
       "ayuda": "help",
