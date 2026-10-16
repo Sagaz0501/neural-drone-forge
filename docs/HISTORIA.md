@@ -66,18 +66,18 @@ cliente no acepta sin eso) y **cómo entrenar a la IA** para que la haga sola.
 **5. Club de ciclismo** — seguir a un ciclista a 6 m/s · $260 · *plan*
 - Toma nueva: **seguir** (el sujeto se mueve: la ruta de cámara va con él).
 - ✱ velocidad máx. ≥ 8 m/s (motores 2306 + 4S), ✱ **STM32F722 + GPS M10** (frena solo), radio **ELRS 2.4 GHz**.
-- IA: nivel **13 · Seguir** (sujeto en movimiento; es lo que aprendió en la caza, ahora con encuadre).
+- IA: nivel **15 · Seguir** (sujeto en movimiento; es lo que aprendió en la caza, ahora con encuadre).
 
 **6. Liga del barrio** — partido de fútbol · $320 · *plan*
 - El balón cambia de rumbo, tomas altas (8-15 m) con viento. ✱ gimbal 2 ejes, ✱ batería 4S 2200.
-- IA: nivel 13 con viento y sujeto que cambia de rumbo.
+- IA: nivel 15 (seguir) con viento y sujeto que cambia de rumbo.
 
 ### Capítulo 4 · Flota con IA
 
 **7. Matrimonio de Laura y Andrés** — salida de la iglesia · $500 · *plan*
 - **Multi-cámara**: tú vuelas un dron y 2 drones con IA graban desde otros ángulos (órbita + revelar).
 - ✱ **STM32H743 + coprocesador IA K210** (el chip que corre tu modelo), ✱ **cine 4K con gimbal 3 ejes**, luces LED.
-- IA: nivel 13 + **formación** (varios drones, no chocarse entre ellos).
+- IA: nivel 15 + **formación** (varios drones, no chocarse entre ellos).
 
 **8. Marca outdoor en el bosque** — una modelo caminando entre árboles · $650 · *plan*
 - ✱ **cinewhoop de 3" con ductos** (protección), ✱ ToF. Tomas bajas entre troncos.
@@ -145,4 +145,4 @@ viejos para que no olvide.
 
 - Hecho: capítulos 1-2 (misiones 1-3) jugables con sus lugares, el catálogo nuevo con nombres reales, ESC,
   radio con alcance y *failsafe*, montaje y vibración, personalización (color y forma), nivel 12 para entrenar.
-- Siguiente: concesionario (tomas bajas), y la toma **seguir** (nivel 13) para el capítulo 3.
+- Siguiente: concesionario (tomas bajas), y la toma **seguir** (nivel 15; el 13 y el 14 son las fotos) para el capítulo 3.

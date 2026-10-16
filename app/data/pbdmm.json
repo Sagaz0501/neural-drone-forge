@@ -1,6 +1,6 @@
 {
   "_nota": "El lenguaje PBDMM (Python Base Dron Model Maker) del modo desarrollador: ayuda de cada función, lo que trae e, los comandos de la terminal, las lecciones y los ejemplos. El intérprete está en app/pbdmm.js y la pantalla en app/estudio.js.",
-  "version": "2.0",
+  "version": "2.1",
   "hooks": [
     "al_empezar",
     "cada_generacion",

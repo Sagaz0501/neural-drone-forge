@@ -480,6 +480,7 @@ class DroneEnv(gym.Env):
                              else sum(q >= FILM_OK for q in self.shot_q) if self.stage in PHOTO_STAGES else int(success),
             "dist": dist,
             "pos": pos.copy(),          # para ver dónde chocó (el entorno se reinicia solo)
+            "timeout": truncated,       # se acabó el tiempo (si terminó sin éxito ni choque y no es esto: tomas flojas)
         }
         if terminated or truncated:     # cómo voló: para el HUD del laboratorio
             t = self.steps * self.dt

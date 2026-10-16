@@ -1,5 +1,13 @@
 # Cambios de PBDMM
 
+## 2.1 · 16-10-2026
+
+- **Misiones de fotos:** `mision("foto")` (nivel 13: llegar, frenar y quedarse quieto) y `mision("set_fotos")` (nivel 14:
+  2-4 fotos seguidas). En inglés `mission("photo")` y `mission("photo_set")`. `nivel()` llega hasta el 14.
+- **Premios y castigos nuevos** (Fase 1b): `premios(encuadre=…, quieto=…)` y `castigos(altura=…, paneo=…,
+  exceso_velocidad=…, gas=…)`; en inglés `framing`, `settle`, `altitude`, `pan`, `overspeed`, `energy`.
+- `explicar()` también explica cada premio y castigo: `explicar("encuadre")`, `explicar("gas")`.
+
 ## 2.0 · 15-10-2026
 
 Plan y decisiones en [`PBDMM2_PLAN.md`](../PBDMM2_PLAN.md).

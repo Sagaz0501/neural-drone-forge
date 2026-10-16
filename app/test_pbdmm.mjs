@@ -5,7 +5,8 @@ import { parsear, Interprete, compilar, pedidoDe, estadoE, ErrorPB, repr } from 
 const data = JSON.parse(readFileSync(new URL("./data/pbdmm.json", import.meta.url)));
 const ent = JSON.parse(readFileSync(new URL("./data/entrenamiento.json", import.meta.url)));
 const D = { ...data, misiones: ent.misiones, premiosValidos: ent.premios.map((p) => p.k).concat(["near"]), drones: ["Sagaz_Dron_V3"],
-  tiposPremio: { ...Object.fromEntries(ent.premios.map((p) => [p.k, p.tipo])), near: "premio" }, escala: ent.escala_premios };
+  tiposPremio: { ...Object.fromEntries(ent.premios.map((p) => [p.k, p.tipo])), near: "premio" }, escala: ent.escala_premios,
+  premiosInfo: Object.fromEntries(ent.premios.map((p) => [p.k, p])) };
 let fallas = 0;
 const ok = (c, msg) => { console.log(`${c ? "ok  " : "MAL "}  ${msg}`); if (!c) fallas++; };
 const salida = [];
@@ -107,6 +108,11 @@ ok(b3.nivel === 14 && b3.premios.framing === 4 && b3.premios.settle === 4 && b3.
 const b4 = pedidoDe(compilar('model("photo1")\nmission("photo")\nrewards(framing=6)\npenalties(energy=2)', D, host).cfg, () => null);
 ok(b4.nivel === 13 && b4.premios.framing === 3 && b4.premios.energy === 0.1, "en inglés: mission(\"photo\"), rewards(framing=…), penalties(energy=…)");
 ok(/es un castigo/.test(falla(() => compilar('modelo("x")\nmision("foto")\npremios(gas=3)', D, host))?.message || ""), "gas es un castigo (no va en premios)");
+{
+  const sal = [];
+  compilar('modelo("x")\nmision("foto")\nexplicar("encuadre")\nexplicar("energy")', D, { ...host, print: (x) => sal.push(x) });
+  ok(/Encuadre/.test(sal[0]) && /centro/i.test(sal[0]) && /castigo/.test(sal[1]), "explicar(\"encuadre\") y explicar(\"energy\"): los premios y castigos también se explican: " + sal.join(" / ").slice(0, 400));
+}
 for (const [k, src] of Object.entries(data.ejemplos)) ok(!falla(() => compilar(src, D, host)), `el ejemplo "${k}" compila`);
 {
   const Pv = compilar('NOMBRE = "halcon"\nV = 2\nN = 32\nmodelo(f"{NOMBRE}_v{V}", desde="cero")\nred(capas=[N * 2, N])\nMI_DRON = "Sagaz_Dron_V3"\ndron(MI_DRON)\nP = {"grabar": 6, "mirar": 4}\nmision("grabar")\npremios(**P)\ncastigos(**{"chocar": 3})', D, host);

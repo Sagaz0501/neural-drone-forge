@@ -97,6 +97,26 @@
   .req li::before { content: "✓ "; color: var(--gate); font-weight: 700; }
   .req li.no::before { content: "✗ "; color: var(--crash); }
   .req li.meh::before { content: "! "; color: var(--gold); }
+  /* ---- el briefing: etiquetas, fichas de tomas, requisitos y la tarjeta de la IA ---- */
+  #brief { width: min(960px, calc(100vw - 32px)); }
+  .br-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; }
+  .br-pago { text-align: right; flex-shrink: 0; } .br-pago b { font-size: 30px; display: block; line-height: 1; } .br-pago small { color: var(--muted); font-size: 12px; }
+  .br-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 4px; } .br-chips .chip { font-size: 13.5px; padding: 4px 10px; color: var(--text); }
+  .br-historia { margin: 6px 0 0; font-size: 14px; line-height: 1.45; } .br-historia:empty { display: none; }
+  .br-seg { margin: 10px 0 0; flex-wrap: wrap; } .br-seg button small { font-size: 11px; }
+  .br-cols { display: grid; grid-template-columns: 1.1fr 1fr; gap: 6px 22px; margin-top: 6px; }
+  h3.sec { font-size: 12.5px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin: 14px 0 6px; font-weight: 600; }
+  .tomas { display: flex; flex-direction: column; gap: 6px; }
+  .toma { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-radius: 11px; padding: 8px 10px; background: rgba(234,242,239,0.03); }
+  .toma .n { flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: rgba(60,203,255,0.15); color: var(--next); font-weight: 700; font-size: 13px; }
+  .toma b { font-size: 15px; } .toma small { color: var(--muted); font-size: 12.5px; margin-left: 6px; } .toma p { margin: 2px 0 0; font-size: 13px; color: var(--muted); line-height: 1.35; }
+  details.mas { margin-top: 8px; font-size: 14px; } details.mas summary { cursor: pointer; color: var(--next); font-weight: 600; } details.mas p { margin: 6px 0 0; line-height: 1.5; color: var(--muted); }
+  .req small { display: block; color: var(--muted); font-size: 12px; margin: 1px 0 0 18px; line-height: 1.3; }
+  .req-br { margin: 0; font-size: 14.5px; }
+  .ia-card { border: 1px solid rgba(60,203,255,0.35); border-radius: 12px; padding: 10px 12px; background: rgba(60,203,255,0.05); font-size: 14px; }
+  .ia-card .req { margin: 6px 0; font-size: 14px; } .ia-h { font-size: 15px; }
+  .ia-tip { margin: 6px 0; font-size: 13.5px; line-height: 1.4; } .ia-card > small { font-size: 12px; line-height: 1.35; display: block; }
+  @media (max-width: 760px) { .br-cols { grid-template-columns: 1fr; } }
   .note { font-size: 13.5px; color: var(--muted); line-height: 1.45; border-left: 3px solid var(--next); padding-left: 10px; margin-top: 12px; }
 
   /* ---------------- vuelo ---------------- */
@@ -136,6 +156,14 @@
   /* ---------------- resultado ---------------- */
   .stars { font-size: 44px; letter-spacing: 6px; color: var(--gold); line-height: 1; margin: 6px 0; }
   .stars .off { color: rgba(234,242,239,0.18); }
+  #resultado { width: min(680px, calc(100vw - 32px)); }
+  .res-big { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); margin: 10px 0 6px; }
+  .res-big b small { font-size: 14px; color: var(--muted); font-weight: 500; }
+  .rtoma { display: grid; grid-template-columns: minmax(120px, 1.2fr) 2fr 52px; gap: 2px 10px; align-items: center; padding: 5px 0; border-top: 1px solid rgba(234,242,239,0.06); font-size: 14.5px; }
+  .rtoma > b { text-align: right; font-variant-numeric: tabular-nums; } .rt-d { grid-column: 2 / -1; color: var(--muted); font-size: 11.5px; }
+  .rbar { position: relative; height: 10px; border-radius: 5px; background: rgba(234,242,239,0.1); overflow: hidden; display: block; }
+  .rbar > span { display: block; height: 100%; border-radius: 5px; } .rbar > span.ok { background: var(--gate); } .rbar > span.bad { background: var(--crash); }
+  .rbar > i { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(255,255,255,0.55); }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; font-size: 15px; margin: 10px 0; }
   .grid2 span:nth-child(even) { text-align: right; font-variant-numeric: tabular-nums; }
   video { width: 100%; border-radius: 10px; background: #000; margin-top: 8px; }
@@ -153,7 +181,20 @@
   .card { display: block; width: 100%; text-align: left; border: 1px solid var(--line); background: rgba(234,242,239,0.03); color: var(--text); border-radius: 11px; padding: 9px 12px; margin-top: 6px; cursor: pointer; }
   .card[aria-pressed="true"] { border-color: rgba(60,203,255,0.7); background: rgba(60,203,255,0.08); }
   .card b { font-size: 15px; } .card small { display: block; color: var(--muted); font-size: 12.5px; line-height: 1.4; margin-top: 2px; }
-  .pr { display: grid; grid-template-columns: 150px 1fr 52px; gap: 2px 10px; align-items: center; padding: 6px 0; border-top: 1px solid rgba(234,242,239,0.06); }
+  .mosaico { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+  .tile { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; text-align: left; border: 1px solid var(--line); background: rgba(234,242,239,0.03); color: var(--text); border-radius: 11px; padding: 8px 10px; cursor: pointer; font: inherit; min-height: 74px; }
+  .tile:hover { border-color: rgba(60,203,255,0.45); }
+  .tile[aria-pressed="true"] { border-color: rgba(60,203,255,0.8); background: rgba(60,203,255,0.1); }
+  .tile .ic { font-size: 22px; line-height: 1.1; } .tile b { font-size: 14px; line-height: 1.2; } .tile small { color: var(--muted); font-size: 11.5px; line-height: 1.25; }
+  .det { margin-top: 8px; padding: 8px 12px; border-left: 3px solid var(--next); background: rgba(60,203,255,0.05); border-radius: 0 10px 10px 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
+  .det p { margin: 0; } .det p + p { margin-top: 4px; }
+  .pr-g { margin: 10px 0 2px; font-size: 12.5px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--muted); }
+  .pr-g:first-child { margin-top: 0; }
+  .pr-n { background: none; border: 0; padding: 0; font: inherit; font-size: 14px; font-weight: 600; text-align: left; cursor: pointer; color: var(--text); }
+  .pr-n.premio { color: var(--gate); } .pr-n.castigo { color: #ff8a7a; } .pr-n .i { color: var(--muted); font-size: 12px; font-weight: 400; }
+  .pr > small { display: none; } .pr.abierto > small { display: block; }
+  .pr-off summary { font-size: 13px; }
+  .pr { display: grid; grid-template-columns: 170px 1fr 52px; gap: 2px 10px; align-items: center; padding: 6px 0; border-top: 1px solid rgba(234,242,239,0.06); }
   .pr b { font-size: 14px; font-weight: 600; } .pr b.premio { color: var(--gate); } .pr b.castigo { color: #ff8a7a; }
   .pr input { width: 100%; accent-color: var(--next); } .pr output { text-align: right; font-variant-numeric: tabular-nums; font-size: 14px; }
   .pr small { grid-column: 1 / -1; color: var(--muted); font-size: 12px; line-height: 1.35; }
@@ -530,10 +571,23 @@
 </section>
 
 <section id="brief" class="modal panel hidden" role="dialog" aria-label="Pedido">
-  <div class="muted" id="br-cliente"></div><h2 id="br-titulo"></h2>
-  <p id="br-desc" style="font-size:15.5px;line-height:1.5;margin:8px 0 0"></p>
-  <ul class="req" id="br-req"></ul>
-  <div class="note" id="br-ia"></div>
+  <div class="br-head"><div><div class="muted" id="br-cliente"></div><h2 id="br-titulo"></h2></div><div class="br-pago" id="br-pago"></div></div>
+  <div class="br-chips" id="br-chips"></div>
+  <p class="br-historia muted" id="br-historia"></p>
+  <div id="br-drones"></div>
+  <div class="br-cols">
+    <div>
+      <h3 class="sec">Las tomas</h3>
+      <div class="tomas" id="br-tomas"></div>
+      <details class="mas"><summary>¿Cómo se hace?</summary><p id="br-desc"></p></details>
+    </div>
+    <div>
+      <h3 class="sec">Tu dron</h3>
+      <ul class="req req-br" id="br-req"></ul>
+      <h3 class="sec">La IA</h3>
+      <div class="ia-card" id="br-ia"></div>
+    </div>
+  </div>
   <div class="go"><button class="btn main" id="b-volar">Volar yo</button><button class="btn ai" id="b-volar-ia">Que grabe la IA</button><button class="btn ghost" id="b-brief-lab">Entrenar la IA</button><button class="btn ghost" id="b-cerrar-brief">Volver</button></div>
 </section>
 
@@ -669,6 +723,8 @@
 
 <section id="resultado" class="modal panel hidden" role="dialog" aria-live="polite">
   <h2 id="r-h"></h2><div class="stars" id="r-stars"></div><p id="r-p" class="muted" style="margin:4px 0;line-height:1.5"></p>
+  <div class="big res-big" id="r-big"></div>
+  <div id="r-tomas"></div>
   <div class="grid2" id="r-grid"></div>
   <p id="r-cliente" class="hidden"></p><div id="r-fotos" class="cel-fotos hidden"></div>
   <video id="r-video" controls playsinline class="hidden"></video>

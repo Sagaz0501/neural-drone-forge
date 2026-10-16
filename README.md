@@ -161,6 +161,9 @@ de éxito. El juego le manda los pedidos y Blender los toma solo. Sin Blender se
   días con plazos, relación con cada cliente y el tutorial del día 1.
 - ✅ **PBDMM 2.0:** leer el juego desde el programa (`d = dron(…)`), revisar el dron contra la misión, el narrador del
   entrenamiento y la ruta del programador (8 capítulos).
+- ✅ **La flota:** tus drones con IA vuelan solos los trabajos al terminar el día (un vuelo de verdad, sin dados).
+- ✅ **Fotos para la IA:** misiones *Foto* y *Set de fotos*, y premios nuevos (encuadre, llegar quieto, altura, paneo,
+  velocidad, gas), agrupados en el Laboratorio.
 
 Lo que viene (soldar con cautín, más fallas en el banco, mando de PS5, mapas de freestyle y FPV, misiones
 que solo la IA puede cumplir, video con varios drones…) está en el **[Roadmap](docs/ROADMAP.md)**.

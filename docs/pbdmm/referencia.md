@@ -1,6 +1,6 @@
 # Referencia del lenguaje PBDMM
 
-> Versión 2.0 del lenguaje. Describe lo que hace el intérprete de verdad ([`app/pbdmm.js`](../../app/pbdmm.js)). Cuando
+> Versión 2.1 del lenguaje. Describe lo que hace el intérprete de verdad ([`app/pbdmm.js`](../../app/pbdmm.js)). Cuando
 > PBDMM se porta distinto que Python, lo dice un recuadro **≠ Python**.
 
 Contenido: [1. Léxico](#1-léxico) · [2. Tipos y valores](#2-tipos-y-valores) · [3. Expresiones](#3-expresiones) ·

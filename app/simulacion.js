@@ -233,7 +233,7 @@ export function dibujarGraficas(cv, visor) {
 /** El texto del resultado de una grabación. */
 export function resultadoTxt(rep) {
   const r = rep.resultado || {};
-  const que = r.exito ? `<b class="ok">✓ ${t("Lo logró")}</b>` : r.choque ? `<b class="bad">✗ ${RAZON()[r.razon] || t("chocó")}</b>` : `<b class="warn">${t("Se acabó el tiempo")}</b>`;
+  const que = r.exito ? `<b class="ok">✓ ${t("Lo logró")}</b>` : r.choque ? `<b class="bad">✗ ${RAZON()[r.razon] || t("chocó")}</b>` : r.tiempo === false && r.calidad != null ? `<b class="warn">${t("Terminó, pero con tomas flojas")}</b>` : `<b class="warn">${t("Se acabó el tiempo")}</b>`;
   const partes = [que, `${r.t?.toFixed(1)} s`, t("premio {v}", { v: r.premio })];
   if (rep.toma) partes.push(t("calidad media {v} %", { v: Math.round((r.calidad || 0) * 100) }), t("{s} s grabados bien", { s: r.segundos_buenos }));
   else if (r.metas) partes.push(t("{n} metas", { n: r.metas }));

@@ -30,7 +30,8 @@
       },
       "viento": 0.0,
       "id": "grabar",
-      "pedido": "casa_venta"
+      "pedido": "casa_venta",
+      "icono": "🎬"
     },
     {
       "nivel": 11,
@@ -61,7 +62,8 @@
       },
       "viento": 2.5,
       "id": "grabar_viento",
-      "pedido": "finca"
+      "pedido": "finca",
+      "icono": "💨"
     },
     {
       "nivel": 12,
@@ -95,7 +97,8 @@
       "pedido": "restaurante",
       "requisitos_ia": {
         "sensores": true
-      }
+      },
+      "icono": "🏮"
     },
     {
       "nivel": 13,
@@ -125,7 +128,8 @@
         "overspeed": 0.5,
         "energy": 0.0
       },
-      "viento": 0.0
+      "viento": 0.0,
+      "icono": "📷"
     },
     {
       "nivel": 14,
@@ -155,7 +159,8 @@
         "overspeed": 0.5,
         "energy": 0.2
       },
-      "viento": 0.0
+      "viento": 0.0,
+      "icono": "🖼️"
     },
     {
       "nivel": 2,
@@ -185,7 +190,8 @@
         "energy": 0.0
       },
       "viento": 0.0,
-      "id": "repaso_metas"
+      "id": "repaso_metas",
+      "icono": "🎯"
     },
     {
       "nivel": 3,
@@ -215,7 +221,8 @@
         "energy": 0.0
       },
       "viento": 0.0,
-      "id": "repaso_columnas"
+      "id": "repaso_columnas",
+      "icono": "🏛️"
     }
   ],
   "premios": [

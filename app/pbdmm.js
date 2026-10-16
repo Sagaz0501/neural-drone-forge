@@ -974,6 +974,12 @@ export function compilar(src, data, host = {}) {
       const E = data.explicar || {};
       if (tema === undefined) { salida(t("Temas: {lista}", { lista: Object.keys(E).join(", ") })); return; }
       const k = Object.keys(E).find((x) => x === String(tema).toLowerCase() || E[x].en === String(tema).toLowerCase());
+      const pk = alias[String(tema).toLowerCase()] || String(tema).toLowerCase(), pr = data.premiosInfo?.[pk];
+      if (!k && pr) {                                   // un premio o castigo: su nombre, qué paga o cobra y su nombre en PBDMM
+        const es = Object.keys(alias).find((a) => alias[a] === pk);
+        salida(`📘 ${pr.nombre} (${es ? `${es} / ` : ""}${pk}) · ${nomTipo(pr.tipo)}: ${pr.desc}` + (cfg.premios[pk] !== undefined ? "  " + t("(ahora: {v})", { v: cfg.premios[pk] }) : ""));
+        return;
+      }
       if (!k) throw new ErrorPB(t('no tengo una explicación de "{x}". Temas: {lista}', { x: tema, lista: Object.keys(E).join(", ") }), n);
       const ahora = { lr: cfg.lr, exploracion: cfg.ent, drones: cfg.drones, capas: cfg.capas?.join("×"), red: cfg.capas?.join("×"), viento: cfg.viento ?? cfg.vientoMision, desde: cfg.desde, mision: cfg.mision, dron: typeof cfg.dron === "object" ? cfg.dron.hangar : cfg.dron }[k];
       salida(`📘 ${k}: ${E[k].txt}` + (ahora !== undefined && ahora !== null ? "  " + t("(ahora: {v})", { v: ahora }) : ""));

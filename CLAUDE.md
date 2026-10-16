@@ -193,7 +193,7 @@ Node v22 está en `/opt/homebrew/bin/node`. Blender 5.2 en `/Applications/Blende
   2,5 m/s, radio, empuje/peso), 3 restaurante (protectores, cámara ≥ 50; IA con ToF). Catálogo con nombres
   reales (ESP32, STM32F405/F722/H743, ExpressLRS, BLHeli_32…), ESC que limita el empuje, radio con
   failsafe, vibración → nitidez del video, pintura y forma del chasis (impresora 3D). Los demás pedidos
-  están planeados ("Próximamente"). Siguiente: concesionario (tomas bajas) y la toma **seguir** (nivel 13).
+  están planeados ("Próximamente"). Siguiente: concesionario (tomas bajas) y la toma **seguir** (será el nivel 15: el 13 y el 14 son las fotos).
 - **El negocio (15-10-2026, docs/NEGOCIO.md):** los clientes escriben al 📱 celular; pedidos repetibles (📷 foto,
   🔎 inspección, 🎬 video) desde plantillas (`data/trabajos.json`) con dificultad 1-4 (viento, distancia, estrellas,
   pago, plazo; los requisitos salen de la dificultad), 4 clientes (`data/clientes.json`) con relación ♥ y
@@ -207,7 +207,16 @@ Node v22 está en `/opt/homebrew/bin/node`. Blender 5.2 en `/Applications/Blende
 - **v1.0 publicada (16-10-2026)**: tag `v1.0.0` y release en GitHub.
 - **La flota (16-10-2026):** 🤖 A la flota en la tarjeta del pedido (un trabajo por dron); al terminar el día cada IA vuela
   su trabajo sin pantalla (`mision_sim.js`, la misma clase de la que hereda `Vuelo`) y sale el reporte en el celular.
-- **Lo siguiente (docs/ROADMAP.md):** Fase 1b (premios para que la flota cumpla), encargos de armado,
+- **Fase 1b, parte 1 (16-10-2026):** niveles **13 Foto** y **14 Set de fotos** (`drone_rl/tomas.py random_foto/random_fotos`;
+  env: `self.shots` = el set, `shot_q` = la calidad de cada foto, la meta pasa a la siguiente; 30 % miran el techo) y 6
+  premios nuevos en `DEFAULT_REWARD` (framing, settle, altitude, pan, overspeed, energy; en 0 por defecto). Un premio nuevo va
+  en: env.py, jugar.py `REWARD_KEYS`, drone_lab.py (`REWARD_KEYS` + `rw_<k>`), entrenamiento.json (premios con `grupo`,
+  `escala_premios`, las `premios` de cada misión), pbdmm.json (`alias_premios`, `alias_en.premios`, params) + capas en inglés;
+  `test_reward_keys_everywhere` lo revisa. Las inspecciones del juego miran el techo (`lugares.js techo`).
+- **Menús más visuales (16-10-2026):** briefing (etiquetas, fichas de tomas, requisitos con el porqué en chiquito, tarjeta
+  de la IA), resultado (casillas grandes + barras por toma), Laboratorio (misiones en mosaico con `icono`, premios por grupo
+  con ⓘ, los que no se usan plegados).
+- **Lo siguiente (docs/ROADMAP.md):** Fase 1b parte 2 (la física del dron en el entrenamiento), encargos de armado,
   pruebas de drones (QA), a mano, entregas. Decidido: el tutorial es el modo desarrollador (la demo grabada);
   imágenes y rendimiento se mejoran sobre la marcha.
 - **Idiomas (15-10-2026):** español (original) + inglés. `app/i18n.js`: `t("texto en español", {vars})` (la clave es el
@@ -244,6 +253,7 @@ Node v22 está en `/opt/homebrew/bin/node`. Blender 5.2 en `/Applications/Blende
   arrancaría con una red al azar); el estudio recarga esa lista al correr y al pedir opciones de `modelo(`. "Que grabe la IA" ya no se bloquea: vuela con la IA
   del dron (o la base), se carga sola, y si no entrega el video cuesta 2 de reputación.
 - **Nivel 12 · Grabar entre postes**: como el 11 con postes a 1,5 m de la ruta (`level.film_posts`).
+- **Niveles 13 · Foto y 14 · Set de fotos** (Fase 1b): tomas fijas cortas; ver arriba.
 - **Nivel 11 · Grabar: tomas con ruta** (`env.py`, `tomas.py`, `missions.json`, Drone Lab): una casa al azar y
   una toma al azar (fija, órbita, revelar). La toma es una RUTA: llegar al inicio y seguir el punto de cámara con
   la casa al centro. Calidad estricta = encuadre × seguimiento × ritmo × estable (`sensing.film_quality` =

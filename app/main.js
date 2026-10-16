@@ -587,39 +587,60 @@ async function openBrief(pe, mismaRuta = false) {
   $("br-titulo").textContent = pe.titulo;
   const M = mundoLugar(pe.lugar, pe), shots = M.shots;
   pe.viento = M.wind;
-  // con qué dron: los del hangar
-  const sel = p.drones.length > 1 ? `<div class="chips" style="margin:2px 0 10px">${p.drones.map((x) => `<button class="btn ${x.id === p.activo ? "main" : "ghost"} small" data-d="${x.id}">${esc(x.nombre)}${estadoDe(x).listo ? "" : " ·  " + t("sin terminar")}</button>`).join("")}</div>` : "";
   const foto = pe.tipo === "foto" || pe.tipo === "inspeccion";
-  $("br-desc").innerHTML = sel + (pe.historia ? `<i class="muted">${pe.historia}</i><br>` : "") +
-    (foto ? (shots.length === 1 ? t("Quiere <b>1 foto</b>. ", { n: 1 }) : t("Quiere <b>{n} fotos</b>, en orden. ", { n: shots.length })) +
-        t("Vuela hasta el aro, entra y <b>quédate quieto</b> con el sujeto <b>al centro</b> del cuadro: a los pocos segundos, clic. ") +
-        t("Una foto con menos de {n} % no sirve.", { n: Math.round(TOMA_OK * 100) }) + " "
-      : t("Quiere un video en <b>{n} tomas</b>, en orden. Cada toma es una ruta (la línea celeste): ve al aro del inicio, ", { n: shots.length }) +
-        t("ahí arranca a grabar sola y el punto blanco avanza; síguelo <b>pegado</b>, con el sujeto <b>al centro</b> del cuadro, a su ritmo y sin sacudidas. ") +
-        t("Una toma con menos de {n} % no sirve.", { n: Math.round(TOMA_OK * 100) }) + ` <span class="muted">${t("Ruta n.º {n}: cada intento las tomas cambian (otro ángulo, otra distancia, otra altura).", { n: pe.variante })}</span> `) +
-    `${M.wind ? ` <b>${t("Viento: {v} m/s con ráfagas.", { v: fmt(M.wind) })}</b>` : ""} ` + t("Paga <span class=\"money\">${n}</span> con ★★, más con ★★★.", { n: pe.pago }) +
-    `<ol style="margin:8px 0 0;padding-left:20px;line-height:1.5">${shots.map((tm) => `<li><b>${tm.nombre}</b> <span class="muted">(${({ fija: t("fija"), orbita: t("órbita"), revelar: t("revelar") })[tm.tipo]}, ${fmt(tm.dur, 0)} s) · ${tm.desc}</span></li>`).join("")}</ol>`;
-  $("br-desc").querySelectorAll("[data-d]").forEach((b) => (b.onclick = () => { p.activo = b.dataset.d; guardar(); verDron(); openBrief(pe, true); }));
+  // la cabecera: etiquetas en vez de un párrafo (qué, dónde, viento, dificultad, pago)
+  const LUG = { casa: t("una casa"), finca: t("la finca El Roble"), restaurante: t("el restaurante La Brasa") };
+  $("br-pago").innerHTML = `<b class="money">$${pe.pago}</b><small>${t("con ★★, más con ★★★")}</small>`;
+  $("br-chips").innerHTML = [
+    foto ? `${pe.tipo === "inspeccion" ? "🔎" : "📷"} ${shots.length === 1 ? t("1 foto") : t("{n} fotos", { n: shots.length })}` : `🎬 ${t("video · {n} tomas", { n: shots.length })}`,
+    `📍 ${LUG[pe.lugar] || esc(pe.lugar)}`,
+    M.wind ? `💨 ${t("viento {v} m/s", { v: fmt(M.wind) })}` : `🍃 ${t("sin viento")}`,
+    pe.dif ? `<span class="dif" title="${t("Dificultad")}">${"★".repeat(pe.dif)}</span>` : "",
+    foto || pe.fijo ? "" : `<span title="${t("Ruta n.º {n}: cada intento las tomas cambian (otro ángulo, otra distancia, otra altura).", { n: pe.variante })}">🔀 ${t("ruta n.º {n}", { n: pe.variante })}</span>`,
+  ].filter(Boolean).map((x) => `<span class="chip">${x}</span>`).join("");
+  $("br-historia").innerHTML = pe.historia ? `<i>${pe.historia}</i>` : "";
+  // con qué dron: los del hangar (un selector, no un párrafo)
+  $("br-drones").innerHTML = p.drones.length > 1 ? `<div class="seg br-seg">${p.drones.map((x) => `<button data-d="${x.id}" aria-pressed="${x.id === p.activo}">${esc(x.nombre)}${estadoDe(x).listo ? "" : ` <small class="warn">${t("sin terminar")}</small>`}</button>`).join("")}</div>` : "";
+  $("br-drones").querySelectorAll("[data-d]").forEach((b) => (b.onclick = () => { p.activo = b.dataset.d; guardar(); verDron(); openBrief(pe, true); }));
+  // las tomas, como fichas en orden
+  const ICONO = { fija: "📍", orbita: "🔄", revelar: "↗️" }, NOMBRE = { fija: t("fija"), orbita: t("órbita"), revelar: t("revelar") };
+  $("br-tomas").innerHTML = shots.map((tm, i) => `<div class="toma"><span class="n">${i + 1}</span><div><b>${foto ? "📷" : ICONO[tm.tipo] || "🎬"} ${esc(tm.nombre)}</b>` +
+    `<small>${foto ? t("quieto {s} s", { s: fmt(tm.dur, 1) }) : `${NOMBRE[tm.tipo] || tm.tipo} · ${fmt(tm.dur, 0)} s`}</small>${tm.desc ? `<p>${tm.desc}</p>` : ""}</div></div>`).join("");
+  // cómo se hace: plegado (el que ya sabe no lo vuelve a leer)
+  $("br-desc").innerHTML = foto
+    ? t("Vuela hasta el aro, entra y <b>quédate quieto</b> con el sujeto <b>al centro</b> del cuadro: a los pocos segundos, clic. ") + t("Una foto con menos de {n} % no sirve.", { n: Math.round(TOMA_OK * 100) })
+    : t("Quiere un video en <b>{n} tomas</b>, en orden. Cada toma es una ruta (la línea celeste): ve al aro del inicio, ", { n: shots.length }) +
+      t("ahí arranca a grabar sola y el punto blanco avanza; síguelo <b>pegado</b>, con el sujeto <b>al centro</b> del cuadro, a su ritmo y sin sacudidas. ") +
+      t("Una toma con menos de {n} % no sirve.", { n: Math.round(TOMA_OK * 100) });
   const a = d && PT.dronArmado(p, cat, d), st = a?.stats;
   const req = requisitos(pe, st, shots, d);
-  $("br-req").innerHTML = req.map(([c, txt]) => `<li class="${c}">${txt}</li>`).join("");
+  // cada requisito: lo importante arriba y el porqué (lo que va entre paréntesis) abajo, chiquito
+  const partir = (txt) => { const m = /^(.*?)\s*\(([^()]*)\)\s*([.:]?)$/.exec(txt); return m ? `${m[1]}${m[3]}<small>${m[2]}</small>` : txt; };
+  $("br-req").innerHTML = req.map(([c, txt]) => `<li class="${c}">${partir(txt)}</li>`).join("");
   const duro = req.filter((r) => r[2]);
   $("b-volar").disabled = $("b-volar-ia").disabled = duro.length > 0 || !st?.ok;
+  // la IA: una tarjeta con su estado (✓ / ! / ✗) y qué entrenar
   const ia = $("br-ia"), tipos = tiposDe(pe, shots);
-  const entrenar = pe.entrenar ? `<br><b>${t("Para que lo haga la IA:")}</b> ${pe.entrenar.nota}` : "";
   const mod = d?.modelo, I = mod ? (G.ias[mod] === undefined ? await loadModel(mod) : G.ias[mod]) : null;
-  const castigo = ` <span class="muted">${t("Si la IA no entrega el video (le faltan tomas o se estrella), pierdes {n} de reputación.", { n: REP_FALLA_IA })}</span>`;
   const IB = !I ? (G.ias.base === undefined ? await loadModel("base") : G.ias.base) : null;
-  if (!I) ia.innerHTML = `<b>${t("Que grabe la IA:")}</b> ${mod ? t("la IA \"{m}\" todavía no tiene un modelo guardado", { m: esc(mod) }) : t("\"{nombre}\" todavía no tiene IA propia", { nombre: esc(d?.nombre) })}: ${IB ? t("vuela con la <b>IA base</b> (generación {gen}), que no está entrenada para este dron.", { gen: IB.meta.generaciones ?? "?" }) : t("no encontré ni la IA base.")}` + castigo + entrenar;
-  if (!I && !IB) $("b-volar-ia").disabled = true;
-  if (I) {
+  const lineas = [];
+  let titulo;
+  if (!I) {
+    titulo = IB ? `${t("IA base")} · ${t("gen {n}", { n: IB.meta.generaciones ?? "?" })}` : t("Sin IA");
+    lineas.push(["meh", mod ? t("la IA \"{m}\" todavía no tiene un modelo guardado", { m: esc(mod) }) : t("\"{nombre}\" todavía no tiene IA propia", { nombre: esc(d?.nombre) })]);
+    lineas.push([IB ? "meh" : "no", IB ? t("vuela con la <b>IA base</b> (generación {gen}), que no está entrenada para este dron.", { gen: IB.meta.generaciones ?? "?" }) : t("no encontré ni la IA base.")]);
+    if (IB) lineas.push([sabeGrabar(IB, tipos) ? "" : "no", sabeGrabar(IB, tipos) ? t("Ya entrenó estas tomas.") : t("Todavía no entrenó estas tomas: entrénala en el Laboratorio.")]);
+    if (!IB) $("b-volar-ia").disabled = true;
+  } else {
     const rango = rangoModelo(I.meta), enR = st && st.twr >= rango.twr[0] && st.twr <= rango.twr[1] && st.mass >= rango.masa_kg[0] && st.mass <= rango.masa_kg[1];
-    const cargada = estadoDe(d).iaOk;
-    ia.innerHTML = t("<b>Que grabe la IA</b> \"{m}\", generación {gen}.", { m: esc(mod), gen: I.meta.generaciones ?? "?" }) + " " +
-      (sabeGrabar(I, tipos) ? t("Ya entrenó estas tomas.") + " " : `<span class='warn'>${t("Todavía no entrenó estas tomas: entrénala en el Laboratorio.")}</span> `) +
-      (st ? (enR ? `<span class='ok'>${t("Conoce un dron como este.")}</span> ` : `<span class='warn'>${t("No conoce un dron así (aprendió con empuje/peso {t0}-{t1} y {m0}-{m1} kg; este: {twr}, {masa} kg).", { t0: fmt(rango.twr[0], 2), t1: fmt(rango.twr[1], 2), m0: fmt(rango.masa_kg[0], 2), m1: fmt(rango.masa_kg[1], 2), twr: fmt(st.twr, 2), masa: fmt(st.mass, 2) })}</span> `) : "") +
-      (cargada ? "" : t("Se carga sola en el dron al despegar.") + " ") + castigo + entrenar;
+    titulo = `${t("IA \"{m}\"", { m: esc(mod) })} · ${t("gen {n}", { n: I.meta.generaciones ?? "?" })}`;
+    lineas.push([sabeGrabar(I, tipos) ? "" : "no", sabeGrabar(I, tipos) ? t("Ya entrenó estas tomas.") : t("Todavía no entrenó estas tomas: entrénala en el Laboratorio.")]);
+    if (st) lineas.push(enR ? ["", t("Conoce un dron como este.")] : ["meh", t("No conoce un dron así (aprendió con empuje/peso {t0}-{t1} y {m0}-{m1} kg; este: {twr}, {masa} kg).", { t0: fmt(rango.twr[0], 2), t1: fmt(rango.twr[1], 2), m0: fmt(rango.masa_kg[0], 2), m1: fmt(rango.masa_kg[1], 2), twr: fmt(st.twr, 2), masa: fmt(st.mass, 2) })]);
+    if (!estadoDe(d).iaOk) lineas.push(["", t("Se carga sola en el dron al despegar.")]);
   }
+  ia.innerHTML = `<div class="ia-h">🤖 <b>${titulo}</b></div><ul class="req">${lineas.map(([c, x]) => `<li class="${c}">${partir(x)}</li>`).join("")}</ul>` +
+    (pe.entrenar ? `<div class="ia-tip">🎓 <b>${t("Para que lo haga la IA:")}</b> ${pe.entrenar.nota}</div>` : "") +
+    `<small class="muted">${foto ? t("Si la IA no entrega las fotos (le faltan o se estrella), pierdes {n} de reputación.", { n: REP_FALLA_IA }) : t("Si la IA no entrega el video (le faltan tomas o se estrella), pierdes {n} de reputación.", { n: REP_FALLA_IA })}</small>`;
   if (duro.length) toast(t("El cliente no acepta: {lista}.", { lista: duro.map((r) => r[1].split(":")[0].toLowerCase()).join(", ") }), 4000);
   modal("brief");
 }
@@ -701,15 +722,20 @@ async function abrirLab() {
 function renderLab() {
   const box = $("lab-misiones");
   box.innerHTML = "";
+  // las misiones como mosaico (ícono + nombre); la elegida se explica abajo
+  const grid = document.createElement("div");
+  grid.className = "mosaico";
   for (const m of ent.misiones) {
     const b = document.createElement("button");
-    b.className = "card";
+    b.className = "tile";
     b.setAttribute("aria-pressed", String(m.id === LAB.mision));
-    const sel = m.id === LAB.mision;
-    b.innerHTML = `<b>${m.nombre}</b> <span class="muted" style="font-size:12.5px">· ${t("nivel {n}", { n: m.nivel })} · ${m.para}</span>${sel ? `<small>${m.desc}<br><i>${m.exito}</i></small>` : ""}`;
+    b.innerHTML = `<span class="ic">${m.icono || "🧪"}</span><b>${m.nombre}</b><small>${t("nivel {n}", { n: m.nivel })} · ${m.para}</small>`;
     b.onclick = () => { LAB.mision = m.id; LAB.premios = { ...m.premios }; LAB.viento = m.viento; saveLab(); renderLab(); };
-    box.appendChild(b);
+    grid.appendChild(b);
   }
+  box.appendChild(grid);
+  const ms = misionLab();
+  box.insertAdjacentHTML("beforeend", `<div class="det"><p>${ms.desc}</p><p class="ok">🏁 ${ms.exito}</p></div>`);
   const dbox = $("lab-drones");
   dbox.innerHTML = "";
   for (const d of P().drones) {
@@ -750,16 +776,19 @@ function renderLab() {
   $("lab-n").value = LAB.n; $("lab-n-o").textContent = LAB.n;
   $("lab-viento").value = LAB.viento; $("lab-viento-o").textContent = fmt(LAB.viento);
   document.querySelectorAll("#lab-vel button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === LAB.vel)));
+  // premios y castigos, agrupados (la misión, vuelo, cámara, seguridad, energía); la explicación de cada uno se abre con ⓘ
   const pbox = $("premios");
   pbox.innerHTML = "";
-  for (const pr of ent.premios) {
-    const nv = misionLab().nivel, v = LAB.premios[pr.k] ?? 0, off = (pr.solo && !pr.solo.includes(nv)) || (pr.no && pr.no.includes(nv));
+  const GRUPOS = [["mision", "🎯 " + t("La misión")], ["vuelo", "🛩️ " + t("Vuelo")], ["camara", "🎥 " + t("Cámara")], ["seguridad", "🛡️ " + t("Seguridad")], ["energia", "🔋 " + t("Energía")]];
+  const nv = misionLab().nivel, fila = (pr) => {
+    const v = LAB.premios[pr.k] ?? 0;
     const row = document.createElement("div");
-    row.className = "pr" + (off ? " off" : "");
+    row.className = "pr";
     // de 0 a 10 (4 = lo normal); el entrenador recibe el valor real (escala_premios de entrenamiento.json)
     const nv10 = Math.min(10, nivelDe(pr.k, v, ent.escala_premios)), rec = nivelDe(pr.k, misionLab().premios[pr.k] ?? 0, ent.escala_premios);
-    row.innerHTML = `<b class="${pr.tipo}">${pr.tipo === "premio" ? "+" : "−"} ${pr.nombre}</b><input type="range" min="0" max="10" step="0.5" value="${nv10}" aria-label="${t("{nombre} (0 a 10)", { nombre: pr.nombre })}"><output>${fmt(nv10, nv10 % 1 ? 1 : 0)}</output><small>${pr.desc} <span class="muted">${t("Recomendado: {n}.", { n: fmt(rec, rec % 1 ? 1 : 0) })}</span>${off ? " " + t("(no se usa en esta misión)") : ""}</small>`;
-    const inp = row.querySelector("input"), out = row.querySelector("output");
+    row.innerHTML = `<button class="pr-n ${pr.tipo}" aria-expanded="false" title="${t("¿Qué es?")}">${pr.tipo === "premio" ? "+" : "−"} ${pr.nombre} <span class="i">ⓘ</span></button><input type="range" min="0" max="10" step="0.5" value="${nv10}" aria-label="${t("{nombre} (0 a 10)", { nombre: pr.nombre })}"><output>${fmt(nv10, nv10 % 1 ? 1 : 0)}</output><small>${pr.desc} <span class="muted">${t("Recomendado: {n}.", { n: fmt(rec, rec % 1 ? 1 : 0) })}</span></small>`;
+    const inp = row.querySelector("input"), out = row.querySelector("output"), nb = row.querySelector(".pr-n");
+    nb.onclick = () => { const ab = row.classList.toggle("abierto"); nb.setAttribute("aria-expanded", String(ab)); };
     inp.oninput = () => {
       const n10 = Number(inp.value);
       LAB.premios[pr.k] = realDe(pr.k, n10, ent.escala_premios);
@@ -768,7 +797,22 @@ function renderLab() {
       clearTimeout(LAB.debounce);                       // entrenando: los cambios llegan en vivo
       LAB.debounce = setTimeout(() => { const tr = trainerDe(labDron()?.modelo); if (tr?.activo) api("/api/lab", { accion: "ajustar", premios: LAB.premios, donde: tr.donde, modelo: labDron().modelo }); }, 400);
     };
-    pbox.appendChild(row);
+    return row;
+  };
+  const usa = (pr) => !((pr.solo && !pr.solo.includes(nv)) || (pr.no && pr.no.includes(nv)));
+  for (const [g, nombre] of GRUPOS) {
+    const prs = ent.premios.filter((pr) => (pr.grupo || "mision") === g && usa(pr));
+    if (!prs.length) continue;
+    pbox.insertAdjacentHTML("beforeend", `<div class="pr-g">${nombre}</div>`);
+    for (const pr of prs) pbox.appendChild(fila(pr));
+  }
+  const off = ent.premios.filter((pr) => !usa(pr));
+  if (off.length) {
+    const det = document.createElement("details");
+    det.className = "mas pr-off";
+    det.innerHTML = `<summary>${t("No se usan en esta misión ({n})", { n: off.length })}</summary>`;
+    for (const pr of off) { const r = fila(pr); r.classList.add("off"); det.appendChild(r); }
+    pbox.appendChild(det);
   }
   renderLabEstado();
 }
@@ -981,24 +1025,25 @@ function onEnd(r) {
   guardar();
   $("r-stars").innerHTML = pe ? [0, 1, 2].map((i) => (i < r.estrellas ? "★" : "<span class='off'>★</span>")).join("") : "";
   if (r.piloto === "ia") msg.push(t("Voló la IA \"{m}\".", { m: esc(d.banco?.ia?.modelo || d.modelo || "base") }));
-  msg.push(t("{s} s de vuelo, batería al {b} %.", { s: fmt(r.t), b: Math.round(r.bateria * 100) }));
   $("r-p").innerHTML = `<b>${esc(d.nombre)}</b> · ` + msg.join(" ");
-  const rows = [];
+  const rows = [], tiles = [];
   const pc = (x) => `${Math.round(x * 100)} %`;
+  // arriba, en grande: lo que importa (plata, reputación, puntaje, el vuelo); abajo, el detalle
+  if (pay) tiles.push([pay.pago ? `<span class="money">+$${pay.pago}</span>` : "$0", t("Pago")], [`${pay.rep >= 0 ? "+" : ""}${pay.rep}`, t("Reputación") + ` · ${t("(total {n})", { n: p.rep })}`]);
   if (pe) {
-    const TIPO = { fija: t("fija"), orbita: t("órbita"), revelar: t("revelar") };
-    for (const tm of r.tomas) {
-      rows.push([`${tm.nombre} <span class="muted">(${TIPO[tm.tipo] || tm.tipo})</span>`, tm.lista
-        ? `<b class="${tm.q >= TOMA_OK ? "ok" : "bad"}">${pc(tm.q)}</b> <span class="muted" title="${t("encuadre · en la ruta · ritmo · estable")}">${pc(tm.framing)} · ${pc(tm.track)} · ${pc(tm.flow)} · ${pc(tm.steady)}</span>`
-        : `<span class='bad'>${t("no se grabó")}</span>`]);
-    }
-    rows.push([`<span class='muted'>${t("encuadre · en la ruta · ritmo · estable")}</span>`, ""]);
     const est = pe.estrellas || PT.ESTRELLAS;
-    rows.push([t("Nitidez"), `${Math.round((r.nitidez ?? 1) * 100)} %`], [t("Cámara"), `${Math.round(r.cal * 100)} / 100`],
-      [t("Puntaje"), `${r.puntaje} / 100 <span class="muted">(★ ${est[0]} · ★★ ${est[1]} · ★★★ ${est[2]})</span>`]);
-  } else rows.push([t("Grabado"), r.recT > 0 ? `${fmt(r.recT)} s` : t("nada (R para grabar)")]);
-  if (pay && pay.pago) rows.push([t("Pago"), `<span class="money">+$${pay.pago}</span>`]);
-  if (pay) rows.push([t("Reputación"), `${pay.rep >= 0 ? "+" : ""}${pay.rep} ` + t("(total {n})", { n: p.rep })]);
+    tiles.push([`${r.puntaje}<small>/100</small>`, `${t("Puntaje")} · ★ ${est[0]} · ★★ ${est[1]} · ★★★ ${est[2]}`]);
+  }
+  tiles.push([`${fmt(r.t, 0)} s`, t("de vuelo · batería {b} %", { b: Math.round(r.bateria * 100) })]);
+  $("r-big").innerHTML = tiles.map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join("");
+  const TIPO = { fija: t("fija"), orbita: t("órbita"), revelar: t("revelar") };
+  const barra = (x, ok) => `<span class="rbar"><span class="${ok ? "ok" : "bad"}" style="width:${Math.round(Math.min(1, x) * 100)}%"></span><i style="left:${Math.round(TOMA_OK * 100)}%"></i></span>`;
+  $("r-tomas").innerHTML = pe ? r.tomas.map((tm) => `<div class="rtoma"><span class="rt-n">${esc(tm.nombre)} <small class="muted">${TIPO[tm.tipo] || tm.tipo}</small></span>` +
+    (tm.lista ? `${barra(tm.q, tm.q >= TOMA_OK)}<b class="${tm.q >= TOMA_OK ? "ok" : "bad"}">${pc(tm.q)}</b>` +
+      `<small class="rt-d">${t("encuadre")} ${pc(tm.framing)} · ${t("en la ruta")} ${pc(tm.track)} · ${t("ritmo")} ${pc(tm.flow)} · ${t("estable")} ${pc(tm.steady)}</small>`
+      : `<span class="rbar"></span><b class="bad">${t("no se grabó")}</b>`) + "</div>").join("") : "";
+  if (pe) rows.push([t("Nitidez"), `${Math.round((r.nitidez ?? 1) * 100)} %`], [t("Cámara"), `${Math.round(r.cal * 100)} / 100`]);
+  else rows.push([t("Grabado"), r.recT > 0 ? `${fmt(r.recT)} s` : t("nada (R para grabar)")]);
   for (const x of dmg) rows.push([x.nombre, `<span class="bad">${t("−{n} % (queda {v} %)", { n: x.perdio, v: x.vida })}</span>`]);
   if (dmg.length) rows.push([t("Reparar"), `<span class="money">$${PT.costoReparar(p, cat, d)}</span>`]);
   $("r-grid").innerHTML = rows.map(([a, b]) => `<span>${a}</span><span>${b}</span>`).join("");

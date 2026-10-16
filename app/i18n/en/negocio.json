@@ -130,5 +130,19 @@
  "🤖 {dron} no pudo con «{titulo}»: {motivo}. Hoy vencía.": "🤖 {dron} couldn't do “{titulo}”: {motivo}. It was due today.",
  "Set de fotos (nivel 14) con tu dron: llegar a cada punto, frenar y quedarse quieto, y pasar al siguiente.": "Photo set (level 14) with your drone: reach each point, brake and hold still, then move on to the next.",
  "Foto (nivel 13) con tu dron: llegar, frenar y quedarse quieto con el sujeto al centro.": "Photo (level 13) with your drone: arrive, brake and hold still with the subject centered.",
- "Set de fotos": "Photo set"
+ "Set de fotos": "Photo set",
+ "con ★★, más con ★★★": "with ★★, more with ★★★",
+ "video · {n} tomas": "video · {n} shots",
+ "ruta n.º {n}": "route #{n}",
+ "quieto {s} s": "hold still {s} s",
+ "de vuelo · batería {b} %": "of flight · battery {b} %",
+ "encuadre": "framing",
+ "ritmo": "pace",
+ "La misión": "The mission",
+ "Seguridad": "Safety",
+ "Energía": "Energy",
+ "¿Qué es?": "What is it?",
+ "No se usan en esta misión ({n})": "Not used in this mission ({n})",
+ "Si la IA no entrega las fotos (le faltan o se estrella), pierdes {n} de reputación.": "If the AI doesn't deliver the photos (some are missing or it crashes), you lose {n} reputation.",
+ "Terminó, pero con tomas flojas": "Finished, but with weak shots"
 }

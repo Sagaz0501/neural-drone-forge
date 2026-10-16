@@ -107,8 +107,10 @@ en el banco y tomar la foto.
 
 ## Los pedidos
 
-**Campaña** (o el celular) → eliges un cliente → el *briefing*: las tomas que quiere, lo que exige (cámara mínima, protectores
-de hélice, radio que llegue, empuje con viento) y con qué dron vas.
+**Campaña** (o el celular) → eliges un cliente → el *briefing*. Arriba, en etiquetas: qué quiere (📷 fotos, 🔎 inspección o
+🎬 video), dónde, el viento, la dificultad y cuánto paga. Abajo, en dos columnas: **las tomas** (una ficha por toma, en
+orden; *¿Cómo se hace?* se abre si lo necesitas) y **tu dron** (✓ cumple · ! justo · ✗ le falta, con el porqué en
+chiquito) más la tarjeta de **la IA** (si ya entrenó esas tomas, si conoce un dron así y qué misión entrenar).
 
 - **Volar yo:** pilotas tú. Cada toma es una **ruta** (la línea celeste): ve al aro del inicio, ahí empieza a
   grabar sola, y sigue el punto blanco pegado, con el sujeto al centro, a su ritmo y sin sacudidas.
@@ -118,8 +120,11 @@ de hélice, radio que llegue, empuje con viento) y con qué dron vas.
   reparar el dron.
 - **Cada intento es distinto:** las tomas cambian de ángulo, distancia y altura (el número de ruta sale en el pedido).
 
-Cada toma se califica: **encuadre × en la ruta × ritmo × estable**. Al final: estrellas, plata, reputación, daños
-(se reparan en el taller) y el video `.webm` para descargar.
+Cada toma se califica: **encuadre × en la ruta × ritmo × estable**. Al final: estrellas; en grande el pago, la
+reputación, el puntaje y el vuelo; una barra por toma (la raya blanca es el 50 % que hace falta) con sus cuatro
+partes; los daños (se reparan en el taller) y el video `.webm` o las fotos para descargar.
+
+Las **inspecciones** 🔎 fotografían el techo: llega alto y cerca, y deja el techo al centro del cuadro.
 
 ## Ver cómo va tu IA: Avance y Simular prueba
 
@@ -144,11 +149,17 @@ tiempo. Teclas: **Espacio** pausa, **← →** 2 segundos, **C** cambia la cáma
 
 1. **El dron** que vas a entrenar. Si todavía no tiene IA, eliges desde dónde empieza: la IA base (ya sabe
    volar), la de otro dron o desde cero.
-2. **La misión:** grabar, grabar con viento, grabar entre postes, repasos (ir a metas, esquivar columnas).
-   Cada pedido dice qué misión le sirve.
+2. **La misión** (un mosaico; la elegida se explica abajo): grabar, grabar con viento, grabar entre postes,
+   **📷 Foto** (nivel 13: llegar, frenar y quedarse quieto), **🖼️ Set de fotos** (nivel 14: 2-4 fotos seguidas) y los
+   repasos (ir a metas, esquivar columnas). Cada pedido dice qué misión le sirve (*Entrenar la IA* en el briefing ya
+   la deja elegida).
 3. **Dónde entrena:** en Blender (lo ves) o en segundo plano (sin ventana, hasta 2 a la vez).
-4. **Premios y castigos, de 0 a 10** (4 = lo normal). *Valores recomendados* los pone como la misión los sugiere.
-   Se pueden cambiar en vivo mientras entrena.
+4. **Premios y castigos, de 0 a 10** (4 = lo normal), agrupados: 🎯 la misión, 🛩️ vuelo, 🎥 cámara, 🛡️ seguridad y
+   🔋 energía. Toca el nombre (ⓘ) para ver qué paga o cobra. Los que no sirven para esa misión quedan plegados abajo.
+   *Valores recomendados* los pone como la misión los sugiere. Se pueden cambiar en vivo mientras entrena.
+   Para fotos: **llegar quieto** (paga al empezar la foto, más cuanto más quieto llega), **encuadre** (el sujeto al
+   centro) y **cambiar de altura** (cobra el sube y baja). Para cualquier misión: **paneo brusco**, **exceso de
+   velocidad** (más de 3 m/s) y **gas de más** (cuida la batería).
 5. **Empezar a entrenar.** El progreso (generación, éxito, choques) aparece ahí mismo. Se guarda solo cada 10
    generaciones.
 

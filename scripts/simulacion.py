@@ -16,7 +16,8 @@ Formato de una grabación (todo en metros, z arriba, como drone_rl):
                "prog": [avance de la toma 0-1], "premio": [premio acumulado], "meta": [índice de la meta]},
    "red": {"capas": [38, 128, 128, 4], "in_lbl", "act_lbl", "dt": s entre muestras,
            "in": [[38]], "h": [[[capa1], [capa2]]], "mu": [[4]]},
-   "resultado": {"exito": bool, "choque": bool, "razon", "premio", "calidad", "segundos_buenos", "t", "metas"}}
+   "resultado": {"exito": bool, "choque": bool, "razon", "premio", "calidad", "segundos_buenos", "t", "metas",
+                 "tiempo": bool (se acabó el tiempo; sin éxito, sin choque y sin tiempo = terminó las tomas, pero flojas)}}
 """
 from __future__ import annotations
 
@@ -180,7 +181,7 @@ def resultado(info: dict, premio: float, t: float) -> dict:
     return {"exito": bool(info.get("success")), "choque": bool(info.get("crashed")), "razon": info.get("crash_reason"),
             "premio": round(float(premio), 2), "calidad": round(float(info["film_q"]), 3) if info.get("film_q") is not None else None,
             "segundos_buenos": round(float(info.get("film_good") or 0.0), 2), "t": round(t, 2),
-            "metas": int(info.get("goals_reached") or 0)}
+            "metas": int(info.get("goals_reached") or 0), "tiempo": bool(info.get("timeout"))}
 
 
 # ---------------------------------------------------------------- Simular prueba (jugar.py)

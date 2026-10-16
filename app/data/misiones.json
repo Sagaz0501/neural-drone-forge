@@ -215,7 +215,7 @@
           "STM32F722 + GPS M10",
           "ExpressLRS 2.4 GHz"
         ],
-        "ia": "nivel 13 · Seguir (falta hacerlo)"
+        "ia": "nivel 15 · Seguir (falta hacerlo)"
       }
     },
     {
@@ -232,7 +232,7 @@
           "gimbal 2 ejes",
           "LiPo 4S 2200"
         ],
-        "ia": "nivel 13 con viento"
+        "ia": "nivel 15 con viento"
       }
     },
     {
@@ -250,7 +250,7 @@
           "cine 4K con gimbal 3 ejes",
           "luces LED"
         ],
-        "ia": "nivel 13 + formación"
+        "ia": "nivel 15 + formación"
       }
     },
     {
@@ -285,7 +285,7 @@
           "carbono 7\"",
           "ExpressLRS 900 MHz"
         ],
-        "ia": "nivel 13 con viento 4 m/s"
+        "ia": "nivel 15 con viento 4 m/s"
       }
     },
     {

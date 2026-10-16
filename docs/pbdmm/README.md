@@ -23,7 +23,7 @@ Ese programa crea el modelo `hola_dron` y lo pone a entrenar en segundo plano (P
 entrenar revisa si el dron de madera aguanta el viento de la finca (✅ / ⚠️ / ❌). Cada vez que termina una generación
 imprime cómo va, y se detiene solo cuando 8 de cada 10 intentos logran la misión.
 
-**Versión 2.0** ([cambios](CHANGELOG.md)). Para aprender, en el juego está la **ruta del programador**: cada dron que
+**Versión 2.1** ([cambios](CHANGELOG.md)). Para aprender, en el juego está la **ruta del programador**: cada dron que
 creas abre un capítulo con un programa guiado y un reto (Estudio → pestaña **Ruta**).
 
 ## La documentación

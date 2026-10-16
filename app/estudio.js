@@ -46,6 +46,7 @@ export function initEstudio(ctx) {
     ...ES.data, misiones: ctx.ent.misiones, drones: ctx.P().drones.map((d) => d.nombre),
     premiosValidos: [...new Set([...ctx.ent.premios.map((p) => p.k), "near"])],
     tiposPremio: { ...Object.fromEntries(ctx.ent.premios.map((p) => [p.k, p.tipo])), near: "premio" },
+    premiosInfo: Object.fromEntries(ctx.ent.premios.map((p) => [p.k, p])),     // explicar("encuadre")
     escala: ctx.ent.escala_premios,
     modelos: ES.modelos.length ? ES.modelos : null,     // para revisar desde="otro" (si no hay lista, no se revisa)
     ...leerJuego(),                                     // PBDMM 2: hangar, misionInfo, inventario (dron_info, revisar, tabla…)

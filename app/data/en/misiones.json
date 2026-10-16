@@ -52,7 +52,7 @@
       "historia": "The first subject that moves: a cyclist at 6 m/s along the road.",
       "plan": {
         "piezas": ["2306 motors + 4S (top speed ≥ 8 m/s)", "STM32F722 + M10 GPS", "ExpressLRS 2.4 GHz"],
-        "ia": "level 13 · Follow (not built yet)"
+        "ia": "level 15 · Follow (not built yet)"
       }
     },
     {
@@ -62,7 +62,7 @@
       "historia": "A ball that keeps changing direction, high shots and wind.",
       "plan": {
         "piezas": ["2-axis gimbal", "LiPo 4S 2200"],
-        "ia": "level 13 with wind"
+        "ia": "level 15 with wind"
       }
     },
     {
@@ -72,7 +72,7 @@
       "historia": "Multi-camera: you and two AI drones, each with its own angle.",
       "plan": {
         "piezas": ["STM32H743 + K210 AI coprocessor", "cinema 4K with 3-axis gimbal", "LED lights"],
-        "ia": "level 13 + formation"
+        "ia": "level 15 + formation"
       }
     },
     {
@@ -92,7 +92,7 @@
       "historia": "At night, in strong wind, with three AI drones.",
       "plan": {
         "piezas": ["WS2812 LED lights", "carbon 7\"", "ExpressLRS 900 MHz"],
-        "ia": "level 13 with 4 m/s wind"
+        "ia": "level 15 with 4 m/s wind"
       }
     },
     {

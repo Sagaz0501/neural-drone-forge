@@ -102,9 +102,20 @@ tutorial, el más fácil), 🎬 video, 🔎 inspección, 🛠️ encargos de arm
 - 📝 🛠️ Encargos de armado y 🧪 pruebas de drones (con la Fase 2), 🎮 a mano (Fase 3), 📦 entregas.
 - 📝 Más clientes y lugares.
 
-## Fase 1b · Premios, castigos y misiones que exigen al dron 📝 *(Santiago, 15-10-2026)*
+## Fase 1b · Premios, castigos y misiones que exigen al dron *(Santiago, 15-10-2026)*
 
-> Idea anotada, todavía no se empieza. Podría ir justo después de la Fase 1 porque cambia cómo se entrena.
+> **Parte 1 hecha (16-10-2026):**
+> - ✅ **Fotos para la IA:** nivel 13 **Foto** (una toma fija corta: llegar, frenar, quieto 2,5-3,5 s) y nivel 14
+>   **Set de fotos** (2-4 seguidas, todas buenas = éxito). 30 % son inspecciones del techo. En el Laboratorio, PBDMM
+>   (`mision("foto")`, `mision("set_fotos")`), Blender, el visor (dibuja todo el set) y el servidor.
+> - ✅ **El catálogo nuevo** (apagado por defecto: los modelos de antes entrenan igual): `framing` **encuadre**,
+>   `settle` **llegar quieto**, `altitude` **cambiar de altura**, `pan` **paneo brusco**, `overspeed` **exceso de
+>   velocidad** (> 3 m/s), `energy` **gas de más**. Agrupados en el Laboratorio y en los datos (misión, vuelo, cámara,
+>   seguridad, energía); `explicar("encuadre")` en PBDMM. Una prueba revisa que cada premio exista en el entrenador, el
+>   servidor, Blender y el juego.
+> - ✅ Cada trabajo del celular dice qué misión entrenar. Arreglo: las inspecciones encuadran el techo.
+> - ⏭️ **Falta (parte 2):** que el entrenamiento sienta la física del dron (pérdida de señal por alcance de la radio,
+>   ráfagas contra poco empuje), distancia segura a personas, aterrizar suave en la base, no salirse de la zona.
 
 **Premios y castigos mejor pensados.** Hoy son pocos y genéricos (acercarse, grabar, chocar, sacudidas…). La idea es
 un **catálogo amplio, con nombres claros**, que haya que combinar y ajustar según la misión:
@@ -169,7 +180,7 @@ Entrenar toma minutos u horas. Que ese tiempo también sea juego.
 
 1. 📝 **Video con varios drones a la vez:** un pedido con 2-3 drones, cada uno con su IA y su ángulo, y un editor
    simple que corta entre cámaras.
-2. 📝 **Nuevas tomas y misiones:** *seguir* (un auto o una persona, nivel 13), el concesionario (tomas bajas),
+2. 📝 **Nuevas tomas y misiones:** *seguir* (un auto o una persona, nivel 15; el 13 y el 14 ya son las fotos), el concesionario (tomas bajas),
    entregas de paquetes (el gancho ya está en el catálogo), inspección de un techo, buscar a alguien en el bosque.
 3. 📝 **Arena de modelos:** poner dos modelos en la misma misión con la misma semilla y comparar (éxito, choques,
    calidad). Un ranking de tus modelos por misión.

@@ -170,6 +170,17 @@ Cada paso enseña una sola cosa: el celular, aceptar, el banco, volar, disparar,
 | Arriendo del local (desde el cap. 2) | $60 por semana |
 | Pedidos por día | 1 (rep 0) · 2 (rep 5) · 3 (rep 12) |
 
+## Que la IA aprenda los trabajos (Fase 1b, 16-10-2026)
+
+- Cada trabajo dice qué misión del Laboratorio le enseña a la IA (`negocio.js entrenarPara`): 1 foto → **Foto**
+  (nivel 13), 2 o más → **Set de fotos** (nivel 14), un video → la misión de su pedido de la campaña (nivel 11/12).
+  *Entrenar la IA* en el briefing abre el Laboratorio con esa misión elegida.
+- El modelo anota en `meta.tomas` lo que practicó (`"foto"` para los niveles 13-14); el briefing y el aviso de "Que
+  grabe la IA" lo usan para decir si ya entrenó esas tomas.
+- Las **inspecciones** 🔎 fotografían el **techo** (`lugares.js`: el sujeto pasa a ser la mitad del techo). Antes
+  apuntaban a la pared desde 5,6-6,8 m de alto: con la cámara fija 15° abajo, ni un vuelo perfecto encuadraba (encuadre
+  ideal 0-19 %); ahora 67-100 %. El entrenamiento hace lo mismo (30 % de las fotos de los niveles 13-14 son del techo).
+
 ## Datos
 
 ```
