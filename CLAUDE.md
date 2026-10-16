@@ -69,6 +69,7 @@ app/               EL JUEGO (Dron Maker): usa los módulos de game/
                    u.llega), tornillos (mantener hasta el clic; si sigues, se barre la rosca), soldar (estación que calienta,
                    punta que se ensucia, flux, estaño que solo moja si el pad está caliente) -> junta buena/fría/puente/
                    levantado en d.banco.juntas; efectivos() = el cableado que conduce. test: node app/test_taller.mjs
+  escenarios.js    LOS SIMULADORES (lógica): comprar en orden, qué misiones/funciones abren (disponibles), iaPuede
   mesa.js          LA MESA DE TRABAJO (3D, su propio canvas): abrir cajas; montar cada pieza con su PROCEDIMIENTO (taller.js:
                    arrastrar al fantasma y girar con R, voltear el dron, tornillos por abajo/de lado, separadores, tuercas,
                    gomas, correa; el orden = taller.js MONTAJE, lo de arriba tapa; desmontar); soldar con el cautín (ratón)
@@ -239,6 +240,12 @@ Node v22 está en `/opt/homebrew/bin/node`. Blender 5.2 en `/Applications/Blende
   la mesa no avisa (cablear queda ✓ si todo está conectado): se descubre con el multímetro o en la prueba de humo.
   Soldar gasta insumos (piezas.json "soldadura": cautines con potencia, extractor, estaño, flux, cable, malla).
   El diagrama viejo quedó como la 📄 Guía de conexión (solo mirar). Falta: la batería y el multímetro en la mesa.
+- **Simuladores y PBDMM 3 (16-10-2026):** `app/data/escenarios.json` + `escenarios.js` (p.escenarios; el primero gratis):
+  cada simulador abre su misión (Laboratorio, PBDMM, la IA en esos trabajos y la flota) y funciones del lenguaje ("abre").
+  PBDMM 3 = el plan de vuelo (despegar, ir_a, mantener, foto, aterrizar, grabar, seguir_ruta, esquivar) -> `cfg.tarea`
+  -> /api/lab "tarea" -> live_train --tarea -> env.py (foto_seg, foto_ok, fotos); queda en info.json para Simular.
+  compilar() bloquea con data.bloqueadas/misionesDisponibles/planes (los tests sin esos datos no cambian).
+  El 🗄️ estante (tienda.js abrirEstante) va junto al Computador; el hangar solo elige lo que tienes; el kit está en la Tienda.
 - **El computador es el centro del juego (16-10-2026, los dos modos):** afuera solo el hangar (+ 💻 Computador o tocar el
   portátil); dentro, las apps (Mensajes, Calendario, Campaña, Laboratorio, Tienda, Inventario, Finanzas, Videos, Ajustes;
   + IDE, Documentación y Simuladores en el modo dev). estudio.js `abrir(app)`; el escritorio se guarda por modo.

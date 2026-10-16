@@ -87,7 +87,17 @@ def cargar_dron(nombre):
 
 
 def config_prueba(carpeta: Path, entrenando: dict | None = None) -> dict:
-    """La prueba que entrena (o entrenó por última vez) ese modelo: nivel, dron, viento, densidad, premios."""
+    """La prueba que entrena (o entrenó por última vez) ese modelo: nivel, dron, viento, densidad, premios (+ la tarea
+    de PBDMM 3, que queda en info.json)."""
+    cfg = _config_prueba(carpeta, entrenando)
+    try:
+        cfg["tarea"] = json.loads((carpeta / "info.json").read_text()).get("tarea")
+    except (OSError, ValueError):
+        cfg["tarea"] = None
+    return cfg
+
+
+def _config_prueba(carpeta: Path, entrenando: dict | None = None) -> dict:
     tr = entrenando or {}
     params = tr.get("params") or {}
     if tr.get("stage") is not None:
@@ -110,6 +120,8 @@ def env_prueba(cfg: dict) -> DroneEnv:
               density=float(cfg.get("density") or 1.0))
     if cfg.get("reward"):
         kw["reward"] = {k: float(v) for k, v in cfg["reward"].items()}
+    if cfg.get("tarea"):
+        kw["tarea"] = cfg["tarea"]
     return DroneEnv(**kw)
 
 

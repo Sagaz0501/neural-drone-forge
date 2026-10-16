@@ -1,0 +1,26 @@
+{
+  "_nota": "Los ESCENARIOS de entrenamiento (app 🎮 Simuladores, escenarios.js): se compran en orden y cada uno deja entrenar una misión (entrenamiento.json), usar la IA en esos trabajos y abre funciones de PBDMM 3 ('abre'). 'plan' = las acciones de vuelo que el programa tiene que tener (despegar(), ir_a(), mantener(), foto()…). El primero es gratis.",
+  "escenarios": [
+    { "id": "foto_fija", "icono": "📷", "nombre": "Foto fija", "mision": "foto", "nivel": 13, "precio": 0, "requiere": null,
+      "desc": "Despegar, llegar a un punto, quedarse quieto y tomar una foto que pase la prueba de calidad. La base de todo.",
+      "plan": ["despegar", "ir_a", "mantener", "foto"], "abre": ["despegar", "ir_a", "mantener", "foto", "aterrizar"], "trabajos": "Fotos de una casa e inspecciones (1 foto)" },
+    { "id": "set_fotos", "icono": "🖼️", "nombre": "Set de fotos", "mision": "set_fotos", "nivel": 14, "precio": 80, "requiere": "foto_fija",
+      "desc": "Varias fotos seguidas alrededor del sujeto: el mismo plan, repetido con un for.",
+      "plan": ["despegar", "ir_a", "mantener", "foto", "foto"], "abre": ["drones", "velocidad", "avisar", "dron_info", "mision_info", "ficha"], "trabajos": "Sets de 2 a 4 fotos" },
+    { "id": "repaso_metas", "icono": "🎯", "nombre": "Pista de aros", "mision": "repaso_metas", "nivel": 2, "precio": 40, "requiere": "foto_fija",
+      "desc": "Pasar por una serie de aros: que no olvide moverse rápido y con precisión.",
+      "plan": ["despegar", "ir_a"], "abre": [], "trabajos": "Entrenar precisión (no hay trabajos de esto todavía)" },
+    { "id": "video_ruta", "icono": "🎬", "nombre": "Video con ruta", "mision": "grabar", "nivel": 11, "precio": 180, "requiere": "set_fotos",
+      "desc": "Seguir una ruta de cámara (fija, órbita, revelar) con la casa al centro, sin perderla.",
+      "plan": ["despegar", "ir_a", "grabar"], "abre": ["grabar", "seguir_ruta", "narrar", "tabla", "barra", "modelo_info"], "trabajos": "Videos de casas" },
+    { "id": "repaso_columnas", "icono": "🏛️", "nombre": "Bosque de columnas", "mision": "repaso_columnas", "nivel": 3, "precio": 90, "requiere": "video_ruta",
+      "desc": "Llegar a la meta esquivando columnas: aprende a no chocar.",
+      "plan": ["despegar", "ir_a", "esquivar"], "abre": ["esquivar"], "trabajos": "Entrenar a esquivar" },
+    { "id": "video_viento", "icono": "💨", "nombre": "Video con viento", "mision": "grabar_viento", "nivel": 11, "precio": 280, "requiere": "video_ruta",
+      "desc": "Las mismas tomas con ráfagas de viento: aguantar sin perder el encuadre.",
+      "plan": ["despegar", "ir_a", "grabar"], "abre": ["viento", "aprendizaje", "revisar", "hangar", "inventario"], "trabajos": "Videos en la finca (viento)" },
+    { "id": "video_postes", "icono": "🏮", "nombre": "Entre postes", "mision": "grabar_postes", "nivel": 12, "precio": 420, "requiere": "video_viento",
+      "desc": "Grabar con postes a metro y medio de la ruta: precisión de verdad.",
+      "plan": ["despegar", "ir_a", "esquivar", "grabar"], "abre": ["red", "nivel", "explicar"], "trabajos": "Videos del restaurante (postes)" }
+  ]
+}

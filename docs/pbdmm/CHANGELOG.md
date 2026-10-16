@@ -1,5 +1,17 @@
 # Cambios de PBDMM
 
+## 3.0 · 16-10-2026 · el plan de vuelo y los simuladores
+
+- **El plan de vuelo:** el programa le dice al dron qué hacer en la misión: `despegar(altura=)`, `ir_a(destino)`,
+  `mantener(segundos=)`, `foto(calidad=)`, `aterrizar()`, `grabar()`, `seguir_ruta()`, `esquivar()` (en inglés
+  `take_off`, `go_to`, `hold`, `photo`, `land`, `record`, `follow_path`, `dodge`). Se revisa el orden (una foto pide
+  `mantener()` justo antes; `ir_a()` pide `despegar()`) y que esté lo que pide la misión. El plan se vuelve la **tarea**
+  del entrenamiento de verdad (`drone_rl/env.py tarea`: cuánto tiempo quieto, la calidad mínima de cada foto, cuántas
+  fotos con un `for`) y pone los premios que hacen falta (llegar quieto, encuadre, chocar).
+- **Los simuladores** (app 🎮 Simuladores, `app/data/escenarios.json`): cada uno se compra (el primero, *Foto fija*, es
+  gratis) y abre su misión y **funciones nuevas** del lenguaje. Lo que no tienes da un error que dice con qué simulador
+  se abre; el manual y el autocompletado solo muestran lo tuyo (la documentación crece contigo).
+
 ## El Estudio como computador · 16-10-2026
 
 No cambia el lenguaje. El Estudio pasa a ser un computador con apps en ventanas que se mueven y se agrandan: IDE,

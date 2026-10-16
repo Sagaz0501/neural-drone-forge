@@ -143,17 +143,17 @@ def random_toma(rng, subject, level=None, tipos=("fija", "orbita", "revelar"), c
 FOTO_DUR = (2.5, 3.5)     # s quieto para la foto (el juego: trabajos.json "dur" 2,5-3)
 
 
-def random_foto(rng, subject, level=None, a: float | None = None, clear: float = 1.2, techo=None) -> Toma:
+def random_foto(rng, subject, level=None, a: float | None = None, clear: float = 1.2, techo=None, dur=None) -> Toma:
     """Una FOTO: toma fija corta. 70 % de la fachada a 7-10,5 m; 30 % (si hay `techo`) una inspección: cerca y alta,
     mirando el TECHO (como los trabajos 🔎 del juego: el sujeto de la foto es el techo, no la pared).
-    a = ángulo alrededor del sujeto (None = al azar)."""
+    a = ángulo alrededor del sujeto (None = al azar). dur = (min, max) segundos quieto (def. FOTO_DUR; PBDMM 3 mantener())."""
     for k in range(200):
         aa = rng.uniform(-np.pi, np.pi) if a is None or k >= 40 else a + rng.uniform(-0.25, 0.25)
         if techo is not None and rng.random() < 0.3:
             suj, d, el = np.asarray(techo, dtype=float), rng.uniform(6.3, 7.5), rng.uniform(12.0, 22.0)
         else:
             suj, d, el = np.asarray(subject, dtype=float), rng.uniform(7.0, 10.5), rng.uniform(8.0, 22.0)
-        t = Toma("fija", suj, rng.uniform(*FOTO_DUR), x=suj[0] + d * np.cos(aa), y=suj[1] + d * np.sin(aa),
+        t = Toma("fija", suj, rng.uniform(*(dur or FOTO_DUR)), x=suj[0] + d * np.cos(aa), y=suj[1] + d * np.sin(aa),
                  z=float(suj[2]) + d * np.tan(np.radians(el)))
         q = t.start()
         if abs(q[0]) < 26 and abs(q[1]) < 26 and (level is None or not level.collides(q, clear)):
@@ -161,13 +161,13 @@ def random_foto(rng, subject, level=None, a: float | None = None, clear: float =
     raise RuntimeError("No pude armar una foto sin chocar")
 
 
-def random_fotos(rng, subject, level=None, n: int = 3, techo=None) -> list:
+def random_fotos(rng, subject, level=None, n: int = 3, techo=None, dur=None) -> list:
     """Un SET de n fotos alrededor del sujeto, en orden (cada una 40-90° más allá de la anterior, como las pide un
     cliente: frente, costado, atrás…). El dron tiene que ir de una a otra sin chocar con la casa."""
     a = rng.uniform(-np.pi, np.pi)
     sentido = 1 if rng.random() < 0.5 else -1
     out = []
     for _ in range(n):
-        out.append(random_foto(rng, subject, level, a, techo=techo))
+        out.append(random_foto(rng, subject, level, a, techo=techo, dur=dur))
         a += sentido * np.radians(rng.uniform(40.0, 90.0))
     return out

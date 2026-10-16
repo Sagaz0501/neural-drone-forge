@@ -12,7 +12,7 @@ export const llegaTxt = (pz) => ["🚚 " + t("llega hoy"), "🚚 " + t("llega ma
 
 // una función (no una constante): t() tiene que correr después de cargar el idioma
 const CATS = () => [
-  ["chasis", t("Chasis"), "✖️"], ["motores", t("Motores"), "⚙️"], ["helices", t("Hélices"), "🌀"], ["escs", "ESC", "⚡"], ["baterias", t("Baterías"), "🔋"],
+  ["kits", t("Kits"), "🎁"], ["chasis", t("Chasis"), "✖️"], ["motores", t("Motores"), "⚙️"], ["helices", t("Hélices"), "🌀"], ["escs", "ESC", "⚡"], ["baterias", t("Baterías"), "🔋"],
   ["controladoras", t("Controladoras"), "🧠"], ["radios", t("Radios"), "📡"], ["camaras", t("Cámaras"), "🎥"], ["montajes", t("Montajes"), "🔩"], ["extras", t("Extras"), "✨"],
   ["soldadura", t("Soldadura"), "🔥"], ["herramientas", t("Herramientas"), "🧰"],
 ];
@@ -47,6 +47,7 @@ export function initTienda(ctx) {
   // ---------------- tienda ----------------
   function abrirTienda(categoria) {
     if (categoria) T.cat = categoria;
+    else if (!P().drones.length) T.cat = "kits";          // sin drones: lo primero es el kit
     T.sel = null; T.lado = "detalle";
     render();
     modal("tienda");
@@ -91,6 +92,7 @@ export function initTienda(ctx) {
     // las tarjetas
     const box = $("t-prods");
     box.innerHTML = "";
+    if (T.cat === "kits" && !q) { kits(box); lado(); return; }
     for (const [r, pz] of lista) {
       if (pz.etapa > et + 1) continue;
       const bloq = pz.etapa > et, herr = esHerr(r, pz), precio = PT.precioDe(p, pz);
@@ -111,6 +113,20 @@ export function initTienda(ctx) {
     }
     if (!box.childElementCount) box.innerHTML = `<p class="muted">${t("Nada por aquí.")}</p>`;
     lado();
+  }
+  /** Los kits: el Kit del garaje (lo que falte del dron de madera + lo básico para soldar) en un dron nuevo. */
+  function kits(box) {
+    const K = ctx.kit, faltan = K?.faltan() || [], costo = K?.costo() || 0, p = P();
+    const nom = (x) => cat[x.ranura]?.find((z) => z.id === x.id)?.nombre || x.id;
+    const c = document.createElement("div");
+    c.className = "tv-card";
+    c.innerHTML = `<div class="tv-img"></div><div class="tv-info"><b>${t("Kit del garaje")}</b><span class="tv-precio">${costo ? "$" + costo : t("gratis")}</span></div>` +
+      `<div class="tv-stats"><small class="muted">${t("El dron de madera de siempre, en un dron nuevo de tu hangar. Trae lo que te falte:")}</small><small>${faltan.map(nom).join(" · ") || t("ya tienes todo")}</small></div>` +
+      `<div class="tv-pie"><span class="tv-envio">🚚 ${t("llega hoy")}</span><span class="tv-tengo"></span><button class="btn main small">${t("Comprar el kit")}</button></div>`;
+    imagen("chasis", cat.chasis.find((x) => x.id === "madera"), c.querySelector(".tv-img"));
+    c.querySelector(".tv-pie button").disabled = costo > p.plata;
+    c.querySelector(".tv-pie button").onclick = () => { K.comprar(); render(); };
+    box.appendChild(c);
   }
   function agregar(r, pz, d) {
     const p = P(), key = `${r}|${pz.id}`, herr = esHerr(r, pz), en = T.carro.get(key) || 0;
@@ -196,6 +212,65 @@ export function initTienda(ctx) {
   $("b-t-canasta").onclick = () => { T.lado = T.lado === "canasta" ? "detalle" : "canasta"; lado(); };
   $("t-buscar").oninput = (ev) => { T.q = ev.target.value; render(); };
   $("b-t-cerrar").onclick = () => { modal("tienda", false); ctx.renderTaller(); };
+
+  // ---------------- el estante: lo que tienes, en repisas por tipo ----------------
+  const E_ = { sel: null };
+  function abrirEstante() { E_.sel = null; renderEstante(); modal("estante"); }
+  function renderEstante() {
+    const p = P(), box = $("estante-c");
+    box.innerHTML = "";
+    const fila = (titulo, items, vacio) => {
+      const f = document.createElement("div");
+      f.className = "est-fila";
+      f.innerHTML = `<h4>${titulo}</h4><div class="est-tabla"></div><div class="est-madera"></div>`;
+      const tabla = f.querySelector(".est-tabla");
+      if (!items.length) tabla.innerHTML = `<span class="est-vacio">${vacio}</span>`;
+      for (const it of items) tabla.appendChild(it);
+      box.appendChild(f);
+    };
+    const caja = (r, pz, n, vida, extra, onclick) => {
+      const b = document.createElement("button");
+      b.className = "est-caja";
+      b.setAttribute("aria-pressed", String(E_.sel?.id === pz.id));
+      b.innerHTML = `<div class="tv-img"></div><b>${esc(pz.nombre)}</b>${n > 1 ? `<span class="est-n">×${n}</span>` : ""}` + (vida != null ? `<span class="est-vida"><i style="width:${vida}%;background:${vida < 40 ? "var(--crash)" : vida < 100 ? "var(--gold)" : "var(--gate)"}"></i></span>` : "") + (extra ? `<small class="muted">${extra}</small>` : "");
+      imagen(r, pz, b.querySelector(".tv-img"));
+      b.onclick = onclick;
+      return b;
+    };
+    for (const [r, nombre, ic] of CATS()) {
+      if (r === "kits" || r === "herramientas" || r === "soldadura") continue;
+      const ids = [...new Set(p.inventario.map((u) => u.id))].filter((id) => cat[r]?.some((x) => x.id === id));
+      fila(`${ic} ${nombre}`, ids.map((id) => {
+        const pz = cat[r].find((x) => x.id === id), us = PT.unidades(p, id), libres = us.filter((u) => !PT.dronDe(p, u.uid)).length;
+        const vida = Math.round(us.reduce((a, u) => a + u.vida, 0) / us.length);
+        return caja(r, pz, us.length, vida, libres ? t("{n} libres", { n: libres }) : t("en uso"), () => { E_.sel = { r, id }; renderEstante(); });
+      }), t("vacío"));
+    }
+    const herr = [...cat.herramientas.map((x) => ["herramientas", x]), ...(cat.soldadura || []).filter((x) => x.herramienta).map((x) => ["soldadura", x])].filter(([, x]) => PT.tieneHerramienta(p, x.id));
+    fila(`🧰 ${t("Herramientas")}`, herr.map(([r, pz]) => caja(r, pz, 1, null, "", () => { E_.sel = { r, id: pz.id }; renderEstante(); })), t("vacío"));
+    const ins = (cat.soldadura || []).filter((x) => x.insumo);
+    fila(`🔥 ${t("Soldadura")}`, ins.map((pz) => caja("soldadura", pz, 1, null, `${num(PT.insumo(p, pz.insumo.k), pz.insumo.k === "malla" ? 2 : 1)} ${pz.insumo.unidad}`, () => { E_.sel = { r: "soldadura", id: pz.id }; renderEstante(); })), t("vacío"));
+    detalleEstante();
+  }
+  function detalleEstante() {
+    const p = P(), det = $("estante-det"), s = E_.sel, pz = s && cat[s.r]?.find((x) => x.id === s.id);
+    if (!pz) { det.innerHTML = `<p class="muted">${t("Toca una pieza para ver sus unidades, su vida y en qué dron está. Comprar es en 💻 Computador → Tienda.")}</p>`; return; }
+    det.innerHTML = `<div class="tv-img grande"></div><h3>${esc(pz.nombre)}</h3><p class="muted" style="margin:0">${esc(ctx.descr(s.r, pz))}</p>`;
+    imagen(s.r, pz, det.querySelector(".tv-img"));
+    if (pz.insumo) { det.insertAdjacentHTML("beforeend", `<p>${t("Te quedan {n} {u}.", { n: num(PT.insumo(p, pz.insumo.k), 2), u: pz.insumo.unidad })}</p>`); return; }
+    if (PT.esHerramienta(s.r, pz)) { det.insertAdjacentHTML("beforeend", `<p class="ok">✓ ${t("La tienes en el taller.")}</p>`); return; }
+    for (const u of PT.unidades(p, pz.id)) {
+      const d = PT.dronDe(p, u.uid), plata = Math.round(pz.precio * PT.VENTA * (u.vida / 100));
+      const env = TA.enCamino(p, u) ? ` · 🚚 ${t("llega el día {n}", { n: u.llega })}` : TA.enCaja(p, u) ? ` · 📦 ${t("en su caja")}` : "";
+      const row = document.createElement("div");
+      row.className = "est-u";
+      row.innerHTML = `<span><b class="${u.vida <= 0 ? "bad" : u.vida < 100 ? "warn" : "ok"}">${u.vida} %</b>${env}<br><small class="muted">${d ? t("en {dron}", { dron: esc(d.nombre) }) : t("libre")}</small></span>`;
+      if (!d) { const b = document.createElement("button"); b.className = "btn ghost small"; b.textContent = t("vender ${n}", { n: plata }); b.onclick = () => { const r = PT.vender(p, cat, u.uid); if (typeof r === "string") return toast(r); guardar(); toast(t("Vendida por ${n}.", { n: r })); renderEstante(); ctx.renderTaller(); }; row.appendChild(b); }
+      det.appendChild(row);
+    }
+  }
+  $("b-est-cerrar").onclick = () => { modal("estante", false); ctx.renderTaller(); };
+  $("b-est-lista").onclick = () => { modal("estante", false); abrirInventario(); };
 
   // ---------------- inventario ----------------
   function abrirInventario() { renderInv(); modal("inventario"); }
@@ -284,5 +359,5 @@ export function initTienda(ctx) {
   };
   $("b-inv-cerrar").onclick = () => { modal("inventario", false); ctx.renderTaller(); };
 
-  return { abrirTienda, abrirInventario };
+  return { abrirTienda, abrirInventario, abrirEstante };
 }

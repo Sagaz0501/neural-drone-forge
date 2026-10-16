@@ -15,6 +15,8 @@ import { pieza } from "./parts.js";
 import { mundoLugar, alcanceNecesario } from "./lugares.js";
 import * as RUTA from "./ruta.js";
 import * as NG from "./negocio.js";
+import * as ESC from "./escenarios.js";
+import { sfx } from "./garaje.js";
 const numero = (x) => (Number.isInteger(x) ? String(x) : num(x, 1));       // 4,5 / 4.5 según el idioma
 
 const ARCH = "dronmaker.pbdmm.archivos", ABIERTO = "dronmaker.pbdmm.abierto";
@@ -52,7 +54,13 @@ export function initEstudio(ctx) {
     escala: ctx.ent.escala_premios,
     modelos: ES.modelos.length ? ES.modelos : null,     // para revisar desde="otro" (si no hay lista, no se revisa)
     ...leerJuego(),                                     // PBDMM 2: hangar, misionInfo, inventario (dron_info, revisar, tabla…)
+    ...simuladores(),                                   // PBDMM 3: solo las misiones y funciones de los simuladores que tienes
   });
+  /** PBDMM 3: lo que abren tus simuladores (escenarios.js): misiones, niveles, funciones y el plan de vuelo de cada misión. */
+  function simuladores() {
+    const d = ESC.disponibles(ctx.P(), ctx.escenarios);
+    return { misionesDisponibles: d.misiones, nivelesDisponibles: d.niveles, bloqueadas: d.bloqueadas, planes: d.planes };
+  }
   /** Lo que PBDMM 2 puede leer del juego: los drones del hangar (con su física), lo que pide cada misión y las piezas. */
   function leerJuego() {
     const p = ctx.P(), cat = ctx.cat, PT = ctx.PT;
@@ -173,7 +181,8 @@ export function initEstudio(ctx) {
   });
   // ---------------- autocompletado: dron( -> "estandar", "azar", tus drones… ----------------
   const fuentesAC = () => ({
-    data: ES.data, misiones: ctx.ent.misiones, nombresNiveles: ES.data.nombres_niveles,
+    data: { ...ES.data, funciones: ES.data.funciones.filter((f) => !simuladores().bloqueadas[f.nombre]) },   // el autocompletado solo ofrece lo que tienes
+    misiones: ctx.ent.misiones.filter((m) => simuladores().misionesDisponibles.has(m.id)), nombresNiveles: ES.data.nombres_niveles,
     drones: ctx.P().drones.map((d) => d.nombre), modelos: ES.modelos, programa: delPrograma($("es-src").value),
     lang: idioma(), alias: ES.data.alias_en,
     premios: [...ctx.ent.premios, { k: "near", tipo: "premio", desc: t("Por estar cerca de la meta (niveles de metas y hover).") }]
@@ -286,7 +295,7 @@ export function initEstudio(ctx) {
     let n = nombreArchivo(nombre) || "programa", k = 2;
     const base = n;
     while (ES.archivos[n] !== undefined) n = `${base}_${k++}`;
-    const plantilla = `# ${n}.pbd\n\nmodelo("${n}", desde="base")\nmision("grabar")\nentrenar_en("fondo")\n\ndef cada_generacion(e):\n    print(f"gen {e.generacion}: ${t("éxito")} {e.exito:.0%}")\n`;
+    const plantilla = programaEscenario(ESC.lista(ctx.escenarios).filter((e) => ESC.tiene(ctx.P(), e.id)).at(-1) || ESC.lista(ctx.escenarios)[0], n);
     ES.archivos[n] = src ?? (idioma() === "en" ? traducirCodigo(plantilla, "en", ES.data.alias_en) : plantilla);
     ES.abierto = n;
     guardarArchivos(); renderArchivos(); cargarEditor();
@@ -804,16 +813,17 @@ export function initEstudio(ctx) {
   const LAYOUT0 = { ide: { x: 0.075, y: 0, w: 0.555, h: 1, open: true }, sim: { x: 0.63, y: 0, w: 0.37, h: 1, open: true },
     docs: { x: 0.33, y: 0.04, w: 0.4, h: 0.86, open: false }, mensajes: { x: 0.18, y: 0.03, w: 0.6, h: 0.92, open: false },
     tienda: { x: 0.14, y: 0.02, w: 0.7, h: 0.94, open: false }, inventario: { x: 0.2, y: 0.05, w: 0.6, h: 0.86, open: false },
-    banco: { x: 0.38, y: 0.06, w: 0.3, h: 0.8, open: false }, calendario: { x: 0.36, y: 0.04, w: 0.42, h: 0.86, open: false },
+    banco: { x: 0.38, y: 0.06, w: 0.3, h: 0.8, open: false }, escenarios: { x: 0.2, y: 0.03, w: 0.58, h: 0.92, open: false }, calendario: { x: 0.36, y: 0.04, w: 0.42, h: 0.86, open: false },
     campana: { x: 0.16, y: 0.03, w: 0.66, h: 0.92, open: false }, lab: { x: 0.13, y: 0.02, w: 0.74, h: 0.95, open: false },
     videos: { x: 0.2, y: 0.05, w: 0.6, h: 0.86, open: false }, ajustes: { x: 0.3, y: 0.08, w: 0.42, h: 0.8, open: false } };
   /** Las apps: ícono y nombre (función: t() corre después de cargar el idioma). */
   const APPS = () => ({ ide: ["💻", "IDE"], docs: ["📖", t("Documentación")], mensajes: ["💬", t("Mensajes")], tienda: ["🛒", t("Tienda")],
-    inventario: ["📦", t("Inventario")], sim: ["📈", t("Simuladores")], banco: ["🏦", t("Finanzas")], calendario: ["📅", t("Calendario")],
+    inventario: ["📦", t("Inventario")], sim: ["📈", t("Monitor")], banco: ["🏦", t("Finanzas")], calendario: ["📅", t("Calendario")], escenarios: ["🎮", t("Simuladores")],
     campana: ["⭐", t("Campaña")], lab: ["🧠", t("Laboratorio")], videos: ["🎬", t("Videos")], ajustes: ["⚙️", t("Ajustes")] });
   const SOLO_DEV = new Set(["ide", "docs", "sim"]), SOLO_NORMAL = new Set(["lab"]);
   const esDev = () => ctx.P()?.modo === "dev";
-  const permitida = (w) => (esDev() ? !SOLO_NORMAL.has(w) : !SOLO_DEV.has(w));
+  const FUERA = new Set(["inventario"]);              // el inventario es el estante del garaje (main.js), no una app
+  const permitida = (w) => !FUERA.has(w) && (esDev() ? !SOLO_NORMAL.has(w) : !SOLO_DEV.has(w));
   /** Las apps que son pantallas del juego (el celular, la tienda, el laboratorio…): se meten en una ventana. */
   const HOST = { mensajes: ["celular", () => ctx.celular?.abrir()], tienda: ["tienda", () => ctx.tienda?.abrirTienda()], inventario: ["inventario", () => ctx.tienda?.abrirInventario()],
     campana: ["tablero", () => ctx.abrirTablero?.()], lab: ["lab", () => ctx.abrirLab?.()], videos: ["videos", () => ctx.abrirVideos?.()], ajustes: ["controles", () => ctx.abrirControles?.()] };
@@ -879,6 +889,7 @@ export function initEstudio(ctx) {
     if (w === "sim") { redSondear(quiere); if (quiere) dibujarGrafica(); }
     if (w === "banco" && quiere) renderBanco();
     if (w === "calendario" && quiere) renderCalendario();
+    if (w === "escenarios" && quiere) renderEscenarios();
     if (w === "ide" && quiere) $("es-src").focus();
   }
   /** Mete la pantalla del juego (el celular, la tienda…) en su ventana; si el juego la cierra, la ventana se cierra. */
@@ -992,8 +1003,10 @@ export function initEstudio(ctx) {
           if (onclick) b.onclick = onclick;
           lista.appendChild(b);
         };
+        const bloq = simuladores().bloqueadas;
         for (const f of D.funciones) {
           const nom = nombreFn(f);
+          if (bloq[f.nombre]) continue;                       // la documentación crece con tus simuladores
           if ((MAN.grupo && MAN.grupo !== f.grupo) || !hay(f.nombre, nom, f.firma, f.desc)) continue;
           fila(nom + "(…)", f.desc, () => verFuncion(f, manual), nuevos.has(f.nombre) ? ` <span class="chip warn">${t("nuevo")}</span>` : "");
         }
@@ -1002,6 +1015,8 @@ export function initEstudio(ctx) {
           for (const [c, d] of xs) if (hay(c, d)) fila(c, d, () => abrirDoc("manual", c, (b2) => (b2.innerHTML = `<pre>${esc(c)}</pre><p>${esc(d)}</p>`), manual));
         }
         if (!lista.childElementCount) lista.innerHTML = `<p class="muted">${t("Nada con eso.")}</p>`;
+        const nb = Object.keys(bloq).filter((f) => D.funciones.some((x) => x.nombre === f)).length;
+        if (nb && !MAN.q) lista.insertAdjacentHTML("beforeend", `<p class="muted" style="margin-top:10px">🔒 ${t("{n} funciones más se abren con los simuladores que te faltan (🎮 Simuladores).", { n: nb })}</p>`);
       };
       q.oninput = () => { MAN.q = q.value; pintar(); };
       pintar();
@@ -1047,6 +1062,65 @@ export function initEstudio(ctx) {
       ant.onclick = () => aprende(i - 1);
       sig.onclick = () => aprende(i + 1);
     });
+  }
+
+  // ---------------- la app 🎮 Simuladores: los escenarios de entrenamiento (se compran en orden) ----------------
+  /** El programa PBDMM 3 de un simulador: la misión y su plan de vuelo, listo para correr. */
+  function programaEscenario(e, nombre = null) {
+    const d = ctx.D?.(), nom = nombre || nombreArchivo(`${d?.nombre || "dron"}_${e.id}`).replace(/_+/g, "_"), dron = d && ctx.dronParaEntrenar?.(d) ? d.nombre : "estandar";
+    const plan = { despegar: "despegar(altura=2)", ir_a: 'ir_a("punto")', mantener: "mantener(segundos=3)", foto: "foto(calidad=0.6)", grabar: "grabar()", esquivar: "esquivar()" };
+    let pasos = [];
+    if (e.id === "set_fotos") pasos = ["despegar(altura=2)", "for i in range(3):", '    ir_a("punto")', "    mantener(segundos=2)", "    foto(calidad=0.55)"];
+    else pasos = [...new Set(e.plan)].map((a) => plan[a]).concat(e.plan.includes("grabar") ? ["seguir_ruta()"] : []);
+    const src = `# ${nom}.pbd · ${t("simulador")}: ${e.nombre}\n# ${e.desc}\n\nmodelo("${nom}", desde="base")\nmision("${e.mision}")\ndron("${dron}")\nentrenar_en("fondo")\n\n# ${t("el plan de vuelo")}\n${pasos.join("\n")}\naterrizar()\n\ndef cada_generacion(e):\n    print(f"gen {e.generacion}: ${t("éxito")} {e.exito:.0%}")\n`;
+    return idioma() === "en" ? traducirCodigo(src, "en", ES.data.alias_en) : src;
+  }
+  function renderEscenarios() {
+    const p = ctx.P(), E = ctx.escenarios, box = $("es-esc");
+    if (!p || !E) return;
+    const lst = ESC.lista(E), tuyos = lst.filter((e) => ESC.tiene(p, e.id)).length;
+    $("es-esc-sub").textContent = t("{n} de {m}", { n: tuyos, m: lst.length });
+    box.innerHTML = `<p class="muted" style="margin:0">${t("Cada simulador es un escenario donde se entrena tu IA (en el fondo o en Blender). Te deja entrenar esa misión, que la IA haga esos trabajos y abre funciones nuevas de PBDMM.")}</p>`;
+    for (const e of lst) {
+      const est = ESC.estado(p, E, e.id), c = document.createElement("div");
+      c.className = "esc-c " + est;
+      const req = e.requiere ? ESC.escenario(E, e.requiere) : null;
+      c.innerHTML = `<span class="ic">${est === "bloqueado" ? "🔒" : e.icono}</span><div><h4>${esc(e.nombre)}</h4><p>${esc(e.desc)}</p>` +
+        `<div class="esc-plan"><span class="muted">${t("plan")}:</span>${e.plan.map((a) => `<code>${esc(nombreFnDe(a))}()</code>`).join("→")}</div>` +
+        (e.abre.length ? `<div class="esc-plan esc-fn"><span class="muted">${t("abre en PBDMM")}:</span>${e.abre.map((f) => `<code>${esc(nombreFnDe(f))}</code>`).join("")}</div>` : "") +
+        `<p style="font-size:12.5px">🧰 ${esc(e.trabajos)}</p></div><div class="esc-acc"></div>`;
+      const acc = c.querySelector(".esc-acc");
+      const btn = (txt, cls, fn, dis = false) => { const b = document.createElement("button"); b.className = "btn small " + cls; b.innerHTML = txt; b.disabled = dis; b.onclick = fn; acc.appendChild(b); };
+      if (est === "tuyo") {
+        acc.insertAdjacentHTML("afterbegin", `<span class="chip on" style="text-align:center">✓ ${t("tuyo")}</span>`);
+        btn("🎓 " + t("Entrenar"), "ai", () => entrenarEscenario(e));
+        btn("▶ " + t("Probar"), "ghost", () => probarEscenario());
+      } else if (est === "comprable") {
+        btn(e.precio ? t("Comprar ${n}", { n: e.precio }) : t("Gratis"), "main", () => {
+          const err = ESC.comprar(p, E, e.id);
+          if (err) return toast(err);
+          ctx.guardar(); sfx("listo"); toast(t("🎮 Simulador «{e}» listo: ya puedes entrenarlo.", { e: e.nombre }), 4000);
+          renderEscenarios(); reloj();
+        }, p.plata < e.precio);
+      } else acc.insertAdjacentHTML("beforeend", `<small class="muted">${t("Primero «{e}»", { e: req?.nombre || "?" })}</small>`);
+      box.appendChild(c);
+    }
+  }
+  const nombreFnDe = (f) => (idioma() === "en" ? ES.data?.alias_en?.funciones?.[f] || f : f);
+  /** Entrenar un simulador: en el modo normal, el Laboratorio con esa misión; en el desarrollador, su programa PBDMM 3. */
+  function entrenarEscenario(e) {
+    if (!esDev()) { ctx.labMision?.(e.mision); ventana("lab", true); return; }
+    const n = nombreArchivo(`${ctx.D?.()?.nombre || "dron"}_${e.id}`).replace(/_+/g, "_");
+    if (ES.archivos[n] === undefined) ES.archivos[n] = programaEscenario(e, n);
+    ES.abierto = n; guardarArchivos(); renderArchivos(); cargarEditor();
+    ventana("ide", true);
+    linea(t("Abrí {n}.pbd: el plan de vuelo de «{e}». Córrelo con ▶ (o cámbialo primero).", { n, e: e.nombre }), "ok");
+  }
+  /** Probar: una simulación con la IA del dron activo (la misma prueba del entrenamiento). */
+  function probarEscenario() {
+    const d = ctx.D?.();
+    if (!d?.modelo) return toast(t("Tu dron todavía no tiene IA propia: entrénala primero."));
+    comando("simular " + d.modelo);
   }
 
   // ---------------- la app Calendario: los días del negocio, los vencimientos, lo que llega y el arriendo ----------------

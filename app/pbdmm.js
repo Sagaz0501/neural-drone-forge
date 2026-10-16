@@ -759,7 +759,50 @@ export function compilar(src, data, host = {}) {
     else { cfg.premiosVivos = { ...(cfg.premiosVivos || cfg.premiosFinal || {}), ...c }; accion({ [fn]: c }); host.ajustar?.({ premios: cfg.premiosVivos }); }
   };
 
+  // ---- PBDMM 3: el plan de vuelo. Cada acción le dice al dron qué hacer en la misión; el plan se vuelve la TAREA del
+  // entrenamiento (cuánto quieto, qué calidad pide la foto, cuántas fotos) y le pone los premios que hacen falta.
+  cfg.plan = [];
+  const ultima = () => cfg.plan.at(-1)?.a;
+  const enPlan = (a) => cfg.plan.some((x) => x.a === a);
+  const accionVuelo = (nombre, n, extra = {}) => { soloArriba(nombre, n); cfg.plan.push({ a: nombre, n, ...extra }); };
+  const vuelo = {
+    despegar: (a, k, n) => {
+      if (enPlan("despegar")) throw new ErrorPB(t("despegar() va una sola vez, al principio del plan"), n);
+      const h = k.altura ?? a[0] ?? 1.5;
+      accionVuelo("despegar", n, { altura: rango(h, 0.5, 5, "despegar(altura=…)", n) });
+    },
+    ir_a: (a, k, n) => {
+      if (!enPlan("despegar")) throw new ErrorPB(t("el dron está en el suelo: primero despegar()"), n);
+      const d = k.destino ?? a[0] ?? "punto";
+      accionVuelo("ir_a", n, { destino: texto(d, "ir_a", n) });
+    },
+    mantener: (a, k, n) => {
+      if (!enPlan("ir_a")) throw new ErrorPB(t("mantener() es quedarse quieto en un punto: primero ir_a(…)"), n);
+      const sg = k.segundos ?? a[0] ?? 3;
+      accionVuelo("mantener", n, { s: rango(sg, 1, 8, "mantener(segundos=…)", n) });
+    },
+    foto: (a, k, n) => {
+      if (ultima() !== "mantener") throw new ErrorPB(t("para una foto el dron tiene que estar quieto: pon mantener(…) justo antes de foto()"), n);
+      const q = k.calidad ?? a[0] ?? 0.5;
+      accionVuelo("foto", n, { q: rango(q, 0.3, 0.9, "foto(calidad=…)", n) });
+    },
+    grabar: (a, k, n) => {
+      if (!enPlan("ir_a")) throw new ErrorPB(t("grabar() empieza donde arranca la toma: primero ir_a(…)"), n);
+      accionVuelo("grabar", n);
+    },
+    seguir_ruta: (a, k, n) => {
+      if (!enPlan("grabar")) throw new ErrorPB(t("seguir_ruta() es mientras graba: primero grabar()"), n);
+      accionVuelo("seguir_ruta", n);
+    },
+    esquivar: (a, k, n) => { accionVuelo("esquivar", n); },
+    aterrizar: (a, k, n) => {
+      if (!enPlan("despegar")) throw new ErrorPB(t("no puede aterrizar si no despegó"), n);
+      accionVuelo("aterrizar", n);
+    },
+  };
+
   const B = {
+    ...vuelo,
     print: (a, k) => salida(a.map((x) => repr(x)).join(k.sep ?? " ")),
     avisar: ([x]) => { if (host.avisar) host.avisar(repr(x)); salida("📣 " + repr(x)); if (fase !== "arriba") accion({ avisar: repr(x) }); },
     modelo: ([nombre], k, n) => {
@@ -784,6 +827,7 @@ export function compilar(src, data, host = {}) {
       texto(id, "mision", n);
       const m = data.misiones.find((x) => x.id === id);
       if (!m) throw new ErrorPB(t('no hay una misión "{id}". Hay: {lista}', { id, lista: data.misiones.map((x) => x.id).join(", ") }), n);
+      if (data.misionesDisponibles && !data.misionesDisponibles.has(id)) throw new ErrorPB(t('la misión "{id}" todavía no la tienes: compra su simulador en 💻 → 🎮 Simuladores', { id }), n);
       cfg.mision = id; cfg.nivel = m.nivel;
       if (cfg.viento === undefined && m.viento) cfg.vientoMision = m.viento;
       return objMision(id);                            // PBDMM 2: m = mision("grabar") -> m.pide …
@@ -791,6 +835,7 @@ export function compilar(src, data, host = {}) {
     nivel: ([x], _, n) => {
       soloArriba("nivel", n); unaVez("mision", n);
       if (!Number.isInteger(x) || !data.niveles.includes(x)) throw new ErrorPB(t("nivel() va con un número de nivel del Drone Lab: {lista}", { lista: data.niveles.join(", ") }), n);
+      if (data.nivelesDisponibles && !data.nivelesDisponibles.has(x)) throw new ErrorPB(t("el nivel {x} es de un simulador que no tienes: los tuyos son {lista}", { x, lista: [...data.nivelesDisponibles].join(", ") }), n);
       cfg.nivel = x; cfg.mision = null;
     },
     dron: ([x], _, n) => {
@@ -993,6 +1038,10 @@ export function compilar(src, data, host = {}) {
   });
   // PBDMM bilingüe: cada función también con su nombre en inglés (model, mission, rewards…), y los argumentos y valores
   // en inglés (start_from="zero", train_on("background"), mission("film")…) se pasan al español antes de usarse.
+  // PBDMM 3: lo que todavía no tienes no se puede usar (cada simulador abre funciones: app/data/escenarios.json "abre")
+  for (const [f, esc] of Object.entries(data.bloqueadas || {})) {
+    if (B[f]) B[f] = (_, __, n) => { throw new ErrorPB(t("{f}() todavía no la tienes: se abre con el simulador «{e}» (💻 → 🎮 Simuladores)", { f, e: esc }), n); };
+  }
   const AL = data.alias_en || {};
   const kwEs = Object.fromEntries(Object.entries(AL.kwargs || {}).map(([es, en]) => [en, es]));
   const valEs = Object.fromEntries(Object.entries(AL.valores || {}).map(([es, en]) => [en, es]));
@@ -1050,6 +1099,27 @@ export function compilar(src, data, host = {}) {
   let revisionAuto = null;
   if (typeof cfg.dron === "object" && cfg.mision && data.hangar && data.misionInfo) {
     try { revisionAuto = revision(cfg.dron.hangar, cfg.mision, cfg.lineas.dron); } catch { revisionAuto = null; }
+  }
+  // PBDMM 3: el plan que pide la misión (escenarios.json "plan") y lo que el plan le dice al entrenamiento
+  try { tareaDelPlan(); } catch (err) { throw enIdioma(err, AL); }
+  function tareaDelPlan() {
+    const pide = data.planes?.[cfg.mision];
+    const cuenta = (a, lista) => lista.filter((x) => (x.a || x) === a).length;
+    if (pide) {
+      const falta = [...new Set(pide)].filter((a) => cuenta(a, cfg.plan) < cuenta(a, pide));
+      if (falta.length) throw new ErrorPB(t("a este plan de vuelo le falta: {lista}. La misión «{m}» pide: {plan}", { lista: falta.map((a) => a + "()").join(", "), m: cfg.mision, plan: pide.map((a) => a + "()").join(" → ") }));
+    }
+    const fotos = cfg.plan.filter((x) => x.a === "foto"), quieto = cfg.plan.filter((x) => x.a === "mantener");
+    cfg.tarea = {};
+    if (quieto.length) { const sg = quieto[0].s; cfg.tarea.foto_seg = [Math.max(0.5, sg - 0.4), sg + 0.4]; }
+    if (fotos.length) cfg.tarea.foto_ok = Math.max(...fotos.map((x) => x.q));
+    if (fotos.length > 1 && cfg.nivel === 14) cfg.tarea.fotos = fotos.length;
+    if (!Object.keys(cfg.tarea).length) delete cfg.tarea;
+    // los premios que pide el plan (si el programa no los puso): quieto -> llegar quieto; foto -> encuadre; esquivar -> chocar
+    const pon = (k, v) => { if (!(k in cfg.premios) && (data.premiosValidos || []).includes(k)) cfg.premios[k] = realDe(k, v, data.escala); };
+    if (quieto.length) pon("settle", 4);
+    if (fotos.length) pon("framing", 3);
+    if (cfg.plan.some((x) => x.a === "esquivar")) pon("crash", 6);
   }
   const premiosMision = cfg.mision ? data.misiones.find((x) => x.id === cfg.mision)?.premios || {} : {};
   cfg.premiosFinal = { ...premiosMision, ...cfg.premios };
@@ -1207,6 +1277,7 @@ export function pedidoDe(cfg, dronFisica) {
   if (cfg.lr !== undefined) body.lr = cfg.lr;
   if (cfg.ent !== undefined) body.ent = cfg.ent;
   if (cfg.capas) body.capas = cfg.capas;
+  if (cfg.tarea) body.tarea = cfg.tarea;                    // PBDMM 3: el plan de vuelo
   body.dron = typeof cfg.dron === "object" ? dronFisica(cfg.dron.hangar) : cfg.dron;
   return body;
 }

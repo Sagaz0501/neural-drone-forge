@@ -98,5 +98,15 @@
  "Toca una pieza para ver sus detalles y compararla con la que tienes puesta.": "Tap a part to see its details and compare it with the one you have installed.",
  "Contra la de {d}": "Versus {d}'s",
  "Es la que tiene {d}.": "It's the one {d} has.",
- "¡Listo! Ya está en tu taller.": "Done! It's in your workshop."
+ "¡Listo! Ya está en tu taller.": "Done! It's in your workshop.",
+ "Kits": "Kits",
+ "Kit del garaje": "Garage kit",
+ "El dron de madera de siempre, en un dron nuevo de tu hangar. Trae lo que te falte:": "The classic wooden drone, as a new drone in your hangar. It brings whatever you're missing:",
+ "ya tienes todo": "you have everything",
+ "Comprar el kit": "Buy the kit",
+ "en uso": "in use",
+ "Toca una pieza para ver sus unidades, su vida y en qué dron está. Comprar es en 💻 Computador → Tienda.": "Tap a part to see its units, their condition and which drone they're on. Buying is in 💻 Computer → Shop.",
+ "Te quedan {n} {u}.": "You have {n} {u} left.",
+ "La tienes en el taller.": "It's in your workshop.",
+ "en {dron}": "on {dron}"
 }

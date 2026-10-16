@@ -1,6 +1,6 @@
 # PBDMM · Python Base Dron Model Maker
 
-> Versión 2.1. Este archivo se genera desde `app/data/pbdmm.json` con `node app/doc_pbdmm.mjs`: no lo edites a mano.
+> Versión 3.0. Este archivo se genera desde `app/data/pbdmm.json` con `node app/doc_pbdmm.mjs`: no lo edites a mano.
 
 PBDMM es el lenguaje del **modo desarrollador** de Neural Drone Forge. Un programa describe **cómo se entrena** la IA de un dron:
 qué modelo, qué misión, con qué dron, cuánto cerebro, qué premios, y qué hacer mientras aprende. Por detrás hace lo mismo
@@ -53,8 +53,8 @@ Todo nombre del lenguaje tiene su equivalente en inglés, y **los dos funcionan 
 
 | español | English |
 |---|---|
-| funciones: `modelo()`, `red()`, `mision()`, `nivel()`, `dron()`, `drones()`, `entrenar_en()`, `velocidad()`, `viento()`, `aprendizaje()`, `premios()`, `castigos()`, `pausar()`, `seguir()`, `guardar()`, `detener()`, `avisar()`, `dron_info()`, `mision_info()`, `modelo_info()`, `hangar()`, `inventario()`, `revisar()`, `ficha()`, `tabla()`, `barra()`, `color()`, `explicar()`, `narrar()` | `model()`, `network()`, `mission()`, `level()`, `drone()`, `drones()`, `train_on()`, `speed()`, `wind()`, `learning()`, `rewards()`, `penalties()`, `pause()`, `resume()`, `save()`, `stop()`, `notify()`, `drone_info()`, `mission_info()`, `model_info()`, `hangar()`, `inventory()`, `check()`, `sheet()`, `table()`, `bar()`, `color()`, `explain()`, `narrate()` |
-| argumentos: `desde=`, `capas=`, `exploracion=`, `cada=` | `start_from=`, `layers=`, `exploration=`, `every=` |
+| funciones: `modelo()`, `red()`, `mision()`, `nivel()`, `dron()`, `drones()`, `entrenar_en()`, `velocidad()`, `viento()`, `aprendizaje()`, `premios()`, `castigos()`, `pausar()`, `seguir()`, `guardar()`, `detener()`, `avisar()`, `dron_info()`, `mision_info()`, `modelo_info()`, `hangar()`, `inventario()`, `revisar()`, `ficha()`, `tabla()`, `barra()`, `color()`, `explicar()`, `narrar()`, `despegar()`, `ir_a()`, `mantener()`, `foto()`, `aterrizar()`, `grabar()`, `seguir_ruta()`, `esquivar()` | `model()`, `network()`, `mission()`, `level()`, `drone()`, `drones()`, `train_on()`, `speed()`, `wind()`, `learning()`, `rewards()`, `penalties()`, `pause()`, `resume()`, `save()`, `stop()`, `notify()`, `drone_info()`, `mission_info()`, `model_info()`, `hangar()`, `inventory()`, `check()`, `sheet()`, `table()`, `bar()`, `color()`, `explain()`, `narrate()`, `take_off()`, `go_to()`, `hold()`, `photo()`, `land()`, `record()`, `follow_path()`, `dodge()` |
+| argumentos: `desde=`, `capas=`, `exploracion=`, `cada=`, `altura=`, `destino=`, `segundos=`, `calidad=` | `start_from=`, `layers=`, `exploration=`, `every=`, `height=`, `target=`, `seconds=`, `quality=` |
 | valores: `"cero"`, `"fondo"`, `"rapido"`, `"estandar"`, `"azar"`, `"grabar"`, `"grabar_viento"`, `"grabar_postes"`, `"repaso_metas"`, `"repaso_columnas"`, `"foto"`, `"set_fotos"` | `"zero"`, `"background"`, `"fast"`, `"standard"`, `"random"`, `"film"`, `"film_wind"`, `"film_poles"`, `"review_goals"`, `"review_columns"`, `"photo"`, `"photo_set"` |
 | premios y castigos: `grabar=`, `mirar=`, `acercarse=`, `meta=`, `cerca=`, `rapidez=`, `chocar=`, `sacudidas=`, `brusco=`, `pegado=`, `peligro=`, `inclinar=`, `tiempo=`, `encuadre=`, `quieto=`, `altura=`, `paneo=`, `exceso_velocidad=`, `gas=` | `film=`, `heading=`, `progress=`, `goal=`, `near=`, `speed=`, `crash=`, `stability=`, `smooth=`, `clearance=`, `danger=`, `tilt=`, `time=`, `framing=`, `settle=`, `altitude=`, `pan=`, `overspeed=`, `energy=` |
 | funciones especiales: `def al_empezar(e)`, `def cada_generacion(e)`, `def al_terminar(e)` | `def on_start(e)`, `def every_generation(e)`, `def on_end(e)` |
@@ -422,6 +422,84 @@ explicar("lr")
 narrar(cada=5)
 ```
 
+### El plan de vuelo
+
+#### `despegar(altura=1.5)`
+
+*Arriba del archivo.* Lo primero del plan: el dron sube a esa altura (metros, de 0,5 a 5).
+
+- `altura`: metros (0,5 a 5)
+
+```python
+despegar(altura=2)
+```
+
+#### `ir_a(destino="punto")`
+
+*Arriba del archivo.* Vuela hasta el punto de la toma (el entrenamiento sortea uno distinto cada vez).
+
+- `destino`: "punto", "casa" o "toma" (solo es un nombre: el punto lo sortea el simulador)
+
+```python
+ir_a("punto")
+```
+
+#### `mantener(segundos=3)`
+
+*Arriba del archivo.* Quedarse quieto en el punto. Para una foto, justo antes de foto(). Los segundos son cuánto tiempo tiene que aguantar (1 a 8): más segundos = más difícil.
+
+- `segundos`: de 1 a 8
+
+```python
+mantener(segundos=3)
+```
+
+#### `foto(calidad=0.5)`
+
+*Arriba del archivo.* Toma la foto. Pasa la prueba si la calidad (encuadre, quieto, nítida) llega a ese número (0,3 a 0,9): pedir más es más difícil de aprender, pero las fotos salen mejores. Varias foto() seguidas = un set de fotos.
+
+- `calidad`: la nota mínima de 0,3 a 0,9
+
+```python
+mantener(3)
+foto(calidad=0.6)
+```
+
+#### `aterrizar()`
+
+*Arriba del archivo.* Volver a bajar al final del plan.
+
+```python
+aterrizar()
+```
+
+#### `grabar()`
+
+*Arriba del archivo.* Graba un video desde donde llegó con ir_a(): la toma (fija, órbita o revelar) la sortea el simulador.
+
+```python
+ir_a("toma")
+grabar()
+seguir_ruta()
+```
+
+#### `seguir_ruta()`
+
+*Arriba del archivo.* Mientras graba, sigue la ruta de la cámara con el sujeto al centro.
+
+```python
+grabar()
+seguir_ruta()
+```
+
+#### `esquivar()`
+
+*Arriba del archivo.* Que aprenda a no chocar: sube el castigo de chocar si no lo pusiste.
+
+```python
+esquivar()
+```
+
 ## Premios y castigos: de 0 a 10
 
 Todos van de **0 a 10**: 0 = apagado, **4 = lo normal**, 10 = al máximo. Lo que importa es cuánto pesa uno contra otro.
@@ -537,6 +615,28 @@ e.exito es lo que importa (cuántos intentos lograron la misión). e.premio sube
 Con entrenar_en("blender") el mismo entrenamiento se ve en el Drone Lab de Blender: los 50 drones volando, el cerebro encendiéndose, las curvas. Abre Blender desde la terminal (comando blender) o con blender/laboratorio.blend. Si Blender ya estaba abierto desde antes de actualizar el juego, ciérralo (Detener y guardar) y ábrelo otra vez.
 
 ## Ejemplos
+
+### foto_fija
+
+```python
+# Foto fija (PBDMM 3): el primer simulador.
+# Le dices al dron qué hacer y el entrenamiento aprende a hacerlo.
+
+modelo("fotografo", desde="base")
+mision("foto")
+dron("estandar")
+entrenar_en("fondo")
+
+# el plan de vuelo
+despegar(altura=2)
+ir_a("punto")
+mantener(segundos=3)       # quieto 3 s
+foto(calidad=0.6)          # la foto tiene que sacar 0,6 o más
+aterrizar()
+
+def cada_generacion(e):
+    print(f"gen {e.generacion}: fotos buenas {e.exito:.0%}")
+```
 
 ### hover
 

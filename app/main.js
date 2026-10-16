@@ -10,6 +10,7 @@ import { Policy } from "../game/sim.js";
 import { DEFAULT_CTL, readGamepad } from "../game/pilot.js";
 import { calcular, pieza, rangoModelo, paramsFisica, DRONES_EJEMPLO, EXTRAS_EJEMPLO } from "./parts.js";
 import * as PT from "./partida.js";
+import * as ESC from "./escenarios.js";
 import * as BA from "./banco.js";
 import { Garaje } from "./garaje.js";
 import { Vuelo, TOMA_OK } from "./vuelo.js";
@@ -37,7 +38,7 @@ const store = {
   set(k, v) { try { localStorage.setItem("dronmaker." + k, JSON.stringify(v)); } catch { /* sin almacenamiento */ } },
 };
 
-const [cat, mis, ent, clientes, trabajos] = await Promise.all(["piezas", "misiones", "entrenamiento", "clientes", "trabajos"]
+const [cat, mis, ent, clientes, trabajos, escen] = await Promise.all(["piezas", "misiones", "entrenamiento", "clientes", "trabajos", "escenarios"]
   .map((f) => fetch(`./data/${f}.json`).then((r) => r.json()).then((j) => datos(f, j))));   // + la capa del idioma (data/en/)
 const G = {
   screen: "inicio", partida: PT.cargar(), quality: store.get("quality", "media"),
@@ -130,7 +131,7 @@ const sabeGrabar = (ia, tipos = ["fija", "orbita", "revelar"]) => !!(ia?.policy 
 
 // ---------------- pantallas ----------------
 const PANELS = { inicio: ["inicio"], taller: ["taller-izq", "taller-der"], banco: ["banco-izq", "banco-der"], vuelo: ["hud"], estudio: ["estudio"], sim: ["sim"], mesa: ["mesa"] };
-const MODALES = ["celular", "idioma", "sim-elegir", "aviso-ia", "tablero", "brief", "videos", "controles", "pausa", "resultado", "lab", "historia", "tienda", "inventario", "nuevo-dron", "cableado"];
+const MODALES = ["estante", "celular", "idioma", "sim-elegir", "aviso-ia", "tablero", "brief", "videos", "controles", "pausa", "resultado", "lab", "historia", "tienda", "inventario", "nuevo-dron", "cableado"];
 function show(screen) {
   G.screen = screen;
   for (const ids of Object.values(PANELS)) ids.forEach((id) => $(id).classList.add("hidden"));
@@ -272,14 +273,12 @@ function renderHangar() {
     b_.ondblclick = () => { p.activo = d.id; G.izq = "dron"; renderTaller(); };
     box.appendChild(b_);
   }
-  if (!p.drones.length) box.insertAdjacentHTML("beforeend", `<p class="muted" style="margin:8px 6px;font-size:14px;line-height:1.5">${t("Todavía no tienes drones. Crea uno y elige sus piezas, o arma el <b>Kit del garaje</b> (el dron de madera de siempre).")}</p>`);
+  if (!p.drones.length) box.insertAdjacentHTML("beforeend", `<p class="muted" style="margin:8px 6px;font-size:14px;line-height:1.5">${t("Todavía no tienes drones. Compra el <b>Kit del garaje</b> en 💻 Computador → Tienda → 🎁 Kits (el dron de madera de siempre), o crea uno con lo que tengas en el estante.")}</p>`);
   const pie = $("taller-pie");
   pie.innerHTML = "";
   const btn = (txt, cls, fn) => { const b = document.createElement("button"); b.className = "btn " + cls; b.textContent = txt; b.onclick = fn; pie.appendChild(b); return b; };
   if (D()) btn(t("Abrir \"{nombre}\"", { nombre: D().nombre }), "main", () => { G.izq = "dron"; renderTaller(); });
   btn(t("+ Nuevo dron"), "ghost small", () => { $("nd-nombre").value = t("Dron {n}", { n: p.drones.length + 1 }); $("nd-prop").value = ""; modal("nuevo-dron"); $("nd-nombre").focus(); });
-  const kitCost = kitCosto();
-  btn(t("Kit del garaje (${n})", { n: kitCost }), "ghost small", armarKit).title = t("Compra lo que falte del dron de madera y lo pone en un dron nuevo");
 }
 $("b-nd-cerrar").onclick = () => modal("nuevo-dron", false);
 $("b-nd-crear").onclick = () => {
@@ -323,6 +322,7 @@ function armarKit() {
   verDron("chasis");
   renderTaller();
   if (faltan.length) garaje.paquete();
+  return d;
   toast(t("Llegó el kit: un dron de madera con motores reciclados. Ahora ármalo en el <b>banco</b>."), 4500);
 }
 
@@ -340,27 +340,22 @@ function renderEditor() {
     sec.className = "ranura";
     sec.innerHTML = `<h3>${t(nombre)}</h3>`;
     const puesta = U(d.slots[slot]);
+    // solo lo que tienes en el estante (o la que ya está puesta): comprar es en 💻 Computador → Tienda
+    let hay = 0;
     for (const pz of cat[ranura]) {
-      if (pz.etapa > et + 1) continue;
-      const libres = PT.libres(p, pz.id).length, es = puesta?.id === pz.id, bloq = pz.etapa > et;
-      if (!es && !libres && !PT.tiene(p, pz.id) && pz.precio > 0 && bloq) continue;
+      const libres = PT.libres(p, pz.id).length, es = puesta?.id === pz.id, bloq = false;
+      if (!es && !libres) continue;
+      hay++;
       const b = document.createElement("button");
       b.className = "op" + (es ? " puesta" : "") + (bloq ? " bloq" : "");
       const precio = PT.precioDe(p, pz);
-      const tag = es ? `<span class='tag ok'>${t("Puesta")}</span>` : libres ? `<span class='tag'>${t("Usar")} <span class="muted">(${libres > 1 ? t("{n} libres", { n: libres }) : t("{n} libre", { n: libres })})</span></span>`
-        : bloq ? `<span class='tag muted'>${t("rep. {n}", { n: PT.REP_ETAPA[pz.etapa] })}</span>` : `<span class='tag money'>${precio ? t("comprar ${n}", { n: precio }) : t("gratis")}</span>`;
+      const tag = es ? `<span class='tag ok'>${t("Puesta")}</span>` : `<span class='tag'>${t("Usar")} <span class="muted">(${libres > 1 ? t("{n} libres", { n: libres }) : t("{n} libre", { n: libres })})</span></span>`;
       b.innerHTML = `<b>${pz.nombre}</b>${tag}<small>${descr(ranura, pz)}${es && puesta.vida < 100 ? ` · <span class="vida">${t("{n} % de vida", { n: puesta.vida })}</span>` : ""}</small>`;
       b.onmouseenter = () => { G.hover = { slot, id: pz.id }; renderStats(); };
       b.onmouseleave = () => { G.hover = null; renderStats(); };
       b.onclick = () => {
         if (bloq) { toast(t("Se desbloquea con {n} de reputación.", { n: PT.REP_ETAPA[pz.etapa] })); return; }
         if (es) return;
-        if (!libres) {                                        // atajo: comprar una y ponerla
-          const err = PT.comprar(p, cat, ranura, pz.id, 1, { envio: true });
-          if (err) { toast(err); return; }
-          toast(t("Compraste: {nombre} (−${n})", { nombre: pz.nombre, n: precio }));
-          garaje.paquete();
-        }
         const err = PT.instalar(p, d, slot, pz.id);
         if (err) { toast(err); return; }
         guardar();
@@ -369,20 +364,20 @@ function renderEditor() {
       };
       sec.appendChild(b);
     }
+    if (!hay) sec.insertAdjacentHTML("beforeend", `<p class="muted vacio">${t("No tienes ninguna en el estante: cómprala en 💻 Computador → Tienda.")}</p>`);
     box.appendChild(sec);
   }
   const sec = document.createElement("div");
   sec.className = "ranura";
   sec.innerHTML = `<h3>${t("Extras (se pueden poner varios)")}</h3>`;
   for (const pz of cat.extras) {
-    if (pz.etapa > et + 1) continue;
-    const puesto = d.extras.some((u) => U(u)?.id === pz.id), libres = PT.libres(p, pz.id).length, bloq = pz.etapa > et;
+    const puesto = d.extras.some((u) => U(u)?.id === pz.id), libres = PT.libres(p, pz.id).length, bloq = false;
+    if (!puesto && !libres) continue;
     const b = document.createElement("button");
     b.className = "op" + (puesto ? " puesta" : "") + (bloq ? " bloq" : "");
     b.innerHTML = `<b>${pz.nombre}</b>${puesto ? `<span class='tag ok'>${t("Puesto")}</span>` : libres ? `<span class='tag'>${t("Poner ({n})", { n: libres })}</span>` : bloq ? `<span class='tag muted'>${t("rep. {n}", { n: PT.REP_ETAPA[pz.etapa] })}</span>` : `<span class='tag money'>${t("comprar ${n}", { n: pz.precio })}</span>`}<small>${descr("extras", pz)}</small>`;
     b.onclick = () => {
       if (bloq) { toast(t("Se desbloquea con {n} de reputación.", { n: PT.REP_ETAPA[pz.etapa] })); return; }
-      if (!puesto && !libres) { const err = PT.comprar(p, cat, "extras", pz.id, 1, { envio: true }); if (err) { toast(err); return; } toast(t("Compraste: {nombre} (−${n})", { nombre: pz.nombre, n: pz.precio })); }
       const err = PT.alternarExtra(p, d, pz.id);
       if (err) { toast(err); return; }
       guardar(); verDron("extras"); renderTaller();
@@ -521,7 +516,7 @@ async function iaDe(d) {
 }
 
 // ---------------- el banco ----------------
-const ctx = { G, cat, PT, BA, $, fmt, esc, toast, descr, api, guardar, modal, show, D, U, estadoDe, dronVista, verDron, get garaje() { return garaje; },
+const ctx = { escenarios: escen, G, cat, PT, BA, $, fmt, esc, toast, descr, api, guardar, modal, show, D, U, estadoDe, dronVista, verDron, get garaje() { return garaje; },
   renderTaller, irTaller, infoModelo, loadModelos, abrirLab: () => abrirLab(), canvas };
 const banco = initBanco(ctx);
 ctx.ent = ent; ctx.mis = mis; ctx.P = () => P(); ctx.dronParaEntrenar = (d) => dronParaEntrenar(d);
@@ -535,6 +530,7 @@ ctx.abrirAvance = (slug, volver) => sim.abrirAvance(slug, volver);
 ctx.abrirSimular = (slug, volver) => sim.abrirSimular(slug, volver);
 $("b-estudio").onclick = () => estudio.abrir();
 $("b-computador").onclick = () => estudio.abrir();
+$("b-estante").onclick = () => tienda.abrirEstante();
 // tocar el portátil de la mesa del garaje también abre el computador
 canvas.addEventListener("click", (ev) => {
   if (G.screen !== "taller" || !garaje.portatil) return;
@@ -547,6 +543,9 @@ ctx.abrirTablero = () => { renderTablero(); modal("tablero"); };
 ctx.abrirVideos = () => { renderVideos(); modal("videos"); };
 ctx.abrirControles = () => { syncControls(); modal("controles"); };
 ctx.irMenu = () => { show("inicio"); renderInicio(); };
+ctx.kit = { faltan: () => kitFaltan(), costo: () => kitCosto(), comprar: () => armarKit() };     // la tienda vende el Kit del garaje
+/** El Laboratorio con una misión elegida (desde 🎮 Simuladores). */
+ctx.labMision = (id) => { const m = ent.misiones.find((x) => x.id === id); if (m) { LAB.mision = m.id; LAB.premios = { ...m.premios }; LAB.viento = m.viento; saveLab(); } };
 const celular = initCelular({ ...ctx, ND, P: () => P(), openBrief: (pe) => openBrief(pe), misPedido: (id) => mis.pedidos.find((x) => x.id === id), fotos: G.fotos, iaDe, friasDe: (d) => friasDe(d) });
 $("b-celular").onclick = () => celular.abrir();
 ctx.celular = celular;                     // el Estudio lo abre como la app Mensajes
@@ -686,11 +685,20 @@ $("b-cerrar-brief").onclick = () => modal("brief", false);
 $("b-brief-lab").onclick = () => {
   const en = G.pedido?.entrenar, m = en && (ent.misiones.find((x) => x.id === en.mision) ||
     ent.misiones.find((x) => x.nivel === en.nivel && Math.abs((x.viento || 0) - (en.viento || 0)) < 1));
+  const falta = simuladorQueFalta(G.pedido);
+  if (falta) { modal("brief", false); estudio.abrir("escenarios"); toast(t("Para entrenar esto necesitas el simulador «{e}».", { e: falta.nombre }), 4500); return; }
   if (m && LAB.mision !== m.id) { LAB.mision = m.id; LAB.premios = { ...m.premios }; LAB.viento = m.viento; saveLab(); }
   modal("brief", false); abrirLab();
 };
 $("b-volar").onclick = () => startVuelo(G.pedido, "yo");
+/** ¿La IA puede hacer este pedido? Necesita el simulador de su misión (🎮 Simuladores). Devuelve el que falta o null. */
+function simuladorQueFalta(pe) {
+  const m = pe?.entrenar?.mision || (pe?.entrenar?.nivel != null && ent.misiones.find((x) => x.nivel === pe.entrenar.nivel)?.id);
+  return m && !ESC.iaPuede(P(), escen, m) ? ESC.deMision(escen, m) : null;
+}
 $("b-volar-ia").onclick = async () => {
+  const falta = simuladorQueFalta(G.pedido);
+  if (falta) { toast(t("Tu IA no sabe hacer esto todavía: compra el simulador «{e}» (💻 → 🎮 Simuladores) y entrénala.", { e: falta.nombre }), 5000); return; }
   const d = D();
   if (d?.modelo) await loadModel(d.modelo);
   if (!G.ias[slugIA(d)]) await loadModel("base");
@@ -763,12 +771,17 @@ function renderLab() {
   // las misiones como mosaico (ícono + nombre); la elegida se explica abajo
   const grid = document.createElement("div");
   grid.className = "mosaico";
+  // solo se entrenan las misiones de los simuladores que compraste (🎮 Simuladores)
+  if (!ESC.iaPuede(P(), escen, LAB.mision)) { const m0 = ent.misiones.find((m) => ESC.iaPuede(P(), escen, m.id)); if (m0) { LAB.mision = m0.id; LAB.premios = { ...m0.premios }; LAB.viento = m0.viento; } }
   for (const m of ent.misiones) {
-    const b = document.createElement("button");
-    b.className = "tile";
+    const b = document.createElement("button"), e = ESC.deMision(escen, m.id), mia = ESC.iaPuede(P(), escen, m.id);
+    b.className = "tile" + (mia ? "" : " bloq");
     b.setAttribute("aria-pressed", String(m.id === LAB.mision));
-    b.innerHTML = `<span class="ic">${m.icono || "🧪"}</span><b>${m.nombre}</b><small>${t("nivel {n}", { n: m.nivel })} · ${m.para}</small>`;
-    b.onclick = () => { LAB.mision = m.id; LAB.premios = { ...m.premios }; LAB.viento = m.viento; saveLab(); renderLab(); };
+    b.innerHTML = `<span class="ic">${mia ? m.icono || "🧪" : "🔒"}</span><b>${m.nombre}</b><small>${mia ? `${t("nivel {n}", { n: m.nivel })} · ${m.para}` : t("simulador ${n}", { n: e?.precio ?? "?" })}</small>`;
+    b.onclick = () => {
+      if (!mia) { toast(t("Esa misión se abre comprando el simulador «{e}» (💻 → 🎮 Simuladores).", { e: e?.nombre || m.nombre }), 4000); return; }
+      LAB.mision = m.id; LAB.premios = { ...m.premios }; LAB.viento = m.viento; saveLab(); renderLab();
+    };
     grid.appendChild(b);
   }
   box.appendChild(grid);

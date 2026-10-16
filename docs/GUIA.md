@@ -83,6 +83,14 @@ Abre un dron del hangar → **Banco de armado**. A la izquierda los pasos (✓ o
 
 El **multímetro** ($8) avisa antes de conectar la batería si algo va a quemarse (y marca las soldaduras frías).
 
+**🎮 Simuladores (en el computador).** Cada simulador es un escenario de entrenamiento: se compran en orden (el primero,
+*Foto fija*, es gratis) y cada uno te deja entrenar su misión, que tu IA haga esos trabajos y abre funciones nuevas de
+PBDMM. Sin el simulador, la IA no puede hacer ese trabajo (tú sí, pilotando).
+
+**🗄️ El estante** (junto al Computador) tiene todo lo que compraste, en repisas por tipo, con su vida y en qué dron
+está. Al elegir piezas para un dron solo aparece lo que hay en el estante: **comprar es en 💻 Computador → Tienda**
+(el Kit del garaje está en la sección 🎁 Kits).
+
 **Soldar gasta.** Necesitas un cautín (el de lápiz no tiene perilla y le cuestan los pads grandes; la estación y la
 T12 calientan mejor) y se van gastando el **estaño**, el **flux** y el **cable**: se compran en la tienda, sección
 🔥 Soldadura. Para **desoldar**: el **extractor** (bomba, tecla **X** con el estaño derretido) chupa de un golpe y la

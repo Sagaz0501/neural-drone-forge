@@ -106,6 +106,12 @@ Inicio ─ la foto de Doña Marta ─► Video de la casa (⭐) ─► Don Ernes
    └─ capítulo 3 ─► Bomberos (misiones manuales) · capítulo 4 ─► Cine Andino (rodajes con varios drones)
 ```
 
+**La IA crece con simuladores:** la idea es terminar con casi un dron y un modelo para todo. Cada simulador
+(`app/data/escenarios.json`) se compra con la plata del taller y abre: su misión en el Laboratorio y en PBDMM, que tu IA
+haga esos trabajos (también en la flota) y funciones nuevas del lenguaje. Orden: 📷 Foto fija ($0) → 🖼️ Set de fotos /
+🎯 Pista de aros → 🎬 Video con ruta → 🏛️ Columnas / 💨 Viento → 🏮 Entre postes. Siguientes: entregar (nivel 16),
+seguir (nivel 15).
+
 Cada misión grande al completarse: abre **personas**, **tipos de trabajo**, **lugares** (mapas nuevos), **piezas** en la
 tienda y a veces **herramientas** (la estación T12, el multímetro de verdad…).
 
@@ -146,6 +152,7 @@ Regla: un taller que trabaja bien siempre gana más de lo que gasta.
 | Fase | Qué | Estado |
 |---|---|---|
 | **A** | El computador como centro (los dos modos); afuera solo el hangar; el Calendario | ✅ 16-10-2026 |
+| **A2** | **Simuladores** (🎮 en el computador, se compran en orden, el primero gratis) que abren misiones de la IA y funciones de **PBDMM 3** (el plan de vuelo: despegar, ir_a, mantener, foto…); 🗄️ estante; el hangar solo usa lo que tienes | ✅ 16-10-2026 |
 | **B** | Más personas y la **bolsa de trabajos**: tope de trabajo, notificaciones, misiones manuales raras ✋ | 🔜 |
 | **C** | **Entregar y recoger** (carga en la física, gancho, nivel 16 de la IA) | |
 | **D** | **Retos**: carrera contra Kevin, reto de armado, IA contra IA | |

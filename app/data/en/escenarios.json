@@ -1,0 +1,11 @@
+{
+  "escenarios": [
+    { "id": "foto_fija", "nombre": "Still photo", "desc": "Take off, reach a point, hold still and take a photo that passes the quality test. The basis of everything.", "trabajos": "House photos and inspections (1 photo)" },
+    { "id": "set_fotos", "nombre": "Photo set", "desc": "Several photos in a row around the subject: the same plan, repeated with a for.", "trabajos": "Sets of 2 to 4 photos" },
+    { "id": "repaso_metas", "nombre": "Ring course", "desc": "Fly through a series of rings: so it doesn't forget to move fast and precisely.", "trabajos": "Precision training (no jobs for this yet)" },
+    { "id": "video_ruta", "nombre": "Video on a path", "desc": "Follow a camera path (static, orbit, reveal) with the house centered, without losing it.", "trabajos": "House videos" },
+    { "id": "repaso_columnas", "nombre": "Column forest", "desc": "Reach the goal dodging columns: it learns not to crash.", "trabajos": "Dodging training" },
+    { "id": "video_viento", "nombre": "Video in wind", "desc": "The same shots with wind gusts: hold on without losing the framing.", "trabajos": "Farm videos (wind)" },
+    { "id": "video_postes", "nombre": "Between poles", "desc": "Film with poles a meter and a half from the path: real precision.", "trabajos": "Restaurant videos (poles)" }
+  ]
+}

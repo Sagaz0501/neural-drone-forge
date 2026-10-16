@@ -148,5 +148,16 @@
  "ficha(\"…\"): no hay un dron, una misión ni un modelo que se llame \"{x}\"": "sheet(\"…\"): there's no drone, mission or model called \"{x}\"",
  "color(\"verde\", texto): verde, rojo, amarillo, azul o gris": "color(\"green\", text): green, red, yellow, blue or gray",
  "no tengo una explicación de \"{x}\". Temas: {lista}": "I don't have an explanation for \"{x}\". Topics: {lista}",
- "no hay un modelo \"{m}\"{sug}": "there's no model \"{m}\"{sug}"
+ "no hay un modelo \"{m}\"{sug}": "there's no model \"{m}\"{sug}",
+ "despegar() va una sola vez, al principio del plan": "take_off() goes only once, at the start of the plan",
+ "el dron está en el suelo: primero despegar()": "the drone is on the ground: take_off() first",
+ "mantener() es quedarse quieto en un punto: primero ir_a(…)": "hold() is staying still at a point: go_to(…) first",
+ "para una foto el dron tiene que estar quieto: pon mantener(…) justo antes de foto()": "for a photo the drone must be still: put hold(…) right before photo()",
+ "grabar() empieza donde arranca la toma: primero ir_a(…)": "record() starts where the shot begins: go_to(…) first",
+ "seguir_ruta() es mientras graba: primero grabar()": "follow_path() is while recording: record() first",
+ "no puede aterrizar si no despegó": "it can't land if it didn't take off",
+ "la misión \"{id}\" todavía no la tienes: compra su simulador en 💻 → 🎮 Simuladores": "you don't have the \"{id}\" mission yet: buy its simulator in 💻 → 🎮 Simulators",
+ "el nivel {x} es de un simulador que no tienes: los tuyos son {lista}": "level {x} belongs to a simulator you don't have: yours are {lista}",
+ "{f}() todavía no la tienes: se abre con el simulador «{e}» (💻 → 🎮 Simuladores)": "you don't have {f}() yet: it opens with the «{e}» simulator (💻 → 🎮 Simulators)",
+ "a este plan de vuelo le falta: {lista}. La misión «{m}» pide: {plan}": "this flight plan is missing: {lista}. The «{m}» mission needs: {plan}"
 }

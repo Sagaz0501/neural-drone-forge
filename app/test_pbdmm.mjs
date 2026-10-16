@@ -346,5 +346,29 @@ ok(salida.join("|") === "0 a|1 b|[[1, 3], [2, 4]] True False [2, 1]", "enumerate
   }
 }
 
+// PBDMM 3: el plan de vuelo y los simuladores (solo se puede usar lo que compraste)
+{
+  const ES3 = JSON.parse(readFileSync(new URL("./data/escenarios.json", import.meta.url)));
+  const ESC = await import("./escenarios.js");
+  const p = { escenarios: ["foto_fija"] }, dis = ESC.disponibles(p, ES3);
+  const D3 = { ...D, misionesDisponibles: dis.misiones, nivelesDisponibles: dis.niveles, bloqueadas: dis.bloqueadas, planes: dis.planes };
+  const P3 = compilar(data.ejemplos.foto_fija, D3, host);
+  ok(P3.cfg.plan.map((x) => x.a).join(",") === "despegar,ir_a,mantener,foto,aterrizar", "el ejemplo foto_fija: despegar → ir_a → mantener → foto → aterrizar");
+  const b = pedidoDe(P3.cfg, () => null);
+  ok(b.tarea && b.tarea.foto_ok === 0.6 && b.tarea.foto_seg[0] === 2.6 && b.tarea.foto_seg[1] === 3.4 && b.premios.settle > 0 && b.premios.framing > 0, `el plan es la tarea del entrenamiento: ${JSON.stringify(b.tarea)} + premios de quieto y encuadre`);
+  const err3 = (src) => falla(() => compilar(src, D3, host))?.message || "";
+  ok(/le falta: mantener\(\)/.test(err3('modelo("x")\nmision("foto")\ndespegar()\nir_a()\nmantener()\nfoto()'.replace("mantener()\nfoto()", "foto()"))) || /quieto/.test(err3('modelo("x")\nmision("foto")\ndespegar()\nir_a()\nfoto()')), "foto() sin mantener() antes: error");
+  ok(/le falta: foto\(\)/.test(err3('modelo("x")\nmision("foto")\ndespegar()\nir_a()\nmantener(2)')), "un plan sin foto(): le falta foto()");
+  ok(/primero despegar/.test(err3('modelo("x")\nmision("foto")\nir_a()')), "ir_a() sin despegar: error");
+  ok(/simulador «Set de fotos»/.test(err3('modelo("x")\nmision("foto")\ndrones(10)')), "drones() se abre con el simulador Set de fotos");
+  ok(/todavía no la tienes/.test(err3('modelo("x")\nmision("grabar")')), "una misión que no compraste: error");
+  const p2 = { escenarios: ["foto_fija", "set_fotos"] }, d2 = ESC.disponibles(p2, ES3);
+  const P4 = compilar('modelo("x")\nmision("set_fotos")\ndespegar()\nfor i in range(3):\n    ir_a()\n    mantener(2)\n    foto()\ndrones(20)', { ...D, misionesDisponibles: d2.misiones, nivelesDisponibles: d2.niveles, bloqueadas: d2.bloqueadas, planes: d2.planes }, host);
+  ok(P4.cfg.tarea.fotos === 3 && P4.cfg.drones === 20, "un for con 3 fotos = un set de 3 (y con el simulador, drones() ya se puede)");
+  ok(pedidoDe(compilar(data.ejemplos.curriculum, D, host).cfg, () => null).tarea === undefined, "sin simuladores (programas de antes): nada cambia");
+  const pp = { plata: 100, escenarios: ["foto_fija"] };
+  ok(ESC.comprar(pp, ES3, "video_ruta") && ESC.comprar(pp, ES3, "set_fotos") === null && pp.plata === 20 && ESC.estado(pp, ES3, "video_ruta") === "comprable", "comprar en orden: Set de fotos ($80) abre Video con ruta");
+}
+
 console.log(fallas ? `\n${fallas} pruebas fallaron.` : "\nTodas las pruebas pasan.");
 process.exit(fallas ? 1 : 0);

@@ -1,6 +1,6 @@
 # Tutorial de PBDMM · la ruta del programador
 
-> Versión 2.1. Se genera desde `app/data/pbdmm.json` ("ruta") con `node app/doc_pbdmm.mjs`: no lo edites a mano.
+> Versión 3.0. Se genera desde `app/data/pbdmm.json` ("ruta") con `node app/doc_pbdmm.mjs`: no lo edites a mano.
 
 Son los mismos 8 capítulos que trae el juego. En el **modo desarrollador**, el capítulo 1 está abierto desde el inicio y
 **cada dron que creas en el garaje abre el siguiente**: el programa del capítulo usa ese dron. En el Estudio, 📖 Documentación →

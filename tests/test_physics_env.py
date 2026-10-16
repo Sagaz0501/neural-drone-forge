@@ -520,3 +520,14 @@ def test_reward_keys_everywhere():
         assert f"rw_{k}:" in lab, k                      # la propiedad de Blender
     for m in ent["misiones"]:
         assert set(m["premios"]) == set(DEFAULT_REWARD), m["id"]
+
+
+def test_tarea_pbdmm3():
+    """PBDMM 3: el plan de vuelo del programa llega al entrenamiento (cuánto quieto, calidad mínima, cuántas fotos)."""
+    from drone_rl.env import DroneEnv
+    e = DroneEnv(stage=14, tarea={"foto_seg": [1.0, 1.2], "foto_ok": 0.7, "fotos": 3})
+    e.reset(seed=1)
+    assert len(e.shots) == 3 and all(1.0 <= s.dur <= 1.2 for s in e.shots) and e.foto_ok == 0.7
+    d = DroneEnv(stage=13)
+    d.reset(seed=2)
+    assert 2.5 <= d.shots[0].dur <= 3.5 and d.foto_ok == 0.5        # sin tarea: como siempre

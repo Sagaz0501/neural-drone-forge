@@ -650,6 +650,7 @@ def main():
     ap.add_argument("--log-std", type=float, default=None, help="ruido de exploración inicial (log σ)")
     ap.add_argument("--density", type=float, default=1.0, help="bosque: 0.5 claro · 1 normal · 2 denso")
     ap.add_argument("--wind", type=float, default=0.0, help="viento máx. con ráfagas (m/s)")
+    ap.add_argument("--tarea", type=str, default="{}", help='PBDMM 3: el plan de vuelo, ej. {"foto_seg": [2.5, 3.5], "foto_ok": 0.6, "fotos": 3}')
     ap.add_argument("--birds", type=int, default=5, help="caza: cuántos pájaros")
     ap.add_argument("--bird-speed", type=float, default=1.5, help="caza: velocidad de los pájaros (m/s)")
     ap.add_argument("--dron", type=str, default=None,
@@ -662,7 +663,7 @@ def main():
 
     n = args.drones
     env = make_vec_env(DroneEnv, n_envs=n, seed=args.seed,
-                       env_kwargs=dict(stage=args.stage, level_path=args.level, reward=reward,
+                       env_kwargs=dict(stage=args.stage, level_path=args.level, reward=reward, tarea=json.loads(args.tarea or "{}"),
                                        density=args.density, wind=args.wind,
                                        n_birds=args.birds, bird_speed=args.bird_speed,
                                        params=params, phys_range=phys_range))

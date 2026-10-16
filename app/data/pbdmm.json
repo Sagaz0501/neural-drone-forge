@@ -1,6 +1,6 @@
 {
   "_nota": "El lenguaje PBDMM (Python Base Dron Model Maker) del modo desarrollador: ayuda de cada función, lo que trae e, los comandos de la terminal, las lecciones y los ejemplos. El intérprete está en app/pbdmm.js y la pantalla en app/estudio.js.",
-  "version": "2.1",
+  "version": "3.0",
   "hooks": [
     "al_empezar",
     "cada_generacion",
@@ -818,6 +818,106 @@
         ]
       ],
       "ejemplo": "narrar(cada=5)"
+    },
+    {
+      "nombre": "despegar",
+      "firma": "despegar(altura=1.5)",
+      "donde": "arriba",
+      "grupo": "El plan de vuelo",
+      "desc": "Lo primero del plan: el dron sube a esa altura (metros, de 0,5 a 5).",
+      "params": [
+        [
+          "altura",
+          "metros (0,5 a 5)"
+        ]
+      ],
+      "ejemplo": "despegar(altura=2)",
+      "opciones": {}
+    },
+    {
+      "nombre": "ir_a",
+      "firma": "ir_a(destino=\"punto\")",
+      "donde": "arriba",
+      "grupo": "El plan de vuelo",
+      "desc": "Vuela hasta el punto de la toma (el entrenamiento sortea uno distinto cada vez).",
+      "params": [
+        [
+          "destino",
+          "\"punto\", \"casa\" o \"toma\" (solo es un nombre: el punto lo sortea el simulador)"
+        ]
+      ],
+      "ejemplo": "ir_a(\"punto\")",
+      "opciones": {}
+    },
+    {
+      "nombre": "mantener",
+      "firma": "mantener(segundos=3)",
+      "donde": "arriba",
+      "grupo": "El plan de vuelo",
+      "desc": "Quedarse quieto en el punto. Para una foto, justo antes de foto(). Los segundos son cuánto tiempo tiene que aguantar (1 a 8): más segundos = más difícil.",
+      "params": [
+        [
+          "segundos",
+          "de 1 a 8"
+        ]
+      ],
+      "ejemplo": "mantener(segundos=3)",
+      "opciones": {}
+    },
+    {
+      "nombre": "foto",
+      "firma": "foto(calidad=0.5)",
+      "donde": "arriba",
+      "grupo": "El plan de vuelo",
+      "desc": "Toma la foto. Pasa la prueba si la calidad (encuadre, quieto, nítida) llega a ese número (0,3 a 0,9): pedir más es más difícil de aprender, pero las fotos salen mejores. Varias foto() seguidas = un set de fotos.",
+      "params": [
+        [
+          "calidad",
+          "la nota mínima de 0,3 a 0,9"
+        ]
+      ],
+      "ejemplo": "mantener(3)\nfoto(calidad=0.6)",
+      "opciones": {}
+    },
+    {
+      "nombre": "aterrizar",
+      "firma": "aterrizar()",
+      "donde": "arriba",
+      "grupo": "El plan de vuelo",
+      "desc": "Volver a bajar al final del plan.",
+      "params": [],
+      "ejemplo": "aterrizar()",
+      "opciones": {}
+    },
+    {
+      "nombre": "grabar",
+      "firma": "grabar()",
+      "donde": "arriba",
+      "grupo": "El plan de vuelo",
+      "desc": "Graba un video desde donde llegó con ir_a(): la toma (fija, órbita o revelar) la sortea el simulador.",
+      "params": [],
+      "ejemplo": "ir_a(\"toma\")\ngrabar()\nseguir_ruta()",
+      "opciones": {}
+    },
+    {
+      "nombre": "seguir_ruta",
+      "firma": "seguir_ruta()",
+      "donde": "arriba",
+      "grupo": "El plan de vuelo",
+      "desc": "Mientras graba, sigue la ruta de la cámara con el sujeto al centro.",
+      "params": [],
+      "ejemplo": "grabar()\nseguir_ruta()",
+      "opciones": {}
+    },
+    {
+      "nombre": "esquivar",
+      "firma": "esquivar()",
+      "donde": "arriba",
+      "grupo": "El plan de vuelo",
+      "desc": "Que aprenda a no chocar: sube el castigo de chocar si no lo pusiste.",
+      "params": [],
+      "ejemplo": "esquivar()",
+      "opciones": {}
     }
   ],
   "hooks_doc": [
@@ -997,6 +1097,7 @@
     }
   ],
   "ejemplos": {
+    "foto_fija": "# Foto fija (PBDMM 3): el primer simulador.\n# Le dices al dron qué hacer y el entrenamiento aprende a hacerlo.\n\nmodelo(\"fotografo\", desde=\"base\")\nmision(\"foto\")\ndron(\"estandar\")\nentrenar_en(\"fondo\")\n\n# el plan de vuelo\ndespegar(altura=2)\nir_a(\"punto\")\nmantener(segundos=3)       # quieto 3 s\nfoto(calidad=0.6)          # la foto tiene que sacar 0,6 o más\naterrizar()\n\ndef cada_generacion(e):\n    print(f\"gen {e.generacion}: fotos buenas {e.exito:.0%}\")\n",
     "hover": "# Mi primer modelo: quedarse quieto en el aire.\n# Una red chica, desde cero. Mira cómo pasa de caerse a flotar.\n\nmodelo(\"colibri\", desde=\"cero\")\nred(capas=[64, 64])\nnivel(0)                 # hover: quedarse en un punto\ndron(\"estandar\")\ndrones(50)\nentrenar_en(\"fondo\")\n\n# todo va de 0 a 10: 0 = apagado, 4 = lo normal, 10 = al máximo\npremios(cerca=8)\ncastigos(chocar=4, inclinar=8, brusco=4)\n\ndef cada_generacion(e):\n    print(f\"gen {e.generacion}: éxito {e.exito:.0%}, choque {e.choque:.0%}\")\n    if e.exito >= 0.95:\n        avisar(\"¡Colibrí ya flota!\")\n        detener()\n",
     "grabar": "# Grabar casas: parte de la IA de la campaña (ya sabe volar)\n# y la especializa en grabar con tu dron.\n\nmodelo(\"camarografo\", desde=\"base\")\nmision(\"grabar\")\ndron(\"azar\")             # cambia por el nombre de un dron de tu hangar\nentrenar_en(\"fondo\")\naprendizaje(lr=0.0003)\n\n# los premios y castigos de la misión, con más castigo a las sacudidas\ncastigos(sacudidas=6)     # lo normal es 4\n\ndef cada_generacion(e):\n    if e.generacion % 10 == 0:\n        print(f\"gen {e.generacion}: éxito {e.exito:.0%} · calidad {e.calidad}\")\n    if e.exito >= 0.8:\n        aprendizaje(lr=0.0001)   # ya casi: ajustes finos\n    if e.exito >= 0.9:\n        detener()\n",
     "curriculum": "# Currículum: primero que no choque, después que grabe bien.\n\nmodelo(\"aprendiz\", desde=\"base\")\nmision(\"grabar_postes\")\ndron(\"azar\")\nentrenar_en(\"fondo\")\n\ncastigos(chocar=8)     # fase 1: no chocar es lo que más importa\npremios(grabar=1)\nfase = 1\n\ndef cada_generacion(e):\n    global fase\n    if fase == 1 and e.choque is not None and e.choque < 0.1:\n        fase = 2\n        castigos(chocar=3)    # fase 2: ahora, grabar bien\n        premios(grabar=6)\n        avisar(\"Fase 2: ya no choca, ahora a grabar\")\n    if fase == 2 and e.exito >= 0.85:\n        detener()\n\ndef al_terminar(e):\n    print(\"terminó en la fase\", fase, \"con éxito\", e.exito)\n",
@@ -1037,13 +1138,25 @@
       "barra": "bar",
       "color": "color",
       "explicar": "explain",
-      "narrar": "narrate"
+      "narrar": "narrate",
+      "despegar": "take_off",
+      "ir_a": "go_to",
+      "mantener": "hold",
+      "foto": "photo",
+      "aterrizar": "land",
+      "grabar": "record",
+      "seguir_ruta": "follow_path",
+      "esquivar": "dodge"
     },
     "kwargs": {
       "desde": "start_from",
       "capas": "layers",
       "exploracion": "exploration",
-      "cada": "every"
+      "cada": "every",
+      "altura": "height",
+      "destino": "target",
+      "segundos": "seconds",
+      "calidad": "quality"
     },
     "premios": {
       "grabar": "film",

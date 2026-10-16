@@ -186,6 +186,20 @@ def lab_request(body):
         req["lr"] = max(1e-6, min(1e-2, float(body["lr"])))
     if "watch" in body:                          # qué dron mira (su red neuronal se ve en el juego y en Blender)
         req["watch"] = max(0, min(199, int(body["watch"])))
+    tarea = body.get("tarea")
+    if isinstance(tarea, dict):                  # PBDMM 3: el plan de vuelo -> el entrenador (drone_rl/env.py tarea)
+        t2 = {}
+        try:
+            if "foto_seg" in tarea:
+                a, b = (float(x) for x in tarea["foto_seg"])
+                t2["foto_seg"] = [max(0.5, min(8.0, a)), max(0.5, min(8.0, max(a, b)))]
+            if "foto_ok" in tarea:
+                t2["foto_ok"] = max(0.2, min(0.95, float(tarea["foto_ok"])))
+            if "fotos" in tarea:
+                t2["fotos"] = max(1, min(6, int(tarea["fotos"])))
+        except (TypeError, ValueError):
+            return False, "tarea: foto_seg [min, max], foto_ok (0,2-0,95), fotos (1-6)"
+        req["tarea"] = t2
     if "ent" in body:                            # exploración extra (coeficiente de entropía)
         req["ent"] = max(0.0, min(0.1, float(body["ent"])))
     capas = body.get("capas")
@@ -221,6 +235,8 @@ def lab_request(body):
                 if slug not in vivos and len(vivos) >= MAX_FONDO:
                     return False, f"ya hay {MAX_FONDO} entrenamientos en el fondo: detén uno"
             lab_request.extra["modelo_txt"] = ensure_model(slug, body.get("base_de", "base"), capas)
+            if slug != "base":
+                write_info(slug, tarea=req.get("tarea"))        # la simulación (Simular prueba) usa la misma tarea
     if donde == "fondo":
         if slug == "base":
             return False, "el modelo base se entrena en Blender (elige el modelo de un dron)"
@@ -529,8 +545,8 @@ def send_ctrl(port, msg):
 
 
 def fondo_cfg(req):
-    """Lo que obliga a reiniciar si cambia: (nivel, dron, n.º de drones)."""
-    return int(req.get("nivel") or 0), req.get("dron") or "ESTANDAR", int(req.get("drones") or 50)
+    """Lo que obliga a reiniciar si cambia: (nivel, dron, n.º de drones, la tarea de PBDMM 3)."""
+    return int(req.get("nivel") or 0), req.get("dron") or "ESTANDAR", int(req.get("drones") or 50), json.dumps(req.get("tarea") or {}, sort_keys=True)
 
 
 def fondo_cmd(slug, req, port, ctrl):
@@ -546,6 +562,8 @@ def fondo_cmd(slug, req, port, ctrl):
         cmd += ["--wind", repr(req["viento"])]
     if "lr" in req:
         cmd += ["--lr", repr(req["lr"])]
+    if req.get("tarea"):
+        cmd += ["--tarea", json.dumps(req["tarea"], separators=(",", ":"))]
     if "ent" in req:
         cmd += ["--ent", repr(req["ent"])]
     dron = req.get("dron")

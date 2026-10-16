@@ -1623,6 +1623,8 @@ class DRONELAB_OT_start(bpy.types.Operator):
         elif p.dron and p.dron != "ESTANDAR":
             cmd += ["--dron", os.path.join(project, "drones", p.dron + ".json")]
         cmd += ["--model", LAB().get("modelo") or model_files(project)[0]]   # el modelo del pedido (o el base): se continúa si existe
+        if LAB().get("tarea"):
+            cmd += ["--tarea", json.dumps(LAB()["tarea"])]
         cmd += ["--salir-sin-padre"]                  # si Blender se cierra, el entrenador guarda y termina (no queda huérfano)
         libre, txt = liberar_ctrl()
         if not libre:
@@ -2338,6 +2340,7 @@ def apply_lab_request(req, root):
     if os.path.abspath(modelo) != os.path.abspath(L.get("modelo") or model_files(root)[0]):
         restart = True
     L["modelo"] = modelo
+    L["tarea"] = req.get("tarea") or None          # PBDMM 3: el plan de vuelo (cuánto quieto, calidad de la foto…)
     if running and restart:
         _call(bpy.ops.dronelab.stop)
         L["pending_start"] = True

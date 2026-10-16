@@ -30,7 +30,7 @@ export const REIMPRIMIR = 0.3;
 // ---------------- crear y migrar ----------------
 export function nuevaPartida() {
   const p = { v: 3, plata: PLATA_INICIAL, rep: 0, inventario: [], sig: 1, drones: [], activo: null, hechos: {}, vuelos: 0,
-    creada: Date.now(), herramientas: [], empresa: "Garaje Films", insumos: {} };
+    creada: Date.now(), herramientas: [], empresa: "Garaje Films", insumos: {}, escenarios: ["foto_fija"] };
   // lo que venía con el garaje: un ESC viejo y tornillos (la radio ESP-NOW viene en el ESP32: es gratis)
   for (const id of ["esc20", "mt_tornillos"]) agregarUnidad(p, id);
   return p;
@@ -146,6 +146,7 @@ export function precioDe(p, pz) {
 export const esHerramienta = (ranura, pz) => ranura === "herramientas" || !!pz?.herramienta;
 /** Partidas de antes de los insumos: el garaje ya tenía un cautín viejo y un poco de todo. */
 export function asegurarTaller(p) {
+  if (!p.escenarios) p.escenarios = ["foto_fija", "set_fotos", "video_ruta"];     // de antes de los simuladores: ya entrenabas fotos y videos
   if (p.insumos) return p;
   p.insumos = { estano: 10, flux: 5, cable: 2, malla: 0 };
   p.herramientas = p.herramientas || [];

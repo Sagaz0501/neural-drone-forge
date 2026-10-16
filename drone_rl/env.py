@@ -121,7 +121,7 @@ class DroneEnv(gym.Env):
                  start_anywhere: float = 0.0, spawn_jitter: float = 0.0, yaw_jitter: float = 0.0,
                  focus_blocked: float = 1.0, start_speed: float = 0.0, density: float = 1.0, wind: float = 0.0,
                  n_birds: int = 5, bird_speed: float = 1.5, phys_range: dict | None = None,
-                 tomas: tuple | None = None):
+                 tomas: tuple | None = None, tarea: dict | None = None):
         super().__init__()
         self.stage = stage
         self.n_birds, self.bird_speed = n_birds, bird_speed   # caza: cuántos pájaros y qué tan rápido (m/s, en vivo)
@@ -139,6 +139,9 @@ class DroneEnv(gym.Env):
         self.shot = None                                          # grabar: la toma con su ruta (tomas.Toma)
         self.shots, self.shot_q = [], []                          # fotos: el set de tomas y la calidad de cada una
         self.tomas = tuple(tomas) if tomas else FILM_TOMAS        # qué tomas se sortean
+        # PBDMM 3 (el plan de vuelo del programa): foto_seg [min, max] quieto, foto_ok = calidad mínima de cada foto, fotos = cuántas
+        self.tarea = dict(tarea or {})
+        self.foto_ok = float(self.tarea.get("foto_ok", FILM_OK))
         self.dt = 1.0 / control_hz
         self.substeps = physics_substeps
         self.goal_radius = goal_radius
@@ -202,10 +205,13 @@ class DroneEnv(gym.Env):
             lv, self.subject, _ = film_house_level(rng)
             wall_h, top = float(lv.box_min[1][2]), float(np.max(lv.box_max[:, 2]))
             techo = np.array([self.subject[0], self.subject[1], (wall_h + top) / 2])   # inspección: el techo
+            dur = self.tarea.get("foto_seg")                      # PBDMM 3: mantener(segundos=…) -> cuánto quieto
+            dur = (float(dur[0]), float(dur[1])) if dur else None
             if self.stage == 13:
-                self.shots = [random_foto(rng, self.subject, lv, techo=techo)]
+                self.shots = [random_foto(rng, self.subject, lv, techo=techo, dur=dur)]
             elif self.stage == 14:
-                self.shots = random_fotos(rng, self.subject, lv, int(rng.integers(2, 5)), techo=techo)
+                n = int(self.tarea["fotos"]) if self.tarea.get("fotos") else int(rng.integers(2, 5))   # foto() n veces
+                self.shots = random_fotos(rng, self.subject, lv, n, techo=techo, dur=dur)
             else:
                 self.shots = [random_toma(rng, self.subject, lv, self.tomas)]
             self.shot = self.shots[0]
@@ -437,7 +443,7 @@ class DroneEnv(gym.Env):
                     self.prev_dist, self.prev_phi = dist, self._heading_phi()
                 else:
                     terminated = True
-                    success = all(q >= FILM_OK for q in self.shot_q)
+                    success = all(q >= self.foto_ok for q in self.shot_q)
         elif self.hold_steps:
             # tarea de "quedarse": premio continuo por estar cerca (más cerca = más premio)
             reward += rw["near"] * np.exp(-dist)
@@ -477,7 +483,7 @@ class DroneEnv(gym.Env):
             "crashed": crashed,
             "crash_reason": "suelo" if ground_crash else "obstaculo" if hit_obstacle else "limites" if oob else None,
             "goals_reached": (self.goal_idx if not self.hold_steps else int(success)) if not film
-                             else sum(q >= FILM_OK for q in self.shot_q) if self.stage in PHOTO_STAGES else int(success),
+                             else sum(q >= self.foto_ok for q in self.shot_q) if self.stage in PHOTO_STAGES else int(success),
             "dist": dist,
             "pos": pos.copy(),          # para ver dónde chocó (el entorno se reinicia solo)
             "timeout": truncated,       # se acabó el tiempo (si terminó sin éxito ni choque y no es esto: tomas flojas)
