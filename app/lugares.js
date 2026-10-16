@@ -257,10 +257,10 @@ function rutaLibre(shots, L) {
       const dx = Math.max(b.min[0] - x, 0, x - b.max[0]), dy = Math.max(b.min[1] - y, 0, y - b.max[1]), dz = Math.max(b.min[2] - z, 0, z - b.max[2]);
       if (Math.hypot(dx, dy, dz) < CLEAR) return false;
     }
-    for (const c of L.cylinders || []) {                     // [x, y, r, z0, z1]
-      if (z > c[3] - CLEAR && z < c[4] + CLEAR && Math.hypot(x - c[0], y - c[1]) - c[2] < CLEAR) return false;
+    for (const c of L.cylinders || []) {                     // { center: [x, y], radius, z: [z0, z1] }
+      if (z > c.z[0] - CLEAR && z < c.z[1] + CLEAR && Math.hypot(x - c.center[0], y - c.center[1]) - c.radius < CLEAR) return false;
     }
-    for (const sp of L.spheres || []) if (Math.hypot(x - sp[0], y - sp[1], z - sp[2]) - sp[3] < CLEAR) return false;
+    for (const sp of L.spheres || []) if (Math.hypot(x - sp.center[0], y - sp.center[1], z - sp.center[2]) - sp.radius < CLEAR) return false;
   }
   return true;
 }
@@ -269,14 +269,15 @@ function rutaLibre(shots, L) {
 export function mundoLugar(id, pedido) {
   const L = (LUGARES[id] || casa).build();
   let shots = tomasPedido(pedido, L.subject, L.frente);
-  if (pedido && pedido.variante != null && pedido.tomas?.length) {
+  if (pedido && pedido.variante != null && pedido.tomas?.length && !pedido.fijo) {     // fijo: el del tutorial, siempre igual
     for (let k = 0; k < 40; k++) {                           // una variante que no choque con nada (si no, la original)
       const cand = tomasPedido({ ...pedido, tomas: tomasVariante(pedido.tomas, pedido.variante + k * 7919) }, L.subject, L.frente);
       if (rutaLibre(cand, L)) { shots = cand; break; }
     }
   }
   const world = { kind: "campo", spawn: [0, 0, 0], trees: L.trees, backdrop: [], boxes: [], columns: [], fog: 0.008 };
-  return { ...L, world, shots };
+  // el viento del día: un pedido del negocio trae el suyo (docs/NEGOCIO.md: depende de la dificultad)
+  return { ...L, wind: pedido?.viento_ms ?? L.wind, world, shots };
 }
 
 /** Distancia máxima a la base que piden las rutas de un pedido (para el alcance de la radio). */

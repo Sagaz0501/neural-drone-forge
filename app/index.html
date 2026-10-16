@@ -265,6 +265,52 @@
   .cable { cursor: pointer; fill: none; stroke-width: 4; stroke-linecap: round; } .cable:hover { stroke-width: 7; }
   #lab .modelos { display: flex; flex-direction: column; gap: 6px; }
   @media (max-width: 760px) { #banco-izq { bottom: auto; } #banco-der { top: auto; left: 18px; width: auto; max-height: 52vh; } }
+
+  /* ---- el celular (celular.js) ---- */
+  #celular { width: min(920px, calc(100vw - 32px)); height: min(640px, calc(100vh - 40px)); padding: 0; overflow: hidden; }
+  #cel { display: grid; grid-template-columns: 290px 1fr; height: 100%; }
+  #cel-chats { display: flex; flex-direction: column; border-right: 1px solid var(--line); min-height: 0; }
+  #cel-chats header { padding: 14px 16px 10px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; border-bottom: 1px solid var(--line); }
+  #cel-chats header b { font-size: 20px; }
+  #cel-lista { flex: 1; overflow-y: auto; }
+  .cel-c { display: flex; gap: 10px; align-items: center; width: 100%; padding: 10px 14px; background: none; border: 0; border-bottom: 1px solid var(--line); color: var(--text); text-align: left; cursor: pointer; font: inherit; }
+  .cel-c:hover, .cel-c.on { background: rgba(234,242,239,0.07); }
+  .cel-c-t { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .cel-c-t small { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .av { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-size: 21px; flex: none; }
+  .badge { background: var(--gate); color: #04160b; border-radius: 10px; font-size: 12px; font-weight: 700; padding: 1px 7px; margin-left: 6px; }
+  #cel-pend { padding: 8px 12px; display: flex; flex-wrap: wrap; gap: 5px; border-top: 1px solid var(--line); max-height: 96px; overflow-y: auto; font-size: 13px; }
+  #cel-chats footer { padding: 10px 12px; display: flex; gap: 8px; border-top: 1px solid var(--line); }
+  #cel-conv { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+  #cel-quien { padding: 10px 14px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid var(--line); min-height: 58px; }
+  #cel-quien > span:last-child { display: flex; flex-direction: column; }
+  .hearts { color: #ff6b8a; letter-spacing: 1px; } .hearts .off, .dif .off, .cel-est .off, .tarjeta .off { opacity: .25; }
+  .cel-atras { display: none; }
+  #cel-msgs { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 8px; background: rgba(0,0,0,0.12); }
+  .cel-diah { align-self: center; font-size: 12px; color: var(--muted); padding: 2px 10px; border: 1px solid var(--line); border-radius: 10px; margin: 6px 0; }
+  .burbuja { max-width: 78%; padding: 8px 12px; border-radius: 14px; line-height: 1.4; font-size: 15px; overflow-wrap: anywhere; }
+  .burbuja.ella { align-self: flex-start; background: rgba(234,242,239,0.1); border-bottom-left-radius: 4px; }
+  .burbuja.yo { align-self: flex-end; background: rgba(71,240,138,0.18); border-bottom-right-radius: 4px; }
+  .cel-fotos { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .cel-fotos img { width: 150px; max-width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); }
+  #r-fotos img { width: 180px; }
+  .cel-est { color: var(--gold); margin-top: 4px; }
+  .tarjeta { align-self: flex-start; width: min(420px, 92%); border: 1px solid var(--line); border-left: 4px solid var(--next); border-radius: 12px; padding: 10px 12px; background: rgba(4,22,29,0.35); font-size: 14px; }
+  .tarjeta.especial { border-left-color: var(--gold); }
+  .tarjeta.hecho, .tarjeta.vencido, .tarjeta.rechazado { opacity: .62; }
+  .tj-h { display: flex; justify-content: space-between; gap: 8px; font-size: 15.5px; }
+  .tj-d { margin-top: 4px; } .dif { color: var(--gold); }
+  .tj-b { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .tj-b:empty { display: none; }
+  .tj-dron { margin-top: 8px; } .tj-dron .req { margin: 4px 0 0; }
+  #guia { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); border-radius: 12px; padding: 10px 16px; font-size: 15.5px; z-index: 4; max-width: min(640px, calc(100vw - 36px)); border-color: rgba(255,210,63,.5); text-align: center; line-height: 1.45; }
+  @media (max-width: 720px) {
+    #cel { grid-template-columns: 1fr; }
+    #cel.en-chat #cel-chats { display: none; }
+    #cel:not(.en-chat) #cel-conv { display: none; }
+    .cel-atras { display: inline-block; }
+    #guia { bottom: auto; top: 64px; }
+  }
   @media (prefers-reduced-motion: reduce) { #toast { transition: none; } .stat .bar i { transition: none; } }
   /* ---------------- modo nuevo + estudio PBDMM ---------------- */
   #modo-nuevo { display: flex; flex-direction: column; gap: 10px; }
@@ -399,7 +445,7 @@
   <div id="ranuras"></div>
   <footer id="taller-pie"></footer>
 </aside>
-<div id="taller-top" class="hidden"><button class="btn main small" id="b-pedidos">Pedidos</button><button class="btn ghost small" id="b-tienda">Tienda</button><button class="btn ghost small" id="b-inventario">Inventario</button><button class="btn ai small" id="b-lab">Laboratorio de IA</button><button class="btn ai small hidden" id="b-estudio">Estudio PBDMM</button><button class="btn ghost small" id="b-videos">Videos</button><button class="btn ghost small" id="b-controles">Controles</button><button class="btn ghost small" id="b-menu">Menú</button></div>
+<div id="taller-top" class="hidden"><button class="btn main small" id="b-celular">📱 Celular<span class="badge hidden" id="cel-badge"></span></button><button class="btn ghost small" id="b-pedidos">Campaña</button><button class="btn ghost small" id="b-tienda">Tienda</button><button class="btn ghost small" id="b-inventario">Inventario</button><button class="btn ai small" id="b-lab">Laboratorio de IA</button><button class="btn ai small hidden" id="b-estudio">Estudio PBDMM</button><button class="btn ghost small" id="b-videos">Videos</button><button class="btn ghost small" id="b-controles">Controles</button><button class="btn ghost small" id="b-menu">Menú</button></div>
 <aside id="taller-der" class="panel hidden" aria-label="Tu dron"><h3 id="dron-nombre">Tu dron</h3><div id="stats"></div><div id="errores"></div></aside>
 
 <!-- ============ ESTUDIO PBDMM (modo desarrollador) ============ -->
@@ -456,8 +502,20 @@
 </div>
 
 <!-- ============ PEDIDOS ============ -->
+<section id="celular" class="modal panel hidden" role="dialog" aria-label="Celular">
+  <div id="cel">
+    <aside id="cel-chats">
+      <header><b>Mensajes</b><span id="cel-dia"></span></header>
+      <div id="cel-lista"></div>
+      <div id="cel-pend"></div>
+      <footer><button class="btn ghost small" id="cel-dia-fin">Terminar el día 🌙</button><button class="btn ghost small" id="cel-cerrar">Cerrar</button></footer>
+    </aside>
+    <div id="cel-conv"><header id="cel-quien"></header><div id="cel-msgs"></div></div>
+  </div>
+</section>
+
 <section id="tablero" class="modal panel hidden" role="dialog" aria-label="Pedidos">
-  <h2>Pedidos</h2><p class="muted" style="margin:0">Clientes que quieren videos. Mejor reputación, mejores clientes.</p>
+  <h2>Campaña</h2><p class="muted" style="margin:0">Los pedidos especiales que hacen crecer tu negocio (también llegan al celular). Mejor reputación, mejores clientes.</p>
   <div id="lista-pedidos"></div>
   <div class="go"><button class="btn ghost" id="b-cerrar-tablero">Volver al garaje</button></div>
 </section>
@@ -603,10 +661,12 @@
 <section id="resultado" class="modal panel hidden" role="dialog" aria-live="polite">
   <h2 id="r-h"></h2><div class="stars" id="r-stars"></div><p id="r-p" class="muted" style="margin:4px 0;line-height:1.5"></p>
   <div class="grid2" id="r-grid"></div>
+  <p id="r-cliente" class="hidden"></p><div id="r-fotos" class="cel-fotos hidden"></div>
   <video id="r-video" controls playsinline class="hidden"></video>
   <div class="go"><button class="btn main" id="b-res-taller">Volver al garaje</button><button class="btn ghost" id="b-res-otra">Otra vez</button><a class="btn ghost hidden" id="b-res-bajar" download="toma.webm">Descargar el video</a></div>
 </section>
 
+<div id="guia" class="panel hidden" role="status"></div>
 <div id="toast" class="panel" style="opacity:0"></div>
 <div id="fps"></div>
 <div id="fatal" class="panel hidden" role="alert"></div>

@@ -1,0 +1,36 @@
+{
+ "trabajos": [
+  {
+   "id": "foto_casa",
+   "titulo": "Photos of a house"
+  },
+  {
+   "id": "inspeccion_casa",
+   "titulo": "Check a house roof"
+  },
+  {
+   "id": "video_casa",
+   "titulo": "Video of a house"
+  },
+  {
+   "id": "foto_finca",
+   "titulo": "Photos of the farm"
+  },
+  {
+   "id": "inspeccion_granero",
+   "titulo": "Check the barn roof"
+  },
+  {
+   "id": "video_finca",
+   "titulo": "Video of the farm"
+  },
+  {
+   "id": "foto_restaurante",
+   "titulo": "Photos of the restaurant"
+  },
+  {
+   "id": "video_restaurante",
+   "titulo": "Video of the restaurant"
+  }
+ ]
+}

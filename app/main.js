@@ -20,6 +20,9 @@ import { initBanco } from "./ui_banco.js";
 import { initEstudio } from "./estudio.js";
 import { initSim } from "./ui_sim.js";
 import { realDe, nivelDe } from "./pbdmm.js";
+import * as REQ from "./requisitos.js";
+import * as NG from "./negocio.js";
+import { initCelular } from "./celular.js";
 import { t, idioma, hayIdioma, setIdioma, cargarIdioma, traducirHTML, datos, num, IDIOMAS } from "./i18n.js";
 
 await cargarIdioma();                                  // el diccionario del idioma elegido (español: nada)
@@ -32,13 +35,15 @@ const store = {
   set(k, v) { try { localStorage.setItem("dronmaker." + k, JSON.stringify(v)); } catch { /* sin almacenamiento */ } },
 };
 
-const [cat, mis, ent] = await Promise.all(["piezas", "misiones", "entrenamiento"]
+const [cat, mis, ent, clientes, trabajos] = await Promise.all(["piezas", "misiones", "entrenamiento", "clientes", "trabajos"]
   .map((f) => fetch(`./data/${f}.json`).then((r) => r.json()).then((j) => datos(f, j))));   // + la capa del idioma (data/en/)
 const G = {
   screen: "inicio", partida: PT.cargar(), quality: store.get("quality", "media"),
   ctl: { ...DEFAULT_CTL, ...store.get("ctl", {}) }, vuelo: null, hover: null, izq: "hangar",
-  videos: [], last: null, keys: new Set(), modelos: [], ias: {}, stl: [],
+  videos: [], last: null, keys: new Set(), modelos: [], ias: {}, stl: [], fotos: {},
 };
+/** Los datos del negocio (negocio.js): clientes, plantillas de trabajos y la campaña. */
+const ND = { clientes, trabajos, misiones: mis };
 
 // ---------------- Three.js ----------------
 const canvas = $("c");
@@ -121,7 +126,7 @@ const sabeGrabar = (ia, tipos = ["fija", "orbita", "revelar"]) => !!(ia?.policy 
 
 // ---------------- pantallas ----------------
 const PANELS = { inicio: ["inicio"], taller: ["taller-izq", "taller-der", "taller-top"], banco: ["banco-izq", "banco-der"], vuelo: ["hud"], estudio: ["estudio"], sim: ["sim"] };
-const MODALES = ["idioma", "sim-elegir", "aviso-ia", "tablero", "brief", "videos", "controles", "pausa", "resultado", "lab", "historia", "tienda", "inventario", "nuevo-dron", "cableado"];
+const MODALES = ["celular", "idioma", "sim-elegir", "aviso-ia", "tablero", "brief", "videos", "controles", "pausa", "resultado", "lab", "historia", "tienda", "inventario", "nuevo-dron", "cableado"];
 function show(screen) {
   G.screen = screen;
   for (const ids of Object.values(PANELS)) ids.forEach((id) => $(id).classList.add("hidden"));
@@ -131,6 +136,7 @@ function show(screen) {
   garaje.view = screen === "inicio" ? "menu" : screen === "banco" ? "banco" : "taller";
   if (screen !== "banco") garaje.conectarUSB(false);
   if (screen !== "vuelo") document.exitPointerLock?.();
+  renderGuia();
 }
 const modal = (id, on = true) => $(id).classList.toggle("hidden", !on);
 
@@ -168,7 +174,7 @@ $("b-modo-normal").onclick = () => {
   guardar();
   irTaller();
   const c1 = mis.capitulos[0];
-  historia(t("Capítulo {n} · {titulo}", { n: 1, titulo: c1.titulo }), `${c1.historia}<br><br>` + t("Tienes <b class=\"money\">${plata}</b>. Compra las piezas en la <b>Tienda</b> (o el <b>Kit del garaje</b>), arma tu primer dron en el <b>banco</b> y mira los <b>pedidos</b>: Doña Marta necesita un video de su casa.", { plata: PT.PLATA_INICIAL }));
+  historia(t("Capítulo {n} · {titulo}", { n: 1, titulo: c1.titulo }), `${c1.historia}<br><br>` + t("Tienes <b class=\"money\">${plata}</b> y un garaje. Tu negocio: tomar fotos y videos con drones. Los clientes te escriben al <b>📱 Celular</b>… y parece que ya llegó el primer mensaje.", { plata: PT.PLATA_INICIAL }));
 };
 function irTaller() { show("taller"); G.izq = "hangar"; verDron(); renderTaller(); }
 
@@ -208,6 +214,10 @@ function descr(ranura, pz) {
 
 function renderTaller() {
   const p = P();
+  NG.asegurar(p, ND);
+  const nl = NG.noLeidos(p);
+  $("cel-badge").textContent = nl;
+  $("cel-badge").classList.toggle("hidden", !nl);
   $("empresa").textContent = p.empresa || t("El garaje");
   $("plata").textContent = `$${p.plata}`;
   $("rep").textContent = p.rep;
@@ -216,6 +226,16 @@ function renderTaller() {
   $("b-lab").classList.toggle("hidden", p.modo === "dev");          // modo desarrollador: solo el Estudio (IDE + consola)
   if (G.izq === "dron" && D()) renderEditor(); else renderHangar();
   renderStats();
+  renderGuia();
+}
+
+/** El tutorial del día 1 (negocio.js pasoTutorial): una línea abajo con lo que toca hacer ahora. */
+function renderGuia() {
+  const p = P(), el = $("guia");
+  const paso = p?.negocio && (G.screen === "taller" || G.screen === "banco")
+    ? NG.pasoTutorial(p, { hayDron: p.drones.length > 0, dronListo: p.drones.some((d) => !puedeVolar(d)) }) : null;
+  el.classList.toggle("hidden", !paso);
+  if (paso) el.innerHTML = paso.txt;
 }
 
 /** Chips de estado de un dron: listo / qué le falta en el banco / su IA. */
@@ -479,6 +499,8 @@ const sim = initSim(ctx);
 ctx.abrirAvance = (slug, volver) => sim.abrirAvance(slug, volver);
 ctx.abrirSimular = (slug, volver) => sim.abrirSimular(slug, volver);
 $("b-estudio").onclick = () => estudio.abrir();
+const celular = initCelular({ ...ctx, ND, P: () => P(), openBrief: (pe) => openBrief(pe), misPedido: (id) => mis.pedidos.find((x) => x.id === id), fotos: G.fotos });
+$("b-celular").onclick = () => celular.abrir();
 ctx.esDev = () => P()?.modo === "dev";
 const tienda = initTienda(ctx);
 function abrirBanco() { if (!D()) return; show("banco"); verDron(); banco.abrir(); }
@@ -523,21 +545,10 @@ function renderTablero() {
   }
 }
 
-/** Lo que pide el pedido, con ✓ / ! / ✗ contra el dron. duro = el cliente no acepta sin eso. */
+/** Lo que pide el pedido, con ✓ / ! / ✗ contra el dron (requisitos.js) + lo del taller (piezas rotas, banco). duro = el cliente no acepta sin eso. */
 function requisitos(pe, st, shots, d) {
-  const req = [], r = pe.requisitos || {};
-  if (!st) return [["no", t("Ese dron no está armado (le faltan piezas)"), true]];
-  const grabar = shots.reduce((a, tm) => a + tm.dur, 0);
-  const need = ((grabar + 80) / 60) * (1 + 0.15 * (pe.viento ?? 0));
-  if (r.calidad_min) req.push([st.calidad >= r.calidad_min ? "" : "no", t("Cámara: calidad {c} (el cliente pide {min} o más)", { c: st.calidad, min: r.calidad_min }), st.calidad < r.calidad_min]);
-  if (r.protectores) req.push([st.ayudas.includes("protectores") ? "" : "no", st.ayudas.includes("protectores") ? t("Protectores de hélice: hay gente cerca ✓") : t("Protectores de hélice: hay gente cerca, el cliente no acepta sin ellos"), !st.ayudas.includes("protectores")]);
-  const alc = alcanceNecesario(shots);
-  req.push([st.alcance_m >= alc ? "" : "no", (st.alcance_m >= alc ? t("Radio: llega a {d} (las tomas llegan a {m} m de la base)", { d: st.alcance_m >= 1000 ? fmt(st.alcance_m / 1000) + " km" : st.alcance_m + " m", m: fmt(alc, 0) }) : t("Radio: llega a {d} (las tomas llegan a {m} m de la base: failsafe asegurado)", { d: st.alcance_m >= 1000 ? fmt(st.alcance_m / 1000) + " km" : st.alcance_m + " m", m: fmt(alc, 0) })), false]);
-  if (r.twr_min) req.push([st.twr >= r.twr_min ? "" : "no", t("Empuje/peso {twr} (con este viento hace falta {min} o más)", { twr: fmt(st.twr, 2), min: fmt(r.twr_min, 1) }), false]);
-  req.push([st.minutos >= need ? "" : st.minutos >= need * 0.75 ? "meh" : "no", t("Batería: {m} min flotando (tomas, ir entre ellas y volver: ~{need} min)", { m: fmt(st.minutos), need: fmt(need) }), false]);
-  const baro = st.ayudas.includes("altura");
-  req.push([baro ? "" : r.barometro ? "no" : "meh", baro ? t("Mantiene la altura solo (barómetro)") : t("Sin barómetro: el gas es tuyo todo el tiempo (difícil)"), false]);
-  req.push([st.nitidez > 0.85 ? "" : "meh", t("Nitidez {n} %", { n: Math.round(st.nitidez * 100) }) + (st.nitidez > 0.85 ? "" : " " + t("(gomas antivibración, ESC con filtro RPM o un gimbal la suben)")), false]);
+  if (!st) return REQ.requisitos(pe.requisitos, st);
+  const req = REQ.requisitos(pe.requisitos || {}, st, { segundos: shots.reduce((a, tm) => a + tm.dur, 0), viento: pe.viento ?? 0, alcance: alcanceNecesario(shots) });
   if (PT.rotas(P(), d).length) req.push(["no", t("Tiene piezas rotas"), true]);
   const e = estadoDe(d);
   if (!e.listo) req.push(["no", t("Sin terminar en el banco: {paso}", { paso: e.pasos.find((x) => !x.ok).nombre.toLowerCase() }), true]);
@@ -557,10 +568,14 @@ async function openBrief(pe, mismaRuta = false) {
   pe.viento = M.wind;
   // con qué dron: los del hangar
   const sel = p.drones.length > 1 ? `<div class="chips" style="margin:2px 0 10px">${p.drones.map((x) => `<button class="btn ${x.id === p.activo ? "main" : "ghost"} small" data-d="${x.id}">${esc(x.nombre)}${estadoDe(x).listo ? "" : " ·  " + t("sin terminar")}</button>`).join("")}</div>` : "";
+  const foto = pe.tipo === "foto" || pe.tipo === "inspeccion";
   $("br-desc").innerHTML = sel + (pe.historia ? `<i class="muted">${pe.historia}</i><br>` : "") +
-    t("Quiere un video en <b>{n} tomas</b>, en orden. Cada toma es una ruta (la línea celeste): ve al aro del inicio, ", { n: shots.length }) +
-    t("ahí arranca a grabar sola y el punto blanco avanza; síguelo <b>pegado</b>, con el sujeto <b>al centro</b> del cuadro, a su ritmo y sin sacudidas. ") +
-    t("Una toma con menos de {n} % no sirve.", { n: Math.round(TOMA_OK * 100) }) + ` <span class="muted">${t("Ruta n.º {n}: cada intento las tomas cambian (otro ángulo, otra distancia, otra altura).", { n: pe.variante })}</span> ` +
+    (foto ? (shots.length === 1 ? t("Quiere <b>1 foto</b>. ", { n: 1 }) : t("Quiere <b>{n} fotos</b>, en orden. ", { n: shots.length })) +
+        t("Vuela hasta el aro, entra y <b>quédate quieto</b> con el sujeto <b>al centro</b> del cuadro: a los pocos segundos, clic. ") +
+        t("Una foto con menos de {n} % no sirve.", { n: Math.round(TOMA_OK * 100) }) + " "
+      : t("Quiere un video en <b>{n} tomas</b>, en orden. Cada toma es una ruta (la línea celeste): ve al aro del inicio, ", { n: shots.length }) +
+        t("ahí arranca a grabar sola y el punto blanco avanza; síguelo <b>pegado</b>, con el sujeto <b>al centro</b> del cuadro, a su ritmo y sin sacudidas. ") +
+        t("Una toma con menos de {n} % no sirve.", { n: Math.round(TOMA_OK * 100) }) + ` <span class="muted">${t("Ruta n.º {n}: cada intento las tomas cambian (otro ángulo, otra distancia, otra altura).", { n: pe.variante })}</span> `) +
     `${M.wind ? ` <b>${t("Viento: {v} m/s con ráfagas.", { v: fmt(M.wind) })}</b>` : ""} ` + t("Paga <span class=\"money\">${n}</span> con ★★, más con ★★★.", { n: pe.pago }) +
     `<ol style="margin:8px 0 0;padding-left:20px;line-height:1.5">${shots.map((tm) => `<li><b>${tm.nombre}</b> <span class="muted">(${({ fija: t("fija"), orbita: t("órbita"), revelar: t("revelar") })[tm.tipo]}, ${fmt(tm.dur, 0)} s) · ${tm.desc}</span></li>`).join("")}</ol>`;
   $("br-desc").querySelectorAll("[data-d]").forEach((b) => (b.onclick = () => { p.activo = b.dataset.d; guardar(); verDron(); openBrief(pe, true); }));
@@ -907,20 +922,32 @@ function onEnd(r) {
     h.className = r.estrellas >= 1 ? "ok" : "bad";
   } else if (pe) {
     const hechas = r.tomas.filter((tm) => tm.lista).length, flojas = r.tomas.filter((tm) => tm.lista && tm.q < TOMA_OK).length;
-    h.textContent = hechas < r.tomas.length ? t("Faltaron tomas") : t("El cliente no acepta el video");
+    h.textContent = hechas < r.tomas.length ? (r.foto ? t("Faltaron fotos") : t("Faltaron tomas")) : r.foto ? t("El cliente no acepta las fotos") : t("El cliente no acepta el video");
     h.className = "bad";
-    msg.push(hechas < r.tomas.length ? t("Grabaste {n} de {m} tomas.", { n: hechas, m: r.tomas.length })
+    msg.push(r.foto ? (hechas < r.tomas.length ? t("Tomaste {n} de {m} fotos.", { n: hechas, m: r.tomas.length })
+      : flojas === 1 ? t("1 foto quedó floja (menos de {p} %).", { p: Math.round(TOMA_OK * 100) }) : t("{n} fotos quedaron flojas (menos de {p} %).", { n: flojas, p: Math.round(TOMA_OK * 100) }))
+      : hechas < r.tomas.length ? t("Grabaste {n} de {m} tomas.", { n: hechas, m: r.tomas.length })
       : flojas === 1 ? t("1 toma quedó floja (menos de {p} %).", { p: Math.round(TOMA_OK * 100) }) : t("{n} tomas quedaron flojas (menos de {p} %).", { n: flojas, p: Math.round(TOMA_OK * 100) }));
   } else {
     h.textContent = t("Vuelo de prueba");
     h.className = "";
   }
   const repAntes = p.rep;
-  if (pe && r.completa && !r.crash && !r.dead) pay = PT.cobrar(p, mis, pe, r.estrellas);
+  let resp = null;
+  if (pe && r.foto && r.fotos?.length) G.fotos[pe.id] = r.fotos;
+  if (pe?.negocio && r.completa && !r.crash && !r.dead) {           // un trabajo del negocio: se entrega por el chat
+    resp = NG.entregar(p, ND, pe.id, { estrellas: r.estrellas, piloto: r.piloto, fotos: r.fotos?.length || 0 });
+    if (resp) pay = { pago: resp.pago, rep: resp.rep };
+    if (resp?.recomienda) setTimeout(() => toast(t("{a} le pasó tu número a {b}: 📱", { a: NG.cliente(ND, pe.clienteId).nombre, b: resp.recomienda.nombre }), 4500), 600);
+    else if (resp?.especiales?.length) setTimeout(() => toast(t("⭐ Llegó un pedido especial al celular"), 4000), 600);
+  } else if (pe && r.completa && !r.crash && !r.dead) {
+    pay = PT.cobrar(p, mis, pe, r.estrellas);
+    NG.entregarEspecial(p, ND, pe.id, r.estrellas);
+  }
   else if (pe && r.piloto === "ia") {           // la IA no entregó el video: el cliente se queja
     p.rep = Math.max(0, p.rep - REP_FALLA_IA);
     pay = { pago: 0, rep: -(repAntes - p.rep) };
-    msg.push(t("La IA no entregó el video: el cliente se queja (−{n} de reputación).", { n: REP_FALLA_IA }));
+    msg.push(r.foto ? t("La IA no entregó las fotos: el cliente se queja (−{n} de reputación).", { n: REP_FALLA_IA }) : t("La IA no entregó el video: el cliente se queja (−{n} de reputación).", { n: REP_FALLA_IA }));
   }
   const capNuevo = mis.capitulos.find((c) => c.rep && repAntes < c.rep && p.rep >= c.rep);
   if (capNuevo) setTimeout(() => historia(t("Capítulo {n} · {titulo}", { n: capNuevo.n, titulo: capNuevo.titulo }), capNuevo.historia), 400);
@@ -949,8 +976,15 @@ function onEnd(r) {
   for (const x of dmg) rows.push([x.nombre, `<span class="bad">${t("−{n} % (queda {v} %)", { n: x.perdio, v: x.vida })}</span>`]);
   if (dmg.length) rows.push([t("Reparar"), `<span class="money">$${PT.costoReparar(p, cat, d)}</span>`]);
   $("r-grid").innerHTML = rows.map(([a, b]) => `<span>${a}</span><span>${b}</span>`).join("");
+  // lo que responde el cliente (negocio) y las fotos
+  const rc = $("r-cliente");
+  rc.classList.toggle("hidden", !resp);
+  if (resp) { const Cl = NG.cliente(ND, pe.clienteId); rc.innerHTML = `<span class="av" style="background:${Cl.color};display:inline-grid;width:28px;height:28px;font-size:16px;vertical-align:middle">${Cl.avatar}</span> <b>${esc(Cl.nombre)}:</b> ${esc(resp.texto)}`; }
+  const rf = $("r-fotos");
+  rf.classList.toggle("hidden", !(r.foto && r.fotos?.length));
+  rf.innerHTML = r.foto && r.fotos?.length ? r.fotos.map((f, i) => `<a href="${f.url}" download="${pe ? pe.id : "foto"}_${i + 1}.jpg" title="${t("Descargar")}"><img src="${f.url}" alt="${esc(f.nombre)}"></a>`).join("") : "";
   const v = $("r-video"), dl = $("b-res-bajar");
-  if (r.video) {
+  if (r.video && !r.foto) {
     const url = URL.createObjectURL(r.video);
     v.src = url;
     v.classList.remove("hidden");
@@ -1072,12 +1106,14 @@ function hud(dt) {
   bb.style.background = pct > 40 ? "var(--gate)" : pct > 20 ? "var(--gold)" : "var(--crash)";
   if (v.o.pedido) {
     const sh = h.shot, ok = (x) => (x > 0.6 ? "ok" : x > 0.3 ? "warn" : "bad"), mk = (x) => (x > 0.6 ? "✓" : "·");
-    $("h-tt").textContent = sh ? t("Toma {k} de {n}: {nombre}", { k: h.k + 1, n: h.n, nombre: sh.nombre }) : t("{titulo}: ¡tomas listas!", { titulo: v.o.pedido.titulo });
+    const foto = v.foto;
+    $("h-tt").textContent = sh ? (foto ? t("Foto {k} de {n}: {nombre}", { k: h.k + 1, n: h.n, nombre: sh.nombre }) : t("Toma {k} de {n}: {nombre}", { k: h.k + 1, n: h.n, nombre: sh.nombre }))
+      : foto ? t("{titulo}: ¡fotos listas!", { titulo: v.o.pedido.titulo }) : t("{titulo}: ¡tomas listas!", { titulo: v.o.pedido.titulo });
     $("h-prog").style.width = sh ? `${Math.round(sh.progress * 100)}%` : "100%";
     $("h-obj").innerHTML = (sh ? (sh.phase === "ir"
-      ? t("Ve al <b style=\"color:var(--next)\">aro celeste</b> (a {m} m) y llega despacio: ahí empieza a grabar.", { m: fmt(h.toStart) })
-      : t("<b style=\"color:#ff3b30\">● Grabando</b>: sigue el punto blanco pegado, con el sujeto al centro del cuadro."))
-      : t("Vuelve a la base y aterriza para entregar el video.")) +
+      ? (foto ? t("Ve al <b style=\"color:var(--next)\">aro celeste</b> (a {m} m) y llega despacio: ahí se toma la foto.", { m: fmt(h.toStart) }) : t("Ve al <b style=\"color:var(--next)\">aro celeste</b> (a {m} m) y llega despacio: ahí empieza a grabar.", { m: fmt(h.toStart) }))
+      : foto ? t("<b style=\"color:#ff3b30\">📷 ¡Quieto!</b> El sujeto al centro del cuadro… {s} s", { s: fmt(Math.max(0, sh.dur - sh.t)) }) : t("<b style=\"color:#ff3b30\">● Grabando</b>: sigue el punto blanco pegado, con el sujeto al centro del cuadro."))
+      : foto ? t("Vuelve a la base y aterriza para entregar las fotos.") : t("Vuelve a la base y aterriza para entregar el video.")) +
       `<br>${h.res.map((r, i) => `${r.lista ? (r.q / Math.max(r.n, 1) >= TOMA_OK ? "✓" : "✗") : i === h.k ? "▸" : "·"} ${r.nombre}${r.lista ? ` ${Math.round((r.q / Math.max(r.n, 1)) * 100)} %` : ""}`).join("<br>")}`;
     $("checks").innerHTML = `<span class="${ok(h.q.framing)}">${mk(h.q.framing)} ${t("el sujeto al centro")}</span> · ` +
       `<span class="${ok(h.q.track)}">${mk(h.q.track)} ${t("en la ruta")}</span><br>` +

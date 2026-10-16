@@ -1,0 +1,267 @@
+{
+  "_nota": "Los clientes del negocio (docs/NEGOCIO.md). Cada uno escribe a su manera: los mensajes son listas y el juego elige uno al azar. Variables: {pago} {dias} {n} {lugar} {titulo} {nombre} {quien}. trabajos = las plantillas de data/trabajos.json que pide; dif = [mínima, máxima] dificultad; rep_min = desde qué reputación escribe; recomendado_por = aparece cuando la relación con ese cliente llega a trabajos.json relacion.recomienda (o con rep_min, lo que pase primero). especiales = qué cliente manda cada pedido de la campaña (misiones.json).",
+  "clientes": [
+    {
+      "id": "marta",
+      "nombre": "Doña Marta",
+      "quien": "inmobiliaria",
+      "avatar": "👵",
+      "color": "#e98fb0",
+      "rep_min": 0,
+      "trabajos": [
+        "foto_casa",
+        "video_casa",
+        "inspeccion_casa"
+      ],
+      "dif": [
+        1,
+        2
+      ],
+      "msgs": {
+        "hola": [
+          "Hola mijo, buenas tardes 😊 Me dijo mi vecina que usted toma fotos con drones. Estoy vendiendo la casa de mi mamá y necesito una foto bonita desde arriba, de frente. ¿Me puede ayudar? Le pago ${pago} 🙏"
+        ],
+        "pedido": {
+          "foto": [
+            "¡Hola mijo! Me salió otra casa para vender 🏡 ¿Me saca {n} desde arriba? Le pago ${pago}. Me sirve para dentro de {dias} días 😊",
+            "Buenas buenas 🌸 Un señor me dejó su casa para vender y no tiene ni una foto. ¿{n}? ${pago}, para dentro de {dias} días.",
+            "Mijo, ¿cómo está? Necesito {n} de una casa, de las suyas que quedan tan lindas 😍 ${pago}. Tengo {dias} días."
+          ],
+          "video": [
+            "Mijo, la inmobiliaria quiere VIDEO ahora 🎬 Un video de una casa con sus tomas bonitas. Le pago ${pago}, para dentro de {dias} días.",
+            "¿Me hace otro videíto de una casa? Al último que hizo le llovieron visitas 😊 ${pago}, en {dias} días."
+          ],
+          "inspeccion": [
+            "Mijo, a una casa que vendo le gotea el techo 😟 ¿Puede subir con el dron y tomarle fotos al techo y la chimenea? {n}. Le pago ${pago}, en {dias} días."
+          ]
+        },
+        "aceptar": [
+          "¡Ay, qué bueno! Gracias mijo 🙏",
+          "¡Gracias! Lo espero 😊"
+        ],
+        "rechazar": [
+          "Bueno mijo, no se preocupe. Será la otra 😊"
+        ],
+        "gracias": [
+          [
+            "Ay mijo… no se ve casi nada 😔 Así no se la puedo mostrar a nadie. ¿Lo intenta otra vez?"
+          ],
+          [
+            "Bueno… se ve un poquito movida, pero sirve. Le pago la mitad, ¿sí? 🙏"
+          ],
+          [
+            "¡Quedó muy bonita! 😊 Ya se la mando a la inmobiliaria.",
+            "¡Gracias mijo! Quedó bien bonita 🏡"
+          ],
+          [
+            "¡Ay, quedó DIVINA! 😍 Ya se la mando a mi hija. Le voy a hablar de usted a todo el mundo.",
+            "¡Qué belleza! 😍 Así sí se vende la casa."
+          ]
+        ],
+        "vencido": [
+          "Mijo, ya no alcanzó 😔 La inmobiliaria la tomó con el celular. Será la otra."
+        ],
+        "ia": "¿Y eso lo hizo el dron solito? 😮 ¡Qué cosas!"
+      }
+    },
+    {
+      "id": "ernesto",
+      "nombre": "Don Ernesto",
+      "quien": "Finca El Roble",
+      "avatar": "🤠",
+      "color": "#d9a441",
+      "rep_min": 2,
+      "recomendado_por": "marta",
+      "trabajos": [
+        "foto_finca",
+        "inspeccion_granero",
+        "video_finca"
+      ],
+      "dif": [
+        2,
+        3
+      ],
+      "msgs": {
+        "hola": [
+          "buenas. me paso su numero doña marta. tengo una finca y necesito unas fotos desde arriba. ${pago}. {dias} dias"
+        ],
+        "pedido": {
+          "foto": [
+            "necesito {n} de la finca para el banco. ${pago}. {dias} dias",
+            "otra vez fotos. {n}. ${pago}. arriba sopla, ojo"
+          ],
+          "inspeccion": [
+            "se me movieron unas tejas del granero con el viento. tomele fotos al techo, {n}. ${pago}. no me demore, {dias} dias",
+            "revise el techo del granero por favor. {n} desde arriba. ${pago}"
+          ],
+          "video": [
+            "el supermercado quiere otro video de la finca. ${pago}. {dias} dias"
+          ]
+        },
+        "aceptar": [
+          "listo",
+          "bueno. lo espero"
+        ],
+        "rechazar": [
+          "bueno"
+        ],
+        "gracias": [
+          [
+            "eso no sirve. no se ve nada"
+          ],
+          [
+            "mmm. se ve torcido pero bueno. la mitad"
+          ],
+          [
+            "bien. gracias",
+            "sirve. gracias"
+          ],
+          [
+            "muy bien hecho. le voy a mandar mas trabajo",
+            "excelente. asi da gusto"
+          ]
+        ],
+        "vencido": [
+          "ya no. lo hice con mi sobrino"
+        ],
+        "ia": "y el dron sabe solo? como asi"
+      }
+    },
+    {
+      "id": "agencia",
+      "nombre": "Agencia Horizonte",
+      "quien": "bienes raíces",
+      "avatar": "🏢",
+      "color": "#6fb3ff",
+      "rep_min": 4,
+      "trabajos": [
+        "foto_casa",
+        "video_casa",
+        "inspeccion_casa"
+      ],
+      "dif": [
+        2,
+        4
+      ],
+      "msgs": {
+        "hola": [
+          "Buenos días. Le escribe la Agencia Horizonte. Vimos su trabajo con Doña Marta y queremos contratarlo para varias propiedades. Primera solicitud: {titulo}, ${pago}, plazo {dias} días. Quedamos atentos."
+        ],
+        "pedido": {
+          "foto": [
+            "Buenos días. Solicitud: {n} de una propiedad. Valor: ${pago}. Plazo: {dias} días.",
+            "Nueva propiedad en el portafolio. Requerimos {n}. ${pago}, {dias} días. Gracias."
+          ],
+          "video": [
+            "Requerimos un video de una propiedad para el portal. ${pago}. Plazo: {dias} días.",
+            "Solicitud de video: propiedad nueva. ${pago}, {dias} días. Calidad alta, por favor."
+          ],
+          "inspeccion": [
+            "Un comprador pide revisar el techo antes de firmar: {n}. ${pago}, {dias} días."
+          ]
+        },
+        "aceptar": [
+          "Perfecto. Quedamos atentos.",
+          "Confirmado. Gracias."
+        ],
+        "rechazar": [
+          "Entendido. Lo tendremos en cuenta para la próxima."
+        ],
+        "gracias": [
+          [
+            "El material no cumple con nuestros estándares. Por favor repita la toma."
+          ],
+          [
+            "Recibido. La calidad es justa: pagaremos el 50 %."
+          ],
+          [
+            "Recibido. Cumple. Gracias.",
+            "Material aprobado. Gracias."
+          ],
+          [
+            "Excelente material. Lo usaremos en la portada.",
+            "Material sobresaliente. Habrá más solicitudes."
+          ]
+        ],
+        "vencido": [
+          "El plazo venció. Asignamos la solicitud a otro proveedor."
+        ],
+        "ia": "¿Un dron autónomo? Interesante. Eso reduce costos."
+      }
+    },
+    {
+      "id": "lucia",
+      "nombre": "Doña Lucía",
+      "quien": "Restaurante La Brasa",
+      "avatar": "👩‍🍳",
+      "color": "#ff7a5c",
+      "rep_min": 6,
+      "recomendado_por": "ernesto",
+      "trabajos": [
+        "foto_restaurante",
+        "video_restaurante"
+      ],
+      "dif": [
+        3,
+        4
+      ],
+      "msgs": {
+        "hola": [
+          "¡Holaaa! 🔥 Soy Lucía, de La Brasa. Don Ernesto me trae la leche y me habló de usted. Necesito {titulo} para Instagram, ${pago}. ¿En {dias} días? Ojo que la terraza está llena de gente y hay postes 😅"
+        ],
+        "pedido": {
+          "foto": [
+            "¡Hola! 🔥 Menú nuevo y necesito {n} del restaurante para las redes. ${pago}, {dias} días. ¡Cuidado con la gente de la terraza!",
+            "Holaaa 😄 ¿{n} de la fachada con el letrero prendido? ${pago}."
+          ],
+          "video": [
+            "¡Necesito otro video para Insta! 📱🔥 El último tuvo mil likes. ${pago}, {dias} días."
+          ]
+        },
+        "aceptar": [
+          "¡Gracias! 🔥",
+          "¡Uy sí! Lo espero 😄"
+        ],
+        "rechazar": [
+          "Ay bueno, otro día 😅"
+        ],
+        "gracias": [
+          [
+            "Uy no… así no lo puedo subir 😬"
+          ],
+          [
+            "Mmm se ve un poquito movido 😅 te pago la mitad"
+          ],
+          [
+            "¡Quedó buenísimo! 🔥",
+            "¡Me encanta! Ya lo subo 📱"
+          ],
+          [
+            "¡¡QUEDÓ ESPECTACULAR!! 🔥🔥🔥 Te voy a etiquetar",
+            "¡Esto es lo máximo! 😍 Ya lo subí"
+          ]
+        ],
+        "vencido": [
+          "Ya lo subí con una foto del celular 😕 Para la próxima."
+        ],
+        "ia": "¿Un dron con IA? 🤖 ¡Eso lo tengo que subir!"
+      }
+    }
+  ],
+  "especiales": {
+    "casa_venta": "marta",
+    "finca": "ernesto",
+    "restaurante": "lucia"
+  },
+  "especial_msg": {
+    "casa_venta": "¡Mijo, la inmobiliaria quedó feliz con la foto! 😍 Ahora quieren un VIDEO de la casa de mi mamá, con varias tomas. Le pago ${pago}. Es importante, ¿ah? ⭐",
+    "finca": "el supermercado me pide un video de la finca para comprarme la leche. es importante. ${pago}. arriba siempre sopla, prepare el dron ⭐",
+    "restaurante": "¡Ahora sí el video grande para Instagram! 🔥 Con tomas entre los postes y la terraza. ${pago} ⭐ ¡Es muy importante para mí!"
+  },
+  "sistema": {
+    "arriendo": "Se cobró el arriendo del local: ${monto}."
+  },
+  "especial_msg_primero": {
+    "casa_venta": "Hola mijo, buenas 😊 Me dijeron que usted graba con drones. La inmobiliaria quiere un VIDEO de la casa de mi mamá, con varias tomas. Le pago ${pago}. Es importante, ¿ah? ⭐"
+  }
+}

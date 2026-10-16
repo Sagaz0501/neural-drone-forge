@@ -1,0 +1,209 @@
+{
+ "clientes": [
+  {
+   "id": "marta",
+   "quien": "real estate",
+   "msgs": {
+    "hola": [
+     "Hello dear, good afternoon 😊 My neighbor told me you take photos with drones. I'm selling my mother's house and I need a nice photo from above, from the front. Can you help me? I'll pay ${pago} 🙏"
+    ],
+    "pedido": {
+     "foto": [
+      "Hi dear! I got another house to sell 🏡 Can you take {n} from above? I'll pay ${pago}. I need it within {dias} days 😊",
+      "Hello hello 🌸 A gentleman left me his house to sell and doesn't have a single photo. {n}? ${pago}, within {dias} days.",
+      "Dear, how are you? I need {n} of a house, like yours that turn out so lovely 😍 ${pago}. I have {dias} days."
+     ],
+     "video": [
+      "Dear, the agency wants VIDEO now 🎬 A video of a house with your nice shots. I'll pay ${pago}, within {dias} days.",
+      "Can you make me another little video of a house? The last one brought so many visits 😊 ${pago}, in {dias} days."
+     ],
+     "inspeccion": [
+      "Dear, a house I'm selling has a leaking roof 😟 Can you go up with the drone and take photos of the roof and chimney? {n}. I'll pay ${pago}, in {dias} days."
+     ]
+    },
+    "aceptar": [
+     "Oh, wonderful! Thank you dear 🙏",
+     "Thank you! I'll be waiting 😊"
+    ],
+    "rechazar": [
+     "All right dear, don't worry. Next time 😊"
+    ],
+    "gracias": [
+     [
+      "Oh dear… you can hardly see anything 😔 I can't show it to anyone like this. Would you try again?"
+     ],
+     [
+      "Well… it's a little blurry, but it works. I'll pay half, ok? 🙏"
+     ],
+     [
+      "It turned out so pretty! 😊 I'm sending it to the agency.",
+      "Thank you dear! It looks lovely 🏡"
+     ],
+     [
+      "Oh, it's GORGEOUS! 😍 I'm sending it to my daughter. I'll tell everyone about you.",
+      "How beautiful! 😍 Now that's how you sell a house."
+     ]
+    ],
+    "vencido": [
+     "Dear, there wasn't time 😔 The agency took it with a phone. Next time."
+    ],
+    "ia": "And the drone did that all by itself? 😮 What a world!"
+   }
+  },
+  {
+   "id": "ernesto",
+   "quien": "El Roble farm",
+   "msgs": {
+    "hola": [
+     "hello. doña marta gave me your number. i have a farm and need some photos from above. ${pago}. {dias} days"
+    ],
+    "pedido": {
+     "foto": [
+      "i need {n} of the farm for the bank. ${pago}. {dias} days",
+      "photos again. {n}. ${pago}. it's windy up there, careful"
+     ],
+     "inspeccion": [
+      "the wind moved some tiles on the barn. take photos of the roof, {n}. ${pago}. don't be late, {dias} days",
+      "please check the barn roof. {n} from above. ${pago}"
+     ],
+     "video": [
+      "the supermarket wants another video of the farm. ${pago}. {dias} days"
+     ]
+    },
+    "aceptar": [
+     "ok",
+     "fine. i'll wait"
+    ],
+    "rechazar": [
+     "fine"
+    ],
+    "gracias": [
+     [
+      "that's no good. you can't see anything"
+     ],
+     [
+      "hmm. it's crooked but ok. half"
+     ],
+     [
+      "good. thanks",
+      "it works. thanks"
+     ],
+     [
+      "very well done. i'll send you more work",
+      "excellent. that's how it's done"
+     ]
+    ],
+    "vencido": [
+     "not anymore. my nephew did it"
+    ],
+    "ia": "and the drone knows how by itself? how so"
+   }
+  },
+  {
+   "id": "agencia",
+   "nombre": "Horizonte Agency",
+   "quien": "real estate",
+   "msgs": {
+    "hola": [
+     "Good morning. This is Horizonte Agency. We saw your work with Doña Marta and want to hire you for several properties. First request: {titulo}, ${pago}, deadline {dias} days. We look forward to it."
+    ],
+    "pedido": {
+     "foto": [
+      "Good morning. Request: {n} of a property. Fee: ${pago}. Deadline: {dias} days.",
+      "New property in the portfolio. We require {n}. ${pago}, {dias} days. Thank you."
+     ],
+     "video": [
+      "We require a video of a property for the portal. ${pago}. Deadline: {dias} days.",
+      "Video request: new property. ${pago}, {dias} days. High quality, please."
+     ],
+     "inspeccion": [
+      "A buyer wants the roof checked before signing: {n}. ${pago}, {dias} days."
+     ]
+    },
+    "aceptar": [
+     "Perfect. We look forward to it.",
+     "Confirmed. Thank you."
+    ],
+    "rechazar": [
+     "Understood. We'll keep you in mind next time."
+    ],
+    "gracias": [
+     [
+      "The material does not meet our standards. Please redo it."
+     ],
+     [
+      "Received. The quality is borderline: we will pay 50 %."
+     ],
+     [
+      "Received. Approved. Thank you.",
+      "Material approved. Thank you."
+     ],
+     [
+      "Excellent material. We'll use it on the front page.",
+      "Outstanding material. There will be more requests."
+     ]
+    ],
+    "vencido": [
+     "The deadline passed. We assigned the request to another provider."
+    ],
+    "ia": "An autonomous drone? Interesting. That lowers costs."
+   }
+  },
+  {
+   "id": "lucia",
+   "quien": "La Brasa restaurant",
+   "msgs": {
+    "hola": [
+     "Hiii! 🔥 I'm Lucía, from La Brasa. Don Ernesto brings me milk and told me about you. I need {titulo} for Instagram, ${pago}. In {dias} days? Careful, the terrace is full of people and there are poles 😅"
+    ],
+    "pedido": {
+     "foto": [
+      "Hi! 🔥 New menu and I need {n} of the restaurant for social media. ${pago}, {dias} days. Watch out for the people on the terrace!",
+      "Hiii 😄 {n} of the front with the sign lit? ${pago}."
+     ],
+     "video": [
+      "I need another video for Insta! 📱🔥 The last one got a thousand likes. ${pago}, {dias} days."
+     ]
+    },
+    "aceptar": [
+     "Thanks! 🔥",
+     "Oh yes! I'll be waiting 😄"
+    ],
+    "rechazar": [
+     "Oh well, another day 😅"
+    ],
+    "gracias": [
+     [
+      "Oh no… I can't post it like this 😬"
+     ],
+     [
+      "Hmm it looks a little shaky 😅 I'll pay you half"
+     ],
+     [
+      "It turned out great! 🔥",
+      "I love it! Posting it now 📱"
+     ],
+     [
+      "IT'S SPECTACULAR!! 🔥🔥🔥 I'll tag you",
+      "This is the best! 😍 Already posted"
+     ]
+    ],
+    "vencido": [
+     "I already posted it with a phone photo 😕 Next time."
+    ],
+    "ia": "A drone with AI? 🤖 I have to post that!"
+   }
+  }
+ ],
+ "especial_msg": {
+  "casa_venta": "Dear, the agency loved the photo! 😍 Now they want a VIDEO of my mother's house, with several shots. I'll pay ${pago}. It's important, ok? ⭐",
+  "finca": "the supermarket wants a video of the farm to buy my milk. it's important. ${pago}. it's always windy up there, get the drone ready ⭐",
+  "restaurante": "Now the big video for Instagram! 🔥 With shots between the poles and the terrace. ${pago} ⭐ It's very important to me!"
+ },
+ "sistema": {
+  "arriendo": "The shop rent was charged: ${monto}."
+ },
+ "especial_msg_primero": {
+  "casa_venta": "Hello dear 😊 I was told you film with drones. The agency wants a VIDEO of my mother's house, with several shots. I'll pay ${pago}. It's important, ok? ⭐"
+ }
+}

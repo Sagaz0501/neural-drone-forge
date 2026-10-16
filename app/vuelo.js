@@ -101,6 +101,9 @@ export class Vuelo {
     this.shots = casa.shots;
     this.k = 0;                                          // toma de ahora
     this.res = this.shots.map((s) => ({ nombre: s.nombre, tipo: s.tipo, n: 0, q: 0, framing: 0, track: 0, flow: 0, steady: 0, lista: false }));
+    // fotos (docs/NEGOCIO.md): cada toma es fija y corta; al terminarla se guarda el cuadro de la cámara como foto
+    this.foto = ["foto", "inspeccion"].includes(pedido?.tipo);
+    this.fotos = [];
     if (M.zona) this.scene.remove(M.zona);
     this.rutasView = this.shots.length ? new RutasView(this.shots) : null;   // las rutas (solo las ve el piloto)
     M.zona = this.rutasView ? this.rutasView.group : new THREE.Group();
@@ -269,18 +272,19 @@ export class Vuelo {
     if (sh) {
       const r = this.res[this.k];
       if (sh.phase === "grabando" || (sh.phase === "lista" && !r.lista)) {
-        if (!this.rec) { this.toggleRec(true); this.o.onToast(t("¡Grabando {nombre}! Sigue el punto sin perder el encuadre", { nombre: sh.nombre }), 2200); }
+        if (!this.rec) { this.toggleRec(true); this.o.onToast(this.foto ? t("📷 {nombre}: ¡quieto!…", { nombre: sh.nombre }) : t("¡Grabando {nombre}! Sigue el punto sin perder el encuadre", { nombre: sh.nombre }), 2200); }
         r.n++; r.q += this.q.q; r.framing += this.q.framing; r.track += this.q.track; r.flow += this.q.flow; r.steady += this.q.steady;
       }
       if (sh.phase === "lista" && !r.lista) {
         r.lista = true;
         this.toggleRec(false);
         const qm = r.q / Math.max(r.n, 1);
+        if (this.foto) { try { this.fotos.push({ nombre: r.nombre, q: qm, url: this.vc.toDataURL("image/jpeg", 0.88) }); } catch { /* sin foto */ } }
         this.k++;
         const next = this.shot;
         fl.shot = next; if (next) { fl.toma = next.tipo; next.reset(); }
-        this.o.onToast(`${r.nombre}: ${Math.round(qm * 100)} % ${qm >= TOMA_OK ? "✓" : t("(floja)")} · ` +
-          (next ? t("siguiente: {nombre}", { nombre: next.nombre }) : t("¡todas las tomas! Vuelve a la base y aterriza")), 3500);
+        this.o.onToast(`${this.foto ? "📷 " : ""}${r.nombre}: ${Math.round(qm * 100)} % ${qm >= TOMA_OK ? "✓" : t("(floja)")} · ` +
+          (next ? t("siguiente: {nombre}", { nombre: next.nombre }) : this.foto ? t("¡todas las fotos! Vuelve a la base y aterriza") : t("¡todas las tomas! Vuelve a la base y aterriza")), 3500);
       }
     }
     // la IA: hace las tomas en orden y al terminar (o si no puede: 150 s o poca batería) vuelve a la base
@@ -331,7 +335,7 @@ export class Vuelo {
     const estrellas = completa ? estrellasDe(puntaje, this.o.pedido?.estrellas) : 0;
     this.o.onEnd({
       ...extra, piloto: this.ia ? "ia" : "yo", pedido: this.o.pedido, recT: this.recT, tomas, qMedia, cal, nitidez, puntaje, completa,
-      estrellas, video, t: this.t, bateria: this.battery, maxH: this.maxH,
+      estrellas, video, fotos: this.fotos, foto: this.foto, t: this.t, bateria: this.battery, maxH: this.maxH,
     });
   }
 
