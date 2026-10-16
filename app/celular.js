@@ -219,6 +219,7 @@ export function initCelular(ctx) {
     if (r.especiales.length) partes.push(t("⭐ un pedido especial"));
     if (r.vencidos.length) partes.push(r.vencidos.length === 1 ? t("1 pedido venció") : t("{n} pedidos vencieron", { n: r.vencidos.length }));
     if (r.arriendo) partes.push(t("arriendo −${n}", { n: r.arriendo }));
+    if (r.llegaron) { partes.push(r.llegaron === 1 ? t("📦 llegó 1 pieza") : t("📦 llegaron {n} piezas", { n: r.llegaron })); ctx.garaje?.paquete?.(); }
     if (filas.length) C.reporte = { filas, dia: partes.join(" · "), plata: p.plata - antes.plata + (r.arriendo || 0), rep: p.rep - antes.rep };
     else { ctx.toast(partes.join(" · "), 4000); C.chat = null; }
     render();

@@ -10,7 +10,19 @@ Este plan junta eso con lo que ya estaba anotado en la [Fase 2 del roadmap](ROAD
 componentes dañados, diagnóstico) y responde la pregunta de fondo: **¿podemos hacer las piezas?** Sí; la prueba está
 en la sección 3.
 
-## 1. Cómo está hoy
+## Estado (16-10-2026)
+
+✅ **Hecho:** los pedidos llegan en caja (lo del barrio hoy, lo bueno mañana, lo de lujo en 2 días); la **mesa de trabajo**
+en 3D (`app/mesa.js`): cortar la cinta y abrir la caja, llevar cada pieza a su lugar, atornillar manteniendo hasta el clic
+(si sigues, la rosca se barre), correa de la batería, cinta de la radio; **soldar** con la estación (prender, esperar que
+caliente, temperatura, limpiar la punta, flux), el cautín en el ratón y el estaño en la barra espaciadora; juntas buenas,
+frías (se pueden soltar en vuelo), con puente (corto) o con el pad levantado; enchufar el arnés y la antena; la ESP32 de
+Blender como placa real; la guía de conexión aparte. Lógica y pruebas en `app/taller.js` y `app/test_taller.mjs`.
+
+🔜 **Falta:** conectar la batería en la mesa (con el XT60 y el smoke stopper), el multímetro de verdad sobre los pads,
+cortar y pelar cables a medida, más piezas hechas en Blender (ESC, motores, batería, receptor), componentes dañados.
+
+## 1. Cómo estaba
 
 El banco (`app/banco.js` la lógica, `app/ui_banco.js` la pantalla) ya tiene los pasos de un armado real: imprimir →
 armar → cablear → prueba de humo → firmware → configurar → motores → hélices → prueba atada. La lógica es buena y se

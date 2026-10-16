@@ -64,6 +64,12 @@ app/               EL JUEGO (Dron Maker): usa los módulos de game/
   partida.js       la partida v3 (localStorage): plata, reputación, INVENTARIO de unidades (cada pieza comprada,
                    con su vida), el HANGAR (varios drones: nombre, propósito, piezas, banco, su IA), daños, cobrar.
                    Migra las v1/v2 (un dron) y deja respaldo en localStorage "dronmaker.partida_v2"
+  taller.js        EL OFICIO (lógica, sin pantalla): envíos (las piezas llegan en caja: hoy, mañana o en 2 días; u.caja,
+                   u.llega), tornillos (mantener hasta el clic; si sigues, se barre la rosca), soldar (estación que calienta,
+                   punta que se ensucia, flux, estaño que solo moja si el pad está caliente) -> junta buena/fría/puente/
+                   levantado en d.banco.juntas; efectivos() = el cableado que conduce. test: node app/test_taller.mjs
+  mesa.js          LA MESA DE TRABAJO (3D, su propio canvas): abrir cajas, montar, atornillar, soldar con el cautín (ratón)
+                   y el estaño (Espacio) a la vez, enchufar el arnés; la ESP32 de Blender (app/modelos/*.glb)
   banco.js         el banco de armado (lógica, sin pantalla): componentes y pines, cableado del manual, revisar()
                    (qué se quema / no funciona / falta), firmwares, orden y sentido de motores, estado() = pasos
                    test: node app/test_banco.mjs
@@ -144,6 +150,7 @@ python game/make_fixture.py && node game/test_sim.mjs    # JS == Python ("Todo i
 node app/test_parts.mjs                # piezas -> física
 node app/test_banco.mjs                # banco de armado + partida v3 (migra la partida.json si existe)
 node app/test_pbdmm.mjs                # el lenguaje PBDMM (intérprete, errores, ejemplos, PBDMM 2, la ruta)
+node app/test_taller.mjs               # el oficio: envíos, tornillos, soldar, cómo cuenta cada junta en el cableado
 node app/test_negocio.mjs              # el negocio (clientes, días, pedidos, tutorial, flota) y requisitos.js
 node --import ./app/three_node.mjs app/test_flota.mjs   # la flota y el vuelo sin pantalla (vuelos de verdad con la IA base)
 node app/test_i18n.mjs                 # las traducciones (cada t() con su inglés, el HTML, las capas de datos)
@@ -219,6 +226,11 @@ Node v22 está en `/opt/homebrew/bin/node`. Blender 5.2 en `/Applications/Blende
 - **Menús más visuales (16-10-2026):** briefing (etiquetas, fichas de tomas, requisitos con el porqué en chiquito, tarjeta
   de la IA), resultado (casillas grandes + barras por toma), Laboratorio (misiones en mosaico con `icono`, premios por grupo
   con ⓘ, los que no se usan plegados).
+- **El armado de verdad (16-10-2026, Fase 2a-2c):** lo que compras llega en caja (el aluminio al otro día); en la mesa de
+  trabajo (mesa.js) cortas la cinta, montas cada pieza y atornillas (mantener hasta el clic); para cablear prendes la
+  estación, pones cada cable en su pad y sueldas con el cautín (ratón) + estaño (Espacio), flux (F) y limpiar (C). Las
+  juntas salen buenas, frías (se pueden soltar en vuelo: mision_sim.js frias), con puente (corto) o con el pad levantado.
+  El diagrama viejo quedó como la 📄 Guía de conexión (solo mirar). Falta: la batería y el multímetro en la mesa.
 - **El Estudio como computador (16-10-2026):** íconos de apps (IDE, Documentación, Mensajes, Tienda, Inventario,
   Simuladores, Finanzas, Banco de armado), ventanas que se mueven y una barra de tareas. Toda plata que entra o sale se
   anota con `PT.anotar(p, monto, texto)` (`p.movimientos`). Plan "perder plata" en el ROADMAP (negocio parte 2).

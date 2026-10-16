@@ -160,6 +160,10 @@ entrenamiento debería reflejarlo:
 
 Hoy cablear es "tocar un pin y otro". La idea es que armar sea un oficio, pero simple de jugar.
 
+✅ **Hecho (16-10-2026):** las piezas llegan en caja (hoy, mañana o en 2 días), la mesa de trabajo en 3D (abrir cajas, montar,
+atornillar hasta el clic) y soldar de verdad (estación, flux, limpiar, cautín + estaño a la vez; juntas buenas, frías,
+con puente o con el pad levantado; las frías se pueden soltar en vuelo). Falta la batería y el multímetro en la mesa.
+
 **El plan completo está en [`ARMADO_PLAN.md`](ARMADO_PLAN.md)** (16-10-2026, Santiago: piezas que se vean de verdad,
 colocar, atornillar, soldar con la estación —prender, esperar, limpiar, flux, estaño—, la guía de conexión aparte y
 conectar la batería con riesgo). Ya hay un prototipo de piezas hechas por script en Blender (ESP32 y soldador).

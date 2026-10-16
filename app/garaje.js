@@ -494,6 +494,9 @@ export function sfx(kind, dur = 1) {
     else if (kind === "listo") { tono(784, 0, 0.12, "sine"); tono(1175, 0.12, 0.25, "sine"); }
     else if (kind === "error") { tono(220, 0, 0.18, "sawtooth", 0.6); tono(180, 0.2, 0.3, "sawtooth", 0.6); }
     else if (kind === "caja") { ruido(0.62, 0.15, 1.5, 600); }
+    else if (kind === "rasgar") { ruido(0, 0.22, 1.1, 4200); }                     // la cinta de una caja, la viruta
+    else if (kind === "trinquete") { for (let i = 0; i < 3; i++) tono(2400 + i * 200, i * 0.045, 0.012, "square", 0.35); }   // el destornillador
+    else if (kind === "chispa") { ruido(0, 0.2, 0.6, 7500); }                       // el estaño y el flux chisporroteando
     else if (kind === "motor" || kind === "impresora") {
       const o = AC.createOscillator(), g = AC.createGain();
       o.type = kind === "motor" ? "sawtooth" : "square";

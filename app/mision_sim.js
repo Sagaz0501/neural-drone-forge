@@ -51,6 +51,10 @@ export class MisionSim {
     }).reset([0, 0, 0], Math.atan2(casa.subject[1], casa.subject[0]));
     this.gimbal = !!opts.stats.gimbal;
 
+    // ---- las soldaduras frías (taller.js): con la vibración del vuelo se pueden soltar. Motor o batería = motores apagados ----
+    this.frias = (opts.frias || []).map((f) => ({ ...f, p: f.tipo === "motor" ? 0.006 : f.tipo === "bateria" ? 0.004 : 0 })).filter((f) => f.p);
+    this.soltada = null;
+
     // ---- la radio: más lejos que su alcance, failsafe (aterriza solo donde esté) ----
     this.alcance = opts.stats.alcance_m || 20;
     this.lejosT = 0; this.failsafe = false; this.avisoSenal = false;
@@ -133,6 +137,14 @@ export class MisionSim {
       }
     }
     if (s.pos[2] > 0.3) this.tookOff = true;
+    if (!this.dead && this.tookOff && this.frias.length) {
+      const f = this.frias.find((x) => Math.random() < x.p * dt);
+      if (f) {
+        this.dead = true; this.soltada = f;
+        if (fl.phase === "aterrizaje") fl.phase = "ruta";
+        this.toast(f.tipo === "motor" ? t("¡Se soltó la soldadura fría del motor de {pos}! El dron se cae.", { pos: f.txt }) : t("¡Se soltó la soldadura fría de la batería! Se apagó todo."), 4500);
+      }
+    }
     this.maxH = Math.max(this.maxH, s.pos[2]);
     // radio: señal según la distancia a la base (donde estás parado con el control)
     const dist = Math.hypot(s.pos[0], s.pos[1], s.pos[2]);
@@ -195,7 +207,7 @@ export class MisionSim {
         this.tookOff = false;
       }
     }
-    if (this.dead && s.pos[2] < 0.02 && Math.hypot(...s.vel) < 0.1 && this.t > 1) return this.finish({ crash: false, dead: true });
+    if (this.dead && s.pos[2] < 0.02 && Math.hypot(...s.vel) < 0.1 && this.t > 1) return this.finish({ crash: false, dead: true, soldadura: this.soltada?.txt || null });
   }
 
   /** La calificación: cada toma su calidad media (las que no se grabaron cuentan 0); 75 % tomas + 25 % la cámara. */
@@ -211,7 +223,7 @@ export class MisionSim {
     const puntaje = tomas.length ? Math.round(100 * (0.75 * qMedia * nitidez + 0.25 * cal)) : 0;
     const estrellas = completa ? estrellasDe(puntaje, this.o.pedido?.estrellas) : 0;
     return {
-      ...extra, piloto: this.ia ? "ia" : "yo", pedido: this.o.pedido, recT: this.recT, tomas, qMedia, cal, nitidez, puntaje, completa,
+      soldadura: this.soltada ? this.soltada.txt : null, ...extra, piloto: this.ia ? "ia" : "yo", pedido: this.o.pedido, recT: this.recT, tomas, qMedia, cal, nitidez, puntaje, completa,
       estrellas, fotos: this.fotos, foto: this.foto, t: this.t, bateria: this.battery, maxH: this.maxH,
     };
   }

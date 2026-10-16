@@ -17,6 +17,7 @@ import { mundoLugar, alcanceNecesario } from "./lugares.js";
 import { cargarSTL } from "./stl.js";
 import { initTienda } from "./tienda.js";
 import { initBanco } from "./ui_banco.js";
+import { initMesa } from "./mesa.js";
 import { initEstudio } from "./estudio.js";
 import { initSim } from "./ui_sim.js";
 import { realDe, nivelDe } from "./pbdmm.js";
@@ -128,7 +129,7 @@ const tiposDe = (pe, shots) => (pe?.tipo === "foto" || pe?.tipo === "inspeccion"
 const sabeGrabar = (ia, tipos = ["fija", "orbita", "revelar"]) => !!(ia?.policy && ia.policy.layers[0].nin >= 38 && tipos.every((tp) => (ia.meta?.tomas || []).includes(tp)));
 
 // ---------------- pantallas ----------------
-const PANELS = { inicio: ["inicio"], taller: ["taller-izq", "taller-der", "taller-top"], banco: ["banco-izq", "banco-der"], vuelo: ["hud"], estudio: ["estudio"], sim: ["sim"] };
+const PANELS = { inicio: ["inicio"], taller: ["taller-izq", "taller-der", "taller-top"], banco: ["banco-izq", "banco-der"], vuelo: ["hud"], estudio: ["estudio"], sim: ["sim"], mesa: ["mesa"] };
 const MODALES = ["celular", "idioma", "sim-elegir", "aviso-ia", "tablero", "brief", "videos", "controles", "pausa", "resultado", "lab", "historia", "tienda", "inventario", "nuevo-dron", "cableado"];
 function show(screen) {
   G.screen = screen;
@@ -301,7 +302,7 @@ function avisoRutaDron(d) {
 const kitCosto = () => Object.entries(DRONES_EJEMPLO.madera).reduce((s, [slot, id]) => s + (PT.libres(P(), id).length ? 0 : pieza(cat, PT.RANURA[slot], id)?.precio || 0), 0);
 function armarKit() {
   const p = P(), faltan = Object.entries(DRONES_EJEMPLO.madera).filter(([, id]) => !PT.libres(p, id).length).map(([slot, id]) => ({ ranura: PT.RANURA[slot], id, n: 1 }));
-  const err = PT.comprarCarrito(p, cat, faltan);
+  const err = PT.comprarCarrito(p, cat, faltan, { envio: true });
   if (err) { toast(err); return; }
   const d = PT.nuevoDron(p, t("Madera"), t("El primer dron: videos de casas"));
   avisoRutaDron(d);
@@ -345,7 +346,7 @@ function renderEditor() {
         if (bloq) { toast(t("Se desbloquea con {n} de reputación.", { n: PT.REP_ETAPA[pz.etapa] })); return; }
         if (es) return;
         if (!libres) {                                        // atajo: comprar una y ponerla
-          const err = PT.comprar(p, cat, ranura, pz.id, 1);
+          const err = PT.comprar(p, cat, ranura, pz.id, 1, { envio: true });
           if (err) { toast(err); return; }
           toast(t("Compraste: {nombre} (−${n})", { nombre: pz.nombre, n: precio }));
           garaje.paquete();
@@ -371,7 +372,7 @@ function renderEditor() {
     b.innerHTML = `<b>${pz.nombre}</b>${puesto ? `<span class='tag ok'>${t("Puesto")}</span>` : libres ? `<span class='tag'>${t("Poner ({n})", { n: libres })}</span>` : bloq ? `<span class='tag muted'>${t("rep. {n}", { n: PT.REP_ETAPA[pz.etapa] })}</span>` : `<span class='tag money'>${t("comprar ${n}", { n: pz.precio })}</span>`}<small>${descr("extras", pz)}</small>`;
     b.onclick = () => {
       if (bloq) { toast(t("Se desbloquea con {n} de reputación.", { n: PT.REP_ETAPA[pz.etapa] })); return; }
-      if (!puesto && !libres) { const err = PT.comprar(p, cat, "extras", pz.id, 1); if (err) { toast(err); return; } toast(t("Compraste: {nombre} (−${n})", { nombre: pz.nombre, n: pz.precio })); }
+      if (!puesto && !libres) { const err = PT.comprar(p, cat, "extras", pz.id, 1, { envio: true }); if (err) { toast(err); return; } toast(t("Compraste: {nombre} (−${n})", { nombre: pz.nombre, n: pz.precio })); }
       const err = PT.alternarExtra(p, d, pz.id);
       if (err) { toast(err); return; }
       guardar(); verDron("extras"); renderTaller();
@@ -514,18 +515,30 @@ const ctx = { G, cat, PT, BA, $, fmt, esc, toast, descr, api, guardar, modal, sh
   renderTaller, irTaller, infoModelo, loadModelos, abrirLab: () => abrirLab(), canvas };
 const banco = initBanco(ctx);
 ctx.ent = ent; ctx.mis = mis; ctx.P = () => P(); ctx.dronParaEntrenar = (d) => dronParaEntrenar(d);
+ctx.mesa = initMesa(ctx);                   // la mesa de trabajo: abrir cajas, montar, atornillar, soldar
+ctx.abrirGuia = () => banco.abrirGuia();
+ctx.alCerrarMesa = () => abrirBanco();
 const estudio = initEstudio(ctx);
 ctx.renderer = renderer; ctx.urlModelo = urlModelo;
 const sim = initSim(ctx);
 ctx.abrirAvance = (slug, volver) => sim.abrirAvance(slug, volver);
 ctx.abrirSimular = (slug, volver) => sim.abrirSimular(slug, volver);
 $("b-estudio").onclick = () => estudio.abrir();
-const celular = initCelular({ ...ctx, ND, P: () => P(), openBrief: (pe) => openBrief(pe), misPedido: (id) => mis.pedidos.find((x) => x.id === id), fotos: G.fotos, iaDe });
+const celular = initCelular({ ...ctx, ND, P: () => P(), openBrief: (pe) => openBrief(pe), misPedido: (id) => mis.pedidos.find((x) => x.id === id), fotos: G.fotos, iaDe, friasDe: (d) => friasDe(d) });
 $("b-celular").onclick = () => celular.abrir();
 ctx.celular = celular;                     // el Estudio lo abre como la app Mensajes
 ctx.esDev = () => P()?.modo === "dev";
 const tienda = initTienda(ctx);
 ctx.tienda = tienda;                       // y la tienda y el inventario como apps
+/** Las soldaduras frías del dron que se pueden soltar en vuelo (motores y batería; taller.js / banco.cableado). */
+function friasDe(d) {
+  const pos = { FL: t("adelante izquierda"), FR: t("adelante derecha"), RL: t("atrás izquierda"), RR: t("atrás derecha") };
+  return (estadoDe(d).rev.frias || []).map(({ cable }) => {
+    const m = cable.map((x) => /^m(FL|FR|RL|RR)\./.exec(x)?.[1]).find(Boolean);
+    return m ? { tipo: "motor", txt: pos[m] } : cable.some((x) => x.startsWith("esc.bat")) ? { tipo: "bateria", txt: t("la batería") } : { tipo: "otro", txt: cable[1] };
+  });
+}
+ctx.friasDe = friasDe;
 function abrirBanco() { if (!D()) return; show("banco"); verDron(); banco.abrir(); }
 ctx.abrirBanco = abrirBanco;
 $("b-tienda").onclick = () => tienda.abrirTienda();
@@ -956,7 +969,7 @@ function startVuelo(pedido, piloto) {
   const a = PT.dronArmado(P(), cat, d), I = piloto === "ia" ? G.ias[slugIA(d)] : null;
   if (G.vuelo) G.vuelo.dispose();
   G.vuelo = new Vuelo(renderer, {
-    quality: G.quality, cat, build: { ...a.build }, stats: a.stats, pedido, piloto, policy: I?.policy || null, ctl: G.ctl, keys: G.keys,
+    quality: G.quality, cat, build: { ...a.build }, stats: a.stats, pedido, piloto, policy: I?.policy || null, ctl: G.ctl, keys: G.keys, frias: friasDe(d),
     videoCanvas: $("vcam"), onToast: toast, onEnd: (r) => onEnd(r),
   });
   G.last = { pedido, piloto, dron: d.id };
@@ -979,11 +992,12 @@ function onEnd(r) {
   let dmg = [], pay = null;
   if (r.crash) {
     dmg = PT.chocar(p, cat, d, r.impact);
-    h.textContent = r.reason === "limites" ? t("Se salió del área") : r.reason === "suelo" ? t("Se estrelló contra el suelo") : t("Chocó");
+    h.textContent = r.soldadura ? t("Se soltó una soldadura") : r.reason === "limites" ? t("Se salió del área") : r.reason === "suelo" ? t("Se estrelló contra el suelo") : t("Chocó");
     h.className = "bad";
     msg.push(t("Golpe a {v} m/s.", { v: fmt(r.impact) }));
+    if (r.soldadura) msg.push(t("Era una soldadura fría ({donde}): repásala en la mesa con flux y calor.", { donde: r.soldadura }));
   } else if (r.dead) {
-    h.textContent = t("Se acabó la batería");
+    h.textContent = r.soldadura ? t("Se soltó una soldadura") : t("Se acabó la batería");
     h.className = "bad";
   } else if (r.failsafe) {
     h.textContent = t("Se perdió la señal");
@@ -1209,6 +1223,8 @@ function frame(now) {
     G.sim.update(dt);
     G.sim.render(dt);
     sim.tick(dt);
+  } else if (G.screen === "mesa") {
+    // la mesa de trabajo dibuja en su propio canvas (mesa.js)
   } else if (G.screen === "vuelo" && G.vuelo) {
     pollPad();
     G.vuelo.update(dt);
@@ -1241,5 +1257,5 @@ document.querySelectorAll("#idioma [data-l], #idioma-sel [data-l]").forEach((b) 
 });
 loadModelos();
 window.__gameReady = true;
-window.__dm = { G, PT, BA, cat, mis, mundoLugar, t, garaje: () => garaje };   // para probar desde la consola del navegador
+window.__dm = { G, PT, BA, cat, mis, mundoLugar, t, garaje: () => garaje, abrirBanco, mesa: ctx.mesa };   // para probar desde la consola del navegador
 requestAnimationFrame(frame);

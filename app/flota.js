@@ -24,6 +24,7 @@ export function porQueNo(ctx, d, vol) {
 
 /** Por qué no se entregó (en palabras), a partir del resultado del vuelo. */
 export function motivo(r, dmg = []) {
+  if (r.soldadura) return t("se soltó una soldadura fría ({donde})", { donde: r.soldadura });
   if (r.crash) return dmg.length ? t("se estrelló y se dañaron {n} piezas", { n: dmg.length }) : t("se estrelló");
   if (r.dead) return t("se le acabó la batería");
   if (r.failsafe) return t("perdió la señal de la radio");
@@ -55,7 +56,7 @@ export async function volarFlota(ctx, aviso = null, { semilla = null } = {}) {
     }
     fila.ia = ia.slug; fila.gen = ia.gen;
     const a = ctx.PT.dronArmado(p, ctx.cat, d);
-    const sim = new MisionSim({ stats: a.stats, pedido: vol, piloto: "ia", policy: ia.policy, seed: semilla != null ? semilla * 7 + i : undefined });
+    const sim = new MisionSim({ stats: a.stats, pedido: vol, piloto: "ia", policy: ia.policy, seed: semilla != null ? semilla * 7 + i : undefined, frias: ctx.friasDe?.(d) });
     const r = (fila.r = await sim.correr((f) => aviso?.({ i, n: trabajos.length, pe, dron: fila.dron, f })));
     p.vuelos = (p.vuelos || 0) + 1;
     if (r.crash) fila.dmg = ctx.PT.chocar(p, ctx.cat, d, r.impact);

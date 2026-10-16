@@ -4,6 +4,10 @@
 // =====================================================================
 import { leerSTL, analizar, cargarSTL, STL_CACHE } from "./stl.js";
 import { t } from "./i18n.js";
+import * as TA from "./taller.js";
+const { diasEnvio } = TA;
+/** Cuándo llega (lo del barrio hoy; lo bueno mañana o en 2 días). */
+export const llegaTxt = (pz) => ["🚚 " + t("llega hoy"), "🚚 " + t("llega mañana"), "🚚 " + t("llega en 2 días")][Math.min(2, diasEnvio(pz))];
 
 // una función (no una constante): t() tiene que correr después de cargar el idioma
 const CATS = () => [
@@ -46,7 +50,7 @@ export function initTienda(ctx) {
       const c = document.createElement("div");
       c.className = "prod" + (bloq ? " bloq" : "");
       c.innerHTML = `<div class="fila"><b>${pz.nombre}</b><span class="money">${precio ? "$" + precio : t("gratis")}</span></div>` +
-        `<small>${ctx.descr(T.cat, pz)}</small>` +
+        `<small>${ctx.descr(T.cat, pz)}</small>` + (herr ? "" : `<small class="envio">${llegaTxt(pz)}</small>`) +
         `<div class="tengo">${herr ? (tengo ? t("Ya la tienes") : "") : tengo ? (libres === 1 ? t("Tienes {n} ({l} libre)", { n: tengo, l: libres }) : t("Tienes {n} ({l} libres)", { n: tengo, l: libres })) : ""}${bloq ? `<span class="muted">${t("Se abre con reputación {rep}", { rep: PT.REP_ETAPA[pz.etapa] })}</span>` : ""}</div>` +
         `<div class="fila"><span class="qty"><button aria-label="${t("Menos")}">−</button><span>${enCarro}</span><button aria-label="${t("Más")}">+</button></span><button class="btn ghost small">${enCarro ? t("En el pedido") : t("Agregar")}</button></div>`;
       const [menos, mas] = c.querySelectorAll(".qty button"), add = c.querySelector(".fila:last-child > .btn");
@@ -83,14 +87,15 @@ export function initTienda(ctx) {
 
   $("b-t-comprar").onclick = () => {
     const items = [...T.carro].map(([key, n]) => { const [ranura, id] = key.split("|"); return { ranura, id, n }; });
-    const err = PT.comprarCarrito(P(), cat, items);
+    const err = PT.comprarCarrito(P(), cat, items, { envio: true });
     if (err) { toast(err, 3500); return; }
-    const n = items.reduce((s, x) => s + x.n, 0);
+    const piezas = items.filter((x) => x.ranura !== "herramientas"), n = piezas.reduce((s, x) => s + x.n, 0);
+    const luego = piezas.filter((x) => diasEnvio(cat[x.ranura].find((z) => z.id === x.id))).reduce((s, x) => s + x.n, 0);
     T.carro.clear();
     guardar();
     render();
     ctx.garaje.paquete();
-    toast(n === 1 ? t("¡Llegó tu pedido! 1 pieza al estante. Ponla en un dron desde el hangar.") : t("¡Llegó tu pedido! {n} piezas al estante. Ponlas en un dron desde el hangar.", { n }), 4000);
+    toast(!n ? t("¡Listo! Ya tienes la herramienta.") : !luego ? t("📦 Llegó tu pedido: {n} en caja. Ábrelas en el banco de armado.", { n }) : luego === n ? t("🚚 Pedido hecho: {n} piezas vienen en camino (míralas en el inventario).", { n }) : t("📦 {h} llegaron hoy (en caja) y 🚚 {m} vienen en camino.", { h: n - luego, m: luego }), 4500);
     ctx.renderTaller();
   };
   $("b-t-cerrar").onclick = () => { modal("tienda", false); ctx.renderTaller(); };
@@ -112,7 +117,8 @@ export function initTienda(ctx) {
           const d = PT.dronDe(p, u.uid), plata = Math.round(pz.precio * PT.VENTA * (u.vida / 100));
           const dis = u.diseno ? ` · ${u.diseno.tipo === "stl" ? t("tu STL") : (cat.estilo.formas[u.diseno.forma] || u.diseno.forma).split(" ")[0]}` : pz.imprimible && PT.tieneHerramienta(p, "impresora") ? ` · ${t("sin imprimir")}` : "";
           const fw = u.fw ? ` · ${u.fw.ok ? t("con firmware") : t("firmware malo")}` : "";
-          return `<span class="u"><span class="${u.vida <= 0 ? "bad" : u.vida < 100 ? "warn" : ""}">${u.vida} %</span>${dis}${fw} · ${d ? t("en <b>{dron}</b>", { dron: esc(d.nombre) }) : `${t("libre")} <button data-v="${u.uid}" title="${t("Vender usada")}">${t("vender ${n}", { n: plata })}</button>`}</span>`;
+          const env = TA.enCamino(p, u) ? ` · 🚚 ${t("llega el día {n}", { n: u.llega })}` : TA.enCaja(p, u) ? ` · 📦 ${t("en su caja")}` : "";
+          return `<span class="u"><span class="${u.vida <= 0 ? "bad" : u.vida < 100 ? "warn" : ""}">${u.vida} %</span>${dis}${fw}${env} · ${d ? t("en <b>{dron}</b>", { dron: esc(d.nombre) }) : `${t("libre")} <button data-v="${u.uid}" title="${t("Vender usada")}">${t("vender ${n}", { n: plata })}</button>`}</span>`;
         }).join("")}</td></tr>`;
       }
     }

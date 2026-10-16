@@ -16,6 +16,7 @@
 // =====================================================================
 import { pieza } from "./parts.js";
 import { t } from "./i18n.js";
+import { efectivos, claveCable } from "./taller.js";
 
 // ---------------- pines ----------------
 // tipos: fuentes "vbat+" (batería, 7-17 V) "5v+" "3v3+"; entradas "vbat_in" "5v_in" "3v3_in"; "gnd";
@@ -323,12 +324,31 @@ export function autoFirmware(fcId) {
 const estadoFirma = (d, comps, cables) => `${firma(comps, cables)}|${d.slots.helices}`;
 
 /**
+ * El cableado que cuenta (taller.js efectivos: lo soldado o enchufado, y los puentes de estaño como cortos) revisado.
+ * rev trae además: frias (cables con soldadura fría: funcionan… hasta que vibran), y malos con los índices de B.cables.
+ */
+export function cableado(comps, B) {
+  const ef = efectivos(B, comps), idx = new Map((B.cables || []).map((c, i) => [claveCable(c), i]));
+  const rev = revisar(comps, [...ef.cables, ...ef.puentes]);
+  const pm = pinMap(comps), nom = (ref) => { const q = pm.get(ref); return q ? `${q.c.nombre} · ${q.nombre}` : ref; };
+  const malos = new Set();
+  [...ef.cables, ...ef.puentes].forEach((c, i) => { if (rev.malos.has(i)) malos.add(i < ef.cables.length ? idx.get(claveCable(c)) : -1); });
+  rev.malos = malos;
+  for (const c of ef.sinSoldar) rev.faltan.unshift({ k: c[0].split(".")[0], msg: t("Falta soldar: {a} → {b}.", { a: nom(c[0]), b: nom(c[1]) }) });
+  for (const c of ef.levantados) rev.faltan.unshift({ k: c[0].split(".")[0], msg: t("Pad levantado en {b}: suéldalo otra vez con un puente de cable.", { b: nom(c[1]) }) });
+  rev.frias = ef.frias.map((c) => ({ cable: c, msg: t("Soldadura fría en {b}: funciona en la mesa, pero con la vibración se puede soltar.", { b: nom(c[1]) }) }));
+  rev.puentes = ef.puentes;
+  rev.ok = !rev.danos.length && !rev.fallas.length && !rev.faltan.length;
+  return { rev, cables: ef.cables, ef };
+}
+
+/**
  * Los pasos del banco con ✓ o lo que falta. unidadDe(uid) -> unidad. Devuelve { pasos, listo, listoIA, rev, comps }.
  * listo = puede volar a mano; listoIA = además tiene su IA cargada.
  */
 export function estado(cat, d, b, unidadDe, opts = {}) {
   const comps = sincronizar(cat, d, b, unidadDe);
-  const B = d.banco, rev = revisar(comps, B.cables);
+  const B = d.banco, cab = cableado(comps, B), rev = cab.rev;
   const fcU = unidadDe(d.slots.controladora), escU = unidadDe(d.slots.esc), rxU = unidadDe(d.slots.radio), chU = unidadDe(d.slots.chasis);
   const pasos = [];
   const add = (k, nombre, ok, nota = "") => pasos.push({ k, nombre, ok: !!ok, nota });
@@ -341,7 +361,7 @@ export function estado(cat, d, b, unidadDe, opts = {}) {
     faltaInst.length || exFalta ? t("Falta instalar: {lista}.", { lista: [...faltaInst.map((s) => NOMBRE_SLOT[s] || s), ...(exFalta ? [t("extras")] : [])].join(", ") }) : "");
   const armado = pasos.at(-1).ok;
   add("cablear", t("Cablear"), armado && rev.ok, !armado ? t("Primero arma.") : rev.danos.length ? t("Hay cables que van a quemar algo.") : rev.fallas.length ? rev.fallas[0].msg : rev.faltan.length ? t("{n} conexiones por hacer.", { n: rev.faltan.length }) : "");
-  const sig = firma(comps, B.cables);
+  const sig = firma(comps, cab.cables);
   add("humo", t("Prueba de humo"), armado && rev.ok && B.humo === sig, B.humo === sig ? "" : t("Conecta la batería (con el probador de humo si lo tienes)."));
   const fwOk = fcU?.fw?.ok && FIRMWARES.find((f) => f.id === fcU.fw.id)?.chip === CHIP[fcU.id];
   add("firmware", t("Firmware"), fwOk, fcU?.fw ? (fwOk ? t(FIRMWARES.find((f) => f.id === fcU.fw.id).nombre) : t("Firmware equivocado: la placa no arranca.")) : t("Conecta el USB y flashea."));
@@ -356,8 +376,8 @@ export function estado(cat, d, b, unidadDe, opts = {}) {
   add("motores", t("Motores"), motProbados && pm.every((r) => r.ok),
     motProbados ? t("El orden o el sentido cambió: vuelve a probarlos.") : t("Prueba el orden y el sentido de los 4 motores (sin hélices)."));
   add("helices", t("Hélices"), B.instalado.helices === d.slots.helices && B.helices, t("Pon las hélices (siempre de último)."));
-  add("prueba", t("Prueba atada"), B.prueba === estadoFirma(d, comps, B.cables), t("Enciéndelo amarrado a la mesa: si algo está mal, se voltea."));
+  add("prueba", t("Prueba atada"), B.prueba === estadoFirma(d, comps, cab.cables), t("Enciéndelo amarrado a la mesa: si algo está mal, se voltea."));
   const listo = pasos.every((p) => p.ok);
   const iaOk = !!(d.modelo && B.ia?.modelo === d.modelo);
-  return { pasos, listo, listoIA: listo && iaOk, iaOk, rev, comps, motores: pm, sig, prueba: estadoFirma(d, comps, B.cables) };
+  return { pasos, listo, listoIA: listo && iaOk, iaOk, rev, comps, motores: pm, sig, prueba: estadoFirma(d, comps, cab.cables) };
 }

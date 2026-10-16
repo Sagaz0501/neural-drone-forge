@@ -11,6 +11,7 @@ import { buildDrone } from "./dron3d.js";
 import { exportarSTL, STL_CACHE } from "./stl.js";
 import { sfx } from "./garaje.js";
 import { t, idioma } from "./i18n.js";
+import * as TA from "./taller.js";
 
 const COLOR_PIN = { "vbat+": "#ff3b30", "5v+": "#ff8a1a", "3v3+": "#ffd23f", vbat_in: "#ff3b30", "5v_in": "#ff8a1a", "3v3_in": "#ffd23f", gnd: "#9aa0a6",
   tx: "#3ccbff", rx: "#3c8bff", sda: "#c07bff", scl: "#9a5bff", led_out: "#47f08a", led_in: "#47f08a", m_out: "#2ad8b0", m_in: "#2ad8b0",
@@ -180,85 +181,58 @@ export function initBanco(ctx) {
     });
   }
 
-  // ---------------- armar ----------------
+  // ---------------- armar: en la mesa de trabajo (mesa.js) ----------------
   function pArmar(der, d, e) {
     const p = P(), B = d.banco, chP = cat.chasis.find((x) => x.id === U(d.slots.chasis)?.id), impresora = PT.tieneHerramienta(p, "impresora");
-    h(der, `<h3>${t("Armar")}</h3><p>${t("Cada pieza a su lugar, en orden: chasis, motores, el ESC abajo, la controladora encima (el \"stack\"), la radio, la cámara y la batería. Las hélices van de último, después de probar los motores.")}</p><ul class="lista" id="bk-arm"></ul>`);
-    const ul = der.querySelector("#bk-arm");
     const sinImprimir = chP?.imprimible && impresora && !U(d.slots.chasis)?.diseno;
-    const pend = [];
-    for (const [slot, nombre, s3] of ORDEN()) {
+    h(der, `<h3>${t("Armar")}</h3><p>${t("En la mesa: abre las cajas, lleva cada pieza a su lugar y atorníllala.")}</p><ul class="lista bk-estado" id="bk-arm"></ul>`);
+    const ul = der.querySelector("#bk-arm"), ic = { montada: "✅", suelta: "🔩", caja: "📦", camino: "🚚" };
+    let camino = 0;
+    for (const [slot, nombre] of ORDEN()) {
       const uid = d.slots[slot];
-      if (!uid) { ul.insertAdjacentHTML("beforeend", `<li><span>${nombre}</span><span class="muted">${t("no elegiste")}</span></li>`); continue; }
-      const u = U(uid), pz = PT.buscarPieza(cat, u.id), ok = B.instalado[slot] === uid;
-      const li = document.createElement("li");
-      li.innerHTML = `<span>${nombre}<br><small class="muted">${pz.nombre}${u.vida <= 0 ? ` · <span class='bad'>${t("rota")}</span>` : ""}</small></span>`;
-      if (ok) li.insertAdjacentHTML("beforeend", `<span class='ok'>${t("✓ instalado")}</span>`);
-      else {
-        const b = document.createElement("button");
-        b.className = "btn ghost small";
-        b.textContent = B.instalado[slot] ? t("Cambiar") : t("Instalar");
-        const bloq = slot !== "chasis" && B.instalado.chasis !== d.slots.chasis ? t("Primero el chasis.") : slot === "chasis" && sinImprimir ? t("Primero imprímelo.") : null;
-        b.disabled = BK.ocupado;
-        b.onclick = () => (bloq ? toast(bloq) : instalar([[slot, s3]]));
-        li.appendChild(b);
-        if (!(slot === "chasis" && sinImprimir)) pend.push([slot, s3]);       // "instalar todo" empieza por el chasis
-      }
-      ul.appendChild(li);
+      if (!uid) continue;
+      const u = U(uid), est = B.instalado[slot] === uid ? "montada" : TA.enCamino(p, u) ? "camino" : TA.enCaja(p, u) ? "caja" : "suelta";
+      if (est === "camino") camino++;
+      ul.insertAdjacentHTML("beforeend", `<li><span>${ic[est]} ${nombre}${u.vida <= 0 ? ` · <span class='bad'>${t("rota")}</span>` : ""}</span><small class="muted">${est === "camino" ? t("llega el día {n}", { n: u.llega }) : est === "caja" ? t("en su caja") : est === "suelta" ? t("lista para montar") : ""}</small></li>`);
     }
-    const exOk = d.extras.length === (B.instalado.extras || []).length && d.extras.every((x) => B.instalado.extras.includes(x));
-    if (d.extras.length || (B.instalado.extras || []).length) {
-      const li = document.createElement("li");
-      li.innerHTML = `<span>${t("Extras")}<br><small class="muted">${d.extras.map((u) => PT.buscarPieza(cat, U(u)?.id)?.nombre).join(", ") || t("ninguno")}</small></span>`;
-      if (exOk) li.insertAdjacentHTML("beforeend", `<span class='ok'>${t("✓ instalados")}</span>`);
-      else { const b = document.createElement("button"); b.className = "btn ghost small"; b.textContent = t("Instalar"); b.onclick = () => instalar([["extras", "extras"]]); li.appendChild(b); pend.push(["extras", "extras"]); }
-      ul.appendChild(li);
+    if (d.extras.length) {
+      const ok = d.extras.length === (B.instalado.extras || []).length && d.extras.every((x) => B.instalado.extras.includes(x));
+      ul.insertAdjacentHTML("beforeend", `<li><span>${ok ? "✅" : "🔩"} ${t("Extras")}</span><small class="muted"></small></li>`);
     }
     if (sinImprimir) h(der, `<p class="warn">${t("El chasis es de {mat} y tienes la impresora: imprímelo primero (paso \"Imprimir\").", { mat: chP.id.toUpperCase() })}</p>`);
-    boton(der, t("Instalar todo"), "main", () => instalar(pend), !pend.length || sinImprimir);
+    if (camino) h(der, `<p style="font-size:13px">${t("🚚 Lo que viene en camino llega al empezar ese día (📱 Celular → Terminar el día).")}</p>`);
+    boton(der, "🔧 " + t("Ir a la mesa de trabajo"), "main", () => ctx.mesa.abrir("armar"), sinImprimir);
     if (e.pasos.find((x) => x.k === "armar").ok) boton(der, t("Siguiente: cablear →"), "ghost", () => { BK.paso = "cablear"; render(); });
   }
 
-  function instalar(lista) {
-    const d = D(), B = d.banco;
-    ocupado(async () => {
-      for (const [slot, s3] of lista) {
-        if (slot === "extras") B.instalado.extras = [...d.extras];
-        else B.instalado[slot] = d.slots[slot];
-        if (slot === "esc" || slot === "motores") { B.helices = false; B.instalado.helices = null; }   // para soldar, sin hélices
-        guardar();
-        ctx.verDron();
-        await ctx.garaje.instalar(s3);
-      }
-    });
-  }
-
-  // ---------------- cablear (la mesa de soldar) ----------------
+  // ---------------- cablear: soldar en la mesa; el diagrama es la guía aparte ----------------
   function pCablear(der, d, e) {
-    const tieneMulti = PT.tieneHerramienta(P(), "multimetro"), rev = e.rev;
-    h(der, `<h3>${t("Cablear")}</h3><p>${t("Suelda el cable de la batería (XT60) al ESC, los 4 motores a las salidas M1-M4, el arnés del ESC a la controladora y cada periférico (radio, GPS, cámara, sensores) a su voltaje, su GND y sus datos.")}</p>`);
-    if (!e.pasos.find((x) => x.k === "armar").ok) h(der, `<p class="warn">${t("Primero arma el dron.")}</p>`);
-    const lst = [...rev.faltan.map((x) => `○ ${x.msg}`)];
-    if (tieneMulti) lst.push(...rev.danos.map((x) => `<span class="bad">⚡ ${vaAQuemar(x.msg)}</span>`), ...rev.fallas.map((x) => `<span class="warn">✗ ${x.msg}</span>`));
-    h(der, lst.length ? `<ul class="lista" style="display:block">${lst.slice(0, 12).map((x) => `<li style="display:block">${x}</li>`).join("")}</ul>` :
+    const tieneMulti = PT.tieneHerramienta(P(), "multimetro"), rev = e.rev, armado = e.pasos.find((x) => x.k === "armar").ok;
+    h(der, `<h3>${t("Cablear")}</h3><p>${t("En la mesa: prende el cautín, pon cada cable en su pad y suéldalo (el ratón es el cautín y Espacio el estaño). La 📄 guía dice qué va con qué.")}</p>`);
+    if (!armado) h(der, `<p class="warn">${t("Primero arma el dron.")}</p>`);
+    const lst = [...rev.faltan.slice(0, 6).map((x) => `○ ${x.msg}`)];
+    if (tieneMulti) lst.push(...rev.danos.map((x) => `<span class="bad">⚡ ${vaAQuemar(x.msg)}</span>`), ...rev.fallas.map((x) => `<span class="warn">✗ ${x.msg}</span>`), ...(rev.frias || []).map((x) => `<span class="warn">❄️ ${x.msg}</span>`));
+    h(der, lst.length ? `<ul class="lista" style="display:block">${lst.slice(0, 10).map((x) => `<li style="display:block">${x}</li>`).join("")}</ul>` :
       `<p class="${rev.ok ? "ok" : ""}">${rev.ok ? t("✓ Todo conectado.") : tieneMulti ? "" : t("Todo lo que hay que conectar está conectado. Sin multímetro no sabes si algo está mal… hasta que conectes la batería.")}</p>`);
-    if (!tieneMulti) h(der, `<p style="font-size:13px">${t("Con un <b>multímetro</b> ($8 en la tienda, herramientas) el banco te marca los cables malos antes de conectar la batería.")}</p>`);
-    boton(der, t("Abrir la mesa de cableado"), "main", () => abrirCableado(), !e.pasos.find((x) => x.k === "armar").ok);
+    if (!tieneMulti) h(der, `<p style="font-size:13px">${t("Con un <b>multímetro</b> ($8 en la tienda, herramientas) el banco te marca los cables malos y las soldaduras frías antes de conectar la batería.")}</p>`);
+    boton(der, "🔥 " + t("Ir a soldar"), "main", () => ctx.mesa.abrir("soldar"), !armado);
+    boton(der, "📄 " + t("Guía de conexión"), "ghost", () => abrirGuia());
     if (rev.ok || e.pasos.find((x) => x.k === "cablear").ok) boton(der, t("Siguiente: prueba de humo →"), "ghost", () => { BK.paso = "humo"; render(); });
   }
 
-  function abrirCableado() {
+  /** La guía de conexión: el diagrama de qué va con qué (y lo que ya soldaste). Es de solo mirar: se suelda en la mesa. */
+  function abrirGuia() {
     BK.sel = null;
     BK.multi = false;
+    BK.diag = true;
     $("cab-dron").textContent = D().nombre;
     $("b-cab-multi").classList.toggle("hidden", !PT.tieneHerramienta(P(), "multimetro"));
     ctx.modal("cableado");
     dibujarCables();
   }
-  $("b-cab-listo").onclick = () => { ctx.modal("cableado", false); refrescar(); };
+  $("b-cab-listo").onclick = () => { ctx.modal("cableado", false); if (G.screen === "banco") refrescar(); };
   $("b-cab-diag").onclick = () => { BK.diag = !BK.diag; $("b-cab-diag").textContent = BK.diag ? t("Ocultar el diagrama") : t("Ver el diagrama"); dibujarCables(); };
   $("b-cab-multi").onclick = () => { BK.multi = !BK.multi; sfx("click"); dibujarCables(); };
-  $("b-cab-borrar").onclick = () => { if (!confirm(t("¿Desoldar todos los cables?"))) return; D().banco.cables = []; guardar(); dibujarCables(); };
 
   /** Dónde queda cada pin en el dibujo. */
   function layout(comps) {
@@ -309,9 +283,9 @@ export function initBanco(ctx) {
       if (!A || !Bp) return;
       const malo = BK.multi && rev.malos.has(i);
       if (malo) el("path", { d: curva(A, Bp), stroke: "#ff5040", "stroke-width": 11, fill: "none", opacity: 0.45 });
-      const path = el("path", { d: curva(A, Bp), stroke: colorCable(A, Bp), class: "cable" });
-      el("title", {}, path).textContent = t("Toca para desoldar");
-      path.onclick = () => { B.cables.splice(i, 1); sfx("click"); guardar(); dibujarCables(); };
+      const q = B.juntas?.[TA.claveCable(B.cables[i])]?.q;
+      const path = el("path", { d: curva(A, Bp), stroke: colorCable(A, Bp), class: "cable", ...(q === "sin" ? { "stroke-dasharray": "3 5", opacity: 0.6 } : {}) });
+      el("title", {}, path).textContent = q === "sin" ? t("Sin soldar") : q === "fria" ? t("Soldadura fría") : q === "puente" ? t("Puente de estaño") : t("Soldado");
     });
     // pines
     for (const [id, q] of pos) {
@@ -322,32 +296,18 @@ export function initBanco(ctx) {
       const lbl = el("text", { x: tx, y: ty, fill: "#cfe0d8", "font-size": 11.5, "text-anchor": q.lado === "l" ? "start" : q.lado === "r" ? "end" : "middle", "font-family": "Chakra Petch, sans-serif" }, g);
       lbl.textContent = q.p.nombre;
       el("title", {}, g).textContent = `${q.c.nombre}: ${q.p.nombre}`;
-      g.onclick = () => tocarPin(id);
     }
     // mensajes
     const msg = [];
-    if (BK.sel) msg.push(t("Elegiste <b>{pieza} · {pin}</b>: ahora toca el otro pin.", { pieza: esc(pos.get(BK.sel).c.nombre), pin: esc(pos.get(BK.sel).p.nombre) }));
     if (BK.multi) {
       msg.push(...rev.danos.map((x) => `<span class="bad">⚡ ${vaAQuemar(x.msg)}</span>`));
       msg.push(...rev.fallas.map((x) => `<span class="warn">✗ ${x.msg}</span>`));
+      msg.push(...(rev.frias || []).map((x) => `<span class="warn">❄️ ${x.msg}</span>`));
       if (!rev.danos.length && !rev.fallas.length) msg.push(`<span class='ok'>${t("Multímetro: ningún corto ni cable malo.")}</span>`);
     }
     msg.push(rev.faltan.length ? t("Falta: {lista}", { lista: rev.faltan.slice(0, 3).map((x) => x.msg).join(" · ") }) + (rev.faltan.length > 3 ? " · " + t("y {n} más", { n: rev.faltan.length - 3 }) : "") : `<span class='ok'>${t("Todo lo necesario está conectado.")}</span>`);
     msg.push(`<span class="muted">${t("Colores: rojo batería · naranja 5V · amarillo 3V3 · gris GND · azul TX/RX · morado I2C · verde LED · turquesa motores.")}</span>`);
     $("cab-msg").innerHTML = msg.join("<br>");
-  }
-
-  function tocarPin(id) {
-    const B = D().banco;
-    if (!BK.sel) { BK.sel = id; sfx("click"); dibujarCables(); return; }
-    if (BK.sel === id) { BK.sel = null; dibujarCables(); return; }
-    const par = [BK.sel, id];
-    BK.sel = null;
-    if (par[0].split(".")[0] === par[1].split(".")[0] && !["xt60", "fc"].includes(par[0].split(".")[0])) { toast(t("Esos dos pines son de la misma pieza.")); dibujarCables(); return; }
-    if (!B.cables.some(([a, b]) => (a === par[0] && b === par[1]) || (a === par[1] && b === par[0]))) B.cables.push(par);
-    sfx("click");
-    guardar();
-    dibujarCables();
   }
 
   // ---------------- prueba de humo ----------------
@@ -680,5 +640,5 @@ export function initBanco(ctx) {
   addEventListener("pointermove", (ev) => { if (drag !== null && G.screen === "banco") { ctx.garaje.yaw += (ev.clientX - drag) * 0.012; drag = ev.clientX; } });
   ctx.canvas.addEventListener("wheel", (ev) => { if (G.screen === "banco") { ctx.garaje.zoom = Math.min(1.8, Math.max(0.45, ctx.garaje.zoom * (ev.deltaY > 0 ? 1.1 : 0.9))); ev.preventDefault(); } }, { passive: false });
 
-  return { abrir, render };
+  return { abrir, render, abrirGuia };
 }

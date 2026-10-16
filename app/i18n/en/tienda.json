@@ -55,5 +55,12 @@
  "No hay servidor.": "No server.",
  "No pude guardar el STL.": "Couldn't save the STL.",
  "Importado \"{nombre}\": {tam} mm, ~{g} g impreso.": "Imported \"{nombre}\": {tam} mm, ~{g} g printed.",
- "Imprímelo en el banco.": "Print it at the Workbench."
+ "Imprímelo en el banco.": "Print it at the Workbench.",
+ "llega hoy": "arrives today",
+ "llega mañana": "arrives tomorrow",
+ "llega en 2 días": "arrives in 2 days",
+ "¡Listo! Ya tienes la herramienta.": "Done! You have the tool.",
+ "📦 Llegó tu pedido: {n} en caja. Ábrelas en el banco de armado.": "📦 Your order arrived: {n} boxed. Open them at the workbench.",
+ "🚚 Pedido hecho: {n} piezas vienen en camino (míralas en el inventario).": "🚚 Order placed: {n} parts are on their way (see them in the inventory).",
+ "📦 {h} llegaron hoy (en caja) y 🚚 {m} vienen en camino.": "📦 {h} arrived today (boxed) and 🚚 {m} are on their way."
 }

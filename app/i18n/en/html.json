@@ -218,5 +218,19 @@
  "Apps": "Apps",
  "Apps abiertas": "Open apps",
  "🏦 Finanzas": "🏦 Finances",
- "Finanzas": "Finances"
+ "Finanzas": "Finances",
+ "📄 Guía de conexión ·": "📄 Wiring guide ·",
+ "Punteado: lo que va con qué. Lleno: lo que ya soldaste en la mesa.": "Dashed: what goes where. Solid: what you've already soldered at the bench.",
+ "🔩 Armar": "🔩 Assemble",
+ "🔥 Soldar": "🔥 Solder",
+ "📄 Guía": "📄 Guide",
+ "Mesa de trabajo": "Workbench",
+ "El diagrama de qué va con qué (aparte)": "The diagram of what goes where (separate)",
+ "Piezas y cables": "Parts and wires",
+ "Prender / apagar la estación": "Turn the station on / off",
+ "Menos temperatura": "Lower temperature",
+ "Más temperatura": "Higher temperature",
+ "Limpiar la punta (C)": "Clean the tip (C)",
+ "Flux (F): toca el pad": "Flux (F): tap the pad",
+ "Estaño: mantén Espacio mientras el cautín calienta el pad": "Solder: hold Space while the iron heats the pad"
 }

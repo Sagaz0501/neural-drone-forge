@@ -71,8 +71,8 @@ Abre un dron del hangar → **Banco de armado**. A la izquierda los pasos (✓ o
 | Paso | Qué haces | Qué puede salir mal |
 |---|---|---|
 | **Imprimir** | Eliges la forma del chasis (X, H, deadcat, stretch, con marco) o **tu propio STL**, y una carcasa. Puedes descargar el STL de las piezas para imprimirlas de verdad. | Un STL muy pesado baja el empuje/peso. |
-| **Armar** | Cada pieza a su lugar (o "Instalar todo"). | — |
-| **Cablear** | En la mesa de cableado tocas un pin y otro para soldar un cable: batería al ESC, motores a M1-M4, ESC a la controladora, receptor, cámara, sensores. "Ver el diagrama" muestra el manual. | Batería al revés → **se quema el ESC**. Receptor a VBAT → se quema. ToF a 5 V → se queman. TX con TX → no se quema, pero no funciona. |
+| **Armar** | En la **mesa de trabajo** (3D): mantén apretado sobre la cinta de cada caja para cortarla; toca una pieza y vuela a su lugar; después cada tornillo: tócalo y **mantén apretado hasta el clic**. La batería lleva correa; la radio, cinta doble faz. El orden importa: chasis primero, el ESC antes que la controladora. | Si sigues apretando después del clic, **la rosca se barre** y hay que volver a atornillar. |
+| **Cablear** | En la mesa, modo **🔥 Soldar**: prende la estación (⏻) y espera que caliente; toma un cable de la izquierda y ponlo en su pad (la **📄 Guía de conexión** va aparte); **F** pone flux; el **ratón es el cautín** (mantén apretado sobre el pad) y **Espacio es el estaño**: las dos a la vez. **C** limpia la punta. El arnés del ESC y la antena se **enchufan** (mantén apretado). | Junta **fría** (poco calor, poco estaño o sin flux: funciona y falla después), **puente** de estaño con el pad de al lado (corto), **pad levantado** (mucho calor). Batería al revés → **se quema el ESC**. Receptor a VBAT → se quema. TX con TX → no funciona. |
 | **Prueba de humo** | Conectas la batería. Con el **probador de humo** ($10) se corta la corriente antes de quemar algo. | Chispas y humo si hay un corto. |
 | **Firmware** | Flasheas desde el portátil (USB). | El firmware de otro chip "flashea" pero la placa no arranca. |
 | **Configurar** | Calibrar el acelerómetro, activar el UART del receptor y del GPS, emparejar la radio. | Puerto equivocado = sin control. |
@@ -81,7 +81,11 @@ Abre un dron del hangar → **Banco de armado**. A la izquierda los pasos (✓ o
 | **Prueba atada** | Lo enciendes amarrado a la mesa. | Motores mal → se voltea y las hélices pierden 50 %. |
 | **Cargar su IA** | Descarga la IA del dron (también se carga sola al despegar con la IA). | — |
 
-El **multímetro** ($8) avisa antes de conectar la batería si algo va a quemarse.
+El **multímetro** ($8) avisa antes de conectar la batería si algo va a quemarse (y marca las soldaduras frías).
+
+**Las piezas llegan en caja.** Lo barato del barrio llega el mismo día; lo bueno al día siguiente (🚚 en la tienda dice
+cuándo), y lo de lujo en 2 días. Lo que viene en camino llega al empezar ese día (📱 → Terminar el día). La plancha
+verde de la mesa muestra las cajas; el inventario dice 🚚 *llega el día N* o 📦 *en su caja*.
 
 ## El celular: tu negocio
 

@@ -164,7 +164,7 @@ function clientesActivos(p, D) {
  * pedidos especiales de la campaña que ya se abrieron y los pedidos nuevos. Devuelve lo que pasó (para mostrarlo).
  */
 export function nuevoDia(p, D, { primero = false } = {}) {
-  const N = p.negocio, out = { vencidos: [], nuevos: [], arriendo: 0, especiales: [] };
+  const N = p.negocio, out = { vencidos: [], nuevos: [], arriendo: 0, especiales: [], llegaron: 0 };
   if (!primero) {
     N.dia++;
     N.hoy = 0;
@@ -180,6 +180,7 @@ export function nuevoDia(p, D, { primero = false } = {}) {
         }
       }
     }
+    out.llegaron = (p.inventario || []).filter((u) => u.llega === N.dia).length;       // los pedidos de la tienda (taller.js)
     const A = D.trabajos.arriendo;
     if (p.modo !== "dev" && p.rep >= A.desde_rep && N.dia % A.cada === 0) {
       p.plata -= A.monto;

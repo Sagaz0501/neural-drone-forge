@@ -254,6 +254,7 @@
   .prod { border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; display: flex; flex-direction: column; gap: 6px; background: rgba(234,242,239,0.03); }
   .prod.bloq { opacity: .5; }
   .prod b { font-size: 15px; } .prod small { color: var(--muted); font-size: 12.5px; line-height: 1.4; flex: 1; }
+  .prod small.envio { flex: none; color: var(--next); }
   .prod .fila { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
   .qty { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 8px; }
   .qty button { background: none; border: 0; color: var(--text); width: 26px; height: 26px; cursor: pointer; font-size: 16px; }
@@ -298,6 +299,40 @@
   .disenos button { border: 1px solid var(--line); background: rgba(234,242,239,0.03); color: var(--text); border-radius: 10px; padding: 8px; cursor: pointer; text-align: left; font-size: 13.5px; }
   .disenos button[aria-pressed="true"] { border-color: rgba(255,122,26,0.7); background: rgba(255,122,26,0.1); }
   .disenos small { display: block; color: var(--muted); font-size: 11.5px; }
+  /* la mesa de trabajo (mesa.js) */
+  #mesa { position: fixed; inset: 0; z-index: 3; background: #1b1d1c; }
+  #mesa-c { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #mesa-top { position: absolute; left: 12px; right: 12px; top: 12px; display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 14px; flex-wrap: wrap; }
+  #mesa-top b { font-size: 17px; } #mesa-placas:empty { display: none; }
+  #mesa-lista { position: absolute; left: 12px; top: 74px; max-height: calc(100vh - 190px); overflow-y: auto; width: 230px; margin: 0; padding: 6px; list-style: none; border-radius: 14px; }
+  #mesa-lista:empty { display: none; }
+  #mesa-lista li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 9px; font-size: 13.5px; }
+  #mesa-lista li b { flex: 1; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #mesa-lista li small { color: var(--muted); font-size: 12px; }
+  #mesa-lista li.montada { opacity: .55; } #mesa-lista li.camino { opacity: .6; }
+  #mesa-lista li.cab { cursor: pointer; } #mesa-lista li.cab:hover { background: rgba(234,242,239,.07); }
+  #mesa-lista li.mano { background: rgba(71,240,138,.16); outline: 1px solid rgba(71,240,138,.5); }
+  #mesa-lista li.puesto b { color: var(--muted); }
+  #mesa-lista li i { width: 12px; height: 12px; border-radius: 50%; flex: none; border: 1px solid rgba(255,255,255,.3); }
+  #mesa-pista { position: absolute; left: 50%; bottom: 96px; transform: translateX(-50%); background: rgba(10,16,14,.78); padding: 7px 14px; border-radius: 20px; font-size: 14px; white-space: nowrap; pointer-events: none; }
+  #mesa-aviso { position: absolute; left: 50%; top: 76px; transform: translateX(-50%); background: rgba(10,16,14,.92); border: 1px solid var(--line); padding: 8px 16px; border-radius: 12px; font-size: 14.5px; max-width: min(560px, calc(100vw - 32px)); text-align: center; pointer-events: none; }
+  #mesa-aviso.ok { border-color: rgba(71,240,138,.5); }
+  #mesa-aviso[hidden], #mesa-anillo[hidden], #mesa-sold[hidden] { display: none; }
+  #mesa-anillo { position: fixed; pointer-events: none; transform: translate(18px, -50%); display: flex; align-items: center; gap: 8px; --p: 0; }
+  #mesa-anillo i { width: 34px; height: 34px; border-radius: 50%; background: conic-gradient(var(--next) calc(var(--p) * 1%), rgba(234,242,239,.15) 0); -webkit-mask: radial-gradient(circle, transparent 10px, #000 11px); mask: radial-gradient(circle, transparent 10px, #000 11px); }
+  #mesa-anillo.ok i { background: conic-gradient(var(--gate) calc(var(--p) * 1%), rgba(234,242,239,.15) 0); }
+  #mesa-anillo span { background: rgba(10,16,14,.85); padding: 3px 9px; border-radius: 10px; font-size: 13px; white-space: nowrap; }
+  #mesa-sold { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 8px; align-items: stretch; padding: 8px; border-radius: 16px; }
+  .ms-b { position: relative; min-width: 62px; background: rgba(234,242,239,.07); border: 1px solid var(--line); color: var(--text); border-radius: 12px; font-size: 22px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 6px 8px; }
+  .ms-b small { font-size: 10.5px; color: var(--muted); }
+  .ms-b[aria-pressed="true"] { border-color: rgba(60,203,255,.6); background: rgba(60,203,255,.15); }
+  #ms-on[aria-pressed="true"] { border-color: rgba(255,122,26,.7); background: rgba(255,122,26,.18); color: #ffb070; }
+  .ms-temp { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 110px; }
+  .ms-temp b { font-size: 24px; font-variant-numeric: tabular-nums; } .ms-temp b.frio { color: #7fb8ff; } .ms-temp b.listo { color: var(--gate); } .ms-temp b.caliente { color: var(--crash); }
+  .ms-temp small { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 12px; }
+  .ms-temp small button { background: rgba(234,242,239,.08); border: 1px solid var(--line); color: var(--text); border-radius: 6px; width: 22px; height: 20px; cursor: pointer; }
+  .ms-barra { width: 40px; height: 4px; background: rgba(234,242,239,.15); border-radius: 3px; overflow: hidden; } .ms-barra i { display: block; height: 100%; background: var(--gate); }
+  @media (max-width: 760px) { #mesa-lista { top: auto; bottom: 170px; max-height: 30vh; width: calc(100vw - 24px); } #mesa-pista { bottom: 100px; white-space: normal; text-align: center; } }
   #cableado { position: fixed; inset: 12px; border-radius: 18px; padding: 12px 14px; z-index: 5; display: flex; flex-direction: column; }
   #cableado .top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
   #cableado svg { flex: 1; width: 100%; min-height: 0; touch-action: none; user-select: none; }
@@ -736,10 +771,34 @@
 </section>
 
 <section id="cableado" class="panel hidden" role="dialog" aria-label="Cableado">
-  <div class="top"><div><h2 style="margin:0;font-size:22px">Cableado · <span id="cab-dron"></span></h2><div class="muted" style="font-size:13.5px">Toca un pin y luego otro para soldar un cable. Toca un cable para quitarlo.</div></div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn ghost small" id="b-cab-diag">Ver el diagrama</button><button class="btn ghost small" id="b-cab-multi">Multímetro</button><button class="btn ghost small" id="b-cab-borrar">Quitar todos</button><button class="btn main small" id="b-cab-listo">Listo</button></div></div>
+  <div class="top"><div><h2 style="margin:0;font-size:22px">📄 Guía de conexión · <span id="cab-dron"></span></h2><div class="muted" style="font-size:13.5px">Punteado: lo que va con qué. Lleno: lo que ya soldaste en la mesa.</div></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn ghost small" id="b-cab-diag">Ocultar el diagrama</button><button class="btn ghost small" id="b-cab-multi">Multímetro</button><button class="btn main small" id="b-cab-listo">Listo</button></div></div>
   <svg id="cab-svg" viewBox="0 0 1000 640" preserveAspectRatio="xMidYMid meet"></svg>
   <div id="cab-msg"></div>
+</section>
+
+<!-- ============ LA MESA DE TRABAJO (mesa.js): abrir cajas, montar, atornillar, soldar ============ -->
+<section id="mesa" class="hidden" aria-label="Mesa de trabajo">
+  <canvas id="mesa-c"></canvas>
+  <header id="mesa-top" class="panel">
+    <b>🔧 <span id="mesa-dron"></span></b>
+    <div class="seg" id="mesa-modos"><button data-m="armar">🔩 Armar</button><button data-m="soldar">🔥 Soldar</button></div>
+    <div class="seg" id="mesa-placas"></div>
+    <span class="es-sp"></span>
+    <button class="btn ghost small" id="mesa-guia" title="El diagrama de qué va con qué (aparte)">📄 Guía</button>
+    <button class="btn ghost small" id="mesa-salir">Listo</button>
+  </header>
+  <ul id="mesa-lista" class="panel" aria-label="Piezas y cables"></ul>
+  <div id="mesa-pista"></div>
+  <div id="mesa-aviso" hidden></div>
+  <div id="mesa-anillo" hidden><i></i><span></span></div>
+  <div id="mesa-sold" class="panel" hidden>
+    <button class="ms-b" id="ms-on" title="Prender / apagar la estación">⏻</button>
+    <div class="ms-temp"><b id="ms-temp">25 °C</b><small><button id="ms-menos" aria-label="Menos temperatura">−</button><span id="ms-set">330 °C</span><button id="ms-mas" aria-label="Más temperatura">+</button></small></div>
+    <button class="ms-b" id="ms-limpiar" title="Limpiar la punta (C)">🧽<small>C</small><span class="ms-barra"><i id="ms-punta"></i></span></button>
+    <button class="ms-b" id="ms-flux" title="Flux (F): toca el pad">💧<small>F</small></button>
+    <button class="ms-b" id="ms-estano" title="Estaño: mantén Espacio mientras el cautín calienta el pad">🧵<small>Espacio</small></button>
+  </div>
 </section>
 
 <aside id="banco-izq" class="panel hidden" aria-label="Banco de armado"><button class="back" id="b-banco-volver">← Volver al hangar</button><h2 id="banco-dron">Banco</h2><div class="muted" style="font-size:13px" id="banco-sub"></div><ul class="pasos" id="banco-pasos"></ul>

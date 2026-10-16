@@ -9,6 +9,7 @@
 // =====================================================================
 import { calcular, pieza, POR_DEFECTO } from "./parts.js";
 import { t } from "./i18n.js";
+import { diasEnvio, hoy } from "./taller.js";
 
 const CLAVE = "dronmaker.partida";
 export const PLATA_INICIAL = 150;
@@ -155,8 +156,11 @@ export function anotar(p, monto, txt) {
   p.movimientos = [...(p.movimientos || []), { dia: p.negocio?.dia ?? null, monto, txt, saldo: p.plata }].slice(-200);
 }
 
-/** Comprar n unidades (o una herramienta). Devuelve un texto de error o null. */
-export function comprar(p, cat, ranura, id, n = 1) {
+/**
+ * Comprar n unidades (o una herramienta). Devuelve un texto de error o null.
+ * envio: llega en caja (u.caja) y, si no es del barrio, otro día (u.llega = el día que llega; taller.js diasEnvio).
+ */
+export function comprar(p, cat, ranura, id, n = 1, { envio = false } = {}) {
   const err = puedeComprar(p, cat, ranura, id);
   if (err) return err;
   const pz = pieza(cat, ranura, id), total = precioDe(p, pz) * n;
@@ -166,6 +170,7 @@ export function comprar(p, cat, ranura, id, n = 1) {
   if (ranura === "herramientas") p.herramientas = [...(p.herramientas || []), id];
   else for (let i = 0; i < n; i++) {
     const u = agregarUnidad(p, id);
+    if (envio) { u.caja = true; const dd = diasEnvio(pz); if (dd) u.llega = hoy(p) + dd; }
     // sin impresora, los chasis "impresos" llegan impresos de la tienda (en X); con impresora, los imprimes tú
     if (pz.imprimible && !tieneHerramienta(p, "impresora")) u.diseno = { tipo: "forma", forma: "x" };
   }
@@ -173,7 +178,7 @@ export function comprar(p, cat, ranura, id, n = 1) {
 }
 
 /** Comprar un carrito [{ranura, id, n}]: todo o nada. */
-export function comprarCarrito(p, cat, items) {
+export function comprarCarrito(p, cat, items, opts = {}) {
   let total = 0;
   for (const it of items) {
     const err = puedeComprar(p, cat, it.ranura, it.id);
@@ -181,7 +186,7 @@ export function comprarCarrito(p, cat, items) {
     total += precioDe(p, pieza(cat, it.ranura, it.id)) * it.n;
   }
   if (p.plata < total) return t("Te faltan ${n}.", { n: total - p.plata });
-  for (const it of items) comprar(p, cat, it.ranura, it.id, it.n);
+  for (const it of items) comprar(p, cat, it.ranura, it.id, it.n, opts);
   return null;
 }
 
