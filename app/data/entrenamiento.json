@@ -23,7 +23,8 @@
         "film": 4.0
       },
       "viento": 0.0,
-      "id": "grabar"
+      "id": "grabar",
+      "pedido": "casa_venta"
     },
     {
       "nivel": 11,
@@ -47,7 +48,8 @@
         "film": 4.0
       },
       "viento": 2.5,
-      "id": "grabar_viento"
+      "id": "grabar_viento",
+      "pedido": "finca"
     },
     {
       "nivel": 12,
@@ -71,7 +73,11 @@
         "film": 4.0
       },
       "viento": 0.8,
-      "id": "grabar_postes"
+      "id": "grabar_postes",
+      "pedido": "restaurante",
+      "requisitos_ia": {
+        "sensores": true
+      }
     },
     {
       "nivel": 2,

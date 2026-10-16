@@ -83,9 +83,27 @@ Abre un dron del hangar → **Banco de armado**. A la izquierda los pasos (✓ o
 
 El **multímetro** ($8) avisa antes de conectar la batería si algo va a quemarse.
 
+## El celular: tu negocio
+
+Los clientes te escriben al **📱 Celular** (arriba; el número verde son los mensajes sin leer). Cada pedido llega con una
+**tarjeta**: qué quiere (📷 fotos, 🔎 inspección del techo o 🎬 video), dónde, la dificultad (★ a ★★★★: viento,
+distancia, obstáculos), cuánto paga y para cuándo.
+
+- **Aceptar** · **¿Qué me falta?** (qué dron de tu hangar sirve y qué le falta, con lo que pide el cliente) · **No, gracias**.
+- Un pedido aceptado tiene **Volar ▶**: abre el briefing y vuelas tú o la IA. Al terminar, se entrega por el chat y el
+  cliente responde según las estrellas. Con 0 estrellas no paga, pero puedes intentarlo otra vez antes de que venza.
+- **Fotos:** llega al aro y **quédate quieto** unos segundos con el sujeto al centro: clic.
+- **Terminar el día 🌙:** llegan pedidos nuevos (más y más difíciles con más reputación) y vencen los que no hiciste.
+- Cada cliente tiene su **relación** (♥): sube con buenas entregas, baja si fallas o dejas vencer, y los contentos te
+  **recomiendan** a otros. Desde la reputación 6 se paga arriendo cada 7 días.
+- Los pedidos de la **Campaña** ⭐ también llegan por el chat: no vencen y hacen crecer tu negocio.
+
+La primera vez, una guía abajo te lleva paso a paso: leer el mensaje de Doña Marta, armar el Kit del garaje, terminarlo
+en el banco y tomar la foto.
+
 ## Los pedidos
 
-**Pedidos** → eliges un cliente → el *briefing*: las tomas que quiere, lo que exige (cámara mínima, protectores
+**Campaña** (o el celular) → eliges un cliente → el *briefing*: las tomas que quiere, lo que exige (cámara mínima, protectores
 de hélice, radio que llegue, empuje con viento) y con qué dron vas.
 
 - **Volar yo:** pilotas tú. Cada toma es una **ruta** (la línea celeste): ve al aro del inicio, ahí empieza a
@@ -143,8 +161,9 @@ Botón **Estudio PBDMM** (arriba). Tres zonas:
 - **Izquierda:** tus programas `.pbd` (la × los elimina; *Descargar .pbd* para guardarlos en un archivo) y los
   ejemplos: `hover`, `grabar`, `curriculum`, `postes`, `cerebro_chico`, `variables`.
 - **Centro:** el editor (con colores y **autocompletado**: ↑↓, Enter/Tab, Esc, Ctrl+Espacio) y la **terminal**.
-- **Derecha:** **Ayuda** (cada función con su ejemplo e *insertar*), **Aprende** (7 lecciones de cómo aprende una
-  IA) y **Gráfica** (curvas de éxito/choque/calidad, y **Red neuronal**: la red en vivo de cualquiera de los drones
+- **Derecha:** **Ayuda** (cada función con su ejemplo e *insertar*; lo nuevo del capítulo sale marcado), **Ruta** (la
+  ruta del programador: 8 capítulos, **uno por cada dron que creas**, cada uno con su programa guiado y un reto que el
+  juego mide solo), **Aprende** (7 lecciones de cómo aprende una IA) y **Gráfica** (curvas de éxito/choque/calidad, y **Red neuronal**: la red en vivo de cualquiera de los drones
   que entrenan; ◀ ▶, el número o *Al azar*).
 
 Tu primer modelo en 1 minuto:
@@ -156,7 +175,10 @@ Tu primer modelo en 1 minuto:
 
 Comandos útiles: `ayuda`, `ayuda premios`, `modelos éxito`, `info <modelo>`, `pausar/seguir/detener <modelo>`,
 `copiar/renombrar/borrar <modelo>` (borrar = a la papelera), `blender`, `limpiar`.
-La referencia completa del lenguaje está en [PBDMM.md](PBDMM.md).
+Al correr un programa con un dron del hangar (`dron("…")`), la terminal lo revisa contra lo que pide la misión
+(✅ / ⚠️ / ❌). Con `narrar(cada=5)` cuenta cómo va el entrenamiento y avisa si se estancó, si olvida o si choca mucho.
+La documentación del lenguaje está en [pbdmm/](pbdmm/README.md) (tutorial, referencia, gramática, biblioteca, errores)
+y la API en [PBDMM.md](PBDMM.md).
 
 ## Ver el entrenamiento en Blender
 

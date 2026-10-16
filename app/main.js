@@ -23,6 +23,7 @@ import { realDe, nivelDe } from "./pbdmm.js";
 import * as REQ from "./requisitos.js";
 import * as NG from "./negocio.js";
 import { initCelular } from "./celular.js";
+import * as RUTA from "./ruta.js";
 import { t, idioma, hayIdioma, setIdioma, cargarIdioma, traducirHTML, datos, num, IDIOMAS } from "./i18n.js";
 
 await cargarIdioma();                                  // el diccionario del idioma elegido (español: nada)
@@ -277,6 +278,7 @@ function renderHangar() {
 $("b-nd-cerrar").onclick = () => modal("nuevo-dron", false);
 $("b-nd-crear").onclick = () => {
   const d = PT.nuevoDron(P(), $("nd-nombre").value.trim() || undefined, $("nd-prop").value.trim());
+  avisoRutaDron(d);
   for (const [slot, id] of [["montaje", "mt_tornillos"], ["radio", "rx_espnow"]]) {      // lo gratis ya viene puesto
     if (!PT.libres(P(), id).length) PT.comprar(P(), cat, PT.RANURA[slot], id, 1);
     PT.instalar(P(), d, slot, id);
@@ -289,12 +291,18 @@ $("b-nd-crear").onclick = () => {
   toast(t("\"{nombre}\" está en el hangar: elige sus piezas (si no las tienes, cómpralas en la Tienda).", { nombre: esc(d.nombre) }), 4000);
 };
 
+/** Modo desarrollador: cada dron que creas abre un capítulo de la ruta del programador (ruta.js). */
+function avisoRutaDron(d) {
+  const n = RUTA.alCrearDron(P(), d);
+  if (n) setTimeout(() => toast(t("📘 Ruta del programador: se abrió el capítulo {n} con \"{d}\" (Estudio PBDMM → Ruta).", { n, d: esc(d.nombre) }), 4500), 900);
+}
 const kitCosto = () => Object.entries(DRONES_EJEMPLO.madera).reduce((s, [slot, id]) => s + (PT.libres(P(), id).length ? 0 : pieza(cat, PT.RANURA[slot], id)?.precio || 0), 0);
 function armarKit() {
   const p = P(), faltan = Object.entries(DRONES_EJEMPLO.madera).filter(([, id]) => !PT.libres(p, id).length).map(([slot, id]) => ({ ranura: PT.RANURA[slot], id, n: 1 }));
   const err = PT.comprarCarrito(p, cat, faltan);
   if (err) { toast(err); return; }
   const d = PT.nuevoDron(p, t("Madera"), t("El primer dron: videos de casas"));
+  avisoRutaDron(d);
   d.estilo = { ...PT.ESTILO };
   for (const [slot, id] of Object.entries(DRONES_EJEMPLO.madera)) PT.instalar(p, d, slot, id);
   guardar();
@@ -492,7 +500,7 @@ function cargarIAenDron(d) {
 const ctx = { G, cat, PT, BA, $, fmt, esc, toast, descr, api, guardar, modal, show, D, U, estadoDe, dronVista, verDron, get garaje() { return garaje; },
   renderTaller, irTaller, infoModelo, loadModelos, abrirLab: () => abrirLab(), canvas };
 const banco = initBanco(ctx);
-ctx.ent = ent; ctx.P = () => P(); ctx.dronParaEntrenar = (d) => dronParaEntrenar(d);
+ctx.ent = ent; ctx.mis = mis; ctx.P = () => P(); ctx.dronParaEntrenar = (d) => dronParaEntrenar(d);
 const estudio = initEstudio(ctx);
 ctx.renderer = renderer; ctx.urlModelo = urlModelo;
 const sim = initSim(ctx);

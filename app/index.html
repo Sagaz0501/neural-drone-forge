@@ -356,6 +356,8 @@
   #es-term { display: flex; flex-direction: column; min-height: 0; background: rgba(0,0,0,.25); }
   #es-out { flex: 1; overflow-y: auto; padding: 8px 12px; font: 13px/1.45 ui-monospace, Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
   #es-out .cmd { color: var(--next); margin-top: 4px; }
+  .es-c-verde { color: var(--gate); } .es-c-rojo { color: var(--crash); } .es-c-amarillo { color: var(--gold); } .es-c-azul { color: var(--next); } .es-c-gris { color: var(--muted); }
+  .es-ruta.cerrado summary { opacity: .55; } .es-ruta.hecho summary { color: var(--gate); }
   #es-prompt { display: flex; gap: 8px; align-items: center; padding: 6px 12px; border-top: 1px solid var(--line); font-family: ui-monospace, Menlo, monospace; color: var(--next); }
   #es-in { flex: 1; background: none; border: 0; color: var(--text); font: 13.5px ui-monospace, Menlo, monospace; outline: none; }
   #es-dercol { border-left: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; padding: 10px 12px; gap: 8px; }
@@ -471,7 +473,7 @@
     <div id="es-editor"><div id="es-gut" aria-hidden="true"></div><div id="es-area"><pre id="es-hl" aria-hidden="true"></pre><div id="es-ac" role="listbox" aria-label="Opciones" hidden></div><textarea id="es-src" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Programa PBDMM"></textarea></div></div>
     <div id="es-term"><div id="es-out" role="log" aria-live="polite"></div><div id="es-prompt"><span>›</span><input id="es-in" autocomplete="off" spellcheck="false" placeholder="ayuda · modelos · estado · correr · info &lt;modelo&gt;" aria-label="Terminal"></div></div>
   </div>
-  <aside id="es-dercol"><div id="es-tabs" class="seg"><button data-t="ayuda">Ayuda</button><button data-t="aprende">Aprende</button><button data-t="grafica">Gráfica</button></div><div id="es-der"></div></aside>
+  <aside id="es-dercol"><div id="es-tabs" class="seg"><button data-t="ayuda">Ayuda</button><button data-t="ruta">Ruta</button><button data-t="aprende">Aprende</button><button data-t="grafica">Gráfica</button></div><div id="es-der"></div></aside>
 </section>
 
 <!-- ============ SIMULACIONES (Avance del modelo · Simular prueba) ============ -->

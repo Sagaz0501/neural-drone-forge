@@ -7,8 +7,11 @@
 ```python
 # hola.pbd: mi primer programa
 modelo("hola_dron", desde="base")   # la IA que voy a entrenar (parte de la que ya sabe volar)
-mision("grabar")                    # qué tiene que aprender
-dron("Madera (dev)")                # con la física de este dron de mi hangar
+m = mision("grabar_viento")         # qué tiene que aprender (la finca, con viento)
+d = dron("Madera (dev)")            # con la física de este dron de mi hangar (y se revisa solo contra la misión)
+narrar(cada=5)                      # la terminal cuenta cómo va
+
+print("empuje/peso:", d.empuje_peso, "· la misión pide:", m.pide)
 
 def cada_generacion(e):
     print(f"generación {e.generacion}: éxito {e.exito:.0%}")
@@ -16,8 +19,12 @@ def cada_generacion(e):
         detener()
 ```
 
-Ese programa crea el modelo `hola_dron` y lo pone a entrenar en segundo plano (PPO, con 50 drones a la vez). Cada vez
-que termina una generación imprime cómo va, y se detiene solo cuando 8 de cada 10 intentos logran la misión.
+Ese programa crea el modelo `hola_dron` y lo pone a entrenar en segundo plano (PPO, con 50 drones a la vez). Antes de
+entrenar revisa si el dron de madera aguanta el viento de la finca (✅ / ⚠️ / ❌). Cada vez que termina una generación
+imprime cómo va, y se detiene solo cuando 8 de cada 10 intentos logran la misión.
+
+**Versión 2.0** ([cambios](CHANGELOG.md)). Para aprender, en el juego está la **ruta del programador**: cada dron que
+creas abre un capítulo con un programa guiado y un reto (Estudio → pestaña **Ruta**).
 
 ## La documentación
 
@@ -30,7 +37,7 @@ que termina una generación imprime cómo va, y se detiene solo cuando 8 de cada
 | [API de entrenamiento](../PBDMM.md) | Las funciones del dron (`modelo`, `mision`, `premios`…), el objeto `e`, las funciones especiales y los comandos de la terminal. Se genera desde `app/data/pbdmm.json` |
 | [Errores](errores.md) | Los mensajes de error más comunes y cómo arreglarlos |
 | [Cambios](CHANGELOG.md) | Las versiones del lenguaje |
-| [PBDMM 2 (propuesta)](../PBDMM2_PLAN.md) | Lo que viene: leer el juego desde el programa, revisar el dron contra la misión y la ruta del programador |
+| [PBDMM 2](../PBDMM2_PLAN.md) | El plan y las decisiones de la versión 2.0: leer el juego, revisar el dron contra la misión, el narrador y la ruta del programador |
 
 ## Cómo se usa
 

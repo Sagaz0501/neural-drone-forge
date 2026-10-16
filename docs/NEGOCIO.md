@@ -1,5 +1,9 @@
 # El negocio · cómo se juega Neural Drone Forge
 
+> **Estado (15-10-2026):** hecho el celular, el tutorial del día 1, fotos, inspecciones, videos repetibles, las 4
+> dificultades, los 4 clientes con relación y recomendaciones, el arriendo y los pedidos especiales por el chat (pasos 1 a 4
+> del orden de trabajo). Falta: flota, encargos de armado, pruebas de drones, a mano y entregas.
+>
 > Diseño del 15-10-2026 (idea de Santiago). Cambia la forma del juego: deja de ser una lista de misiones y pasa a ser
 > **un negocio de drones al que le escriben los clientes**. La campaña de [`HISTORIA.md`](HISTORIA.md) no se pierde:
 > sus pedidos pasan a ser los **pedidos especiales** que hacen crecer la empresa.

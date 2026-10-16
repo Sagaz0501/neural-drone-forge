@@ -1,6 +1,6 @@
 # Referencia del lenguaje PBDMM
 
-> Versión 1.0 del lenguaje. Describe lo que hace el intérprete de verdad ([`app/pbdmm.js`](../../app/pbdmm.js)). Cuando
+> Versión 2.0 del lenguaje. Describe lo que hace el intérprete de verdad ([`app/pbdmm.js`](../../app/pbdmm.js)). Cuando
 > PBDMM se porta distinto que Python, lo dice un recuadro **≠ Python**.
 
 Contenido: [1. Léxico](#1-léxico) · [2. Tipos y valores](#2-tipos-y-valores) · [3. Expresiones](#3-expresiones) ·
@@ -150,7 +150,7 @@ valor y se usa sobre todo con `None`: `if e.choque is None:`.
 - Dividir por cero (`/`, `//`, `%`) da el error *"división por cero"*.
 - Sumar un texto con otra cosa da error: hay que usar `str(x)` o un f-texto.
 
-> **≠ Python:** `True + 1` y `True * 3` dan error. Los `bool` no son números.
+Como en Python, `True` y `False` cuentan como `1` y `0` en las cuentas: `True + 1 = 2`, `sum([True, True]) = 2`.
 
 ### 3.3 Comparaciones
 
@@ -191,7 +191,9 @@ pares = [k for k, v in premios_fase2.items() if v > 4]       # ["grabar"]
 - `x.nombre` lee el atributo de un objeto (`e.exito`) o un **método** (`lista.append`, `texto.upper`, `dic.items`).
   Los métodos están en la [biblioteca](biblioteca.md#métodos).
 
-> **≠ Python:** no hay rebanadas (`lista[1:3]` da error).
+- **Rebanadas:** `lista[a:b]` y `texto[a:b]` dan el pedazo de `a` a `b` (sin incluir `b`). Cualquiera de los dos
+  se puede omitir y aceptan negativos: `xs[:3]` (los 3 primeros), `xs[-5:]` (los 5 últimos), `"dron"[1:]` (`"ron"`).
+  No hay paso (`xs[::2]`) ni asignación a una rebanada.
 
 ### 3.8 Llamadas
 
@@ -294,9 +296,8 @@ def promedio(xs, vacio=0):
 - `return x` devuelve un valor, `return a, b` devuelve una lista, y sin `return` devuelve `None`.
 - Las funciones son valores: `f = promedio` y después `f([1, 2])`.
 
-> **≠ Python:** el valor por defecto **se calcula en cada llamada** (y con las variables globales de ese momento), no una
-> sola vez al definir la función.
->
+Como en Python, el valor por defecto **se calcula una vez, al definir la función** (con las variables de ese momento).
+
 > **≠ Python:** no hay `*args` ni `**kwargs` en un `def` (sí al llamar: `f(*lista)`).
 
 ### 5.1 Las funciones especiales (hooks)
@@ -321,12 +322,10 @@ escritura (`def cada_generación` o `def al_terminar_`).
   Por eso una variable como `fase` recuerda su valor de una generación a otra.
 - **Dentro de una función**, asignar una variable crea una **local** que desaparece al terminar la llamada. Para cambiar
   una global hay que declararla con `global`.
-- Para **leer** un nombre se busca primero en las locales, después en las globales y al final en las funciones de PBDMM.
+- Para **leer** un nombre se busca primero en las locales, después en las de las funciones de afuera (si la función
+  está definida dentro de otra: un *closure*, como en Python), después en las globales y al final en las funciones de PBDMM.
 - Una comprensión tiene su propio espacio: sus variables no se escapan.
 
-> **≠ Python:** una función definida dentro de otra **no ve las variables locales de la de afuera** (no hay closures):
-> solo ve sus propias variables y las globales.
->
 > **≠ Python:** `n = n + 1` dentro de una función sin `global` **no da error**: lee la `n` global y crea una local
 > nueva. La global no cambia.
 
@@ -366,6 +365,26 @@ escritura (`def cada_generación` o `def al_terminar_`).
 
 ---
 
+## 7b. Objetos del juego (PBDMM 2)
+
+Algunas funciones devuelven **objetos** que se leen con un punto, como `e`. Son **solo para leer**: el dron se cambia
+en el banco y la misión en `misiones.json`, no desde el programa.
+
+| Función | Devuelve | Campos principales |
+|---|---|---|
+| `dron("…")` (arriba) · `dron_info("…")` · `hangar()` | un dron (o una lista) | `nombre`, `armado`, `listo`, `peso`, `empuje_peso`, `vel_max`, `minutos`, `bateria.minutos`, `motores`, `radio.alcance_m`, `camara.calidad`, `sensores`, `barometro`, `tof`, `protectores`, `nitidez`, `precio`, `ia` |
+| `mision("…")` (arriba) · `mision_info("…")` | una misión | `id`, `nombre`, `nivel`, `viento`, `para`, `pide` (un diccionario), `premios` |
+| `modelo_info("…")` | un modelo | `generacion`, `red`, `exito`, `choque`, `mejor_exito`, `entrenando`, `desde` |
+| `inventario(ranura)` | lista de piezas | `nombre`, `ranura`, `vida`, `precio`, `en` |
+| `revisar(d, m)` | el resultado | `ok`, `errores`, `avisos` |
+
+- `dron("azar")` y `dron("estandar")` devuelven `None`: no son un dron de tu hangar.
+- Un dron sin piezas tiene `armado = False` y sus números en `None`.
+- Los campos existen en los dos idiomas (`d.empuje_peso` = `d.thrust_weight`). `print(d)` y `ficha(d)` muestran los
+  del idioma del juego. `m.pide` es un diccionario con las claves en el idioma del juego (`m.pide.get("barometro")`).
+- **Revisión automática:** si el programa elige un dron del hangar con `dron(…)`, al `revisar` o `correr` se compara
+  con lo que pide la misión y la terminal muestra ✅ / ⚠️ / ❌. No bloquea: se puede entrenar igual.
+
 ## 8. Límites
 
 | Límite | Valor | Para qué |
@@ -373,6 +392,7 @@ escritura (`def cada_generación` o `def al_terminar_`).
 | Operaciones por ejecución (arriba del archivo, o cada llamada a una función especial) | 200.000 | que un programa no congele el navegador |
 | Largo de `range(…)` | 100.000 | ídem |
 | Largo de una comprensión | 100.000 | ídem |
+| Generaciones entre narraciones (`narrar(cada=n)`) | de 1 a 100 | |
 | Capas de `red(capas=…)` | de 1 a 4, de 8 a 512 neuronas | lo que puede entrenar `live_train.py` |
 | Drones a la vez (`drones(n)`) | de 1 a 200 | |
 | Premios y castigos | de 0 a 10 | la escala del juego |
@@ -390,11 +410,10 @@ hace falta para describir un entrenamiento:
 | `import`, `from` | no hay módulos: lo necesario ya está |
 | `class`, `lambda` | usa `def` |
 | `try` / `except`, `with`, `del`, `assert`, `yield`, `nonlocal`, decoradores | |
-| rebanadas `x[a:b]` | recorre con `for` |
+| rebanadas con paso `x[a:b:c]` | `[x for x in …]` o `reversed()` |
 | conjuntos `{1, 2}`, comprensiones de diccionario | listas y diccionarios |
 | textos de varias líneas `"""…"""` | varios `print` |
 | operadores de bits `& \| ^ ~ << >>` | |
-| `sorted`, `enumerate`, `zip`, `any`, `all`, `reversed` | por ahora no; ver la [biblioteca](biblioteca.md) |
 | leer o escribir archivos, red, la hora | un programa solo pide un entrenamiento |
 
 ---

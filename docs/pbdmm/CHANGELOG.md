@@ -1,15 +1,20 @@
 # Cambios de PBDMM
 
-## 2.0 · en diseño
+## 2.0 · 15-10-2026
 
-Propuesta en [`PBDMM2_PLAN.md`](../PBDMM2_PLAN.md):
+Plan y decisiones en [`PBDMM2_PLAN.md`](../PBDMM2_PLAN.md).
 
-- `dron(…)` y `mision(…)` también **devuelven un objeto** para leer (`d.empuje_peso`, `m.pide`), además de `ficha()`,
-  `hangar()`, `inventario()` y `modelo_de()`.
-- `revisar(d, m)`: el programa compara el dron con lo que pide la misión antes de entrenar, solo si usa `dron(…)`.
-- Narrador y diagnósticos en la terminal, `e.cambio` y `explicar()`.
-- `tabla()`, `barra()` y `color()` para la terminal.
-- La **ruta del programador**: cada dron nuevo abre un capítulo con un programa guiado y un reto.
+- **Leer el juego:** `dron(…)` y `mision(…)` también devuelven un objeto (`d.empuje_peso`, `m.pide`), y hay
+  `dron_info()`, `mision_info()`, `modelo_info()`, `hangar()` e `inventario()`. Campos en español y en inglés.
+- **Revisar el dron contra la misión:** `revisar(d, m)`, y automático al revisar/correr si el programa usa `dron(…)`
+  con un dron del hangar (empuje/peso con viento, radio, batería, cámara, protectores, sensores ToF).
+- **La terminal:** `ficha()`, `tabla()`, `barra()`, `color()`, `explicar()` y `narrar(cada=5)` (cuenta cómo va y avisa
+  lo que se nota: se estancó, olvida, pagas por lo que no es, choca mucho). `e.cambio` y `e.diagnosticos`.
+- **Más Python:** rebanadas `x[a:b]`, closures, valores por defecto calculados al definir, `True + 1 = 2`, `round` como
+  Python, `max([])` da error, `sorted`/`reversed`/`enumerate`/`zip`/`any`/`all` (con `key=` y `reverse=`).
+- **La ruta del programador:** 8 capítulos; cada dron que creas en el modo desarrollador abre uno, con un programa
+  guiado y un reto que el juego mide solo (pestaña **Ruta** del Estudio).
+- `traducir` también pasa los campos de los objetos (`d.empuje_peso` ↔ `d.thrust_weight`).
 
 ## 1.0 · 15-10-2026
 

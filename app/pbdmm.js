@@ -16,6 +16,7 @@
 // Docs para el jugador: app/data/pbdmm.json. Pruebas: node app/test_pbdmm.mjs
 // =====================================================================
 import { t, idioma } from "./i18n.js";
+import { cumple, minutosNecesarios } from "./requisitos.js";
 
 export class ErrorPB extends Error {
   constructor(msg, linea) { super(linea ? t("línea {n}: {msg}", { n: linea, msg }) : msg); this.linea = linea || null; this.msgCorto = msg; }
@@ -242,7 +243,12 @@ export function parsear(src) {
         sig();
         a = { k: "call", f: a, args, kws, n };
       } else if (op(".")) { const n = sig().n; a = { k: "attr", a, nombre: pedir("NAME", undefined, t("después del punto va un nombre")).v, n }; }
-      else if (op("[")) { const n = sig().n; const i = expr(); pedir("OP", "]"); a = { k: "idx", a, i, n }; }
+      else if (op("[")) {                                            // x[i] · x[a:b] (rebanada)
+        const n = sig().n;
+        const i = op(":") ? null : expr();
+        if (op(":")) { sig(); const fin = op("]") ? null : expr(); pedir("OP", "]"); a = { k: "slice", a, ini: i, fin, n }; }
+        else { pedir("OP", "]"); a = { k: "idx", a, i, n }; }
+      }
       else return a;
     }
   }
@@ -328,6 +334,8 @@ const CORTE = { break: Symbol("break"), continue: Symbol("continue") };
 
 /** Lo que el programa ve como objeto con atributos (e.exito): un objeto JS "congelado". */
 export function objeto(campos) { return Object.freeze({ __pb_obj: true, ...campos }); }
+/** e con sus diagnósticos con clave (para el narrador; el programa ve e.diagnosticos, solo los textos). */
+function objetoConK(o, dg) { const c = { ...o }; Object.defineProperty(c, "diagnosticos_k", { value: dg, enumerable: false }); return Object.freeze(c); }
 
 export function tipoDe(v) {
   if (v === null || v === undefined) return "None";
@@ -397,7 +405,9 @@ export class Interprete {
         s.nombres.forEach((x) => loc.globals.add(x));
         return;
       case "def": {
-        const f = { __pb_fn: true, nombre: s.nombre, params: s.params, body: s.body, n: s.n };
+        // como Python: los valores por defecto se calculan UNA vez, al definir; y la función recuerda dónde nació (closure)
+        const params = s.params.map((p) => ({ ...p, valor: p.def ? this.ev(p.def, loc) : undefined }));
+        const f = { __pb_fn: true, nombre: s.nombre, params, body: s.body, n: s.n, cierre: loc };
         this.poner(s.nombre, f, loc, s.n);
         return;
       }
@@ -459,6 +469,7 @@ export class Interprete {
   }
   leer(nombre, loc, n) {
     if (loc && loc.vars.has(nombre) && !loc.globals.has(nombre)) return loc.vars.get(nombre);
+    if (!loc?.globals.has(nombre)) for (let L = loc?.padre; L; L = L.padre) if (L.vars.has(nombre)) return L.vars.get(nombre);
     if (this.globales.has(nombre)) return this.globales.get(nombre);
     if (nombre in this.builtins) return Object.assign(this.builtins[nombre], { nombre });
     if (nombre === "e" && !loc) throw new ErrorPB(t('"e" (cómo va el entrenamiento) solo existe dentro de las funciones que llama el juego: def cada_generacion(e): …  Arriba del archivo todavía no está entrenando'), n);
@@ -473,7 +484,7 @@ export class Interprete {
       case "list": return e.xs.map((x) => this.ev(x, loc));
       case "ternario": return verdad(this.ev(e.c, loc)) ? this.ev(e.a, loc) : this.ev(e.b, loc);
       case "comp": {                                   // su propio espacio: sus variables no se escapan
-        const sub = { vars: new Map(loc ? loc.vars : []), globals: new Set() }, out = [];
+        const sub = { vars: new Map(), globals: new Set(), padre: loc }, out = [];
         for (const x of this.iterable(this.ev(e.it, loc), e.n)) {
           this.ponerVarios(e.v, x, sub, e.n);
           if (!e.c || verdad(this.ev(e.c, sub))) out.push(this.ev(e.e, sub));
@@ -506,6 +517,12 @@ export class Interprete {
         }
         throw new ErrorPB(t('un {tipo} no tiene "{nombre}"', { tipo: tipoDe(o), nombre: e.nombre }), e.n);
       }
+      case "slice": {
+        const o = this.ev(e.a, loc);
+        if (!Array.isArray(o) && typeof o !== "string") throw new ErrorPB(t("no se puede rebanar un {tipo} ([a:b] va con listas y textos)", { tipo: tipoDe(o) }), e.n);
+        const lim = (x, d) => { if (x === null) return d; const v = this.ev(x, loc); if (!Number.isInteger(v)) throw new ErrorPB(t("el índice va con un número entero"), e.n); return v < 0 ? Math.max(0, o.length + v) : Math.min(v, o.length); };
+        return o.slice(lim(e.ini, 0), lim(e.fin, o.length));
+      }
       case "idx": {
         const o = this.ev(e.a, loc), i = this.ev(e.i, loc);
         if (Array.isArray(o) || typeof o === "string") return o[indice(o, i, e.n)];
@@ -537,9 +554,9 @@ export class Interprete {
       catch (err) { if (err instanceof ErrorPB) { if (!err.linea) { const e2 = new ErrorPB(err.message, n); throw e2; } throw err; } throw new ErrorPB(err.message, n); }
     }
     if (!f?.__pb_fn) throw new ErrorPB(t("{f} no es una función", { f: repr(f, true) }), n);
-    const loc = { vars: new Map(), globals: new Set() };
+    const loc = { vars: new Map(), globals: new Set(), padre: f.cierre || null };
     if (args.length > f.params.length) throw new ErrorPB(t("{f}() recibe {n} cosas y le diste {m}", { f: f.nombre, n: f.params.length, m: args.length }), n);
-    f.params.forEach((p, i) => loc.vars.set(p.nombre, i < args.length ? args[i] : p.def ? this.ev(p.def, null) : undefined));
+    f.params.forEach((p, i) => loc.vars.set(p.nombre, i < args.length ? args[i] : p.def ? p.valor : undefined));
     for (const [k, v] of kws) { if (!f.params.some((p) => p.nombre === k)) throw new ErrorPB(t('{f}() no tiene el parámetro "{k}"', { f: f.nombre, k }), n); loc.vars.set(k, v); }
     const falta = f.params.find((p) => loc.vars.get(p.nombre) === undefined);
     if (falta) throw new ErrorPB(t('a {f}() le falta "{p}"', { f: f.nombre, p: falta.nombre }), n);
@@ -560,6 +577,8 @@ function formato(v, fmt) {
   return m[2] === "%" ? (v * 100).toFixed(d) + "%" : v.toFixed(d);
 }
 function binaria(o, a, b, n) {
+  const esNum = (x) => typeof x === "number" || typeof x === "boolean";
+  if (esNum(a) && esNum(b)) { a = +a; b = +b; }                    // como Python: True + 1 = 2
   const ta = tipoDe(a), tb = tipoDe(b), num = typeof a === "number" && typeof b === "number";
   const boolnum = (x) => (typeof x === "boolean" ? +x : x);
   if (o === "+") {
@@ -623,6 +642,15 @@ function sugerir(x, opciones) {
   const best = opciones.map((o) => [o, d(x, o)]).sort((a, b) => a[1] - b[1])[0];
   return best && best[1] <= Math.max(1, Math.floor(x.length / 3)) ? t(' (¿quisiste decir "{x}"?)', { x: best[0] }) : "";
 }
+/** min() y max(): de varios valores o de una lista (vacía = error, como Python); key= como sorted. */
+function extremo(a, k, n, cual, I) {
+  const xs = a.length === 1 && Array.isArray(a[0]) ? a[0] : a;
+  if (!xs.length) throw new ErrorPB(t("{f}() de una lista vacía", { f: cual }), n);
+  const clave = k?.key && I ? (x) => I.invocar(k.key, [x], [], n) : (x) => x;
+  let mejor = xs[0], cm = clave(mejor);
+  for (const x of xs.slice(1)) { const c = clave(x); if (comparar(cual === "min" ? "<" : ">", c, cm, n)) { mejor = x; cm = c; } }
+  return mejor;
+}
 const num = (x, nombre, n) => { if (typeof x !== "number") throw new ErrorPB(t("{f}() necesita un número y le diste {tipo}", { f: nombre, tipo: tipoDe(x) }), n); return x; };
 
 /** Lo básico de Python. La salida de print la decide quien corre el programa (builtins.print). */
@@ -632,10 +660,25 @@ const BASICOS = {
   str: ([x]) => repr(x),
   int: ([x], _, n) => { const v = typeof x === "string" ? parseFloat(x) : x; if (typeof v !== "number" || Number.isNaN(v)) throw new ErrorPB(t("int() no entiende {x}", { x: repr(x, true) }), n); return Math.trunc(v); },
   float: ([x], _, n) => { const v = typeof x === "string" ? parseFloat(x) : x; if (typeof v !== "number" || Number.isNaN(v)) throw new ErrorPB(t("float() no entiende {x}", { x: repr(x, true) }), n); return v; },
-  round: ([x, d = 0], _, n) => { num(x, "round", n); const k = 10 ** d; return Math.round(x * k) / k; },
+  round: ([x, d = 0], _, n) => {                                  // como Python: los .5 van al par (round(2.5) = 2)
+    num(x, "round", n);
+    const k = 10 ** d, y = x * k, r = Math.round(y);
+    return (Math.abs(y % 1) === 0.5 && r % 2 !== 0 ? r - 1 : r) / k;
+  },
   abs: ([x], _, n) => Math.abs(num(x, "abs", n)),
-  min: (a) => Math.min(...(a.length === 1 && Array.isArray(a[0]) ? a[0] : a)),
-  max: (a) => Math.max(...(a.length === 1 && Array.isArray(a[0]) ? a[0] : a)),
+  min: (a, k, n, I) => extremo(a, k, n, "min", I),
+  max: (a, k, n, I) => extremo(a, k, n, "max", I),
+  sorted: ([xs], k, n, I) => {
+    if (!Array.isArray(xs) && typeof xs !== "string") throw new ErrorPB(t("sorted() va con una lista"), n);
+    const clave = k.key ? (x) => I.invocar(k.key, [x], [], n) : (x) => x;
+    const out = [...xs].map((x) => [clave(x), x]).sort((p, q) => (comparar("<", p[0], q[0], n) ? -1 : comparar("<", q[0], p[0], n) ? 1 : 0)).map((p) => p[1]);
+    return k.reverse ? out.reverse() : out;
+  },
+  reversed: ([xs], _, n) => { if (!Array.isArray(xs) && typeof xs !== "string") throw new ErrorPB(t("reversed() va con una lista"), n); return [...xs].reverse(); },
+  enumerate: ([xs, ini = 0]) => [...(typeof xs === "string" ? [...xs] : xs)].map((x, i) => [i + ini, x]),
+  zip: (a) => { const L = Math.min(...a.map((x) => x.length)); return Array.from({ length: a.length ? L : 0 }, (_, i) => a.map((x) => x[i])); },
+  any: ([xs]) => xs.some((x) => verdad(x)),
+  all: ([xs]) => xs.every((x) => verdad(x)),
   sum: ([xs]) => xs.reduce((s, x) => s + x, 0),
   len: ([x], _, n) => { if (typeof x === "string" || Array.isArray(x)) return x.length; if (tipoDe(x) === "dict") return Object.keys(x).length; throw new ErrorPB(t("len() de un {tipo}", { tipo: tipoDe(x) }), n); },
   range: (a, _, n) => {
@@ -684,6 +727,8 @@ export function compilar(src, data, host = {}) {
   const tipos = data.tiposPremio || {};
   const nombresDe = (tipo) => [...data.premiosValidos.filter((k) => (tipos[k] || "premio") === tipo), ...Object.keys(alias).filter((a) => (tipos[alias[a]] || "premio") === tipo)];
   /** El nombre del premio/castigo para el entrenador; premios() no acepta castigos ni al revés. */
+  const misEsDe = Object.fromEntries(Object.entries(data.alias_en?.misiones || {}).map(([es, en]) => [en, es]));
+  const RANURA_ES = { motors: "motores", props: "helices", batteries: "baterias", frames: "chasis", cameras: "camaras", radios: "radios", escs: "escs", flight_controllers: "controladoras", extras: "extras" };
   const premioKey = (k, n, tipo) => {
     const kk = alias[k] || k, fn = tipo === "castigo" ? "castigos" : "premios";
     if (!data.premiosValidos.includes(kk)) throw new ErrorPB(t('no hay un {tipo} "{k}"{sug}. Mira ayuda("{fn}")', { tipo: nomTipo(tipo), k, sug: sugerir(k, nombresDe(tipo)), fn }), n);
@@ -716,7 +761,7 @@ export function compilar(src, data, host = {}) {
 
   const B = {
     print: (a, k) => salida(a.map((x) => repr(x)).join(k.sep ?? " ")),
-    avisar: ([x]) => { if (host.avisar) host.avisar(repr(x)); salida("📣 " + repr(x)); },
+    avisar: ([x]) => { if (host.avisar) host.avisar(repr(x)); salida("📣 " + repr(x)); if (fase !== "arriba") accion({ avisar: repr(x) }); },
     modelo: ([nombre], k, n) => {
       soloArriba("modelo", n); unaVez("modelo", n);
       texto(nombre, "modelo", n);
@@ -741,6 +786,7 @@ export function compilar(src, data, host = {}) {
       if (!m) throw new ErrorPB(t('no hay una misión "{id}". Hay: {lista}', { id, lista: data.misiones.map((x) => x.id).join(", ") }), n);
       cfg.mision = id; cfg.nivel = m.nivel;
       if (cfg.viento === undefined && m.viento) cfg.vientoMision = m.viento;
+      return objMision(id);                            // PBDMM 2: m = mision("grabar") -> m.pide …
     },
     nivel: ([x], _, n) => {
       soloArriba("nivel", n); unaVez("mision", n);
@@ -751,13 +797,12 @@ export function compilar(src, data, host = {}) {
       soloArriba("dron", n); unaVez("dron", n);
       texto(x, "dron", n);
       const low = x.toLowerCase();
-      if (low === "estandar" || low === "estándar") cfg.dron = "ESTANDAR";
-      else if (low === "azar") cfg.dron = "AZAR";
-      else {
-        const d = (data.drones || []).find((y) => y.toLowerCase() === low);
-        if (!d) throw new ErrorPB(t('no tienes un dron "{x}" en el hangar. Usa "estandar", "azar"{tuyos}', { x, tuyos: data.drones?.length ? t(" o uno tuyo: {lista}", { lista: data.drones.map((y) => `"${y}"`).join(", ") }) : "" }), n);
-        cfg.dron = { hangar: d };
-      }
+      if (low === "estandar" || low === "estándar") { cfg.dron = "ESTANDAR"; return null; }
+      if (low === "azar") { cfg.dron = "AZAR"; return null; }
+      const d = (data.drones || []).find((y) => y.toLowerCase() === low);
+      if (!d) throw new ErrorPB(t('no tienes un dron "{x}" en el hangar. Usa "estandar", "azar"{tuyos}', { x, tuyos: data.drones?.length ? t(" o uno tuyo: {lista}", { lista: data.drones.map((y) => `"${y}"`).join(", ") }) : "" }), n);
+      cfg.dron = { hangar: d };
+      return objDron(d);                               // PBDMM 2: d = dron("Cine (dev)") -> d.empuje_peso …
     },
     drones: ([x], _, n) => { soloArriba("drones", n); unaVez("drones", n); if (!Number.isInteger(x)) throw new ErrorPB(t("drones() va con un número entero"), n); cfg.drones = rango(x, 1, 200, "drones", n); },
     entrenar_en: ([x], _, n) => {
@@ -791,6 +836,155 @@ export function compilar(src, data, host = {}) {
     detener: (_, __, n) => { if (fase === "arriba") throw new ErrorPB(t("detener() va dentro de una función (por ejemplo: if e.exito > 0.9: detener())"), n); accion({ detener: true }); host.detener?.(); },
     guardar: (_, __, n) => { if (fase === "arriba") throw new ErrorPB(t("guardar() va dentro de una función"), n); accion({ guardar: true }); host.guardar?.(); },
   };
+  // ---------------- PBDMM 2: leer el juego (docs/PBDMM2_PLAN.md) ----------------
+  // data.hangar = [{nombre, proposito, listo, modelo, st (stats de parts.js) | null, piezas: {ranura: nombre}, extras: [nombres]}]
+  // data.misionInfo = {id: {para, requisitos, ctx: {segundos, viento, alcance}}} · data.inventario = [{nombre, ranura, vida, precio, en}]
+  const hangarDe = (x, n) => {
+    const nom = typeof x === "string" ? x : x?.nombre;
+    const h = (data.hangar || []).find((y) => y.nombre.toLowerCase() === String(nom).toLowerCase());
+    if (!h) throw new ErrorPB(t('no tienes un dron "{x}" en el hangar{tuyos}', { x: nom, tuyos: data.hangar?.length ? t(" o uno tuyo: {lista}", { lista: data.hangar.map((y) => `"${y.nombre}"`).join(", ") }) : "" }), n);
+    return h;
+  };
+  function objDron(nombre) {
+    const h = (data.hangar || []).find((y) => y.nombre === nombre);
+    if (!h) return bi({ nombre, armado: false });                 // el compilador sin datos del hangar (pruebas): solo el nombre
+    const st = h.st, pz = h.piezas || {}, ay = st?.ayudas || [];
+    if (!st) {                                         // sin piezas todavía: los mismos campos, en None (el programa no se rompe)
+      const nada = { peso: null, peso_g: null, empuje_peso: null, vel_max: null, minutos: null, bateria: bi({ nombre: pz.bateria || null, minutos: null }),
+        motores: pz.motores || null, helices: pz.helices || null, esc: pz.esc || null, controladora: pz.controladora || null, chasis: pz.chasis || null,
+        radio: bi({ nombre: pz.radio || null, alcance_m: null }), camara: bi({ nombre: pz.camara || null, calidad: null, gimbal: false }),
+        sensores: [], barometro: false, tof: false, protectores: false, extras: [...(h.extras || [])], vibracion: null, nitidez: null, precio: null };
+      return bi({ nombre: h.nombre, proposito: h.proposito || "", armado: false, listo: false, ia: h.modelo || null, ...nada });
+    }
+    const r2 = (x, d = 2) => Math.round(x * 10 ** d) / 10 ** d;
+    const sensores = [...(ay.includes("altura") ? ["barometro"] : []), ...(ay.includes("frenar") ? ["gps"] : []), ...(ay.includes("sensores") ? ["tof"] : []), ...(ay.includes("ia") ? ["chip_ia"] : [])];
+    return bi({
+      nombre: h.nombre, proposito: h.proposito || "", armado: true, listo: !!h.listo, ia: h.modelo || null,
+      peso: r2(st.mass, 3), peso_g: Math.round(st.masa_g), empuje_peso: r2(st.twr), vel_max: r2(st.velMax, 1), minutos: r2(st.minutos, 1),
+      bateria: bi({ nombre: pz.bateria || null, minutos: r2(st.minutos, 1) }), motores: pz.motores || null, helices: pz.helices || null,
+      esc: pz.esc || null, controladora: pz.controladora || null, chasis: pz.chasis || null,
+      radio: bi({ nombre: pz.radio || null, alcance_m: st.alcance_m }), camara: bi({ nombre: pz.camara || null, calidad: st.calidad, gimbal: !!st.gimbal }),
+      sensores, barometro: ay.includes("altura"), tof: ay.includes("sensores"), protectores: ay.includes("protectores"),
+      extras: [...(h.extras || [])], vibracion: r2(st.vibracion), nitidez: r2(st.nitidez), precio: st.precio,
+    });
+  }
+  /** Lo que pide una misión, con nombres que se leen (requisitos.js usa los de misiones.json). Un diccionario (con .get). */
+  function pideDe(id) {
+    const I = data.misionInfo?.[id];
+    if (!I) return {};
+    const r = I.requisitos || {}, c = I.ctx || {}, out = {};
+    if (r.twr_min) out.empuje_peso_min = r.twr_min;
+    if (r.barometro) out.barometro = true;
+    if (r.protectores) out.protectores = true;
+    if (r.calidad_min) out.camara_min = r.calidad_min;
+    if (r.sensores) out.tof = true;
+    if (c.alcance !== undefined) out.alcance_m = Math.round(c.alcance);
+    if (c.segundos !== undefined) out.minutos = Math.round(minutosNecesarios(c.segundos, c.viento ?? 0) * 10) / 10;
+    return idioma() === "en" ? Object.fromEntries(Object.entries(out).map(([k, v]) => [BI_EN[k] || k, v])) : out;
+  }
+  function objMision(id) {
+    const m = data.misiones.find((x) => x.id === id);
+    const prem = Object.fromEntries(Object.entries(m.premios || {}).map(([k, v]) => [Object.entries(alias).find(([, kk]) => kk === k)?.[0] || k, nivelDe(k, v, data.escala)]));
+    return bi({ id, nombre: m.nombre, nivel: m.nivel, viento: m.viento ?? 0, para: data.misionInfo?.[id]?.para || m.para || "", pide: pideDe(id), premios: Object.freeze(prem) });
+  }
+  function objModelo(x, n) {
+    const slug = String(typeof x === "string" ? x : x?.nombre).toLowerCase();
+    const m = (data.modelos || []).find((y) => y.slug === slug);
+    if (!m) throw new ErrorPB(t('no hay un modelo "{m}"{sug}', { m: slug, sug: sugerir(slug, (data.modelos || []).map((y) => y.slug)) }), n);
+    const pct = (v) => (typeof v === "number" ? Math.round(v * 1000) / 1000 : null);
+    return bi({ nombre: m.slug, generacion: m.gen ?? 0, red: m.red || null, exito: pct(m.ultimo?.[2]), choque: pct(m.ultimo?.[3]), mejor_exito: pct(m.mejor_exito),
+      entrenando: !!m.entrenando, donde: m.donde || null, desde: m.base_de || null, guardado: !!m.tiene_modelo });
+  }
+  /** revisar(d, m): el dron contra lo que pide la misión. Devuelve las líneas [icono, texto] y un objeto {ok, errores, avisos}. */
+  function revision(dNombre, mId, n) {
+    const h = hangarDe(dNombre, n), I = data.misionInfo?.[mId];
+    if (!I) return { lineas: [["ℹ️", t("la misión \"{m}\" no pide nada especial al dron", { m: mId })]], ok: true, errores: [], avisos: [] };
+    if (!h.st) return { lineas: [["❌", t('"{d}" no está armado: le faltan piezas', { d: h.nombre })]], ok: false, errores: [t("le faltan piezas")], avisos: [], armado: false };
+    const c = cumple(I.requisitos || {}, h.st, I.ctx || {});
+    const lineas = c.lineas.map(([cl, txt]) => [cl === "no" ? "❌" : cl === "meh" ? "⚠️" : "✅", txt]);
+    if (I.requisitos?.sensores && !(h.st.ayudas || []).includes("sensores")) lineas.push(["❌", t("Falta: sensores ToF (la IA ve los postes con los 10 sensores de distancia)")]);
+    else if (I.requisitos?.sensores) lineas.push(["✅", t("Sensores ToF: ve los postes")]);
+    if (!h.listo) lineas.push(["⚠️", t("Todavía no está terminado en el banco (para entrenar basta su física; para volarlo, termínalo)")]);
+    const errores = lineas.filter((x) => x[0] === "❌").map((x) => x[1]), avisos = lineas.filter((x) => x[0] === "⚠️").map((x) => x[1]);
+    return { lineas, ok: !errores.length, errores, avisos };
+  }
+  /** Un objeto del juego -> unas líneas para la terminal (ficha). */
+  function fichaDe(o) {
+    const v = (x) => (x === true ? "✓" : x === false ? "✗" : x === null || x === undefined ? "—" : Array.isArray(x) ? (x.length ? x.join(", ") : "—") : x?.__pb_obj ? Object.entries(x).filter(([kk]) => kk !== "__pb_obj").map(([kk, y]) => `${kk} ${v(y)}`).join(" · ") : repr(x));
+    const filas = Object.entries(o).filter(([kk]) => kk !== "__pb_obj");
+    const w = Math.max(...filas.map(([kk]) => kk.length));
+    return filas.map(([kk, x]) => `  ${kk.padEnd(w)}  ${v(x)}`);
+  }
+  const colorDe = { verde: "verde", green: "verde", rojo: "rojo", red: "rojo", amarillo: "amarillo", yellow: "amarillo", azul: "azul", blue: "azul", gris: "gris", gray: "gris", grey: "gris" };
+  Object.assign(B, {
+    dron_info: ([x], _, n) => objDron(hangarDe(x, n).nombre),
+    mision_info: ([id], _, n) => {
+      texto(id, "mision_info", n);
+      const mm = data.misiones.find((y) => y.id === (misEsDe[id] || id));
+      if (!mm) throw new ErrorPB(t('no hay una misión "{id}". Hay: {lista}', { id, lista: data.misiones.map((y) => y.id).join(", ") }), n);
+      return objMision(mm.id);
+    },
+    modelo_info: ([x], _, n) => objModelo(x, n),
+    hangar: () => (data.hangar || []).map((h) => objDron(h.nombre)),
+    inventario: ([ranura]) => (data.inventario || []).filter((u) => !ranura || u.ranura === ranura || u.ranura === (RANURA_ES[ranura] || ranura))
+      .map((u) => bi({ nombre: u.nombre, ranura: u.ranura, vida: u.vida, precio: u.precio, en: u.en || null })),
+    revisar: ([d, m], _, n) => {
+      const dn = d?.__pb_obj ? d.nombre : d, mid = m?.__pb_obj ? m.id : misEsDe[m] || m;
+      if (typeof dn !== "string" || typeof mid !== "string") throw new ErrorPB(t("revisar(d, m): un dron (o su nombre) y una misión (o su id)"), n);
+      const R = revision(dn, mid, n);
+      salida(t("Revisión: {d} para {m}", { d: dn, m: mid }));
+      R.lineas.forEach(([ic, txt]) => salida(`  ${ic} ${txt}`));
+      return bi({ ok: R.ok, errores: R.errores, avisos: R.avisos });
+    },
+    ficha: ([x], _, n) => {
+      let o = x;
+      if (typeof x === "string") {
+        if ((data.hangar || []).some((h) => h.nombre.toLowerCase() === x.toLowerCase())) o = objDron(hangarDe(x, n).nombre);
+        else if (data.misiones.some((m) => m.id === (misEsDe[x] || x))) o = objMision(misEsDe[x] || x);
+        else if ((data.modelos || []).some((m) => m.slug === x.toLowerCase())) o = objModelo(x, n);
+        else throw new ErrorPB(t('ficha("…"): no hay un dron, una misión ni un modelo que se llame "{x}"', { x }), n);
+      }
+      if (!o?.__pb_obj && tipoDe(o) !== "dict") throw new ErrorPB(t("ficha() va con un dron, una misión, un modelo o su nombre"), n);
+      salida(`── ${o.nombre ?? o.id ?? ""} ──`);
+      fichaDe(o).forEach((l) => salida(l));
+    },
+    tabla: (a, _, n) => {
+      const [filas, ...cols] = a;
+      if (!Array.isArray(filas)) throw new ErrorPB(t("tabla(filas, \"col1\", \"col2\"…): filas es una lista (por ejemplo hangar())"), n);
+      if (!filas.length) { salida(t("(tabla vacía)")); return; }
+      const f0 = filas[0], cs = cols.length ? cols : Array.isArray(f0) ? f0.map((_, i) => String(i)) : Object.keys(f0).filter((k) => k !== "__pb_obj" && !(f0[k]?.__pb_obj));
+      const leerCol = (o, c) => c.split(".").reduce((x, k) => (x == null ? null : Array.isArray(x) ? x[+k] : x[k]), o);
+      const celda = (x) => (typeof x === "number" && !Number.isInteger(x) ? String(Math.round(x * 100) / 100) : x === null || x === undefined ? "—" : x === true ? "✓" : x === false ? "✗" : repr(x));
+      const M = [cs, ...filas.map((o) => cs.map((c) => celda(leerCol(o, c))))];
+      const w = cs.map((_, i) => Math.max(...M.map((r) => String(r[i]).length)));
+      M.forEach((r, j) => { salida(r.map((x, i) => String(x).padEnd(w[i])).join("  ")); if (j === 0) salida(w.map((x) => "─".repeat(x)).join("  ")); });
+    },
+    barra: ([x, ancho = 20], _, n) => {
+      if (x === null || x === undefined) return "░".repeat(ancho) + " —";
+      num(x, "barra", n);
+      const v = Math.max(0, Math.min(1, x)), ll = Math.round(v * ancho);
+      return "█".repeat(ll) + "░".repeat(ancho - ll) + ` ${Math.round(v * 100)} %`;
+    },
+    color: ([c, x], _, n) => {
+      const k = colorDe[String(c).toLowerCase()];
+      if (!k) throw new ErrorPB(t('color("verde", texto): verde, rojo, amarillo, azul o gris'), n);
+      return `\u0001${k}\u0002${typeof x === "string" ? x : repr(x)}\u0003`;
+    },
+    explicar: ([tema], _, n) => {
+      const E = data.explicar || {};
+      if (tema === undefined) { salida(t("Temas: {lista}", { lista: Object.keys(E).join(", ") })); return; }
+      const k = Object.keys(E).find((x) => x === String(tema).toLowerCase() || E[x].en === String(tema).toLowerCase());
+      if (!k) throw new ErrorPB(t('no tengo una explicación de "{x}". Temas: {lista}', { x: tema, lista: Object.keys(E).join(", ") }), n);
+      const ahora = { lr: cfg.lr, exploracion: cfg.ent, drones: cfg.drones, capas: cfg.capas?.join("×"), red: cfg.capas?.join("×"), viento: cfg.viento ?? cfg.vientoMision, desde: cfg.desde, mision: cfg.mision, dron: typeof cfg.dron === "object" ? cfg.dron.hangar : cfg.dron }[k];
+      salida(`📘 ${k}: ${E[k].txt}` + (ahora !== undefined && ahora !== null ? "  " + t("(ahora: {v})", { v: ahora }) : ""));
+    },
+    narrar: ([cada], k, n) => {
+      soloArriba("narrar", n); unaVez("narrar", n);
+      const c = cada ?? k.cada ?? 5;
+      if (!Number.isInteger(c) || c < 1 || c > 100) throw new ErrorPB(t("narrar(cada=5): cada cuántas generaciones, de 1 a 100"), n);
+      cfg.narrar = c;
+    },
+  });
   // PBDMM bilingüe: cada función también con su nombre en inglés (model, mission, rewards…), y los argumentos y valores
   // en inglés (start_from="zero", train_on("background"), mission("film")…) se pasan al español antes de usarse.
   const AL = data.alias_en || {};
@@ -846,6 +1040,11 @@ export function compilar(src, data, host = {}) {
   if (cfg.capas && cfg.desde !== "cero") throw new ErrorPB(t('red(capas=…) solo sirve con modelo(…, desde="cero"): una red que ya existe no cambia de tamaño'), cfg.lineas.red);
   if (cfg.donde === "fondo" && cfg.modelo === "base") throw new ErrorPB(t("el modelo base solo se entrena en Blender"));
   }
+  // PBDMM 2: si el programa eligió un dron del hangar, se revisa contra lo que pide la misión (solo si hay dron(…))
+  let revisionAuto = null;
+  if (typeof cfg.dron === "object" && cfg.mision && data.hangar && data.misionInfo) {
+    try { revisionAuto = revision(cfg.dron.hangar, cfg.mision, cfg.lineas.dron); } catch { revisionAuto = null; }
+  }
   const premiosMision = cfg.mision ? data.misiones.find((x) => x.id === cfg.mision)?.premios || {} : {};
   cfg.premiosFinal = { ...premiosMision, ...cfg.premios };
   const nombresHook = data.hooks || ["al_empezar", "cada_generacion", "al_terminar"];
@@ -856,7 +1055,9 @@ export function compilar(src, data, host = {}) {
   if (desconocidas.length) throw enIdioma(new ErrorPB(t('el juego no llama "{f}": las funciones especiales son {lista}', { f: desconocidas[0], lista: (idioma() === "en" ? nombresHook.map((h) => hookEn[h] || h) : nombresHook).join(", ") }), interp.globales.get(desconocidas[0]).n), AL);
 
   return {
-    cfg, interp, hooks,
+    cfg, interp, hooks, revision: revisionAuto,
+    /** El narrador (narrar(cada=5)): las líneas que tocan en esta generación (vacío si no toca). */
+    narrar(e, ses) { return cfg.narrar ? narracion(e, cfg.narrar, ses) : []; },
     /** Llama un hook con e (objeto). Devuelve las acciones que pidió. */
     reaccionar(nombre, e) {
       acciones.length = 0;
@@ -884,10 +1085,78 @@ function enIdioma(err, AL) {
   return err;
 }
 
+// ---------------- PBDMM 2: objetos bilingües, el narrador y los diagnósticos ----------------
+/** Los nombres en inglés de los campos de los objetos del juego (dron, misión, modelo, pieza, revisión). */
+export const BI_EN = { nombre: "name", proposito: "purpose", armado: "built", listo: "ready", ia: "ai", peso: "weight", peso_g: "weight_g",
+  empuje_peso: "thrust_weight", vel_max: "max_speed", minutos: "minutes", bateria: "battery", motores: "motors", helices: "props", esc: "esc",
+  controladora: "flight_controller", chasis: "frame", radio: "radio", alcance_m: "range_m", camara: "camera", calidad: "quality", gimbal: "gimbal",
+  sensores: "sensors", barometro: "barometer", tof: "tof", protectores: "guards", extras: "extras", vibracion: "vibration", nitidez: "sharpness",
+  precio: "price", id: "id", nivel: "level", viento: "wind", para: "for", pide: "needs", premios: "rewards", empuje_peso_min: "min_thrust_weight",
+  camara_min: "min_camera", generacion: "generation", red: "network", exito: "success", choque: "crash", mejor_exito: "best_success",
+  entrenando: "training", donde: "where", desde: "start_from", guardado: "saved", ranura: "slot", vida: "life", en: "on", ok: "ok",
+  errores: "errors", avisos: "warnings", premio: "reward" };
+/** Un objeto para leer, con sus campos en los dos idiomas (se ven los del idioma del juego; los otros también funcionan). */
+export function bi(campos) {
+  const en = idioma() === "en", o = { __pb_obj: true };
+  for (const [es, v] of Object.entries(campos)) {
+    const e2 = BI_EN[es] || es, [vis, oculto] = en ? [e2, es] : [es, e2];
+    o[vis] = v;
+    if (oculto !== vis) Object.defineProperty(o, oculto, { value: v, enumerable: false });
+  }
+  return Object.freeze(o);
+}
+
+const prom = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+const pctTxt = (x) => (typeof x === "number" ? `${Math.round(x * 100)} %` : "—");
+const deltaTxt = (x) => (typeof x === "number" && Math.abs(x) >= 0.005 ? ` (${x >= 0 ? "+" : "−"}${Math.abs(Math.round(x * 100))})` : "");
+/**
+ * Lo que se nota en las últimas generaciones (reglas simples, con números: medir, no adivinar). ses.hx = historia de la
+ * sesión [{gen, exito, choque, premio}]. Devuelve [{k, txt}].
+ */
+export function diagnosticar(hx) {
+  const out = [], H = hx.filter((h) => typeof h.exito === "number");
+  if (H.length < 10) return out;
+  const u10 = H.slice(-10), a5 = u10.slice(0, 5), b5 = u10.slice(5), ex = (xs) => prom(xs.map((h) => h.exito));
+  const pr = (xs) => prom(xs.filter((h) => typeof h.premio === "number").map((h) => h.premio));
+  const subePremio = pr(b5) - pr(a5) > 0.1 * Math.abs(pr(a5)) + 0.05, subeExito = ex(b5) - ex(a5) > 0.02;
+  if (subePremio && !subeExito) out.push({ k: "paga_mal", txt: t("El premio sube y el éxito no: le estás pagando por algo que no es la misión. Revisa premios() y castigos().") });
+  const u20 = H.slice(-20), ult = H.at(-1).exito;
+  if (u20.length >= 20 && Math.max(...u20.map((h) => h.exito)) - Math.min(...u20.map((h) => h.exito)) < 0.03 && ult < 0.9)
+    out.push({ k: "estancado", txt: t("El éxito no se mueve hace 20 generaciones ({e}): se estancó. Prueba aprendizaje(exploracion=0.005) o cambia los premios.", { e: pctTxt(ult) }) });
+  const mejor = Math.max(...H.map((h) => h.exito));
+  if (mejor > 0.4 && mejor - ult > 0.25) out.push({ k: "olvida", txt: t("El éxito cayó de {a} a {b}: puede que el lr esté alto y esté olvidando. Prueba aprendizaje(lr=0.0001).", { a: pctTxt(mejor), b: pctTxt(ult) }) });
+  const ch = prom(b5.filter((h) => typeof h.choque === "number").map((h) => h.choque));
+  if (ch > 0.5 && ex(b5) < 0.1) out.push({ k: "choca", txt: t("Choca mucho ({c}) y casi no logra nada: castiga más el choque (castigos(chocar=8)) o empieza por una misión más fácil.", { c: pctTxt(ch) }) });
+  return out;
+}
+
+/** El narrador (narrar(cada=5)): cada `cada` generaciones, cómo va en palabras; los diagnósticos nuevos, siempre. */
+export function narracion(e, cada, ses = {}) {
+  const out = [], hx = ses.hx || [], g = e.generaciones_sesion ?? 0;
+  if (g > 0 && g % cada === 0) {
+    const ant = hx.length > cada ? hx[hx.length - 1 - cada] : hx[0];
+    const d = (k) => (ant && typeof e[k] === "number" && typeof ant[k] === "number" ? e[k] - ant[k] : null);
+    out.push(t("Gen {g}: éxito {e}{de} · choque {c}{dc} · premio {p}", { g: e.generacion, e: pctTxt(e.exito), de: deltaTxt(d("exito")), c: pctTxt(e.choque), dc: deltaTxt(d("choque")), p: typeof e.premio === "number" ? Math.round(e.premio * 100) / 100 : "—" }));
+    const de = d("exito"), dc = d("choque");
+    if (de !== null && de > 0.03) out.push("  ↗ " + t("Aprende: en {n} generaciones el éxito subió {x} puntos.", { n: cada, x: Math.round(de * 100) }));
+    else if (de !== null && de < -0.03) out.push("  ↘ " + t("Bajó {x} puntos en {n} generaciones: puede ser ruido (mira la gráfica) o que algo no le conviene.", { n: cada, x: Math.round(-de * 100) }));
+    else out.push("  → " + t("Parejo: el éxito casi no cambió."));
+    if (dc !== null && dc < -0.03) out.push("  ↘ " + t("Choca menos que antes."));
+  }
+  ses.diagVisto = ses.diagVisto || {};
+  for (const x of e.diagnosticos_k || []) {
+    if (ses.diagVisto[x.k] !== undefined && (e.generacion ?? 0) - ses.diagVisto[x.k] < 15) continue;
+    ses.diagVisto[x.k] = e.generacion ?? 0;
+    out.push("  💡 " + x.txt);
+  }
+  return out;
+}
+
 /** Los campos de e también en inglés (como "e" en data/pbdmm.json alias_en: la prueba revisa que coincidan). */
 export const E_EN = { generacion: "generation", generaciones_sesion: "session_generations", exito: "success", choque: "crash",
   premio: "reward", calidad: "quality", mejor_exito: "best_success", historia_exito: "success_history", pasos: "steps",
-  minutos: "minutes", nivel: "level", pausado: "paused", exploracion: "exploration", ruido: "noise", viento: "wind", premios: "rewards" };
+  minutos: "minutes", nivel: "level", pausado: "paused", exploracion: "exploration", ruido: "noise", viento: "wind", premios: "rewards",
+  cambio: "change", diagnosticos: "diagnostics" };
 
 /**
  * Pasa un programa de un idioma al otro ("en" o "es"): nombres de funciones, argumentos, hooks, campos de e., nombres de
@@ -897,6 +1166,7 @@ export function traducirCodigo(src, hacia, AL) {
   const par = (m) => (hacia === "en" ? m : Object.fromEntries(Object.entries(m || {}).map(([a, b]) => [b, a])));
   const fn = par(AL.funciones), kw = { ...par(AL.premios), ...par(AL.kwargs) }, hk = par(AL.hooks), ef = par(AL.e);
   const val = { ...par(AL.valores), ...par(AL.misiones) };
+  const bf = par(BI_EN);
   let out = "", i = 0;
   const re = /(#[^\n]*)|([fF]?"(?:[^"\\\n]|\\.)*"|[fF]?'(?:[^'\\\n]|\\.)*')|([A-Za-z_][\w]*)/g;
   let m;
@@ -911,7 +1181,7 @@ export function traducirCodigo(src, hacia, AL) {
     } else if (m[3]) {
       const antes = src.slice(0, m.index), despues = src.slice(re.lastIndex);
       if (/\be\.[ \t]*$/.test(antes)) x = ef[x] || x;                     // e.exito -> e.success
-      else if (/\.[ \t]*$/.test(antes)) { /* otro atributo: igual (sin \n: "fin de frase.\nmodelo(" no es un atributo) */ }
+      else if (/\.[ \t]*$/.test(antes)) x = bf[x] || x;                     // d.empuje_peso -> d.thrust_weight (sin \n: "fin de frase.\nmodelo(" no es un atributo)
       else if (/^\s*=(?!=)/.test(despues) && kw[x] && /[(,]\s*$/.test(antes)) x = kw[x];   // argumento con nombre: f(desde=…)
       else if (/^\s*\(/.test(despues) && fn[x]) x = fn[x];                  // una llamada
       else if (/\bdef\s+$/.test(antes) && hk[x]) x = hk[x];                  // def cada_generacion(
@@ -956,6 +1226,16 @@ export function estadoE(tr, ses = {}, escala = null) {
     premios: Object.freeze(Object.fromEntries(Object.entries(p.reward || {}).map(([k, v]) => [k, escala ? nivelDe(k, v, escala) : v]))),
     historia_exito: h.slice(-20).map((x) => val(x[2])),
   };
+  // PBDMM 2: e.cambio (contra la generación anterior) y e.diagnosticos (lo que se nota: diagnosticar)
+  ses.hx = ses.hx || [];
+  const ant = ses.hx.at(-1);
+  if (tr.gen !== undefined && (!ant || ant.gen !== tr.gen)) { ses.hx.push({ gen: tr.gen, exito: campos.exito, choque: campos.choque, premio: campos.premio }); if (ses.hx.length > 200) ses.hx.shift(); }
+  const prev = ses.hx.length > 1 ? ses.hx.at(-2) : null;
+  const dif = (k) => (prev && typeof campos[k] === "number" && typeof prev[k] === "number" ? Math.round((campos[k] - prev[k]) * 10000) / 10000 : null);
+  campos.cambio = bi({ exito: dif("exito"), choque: dif("choque"), premio: dif("premio") });
+  const dg = diagnosticar(ses.hx);
+  campos.diagnosticos = dg.map((x) => x.txt);
   for (const [es, en] of Object.entries(E_EN)) campos[en] = campos[es];     // e.success = e.exito …
-  return objeto(campos);
+  const o = objeto(campos);
+  return objetoConK(o, dg);
 }

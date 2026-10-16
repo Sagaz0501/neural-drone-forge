@@ -1,6 +1,6 @@
 # Gramática de PBDMM
 
-> Versión 1.0. Notación EBNF: `x*` = cero o más veces, `x+` = una o más veces, `[x]` = opcional, `a | b` = uno de los
+> Versión 2.0. Notación EBNF: `x*` = cero o más veces, `x+` = una o más veces, `[x]` = opcional, `a | b` = uno de los
 > dos, `"x"` = el texto tal cual. Sale de `parsear()` en [`app/pbdmm.js`](../../app/pbdmm.js).
 
 ## Tokens
@@ -65,7 +65,8 @@ suma         = producto (("+" | "-") producto)* ;
 producto     = unario (("*" | "/" | "//" | "%") unario)* ;
 unario       = ("-" | "+") unario | potencia ;
 potencia     = postfijo ["**" unario] ;                   (* de derecha a izquierda *)
-postfijo     = atomo ( "(" [argumentos] ")" | "." NOMBRE | "[" expresion "]" )* ;
+postfijo     = atomo ( "(" [argumentos] ")" | "." NOMBRE | "[" expresion "]" | "[" [expresion] ":" [expresion] "]" )* ;
+                                                         (* x[i] · rebanada x[a:b] *)
 argumentos   = argumento ("," argumento)* [","] ;
 argumento    = expresion | "*" expresion | NOMBRE "=" expresion | "**" expresion ;
                                                          (* los con nombre van después de los posicionales *)

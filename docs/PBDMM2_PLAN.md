@@ -1,5 +1,9 @@
 # PBDMM 2 · Plan
 
+> **Hecho (15-10-2026).** Lo que cambió respecto al plan: los nombres quedaron en la familia `*_info` (`dron_info`, `mision_info`,
+> `modelo_info`) en vez de `modelo_de`; el narrador se enciende con `narrar(cada=5)`; el capítulo 1 de la ruta está abierto
+> desde el inicio (con el primer dron del hangar). Documentación: [`pbdmm/`](pbdmm/README.md).
+>
 > Plan del 15-10-2026. Sale de "⏭️ Lo siguiente" en [`ROADMAP.md`](ROADMAP.md). Lo que ya existe del lenguaje está en
 > [`PBDMM.md`](PBDMM.md). **Decidido:** la alternativa 2 (objetos) con los atajos `ficha()`, `hangar()` e `inventario()`.
 

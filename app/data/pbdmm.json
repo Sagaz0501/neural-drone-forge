@@ -1,6 +1,6 @@
 {
   "_nota": "El lenguaje PBDMM (Python Base Dron Model Maker) del modo desarrollador: ayuda de cada función, lo que trae e, los comandos de la terminal, las lecciones y los ejemplos. El intérprete está en app/pbdmm.js y la pantalla en app/estudio.js.",
-  "version": "1.0",
+  "version": "2.0",
   "hooks": [
     "al_empezar",
     "cada_generacion",
@@ -155,7 +155,7 @@
       "firma": "mision(id)",
       "donde": "arriba",
       "grupo": "Qué aprende",
-      "desc": "Qué practica: el mundo, la tarea y cuándo cuenta como éxito. Trae sus premios recomendados (los cambias con premios() y castigos()).",
+      "desc": "Qué practica: el mundo, la tarea y cuándo cuenta como éxito. Trae sus premios recomendados (los cambias con premios() y castigos()). Además DEVUELVE la misión como objeto (PBDMM 2): m.pide, m.viento, m.premios (ver mision_info).",
       "params": [
         [
           "id",
@@ -199,14 +199,14 @@
       "firma": "dron(cual)",
       "donde": "arriba",
       "grupo": "Qué aprende",
-      "desc": "Con qué física vuela mientras aprende. Un modelo aprende a volar EL dron con el que entrenó: si después lo pones en un dron muy distinto (más pesado, más lento) vuela peor.",
+      "desc": "Con qué física vuela mientras aprende. Un modelo aprende a volar EL dron con el que entrenó: si después lo pones en un dron muy distinto (más pesado, más lento) vuela peor. Además DEVUELVE el dron como objeto (PBDMM 2): d = dron(\"Cine (dev)\") y lees d.empuje_peso, d.bateria.minutos… (ver dron_info). Con un dron del hangar, el programa lo revisa solo contra lo que pide la misión.",
       "params": [
         [
           "cual",
           "\"estandar\", \"azar\" (cada dron con una física distinta: aprende a volar de todo) o el nombre de un dron de tu hangar"
         ]
       ],
-      "ejemplo": "dron(\"azar\")",
+      "ejemplo": "d = dron(\"azar\")          # o un dron tuyo: d = dron(\"Cine (dev)\")",
       "opciones": {
         "0": [
           [
@@ -602,9 +602,188 @@
       "firma": "if / for / def / listas / f\"…\" / [x for x in …]",
       "donde": "las dos",
       "grupo": "Python",
-      "desc": "Lo que sí hay de Python: números, textos y f\"{x:.2f}\", True/False/None, listas [ ], tuplas ( ), diccionarios { }, variables, + - * / // % **, comparaciones, and/or/not, in, is, x if condición else y, if/elif/else, for x in … (y for k, v in d.items()), listas por comprensión [x * 2 for x in xs if x > 0], def/return (con valores por defecto y varios valores: return a, b), f(*lista, **diccionario), a, b = 1, 2, global, pass, break/continue. Funciones: print, str, int, float, round, abs, min, max, sum, len, range, list, type; listas .append() .pop(); diccionarios .get() .keys() .values() .items(); textos .upper() .lower() .split(). No hay while ni import: un programa no puede colgar el juego ni tocar tu compu.",
+      "desc": "Lo que sí hay de Python: números, textos y f\"{x:.2f}\", True/False/None, listas [ ], tuplas ( ), diccionarios { }, variables, + - * / // % **, comparaciones, and/or/not, in, is, x if condición else y, if/elif/else, for x in … (y for k, v in d.items()), listas por comprensión [x * 2 for x in xs if x > 0], def/return (con valores por defecto y varios valores: return a, b), f(*lista, **diccionario), a, b = 1, 2, global, pass, break/continue. Rebanadas x[a:b]. Funciones: print, str, int, float, round, abs, min, max, sum, len, range, list, type, sorted, reversed, enumerate, zip, any, all; listas .append() .pop(); diccionarios .get() .keys() .values() .items(); textos .upper() .lower() .split(). No hay while ni import: un programa no puede colgar el juego ni tocar tu compu.",
       "params": [],
       "ejemplo": "CAPAS = [16 * i for i in range(1, 4)]   # [16, 32, 48]\nfor k, v in {\"grabar\": 6, \"mirar\": 4}.items():\n    print(k, v)"
+    },
+    {
+      "nombre": "dron_info",
+      "firma": "dron_info(nombre)",
+      "donde": "las dos",
+      "grupo": "Leer el juego",
+      "desc": "Un dron de tu hangar como objeto, sin elegirlo para entrenar: d.nombre, d.peso, d.empuje_peso, d.vel_max, d.minutos, d.bateria.minutos, d.motores, d.helices, d.controladora, d.radio.alcance_m, d.camara.calidad, d.sensores, d.barometro, d.tof, d.protectores, d.nitidez, d.precio, d.ia, d.listo. dron(\"…\") arriba del archivo también lo devuelve (y lo elige).",
+      "params": [
+        [
+          "nombre",
+          "el nombre de un dron de tu hangar"
+        ]
+      ],
+      "ejemplo": "d = dron_info(\"Cine (dev)\")\nprint(d.empuje_peso, d.radio.alcance_m)"
+    },
+    {
+      "nombre": "mision_info",
+      "firma": "mision_info(id)",
+      "donde": "las dos",
+      "grupo": "Leer el juego",
+      "desc": "Una misión como objeto: m.id, m.nombre, m.nivel, m.viento, m.para (el pedido del juego), m.pide (lo que necesita el dron: empuje_peso_min, barometro, protectores, camara_min, tof, alcance_m, minutos) y m.premios (los recomendados, 0-10). mision(\"…\") arriba también la devuelve.",
+      "params": [
+        [
+          "id",
+          "\"grabar\", \"grabar_viento\", \"grabar_postes\"…"
+        ]
+      ],
+      "ejemplo": "m = mision_info(\"grabar_viento\")\nprint(m.pide)"
+    },
+    {
+      "nombre": "modelo_info",
+      "firma": "modelo_info(nombre)",
+      "donde": "las dos",
+      "grupo": "Leer el juego",
+      "desc": "Un modelo tuyo como objeto: generacion, red, exito, choque, mejor_exito, entrenando, donde, desde, guardado.",
+      "params": [
+        [
+          "nombre",
+          "el nombre de un modelo (comando modelos)"
+        ]
+      ],
+      "ejemplo": "print(modelo_info(\"colibri\").mejor_exito)"
+    },
+    {
+      "nombre": "hangar",
+      "firma": "hangar()",
+      "donde": "las dos",
+      "grupo": "Leer el juego",
+      "desc": "Todos tus drones, como una lista de objetos (los mismos de dron_info). Se recorre con for o se muestra con tabla().",
+      "params": [],
+      "ejemplo": "for d in hangar():\n    print(d.nombre, d.empuje_peso)"
+    },
+    {
+      "nombre": "inventario",
+      "firma": "inventario(ranura=None)",
+      "donde": "las dos",
+      "grupo": "Leer el juego",
+      "desc": "Tus piezas (todas o las de una ranura): p.nombre, p.ranura, p.vida (%), p.precio, p.en (en qué dron está puesta, o None si está libre).",
+      "params": [
+        [
+          "ranura",
+          "\"motores\", \"baterias\", \"camaras\", \"radios\", \"extras\"… (opcional)"
+        ]
+      ],
+      "ejemplo": "tabla(inventario(\"motores\"), \"nombre\", \"vida\", \"en\")"
+    },
+    {
+      "nombre": "revisar",
+      "firma": "revisar(d, m)",
+      "donde": "las dos",
+      "grupo": "Leer el juego",
+      "desc": "Compara un dron con lo que pide una misión en el juego (empuje/peso con viento, radio, batería, cámara, protectores, sensores ToF…) e imprime ✅ / ⚠️ / ❌. Devuelve r.ok, r.errores y r.avisos. Si el programa elige un dron con dron(…), esto corre solo al revisar o correr.",
+      "params": [
+        [
+          "d",
+          "un dron (objeto o nombre)"
+        ],
+        [
+          "m",
+          "una misión (objeto o id)"
+        ]
+      ],
+      "ejemplo": "r = revisar(dron_info(\"Madera (dev)\"), \"grabar_viento\")\nif not r.ok:\n    print(\"le falta:\", r.errores)"
+    },
+    {
+      "nombre": "ficha",
+      "firma": "ficha(x)",
+      "donde": "las dos",
+      "grupo": "La terminal",
+      "desc": "Imprime todo lo de un dron, una misión o un modelo (el objeto o su nombre), alineado.",
+      "params": [
+        [
+          "x",
+          "un objeto, o el nombre de un dron, una misión o un modelo"
+        ]
+      ],
+      "ejemplo": "ficha(\"Cine (dev)\")"
+    },
+    {
+      "nombre": "tabla",
+      "firma": "tabla(filas, \"col1\", \"col2\", …)",
+      "donde": "las dos",
+      "grupo": "La terminal",
+      "desc": "Imprime una lista de objetos (o diccionarios) en columnas. Las columnas pueden ir con punto: \"bateria.minutos\". Sin columnas, muestra todas.",
+      "params": [
+        [
+          "filas",
+          "una lista: hangar(), inventario(), tus listas…"
+        ],
+        [
+          "columnas",
+          "los nombres de los campos que quieres ver"
+        ]
+      ],
+      "ejemplo": "tabla(hangar(), \"nombre\", \"empuje_peso\", \"bateria.minutos\")"
+    },
+    {
+      "nombre": "barra",
+      "firma": "barra(x, ancho=20)",
+      "donde": "las dos",
+      "grupo": "La terminal",
+      "desc": "Un número de 0 a 1 como barra de texto: ████████░░░░ 60 %.",
+      "params": [
+        [
+          "x",
+          "de 0 a 1 (por ejemplo e.exito)"
+        ],
+        [
+          "ancho",
+          "cuántos cuadritos (normal 20)"
+        ]
+      ],
+      "ejemplo": "print(barra(e.exito), \"éxito\")"
+    },
+    {
+      "nombre": "color",
+      "firma": "color(nombre, texto)",
+      "donde": "las dos",
+      "grupo": "La terminal",
+      "desc": "Un texto de color para la terminal: \"verde\", \"rojo\", \"amarillo\", \"azul\" o \"gris\".",
+      "params": [
+        [
+          "nombre",
+          "verde, rojo, amarillo, azul o gris"
+        ],
+        [
+          "texto",
+          "lo que quieres pintar"
+        ]
+      ],
+      "ejemplo": "print(color(\"verde\", \"listo\") if e.exito > 0.8 else color(\"amarillo\", \"todavía no\"))"
+    },
+    {
+      "nombre": "explicar",
+      "firma": "explicar(tema)",
+      "donde": "las dos",
+      "grupo": "La terminal",
+      "desc": "Explica un parámetro o una idea del entrenamiento, con su valor de ahora: lr, exploracion, ruido, generacion, ppo, drones, red, premios, castigos, exito, choque, premio, calidad, viento, desde, dron, mision, curriculum. Sin tema: la lista.",
+      "params": [
+        [
+          "tema",
+          "el nombre de lo que quieres entender"
+        ]
+      ],
+      "ejemplo": "explicar(\"lr\")"
+    },
+    {
+      "nombre": "narrar",
+      "firma": "narrar(cada=5)",
+      "donde": "arriba",
+      "grupo": "La terminal",
+      "desc": "La terminal cuenta cómo va el entrenamiento cada tantas generaciones (éxito, choque y premio, y si sube o baja) y avisa lo que se nota: que se estancó, que olvida (lr alto), que pagas por lo que no es, que choca mucho. Los mismos avisos están en e.diagnosticos.",
+      "params": [
+        [
+          "cada",
+          "cada cuántas generaciones (de 1 a 100)"
+        ]
+      ],
+      "ejemplo": "narrar(cada=5)"
     }
   ],
   "hooks_doc": [
@@ -677,6 +856,14 @@
     [
       "e.premios",
       "los valores de ahora, premios y castigos juntos, de 0 a 10 (diccionario: e.premios[\"crash\"])"
+    ],
+    [
+      "e.cambio",
+      "lo que cambió desde la generación anterior: e.cambio.exito, e.cambio.choque, e.cambio.premio (None al principio)"
+    ],
+    [
+      "e.diagnosticos",
+      "lista de lo que se nota (se estancó, olvida, pagas por lo que no es, choca mucho); vacía si va bien"
     ]
   ],
   "comandos": [
@@ -781,7 +968,8 @@
     "curriculum": "# Currículum: primero que no choque, después que grabe bien.\n\nmodelo(\"aprendiz\", desde=\"base\")\nmision(\"grabar_postes\")\ndron(\"azar\")\nentrenar_en(\"fondo\")\n\ncastigos(chocar=8)     # fase 1: no chocar es lo que más importa\npremios(grabar=1)\nfase = 1\n\ndef cada_generacion(e):\n    global fase\n    if fase == 1 and e.choque is not None and e.choque < 0.1:\n        fase = 2\n        castigos(chocar=3)    # fase 2: ahora, grabar bien\n        premios(grabar=6)\n        avisar(\"Fase 2: ya no choca, ahora a grabar\")\n    if fase == 2 and e.exito >= 0.85:\n        detener()\n\ndef al_terminar(e):\n    print(\"terminó en la fase\", fase, \"con éxito\", e.exito)\n",
     "postes": "# El restaurante: grabar entre postes, mirándolo en Blender.\n\nmodelo(\"entre_postes\", desde=\"base\")\nmision(\"grabar_postes\")\ndron(\"azar\")\ndrones(50)\nentrenar_en(\"blender\")      # ábrelo con el comando: blender\nvelocidad(\"real\")\n\ndef al_empezar(e):\n    print(\"arranca en la generación\", e.generacion)\n\ndef cada_generacion(e):\n    # si se estanca 20 generaciones, que explore un poco más\n    h = e.historia_exito\n    if len(h) == 20 and max(h) - min(h) < 0.02:\n        aprendizaje(exploracion=0.005)\n        print(\"estancado: más exploración\")\n",
     "cerebro_chico": "# ¿Cuánto cerebro hace falta? El mismo hover con 2 tamaños.\n# Corre este, después cambia el nombre y las capas, y compáralos con: modelos éxito\n\nmodelo(\"mini_16\", desde=\"cero\")\nred(capas=[16])\nnivel(0)\nentrenar_en(\"fondo\")\npremios(cerca=8)\ncastigos(chocar=4, inclinar=8)\n\ndef cada_generacion(e):\n    if e.generaciones_sesion >= 300:\n        print(f\"300 generaciones: éxito {e.exito:.0%}\")\n        detener()\n",
-    "variables": "# Variables: la configuración arriba, en un solo lugar, y el resto la usa.\nNOMBRE = \"halcon\"\nVERSION = 2\nmodel_test = f\"{NOMBRE}_v{VERSION}\"      # \"halcon_v2\"\nCAPAS = [64, 64]\nMI_DRON = \"azar\"                         # o el nombre de un dron de tu hangar\nMETA = 0.85\n\nmodelo(model_test, desde=\"cero\")\nred(capas=CAPAS)\nmision(\"grabar\")\ndron(MI_DRON)\nentrenar_en(\"fondo\")\n\n# las fases del entrenamiento en una lista: para agregar una, agrega un diccionario\nFASES = [\n    {\"nombre\": \"no chocar\", \"premios\": {\"grabar\": 2}, \"castigos\": {\"chocar\": 8}, \"hasta\": 0.3},\n    {\"nombre\": \"grabar bien\", \"premios\": {\"grabar\": 6, \"mirar\": 5}, \"castigos\": {\"chocar\": 3}, \"hasta\": META},\n]\nfase = 0\npremios(**FASES[0][\"premios\"])\ncastigos(**FASES[0][\"castigos\"])\n\ndef cambiar_fase():\n    global fase\n    fase += 1\n    f = FASES[fase]\n    premios(**f[\"premios\"])\n    castigos(**f[\"castigos\"])\n    avisar(f\"Fase {fase + 1}: {f['nombre']}\")\n\ndef cada_generacion(e):\n    if e.exito is None:\n        return\n    if e.exito >= FASES[fase][\"hasta\"]:\n        if fase + 1 < len(FASES):\n            cambiar_fase()\n        else:\n            print(f\"{model_test} llegó a {e.exito:.0%}: listo\")\n            detener()\n"
+    "variables": "# Variables: la configuración arriba, en un solo lugar, y el resto la usa.\nNOMBRE = \"halcon\"\nVERSION = 2\nmodel_test = f\"{NOMBRE}_v{VERSION}\"      # \"halcon_v2\"\nCAPAS = [64, 64]\nMI_DRON = \"azar\"                         # o el nombre de un dron de tu hangar\nMETA = 0.85\n\nmodelo(model_test, desde=\"cero\")\nred(capas=CAPAS)\nmision(\"grabar\")\ndron(MI_DRON)\nentrenar_en(\"fondo\")\n\n# las fases del entrenamiento en una lista: para agregar una, agrega un diccionario\nFASES = [\n    {\"nombre\": \"no chocar\", \"premios\": {\"grabar\": 2}, \"castigos\": {\"chocar\": 8}, \"hasta\": 0.3},\n    {\"nombre\": \"grabar bien\", \"premios\": {\"grabar\": 6, \"mirar\": 5}, \"castigos\": {\"chocar\": 3}, \"hasta\": META},\n]\nfase = 0\npremios(**FASES[0][\"premios\"])\ncastigos(**FASES[0][\"castigos\"])\n\ndef cambiar_fase():\n    global fase\n    fase += 1\n    f = FASES[fase]\n    premios(**f[\"premios\"])\n    castigos(**f[\"castigos\"])\n    avisar(f\"Fase {fase + 1}: {f['nombre']}\")\n\ndef cada_generacion(e):\n    if e.exito is None:\n        return\n    if e.exito >= FASES[fase][\"hasta\"]:\n        if fase + 1 < len(FASES):\n            cambiar_fase()\n        else:\n            print(f\"{model_test} llegó a {e.exito:.0%}: listo\")\n            detener()\n",
+    "monitor": "# PBDMM 2: leer el juego y revisar antes de entrenar.\n\nmodelo(\"monitor\", desde=\"base\")\nm = mision(\"grabar_postes\")\ndron(\"azar\")\nnarrar(cada=5)\n\nmis_drones = hangar()\nif mis_drones:\n    tabla(mis_drones, \"nombre\", \"empuje_peso\", \"minutos\", \"tof\")\n    ficha(mis_drones[0])\n    for d in mis_drones:\n        r = revisar(d, m)\n        print(d.nombre, color(\"verde\", \"sirve\") if r.ok else color(\"rojo\", \"le falta algo\"))\n\ndef cada_generacion(e):\n    print(f\"gen {e.generacion}  {barra(e.exito)}\")\n    for x in e.diagnosticos:\n        print(color(\"amarillo\", x))\n"
   },
   "_nota_opciones": "opciones de cada función para el autocompletado del estudio: \"0\" = primer argumento, \"desde\"/\"lr\"… = el valor de ese argumento con nombre, \"_kw\" = argumentos con nombre. $drones, $misiones, $niveles, $modelos, $modelos_texto $premios y $castigos se llenan con lo que hay en tu juego.",
   "alias_en": {
@@ -803,12 +991,25 @@
       "seguir": "resume",
       "guardar": "save",
       "detener": "stop",
-      "avisar": "notify"
+      "avisar": "notify",
+      "dron_info": "drone_info",
+      "mision_info": "mission_info",
+      "modelo_info": "model_info",
+      "hangar": "hangar",
+      "inventario": "inventory",
+      "revisar": "check",
+      "ficha": "sheet",
+      "tabla": "table",
+      "barra": "bar",
+      "color": "color",
+      "explicar": "explain",
+      "narrar": "narrate"
     },
     "kwargs": {
       "desde": "start_from",
       "capas": "layers",
-      "exploracion": "exploration"
+      "exploracion": "exploration",
+      "cada": "every"
     },
     "premios": {
       "grabar": "film",
@@ -846,7 +1047,9 @@
       "exploracion": "exploration",
       "ruido": "noise",
       "viento": "wind",
-      "premios": "rewards"
+      "premios": "rewards",
+      "cambio": "change",
+      "diagnosticos": "diagnostics"
     },
     "valores": {
       "cero": "zero",
@@ -890,5 +1093,236 @@
       "info": "info",
       "blender": "blender"
     }
-  }
+  },
+  "explicar": {
+    "lr": {
+      "en": "lr",
+      "txt": "Learning rate: qué tan grande es cada ajuste del cerebro después de una generación. Alto (0.001): aprende rápido pero puede olvidar lo que ya sabía y el éxito sube y baja. Bajo (0.0001): lento pero firme; sirve para afinar al final. Normal: 0.0003."
+    },
+    "exploracion": {
+      "en": "exploration",
+      "txt": "Cuánto se le paga por tener dudas (entropía). Con más exploración prueba palancas nuevas en vez de repetir lo que ya sabe. Súbela un poco (0.005) si el éxito se estanca; bájala a 0 cuando ya casi lo logra."
+    },
+    "ruido": {
+      "en": "noise",
+      "txt": "Cuánto tiembla el dron a propósito al practicar (e.ruido). Es cómo explora: al principio mucho, y baja solo a medida que aprende."
+    },
+    "generacion": {
+      "en": "generation",
+      "txt": "Una generación: todos los drones practican un rato con el mismo cerebro, y al final PPO ajusta los pesos con lo que pasó. Cada punto de la gráfica es una generación."
+    },
+    "ppo": {
+      "en": "ppo",
+      "txt": "El algoritmo que entrena el cerebro (Proximal Policy Optimization). Mira qué acciones dieron más premio del esperado y empuja los pesos un poquito hacia ellas, sin cambiar demasiado de golpe."
+    },
+    "drones": {
+      "en": "drones",
+      "txt": "Cuántos drones practican a la vez con el mismo cerebro. Más drones = más experiencia por generación (aprende más parejo), pero cada generación tarda más."
+    },
+    "red": {
+      "en": "network",
+      "txt": "El tamaño del cerebro: capas ocultas y neuronas. Entran 38 sensores, salen 4 palancas. Una red más grande puede aprender cosas más difíciles, pero tarda más y necesita más práctica."
+    },
+    "premios": {
+      "en": "rewards",
+      "txt": "Lo que le pagas por hacer algo bien, de 0 a 10. El dron aprende a hacer lo que más paga: los premios SON el programa."
+    },
+    "castigos": {
+      "en": "penalties",
+      "txt": "Lo que le cobras por hacer algo mal, de 0 a 10. Aprende a evitarlo; pero si castigas demasiado, aprende que lo más seguro es no moverse."
+    },
+    "exito": {
+      "en": "success",
+      "txt": "De 0 a 1: qué fracción de los intentos logró la misión en la última generación. Es la medida que importa."
+    },
+    "choque": {
+      "en": "crash",
+      "txt": "De 0 a 1: qué fracción de los intentos terminó chocando. Debería bajar."
+    },
+    "premio": {
+      "en": "reward",
+      "txt": "El premio promedio de un intento. Sube si aprende lo que le pagas. Si sube el premio y no el éxito, le estás pagando por algo que no es la misión."
+    },
+    "calidad": {
+      "en": "quality",
+      "txt": "De 0 a 1: qué tan buena sale la imagen al grabar (encuadre × seguir la ruta × ritmo × estabilidad)."
+    },
+    "viento": {
+      "en": "wind",
+      "txt": "Viento con ráfagas en m/s. Entrenar con viento lo hace más firme: sin eso, en la finca la toma se le sale de la ruta."
+    },
+    "desde": {
+      "en": "start_from",
+      "txt": "De dónde parte un modelo nuevo: \"base\" (ya sabe volar), \"cero\" (red al azar: aprende todo) u otro modelo tuyo (parte de lo que ese aprendió)."
+    },
+    "dron": {
+      "en": "drone",
+      "txt": "Con qué física aprende. Un modelo aprende a volar EL dron con el que entrenó: en uno muy distinto (más pesado, más lento) vuela peor. \"azar\" lo prepara para cualquiera."
+    },
+    "mision": {
+      "en": "mission",
+      "txt": "Qué practica: el mundo, la tarea y cuándo cuenta como éxito. Cada misión trae sus premios recomendados."
+    },
+    "curriculum": {
+      "en": "curriculum",
+      "txt": "Enseñar de fácil a difícil: primero que no choque, después que grabe; primero sin viento, después con viento. Se hace cambiando premios en cada_generacion o partiendo de otro modelo con desde=."
+    }
+  },
+  "ruta": [
+    {
+      "id": "cap1",
+      "titulo": "Hola, dron",
+      "aprende": [
+        "modelo",
+        "mision",
+        "dron"
+      ],
+      "texto": "Un programa mínimo dice tres cosas: QUÉ modelo entrenas (modelo), QUÉ tiene que aprender (mision) y CON QUÉ dron (dron). Escribirlo así se llama llamar funciones: un nombre, paréntesis y lo que necesita. Córrelo y mira la gráfica.",
+      "reto_txt": "Entrena 20 generaciones con un programa (comando correr; mira estado).",
+      "reto": {
+        "tipo": "generaciones",
+        "n": 20
+      },
+      "programa": "# Capítulo 1 · Hola, dron\n# Tres líneas: qué modelo, qué aprende, con qué dron.\n\nmodelo(\"{modelo}\", desde=\"base\")   # \"base\" = parte de la IA que ya sabe volar\nmision(\"grabar\")                   # grabar una casa (nivel 11)\ndron(\"{dron}\")                     # aprende con la física de este dron\n\n# Reto: córrelo (Ctrl/⌘+Enter) y deja que entrene 20 generaciones.\n# En la terminal: estado (cómo va) · detener {modelo} (pararlo)\n"
+    },
+    {
+      "id": "cap2",
+      "titulo": "Conoce tu dron",
+      "aprende": [
+        "dron_info",
+        "ficha",
+        "variables",
+        "print"
+      ],
+      "texto": "dron(\"…\") además de elegir el dron, te lo DEVUELVE: guárdalo en una variable (d = dron(…)) y lee sus datos con un punto: d.empuje_peso, d.bateria.minutos, d.radio.alcance_m. ficha(d) imprime todo. Es como un monitor serial: el programa te muestra lo que tiene adentro. Si tu dron todavía no tiene piezas, sus datos salen None (y armado ✗): ponle piezas en el garaje.",
+      "reto_txt": "Imprime el empuje/peso y los minutos de batería de tu dron.",
+      "reto": {
+        "tipo": "codigo",
+        "todos": [
+          [
+            "empuje_peso",
+            "thrust_weight"
+          ],
+          [
+            "minutos",
+            "minutes"
+          ],
+          [
+            "print(",
+            "ficha(",
+            "sheet("
+          ]
+        ]
+      },
+      "programa": "# Capítulo 2 · Conoce tu dron\n\nd = dron(\"{dron}\")        # elige el dron Y lo guarda en la variable d\nmodelo(\"{modelo}\", desde=\"base\")\nmision(\"grabar\")\n\nficha(d)                   # todo lo que sabe el juego de tu dron\n\n# Reto: imprime solo lo importante. Completa la línea:\nprint(\"empuje/peso:\", d.empuje_peso, \"· batería:\", d.bateria.minutos, \"min\")\n# Usa revisar (no hace falta entrenar) para ver lo que imprime.\n"
+    },
+    {
+      "id": "cap3",
+      "titulo": "Lo que pagas es lo que aprende",
+      "aprende": [
+        "premios",
+        "castigos",
+        "explicar"
+      ],
+      "texto": "La IA no sabe qué está bien: hace lo que más le PAGAS. premios() paga por lo bueno y castigos() cobra por lo malo, de 0 a 10 (4 = lo normal). Si castigas demasiado, aprende que lo más seguro es no moverse. explicar(\"premios\") te lo recuerda.",
+      "reto_txt": "Baja el choque por debajo del 20 % (después de 5 generaciones).",
+      "reto": {
+        "tipo": "choque_bajo",
+        "max": 0.2,
+        "min_gen": 5
+      },
+      "programa": "# Capítulo 3 · Lo que pagas es lo que aprende\n\nmodelo(\"{modelo}\", desde=\"base\")\nmision(\"grabar_postes\")\ndron(\"{dron}\")\n\nexplicar(\"castigos\")\npremios(grabar=4, mirar=4)\ncastigos(chocar=8, pegado=6)   # chocar y pasar pegado a un poste: caro\n\n# Reto: que choque menos del 20 %. Mira la línea roja de la gráfica.\n"
+    },
+    {
+      "id": "cap4",
+      "titulo": "¿Sirve para la misión?",
+      "aprende": [
+        "mision_info",
+        "revisar",
+        "if"
+      ],
+      "texto": "Antes de entrenar, revisa si el dron puede hacer la misión en el juego: m = mision(\"…\") trae lo que pide (m.pide) y revisar(d, m) lo compara con tu dron: ✅ cumple, ⚠️ justo, ❌ le falta. Si eliges un dron con dron(…), el programa lo revisa solo al correr.",
+      "reto_txt": "Un programa que pase la revisión sin ❌ (cambia de dron o de misión, o mejora el dron en la Tienda).",
+      "reto": {
+        "tipo": "revision_ok"
+      },
+      "programa": "# Capítulo 4 · ¿Sirve para la misión?\n\nd = dron(\"{dron}\")\nm = mision(\"grabar_viento\")      # la finca: viento de 2,5 m/s\nmodelo(\"{modelo}\", desde=\"base\")\n\nprint(\"la misión pide:\", m.pide)\nif d.empuje_peso < m.pide.get(\"empuje_peso_min\", 0):\n    print(\"no aguanta el viento: necesita más empuje\")\n\nr = revisar(d, m)\nprint(\"¿sirve?\", r.ok)\n# Reto: que no salga ningún ❌ (prueba otro dron de tu hangar, u otra misión).\n"
+    },
+    {
+      "id": "cap5",
+      "titulo": "Mirar mientras aprende",
+      "aprende": [
+        "cada_generacion",
+        "e",
+        "avisar",
+        "narrar"
+      ],
+      "texto": "Lo de arriba se lee una vez. Para REACCIONAR mientras entrena, define def cada_generacion(e): el juego la llama al terminar cada generación, y e trae cómo va (e.exito, e.choque, e.cambio…). narrar(cada=5) hace que la terminal cuente cómo va en palabras.",
+      "reto_txt": "Que tu programa avise (avisar) cuando el éxito pase el 50 %.",
+      "reto": {
+        "tipo": "avisar_exito",
+        "min": 0.5
+      },
+      "programa": "# Capítulo 5 · Mirar mientras aprende\n\nmodelo(\"{modelo}\", desde=\"base\")\nmision(\"grabar\")\ndron(\"{dron}\")\nnarrar(cada=5)            # la terminal cuenta cómo va cada 5 generaciones\n\ndef cada_generacion(e):\n    print(f\"gen {e.generacion}: éxito {e.exito:.0%} · cambio {e.cambio.exito}\")\n    # Reto: avisa cuando pase el 50 %\n    if e.exito >= 0.5:\n        avisar(\"¡Ya graba bien la mitad de las veces!\")\n"
+    },
+    {
+      "id": "cap6",
+      "titulo": "Currículum",
+      "aprende": [
+        "global",
+        "premios",
+        "castigos",
+        "desde"
+      ],
+      "texto": "Nadie aprende lo difícil de una: primero que no choque, después que grabe bien. Una variable global recuerda la fase, y dentro de cada_generacion cambias los premios EN VIVO cuando ya domina lo básico.",
+      "reto_txt": "Que el programa cambie los premios o castigos solo, mientras entrena.",
+      "reto": {
+        "tipo": "cambia_premios"
+      },
+      "programa": "# Capítulo 6 · Currículum\n\nmodelo(\"{modelo}\", desde=\"base\")\nmision(\"grabar_postes\")\ndron(\"{dron}\")\nnarrar(cada=5)\n\ncastigos(chocar=8)    # fase 1: no chocar\npremios(grabar=1)\nfase = 1\n\ndef cada_generacion(e):\n    global fase\n    if fase == 1 and e.choque is not None and e.choque < 0.15:\n        fase = 2\n        castigos(chocar=3)    # fase 2: ahora, grabar bien\n        premios(grabar=6)\n        avisar(\"Fase 2: a grabar\")\n"
+    },
+    {
+      "id": "cap7",
+      "titulo": "Un cerebro a medida",
+      "aprende": [
+        "red",
+        "aprendizaje",
+        "explicar"
+      ],
+      "texto": "Con desde=\"cero\" el modelo nace con un cerebro al azar, del tamaño que digas con red(capas=[…]). El lr es qué tan grande es cada ajuste y la exploración cuánto prueba cosas nuevas: explicar(\"lr\"). Mira la red en vivo: Gráfica → Red neuronal.",
+      "reto_txt": "Un modelo desde cero que llegue a 30 % de éxito.",
+      "reto": {
+        "tipo": "cero_exito",
+        "min": 0.3
+      },
+      "programa": "# Capítulo 7 · Un cerebro a medida\n\nmodelo(\"{modelo}\", desde=\"cero\")\nred(capas=[64, 64])         # 38 sensores → 64 → 64 → 4 palancas\nnivel(0)                    # quedarse quieto en el aire (hover)\ndron(\"{dron}\")\naprendizaje(lr=0.0003)\nnarrar(cada=10)\n\nexplicar(\"lr\")\npremios(cerca=8)\ncastigos(chocar=4, inclinar=8)\n"
+    },
+    {
+      "id": "cap8",
+      "titulo": "Tu propio monitor",
+      "aprende": [
+        "def",
+        "for",
+        "hangar",
+        "tabla",
+        "barra",
+        "sorted"
+      ],
+      "texto": "Tus propias funciones (def), listas y for, como un programa de verdad. hangar() trae tus drones como una lista; tabla() la muestra en columnas, barra() dibuja un número de 0 a 1 y sorted() ordena.",
+      "reto_txt": "Una tabla de tu hangar (tabla(hangar(), …)) en un programa con una función tuya (def).",
+      "reto": {
+        "tipo": "codigo",
+        "todos": [
+          [
+            "tabla(hangar()",
+            "table(hangar()"
+          ],
+          [
+            "def "
+          ]
+        ]
+      },
+      "programa": "# Capítulo 8 · Tu propio monitor\n\nmodelo(\"{modelo}\", desde=\"base\")\nmision(\"grabar\")\n\ndef empuje(d):\n    return d.empuje_peso if d.armado else 0\n\ndrones_ordenados = sorted(hangar(), key=empuje, reverse=True)\ntabla(drones_ordenados, \"nombre\", \"empuje_peso\", \"minutos\", \"radio.alcance_m\")\n\ndef cada_generacion(e):\n    print(f\"gen {e.generacion}  {barra(e.exito)}\")\n"
+    }
+  ]
 }

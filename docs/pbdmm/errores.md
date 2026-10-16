@@ -14,7 +14,7 @@
 | `en PBDMM "y" se escribe and, no &&` | Sintaxis de C o JavaScript | `and`, `or`, `not` |
 | `PBDMM no tiene while` | No hay `while` (podría colgar el juego) | `for i in range(n):` |
 | `PBDMM no importa módulos` | `import` / `from` | Todo lo necesario ya está |
-| `esperaba "]" y encontré ":"` | Una rebanada `x[1:3]` | No hay rebanadas: usa `for` |
+| `esperaba "]" y encontré ":"` | Una rebanada con paso `x[1:5:2]` | Sin paso: `x[1:5]` |
 | `los argumentos con nombre (x=1) van después de los demás` | `f(a=1, 2)` | `f(2, a=1)` |
 
 ## Al correr
@@ -41,3 +41,9 @@
 | `no hay la clave "x"` | `d["x"]` con una clave que no está | `d.get("x", 0)` |
 | `a f() le falta "x"` · `f() no tiene el parámetro "y"` | Una llamada con los argumentos mal | Revisa el `def` |
 | `división por cero` | `/`, `//` o `%` por 0 | Revisa antes: `x / n if n else 0` |
+| `max() de una lista vacía` | `min`/`max` de `[]` | Revisa antes: `max(xs) if xs else 0` |
+| `no tienes un dron "x" en el hangar` (en `dron_info`, `revisar`, `ficha`) | El nombre no está | `tabla(hangar(), "nombre")` muestra los tuyos |
+| `ficha("…"): no hay un dron, una misión ni un modelo que se llame "x"` | El nombre no existe | Revisa cómo se escribe (`modelos` en la terminal) |
+| `un objeto no tiene "empuje_peso"` · `None no tiene…` | `dron("azar")` devuelve `None` | Usa un dron de tu hangar: `dron("Cine (dev)")` |
+| `no se puede comparar None < float` con `d.empuje_peso` | El dron no tiene piezas (`d.armado` es `False`) | `if d.armado and d.empuje_peso < 2:` |
+| `narrar() va arriba del archivo` | `narrar` dentro de un `def` | Ponlo arriba, una vez |

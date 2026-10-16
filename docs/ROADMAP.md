@@ -69,31 +69,17 @@ Lo que queda abierto de la Fase 1:
 4. 🔜 **Pulido:** sonidos (motores según el gas, el bip del ESC, el clic del relé), transiciones de cámara, pantalla
    de carga, ajustes (volumen y calidad en el mismo lugar que el idioma).
 
-## ⏭️ Lo siguiente · PBDMM 2: entrenar con más claridad y programas "de verdad" *(Santiago, 15-10-2026)*
+## ✅ PBDMM 2 *(hecho 15-10-2026)*
 
-> Plan detallado (nombres de funciones, ruta del programador por dron, orden de trabajo): [`PBDMM2_PLAN.md`](PBDMM2_PLAN.md).
+> Plan y decisiones: [`PBDMM2_PLAN.md`](PBDMM2_PLAN.md) · documentación del lenguaje: [`pbdmm/`](pbdmm/README.md).
 
-El modo desarrollador es el corazón del juego, así que PBDMM crece:
+Leer el juego desde el programa (`d = dron(…)`, `mision_info`, `hangar()`, `inventario()`, `ficha`, `tabla`, `barra`,
+`color`), la **revisión automática** del dron contra la misión (solo si hay `dron(…)`), `explicar()`, el **narrador**
+(`narrar(cada=5)`, `e.cambio`, `e.diagnosticos`), más Python (rebanadas, closures, `sorted`…) y la **ruta del
+programador**: 8 capítulos, uno por cada dron que creas, con programa guiado y reto medido solo.
+Falta: lo que agregue la Fase 1b (premios y castigos nuevos) también en PBDMM.
 
-1. **Más claro en el entrenamiento:** qué hace cada parámetro de entrenamiento, qué cambió entre generaciones, por
-   qué sube o baja el éxito. Mensajes y ayudas pensados para aprender ML mientras se juega.
-2. **Funciones incorporadas para leer el juego** (para imprimir y mostrar cosas en la terminal, como un monitor
-   serial de un microcontrolador):
-   - `dron_especificaciones("Cine (dev)")` / `drone_specs(…)`: peso, empuje/peso, motores, hélices, batería,
-     controladora, radio y su alcance, cámara, sensores, minutos de vuelo…
-   - `mision_info("grabar_postes")` / `mission_info(…)`: qué pide la misión (viento, alcance, sensores, tomas…).
-   - `modelo_info("colibri")`, `mis_drones()`, `mis_modelos()`, `piezas("motores")`… (nombres por definir).
-   - Salida "de consola" más vistosa: tablas, barras, colores (por ejemplo `tabla(...)`, `barra(valor)`).
-3. **El programa revisa al dron contra la misión,** pero **solo si el programa elige un dron con `dron(…)`** (si no
-   hay `dron()`, no se toma ningún dron y no se revisa nada). Ejemplo: entrenar para la misión del restaurante con
-   un dron sin sensores ToF, o con motores que no aguantan el viento de la finca, o con una radio ESP-NOW para una
-   misión de largo alcance → el programa avisa al revisarlo/correrlo: *"d.motores: empuje/peso 1,9 < 2,5 que pide el
-   viento de la finca"*, *"falta: sensores ToF (los postes)"*, para conseguir las piezas **antes** de entrenar.
-   Se apoya en los requisitos de cada pedido que ya existen (alcance de la radio, empuje/peso con viento,
-   protectores, cámara) y crece con la Fase 1b.
-4. Después: lo que la Fase 1b agregue (premios y castigos nuevos) llega también a PBDMM.
-
-## ⏭️ También · El negocio: los clientes te escriben 📝 *(Santiago, 15-10-2026)*
+## ⏭️ Lo siguiente · El negocio: los clientes te escriben *(Santiago, 15-10-2026)*
 
 > Diseño completo en [`NEGOCIO.md`](NEGOCIO.md).
 
@@ -102,7 +88,12 @@ trabajos **repetibles** de 4 dificultades (★–★★★★) que piden más pi
 tutorial, el más fácil), 🎬 video, 🔎 inspección, 🛠️ encargos de armado, 🧪 pruebas de drones (QA), 🎮 a mano y
 📦 entregas. Reutilizas y gastas drones, la relación con cada cliente crece y **lo repetitivo se lo das a la IA**
 (flota). La campaña sigue: sus pedidos pasan a ser los **pedidos especiales ⭐**.
-Primero: `requisitos.js` (compartido con PBDMM 2), el trabajo 📷 foto y el celular con el tutorial del día 1.
+
+- ✅ Hecho: el celular (chats, tarjetas, ¿qué me falta?, terminar el día), el tutorial del día 1 (la foto de Doña
+  Marta), 📷 fotos y 🔎 inspecciones, 🎬 videos repetibles, 4 dificultades desde plantillas, 4 clientes con relación y
+  recomendaciones, arriendo, pedidos especiales por el chat, `requisitos.js` compartido.
+- ⏭️ Falta: **flota** (varios trabajos ★ con la IA a la vez), 🛠️ encargos de armado y 🧪 pruebas de drones (con la
+  Fase 2), 🎮 a mano (Fase 3), 📦 entregas, más clientes y lugares.
 
 ## Fase 1b · Premios, castigos y misiones que exigen al dron 📝 *(Santiago, 15-10-2026)*
 

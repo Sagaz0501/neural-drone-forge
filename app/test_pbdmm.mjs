@@ -88,6 +88,7 @@ const tr = (succ, crash, gen) => ({ gen, steps: gen * 1000, succ, crash, rew: 10
 let a = P.reaccionar("cada_generacion", estadoE(tr(0.2, 0.3, 10), { gen0: 0 }));
 ok(a.length === 0, "fase 1 con choque alto: no cambia nada");
 a = P.reaccionar("cada_generacion", estadoE(tr(0.3, 0.05, 11), { gen0: 0 }));
+a = a.filter((x) => x.avisar === undefined);           // avisar(…) dentro de una función también queda en las acciones
 ok(a.length === 2 && a[0].castigos?.crash === 15 && a[1].premios?.film === 6, "choque < 10 %: fase 2, castigos(chocar=3) -> 15 y premios(grabar=6) -> 6");
 ok(acciones.some(([k, c]) => k === "ajustar" && c.premios?.crash === 15 && c.premios?.film === 6 && c.premios?.heading === 2), "al servidor le manda TODOS los valores reales (premios y castigos juntos)");
 a = P.reaccionar("cada_generacion", estadoE(tr(0.9, 0.02, 12), { gen0: 0 }));
@@ -243,6 +244,93 @@ ok(/no tienes un dron/.test(e?.message || ""), "dron que no está en el hangar")
   const e1 = falla(() => compilar('model("x")\nmission("volar_rapido")', D, host));
   ok(/no hay una misión/.test(e1?.message || ""), "los errores siguen funcionando con nombres en inglés: " + e1?.message);
   ok(compilar('model("x")\nmission("film")\ndrone("Sagaz_Dron_V3")', D, host).cfg.dron.hangar === "Sagaz_Dron_V3", "drone() con un dron del hangar");
+}
+
+
+// 6) más Python de verdad (PBDMM 2): rebanadas, closures, valores por defecto, bool, sorted/enumerate/zip…
+corre('a = [1, 2, 3, 4]\nprint(a[1:3], a[:2], a[-2:], "hola"[1:])');
+ok(salida[0] === '[2, 3] [1, 2] [3, 4] ola', "rebanadas [a:b]: " + salida[0]);
+corre("def f():\n    x = 5\n    def g():\n        return x\n    return g()\nprint(f())");
+ok(salida[0] === "5", "una función adentro de otra ve sus variables (closure)");
+corre("y = 1\ndef f(a, b=y + 1):\n    return a + b\ny = 10\nprint(f(1))");
+ok(salida[0] === "3", "el valor por defecto se calcula al definir (como Python)");
+corre("print(True + 1, sum([True, True]), round(2.5), round(3.5), round(3.14159, 2))");
+ok(salida[0] === "2 2 2 4 3.14", "bool como número y round como Python: " + salida[0]);
+ok(/lista vacía/.test(falla(() => corre("print(max([]))"))?.message || ""), "max([]) da error (como Python)");
+corre('def seg(p):\n    return p[1]\nprint(sorted([3, 1, 2]), sorted(["b", "a"], reverse=True), sorted([[1, "z"], [0, "y"]], key=seg), max([[1, 5], [2, 3]], key=seg))');
+ok(salida[0] === '[1, 2, 3] ["b", "a"] [[0, "y"], [1, "z"]] [1, 5]', "sorted(key=, reverse=) y max(key=): " + salida[0]);
+corre('for i, x in enumerate(["a", "b"]):\n    print(i, x)\nprint(list(zip([1, 2], [3, 4, 5])), any([0, 1]), all([1, 0]), reversed([1, 2]))');
+ok(salida.join("|") === "0 a|1 b|[[1, 3], [2, 4]] True False [2, 1]", "enumerate, zip, any, all, reversed: " + salida.join("|"));
+
+// 7) PBDMM 2: leer el juego, revisar, la terminal, el narrador
+{
+  const { estadoE: eE, narracion, diagnosticar } = await import("./pbdmm.js");
+  const st = (twr, extra = {}) => ({ mass: 0.52, masa_g: 520, twr, velMax: 9.1, minutos: 4.4, alcance_m: 20, calidad: 20, gimbal: false, ayudas: ["altura"], vibracion: 0.6, nitidez: 0.79, precio: 104, ...extra });
+  const D2 = { ...D, drones: ["Madera", "Cine"],
+    hangar: [{ nombre: "Madera", listo: true, st: st(1.9), piezas: { motores: "Motores 1806", bateria: "LiPo 3S", radio: "ESP-NOW" }, extras: [] },
+             { nombre: "Cine", listo: true, st: st(2.6, { ayudas: ["altura", "sensores", "protectores"], alcance_m: 500, calidad: 62 }), piezas: {}, extras: [] }],
+    misionInfo: { grabar_viento: { para: "Finca", requisitos: { twr_min: 2.2, barometro: true }, ctx: { segundos: 34, viento: 2.5, alcance: 22 } },
+                  grabar_postes: { para: "Restaurante", requisitos: { protectores: true, calidad_min: 50, sensores: true }, ctx: { segundos: 30, viento: 0.8, alcance: 15 } } },
+    modelos: [{ slug: "colibri", gen: 120, red: [64, 64], ultimo: [120, 0, 0.8, 0.05], mejor_exito: 0.82, tiene_modelo: true }],
+    inventario: [{ nombre: "Motores 1806", ranura: "motores", vida: 80, precio: 30, en: "Madera" }, { nombre: "LiPo 3S", ranura: "baterias", vida: 100, precio: 20, en: null }] };
+  const out = [], h2 = { print: (x) => out.push(x) };
+  const P2 = compilar('d = dron("Madera")\nm = mision("grabar_viento")\nmodelo("x2")\nprint(d.empuje_peso, d.bateria.minutos, d.radio.alcance_m, m.viento, m.pide.get("empuje_peso_min"))', D2, h2);
+  ok(out[0] === "1.9 4.4 20 2.5 2.2", "d = dron(…) y m = mision(…) devuelven objetos: " + out[0]);
+  ok(P2.revision && !P2.revision.ok && P2.revision.lineas.some(([ic, tx]) => ic === "❌" && /Empuje\/peso 1,90/.test(tx)) && P2.revision.lineas.some(([ic, tx]) => ic === "❌" && /Radio/.test(tx)),
+    "con dron(…) el programa se revisa solo contra la misión (empuje/peso con viento, radio)");
+  ok(compilar('modelo("x3")\nmision("grabar_viento")\ndron("azar")', D2, h2).revision === null, "sin un dron del hangar no se revisa nada");
+  out.length = 0;
+  compilar('modelo("x4")\nmision("grabar")\nr = revisar("Cine", "grabar_postes")\nprint(r.ok, len(r.errores))\nr2 = revisar(dron_info("Madera"), mision_info("grabar_postes"))\nprint(r2.ok, r2.errores[0])', D2, h2);
+  ok(out.includes("True 0") && out.some((l) => /^False .*(Cámara|Protectores)/.test(l)), "revisar(d, m) con nombres u objetos: " + out.filter((l) => /^(True|False)/.test(l)).join(" | "));
+  out.length = 0;
+  compilar('modelo("x5")\nmision("grabar")\ntabla(hangar(), "nombre", "empuje_peso", "bateria.minutos", "tof")\nprint(barra(0.6), barra(None, 4))\nprint(len(inventario()), len(inventario("motores")), inventario("baterias")[0].en)\nprint(modelo_info("colibri").mejor_exito)\nexplicar("lr")', D2, h2);
+  ok(out[0].startsWith("nombre") && out[2].startsWith("Madera") && out[3].includes("2.6") && out[3].trim().endsWith("✓"), "tabla(hangar(), …) en columnas");
+  ok(out[4] === "████████████░░░░░░░░ 60 % ░░░░ —", "barra(): " + out[4]);
+  ok(out[5] === "2 1 None" && out[6] === "0.82", "inventario() y modelo_info(): " + out[5] + " · " + out[6]);
+  ok(/^📘 lr: Learning rate/.test(out[7]), "explicar(\"lr\")");
+  out.length = 0;
+  compilar('modelo("x6")\nmision("grabar")\nficha("Cine")\nprint(color("verde", "ok"))', D2, h2);
+  ok(out[0] === "── Cine ──" && out.some((l) => /empuje_peso\s+2\.6/.test(l)) && out.at(-1) === "\u0001verde\u0002ok\u0003", "ficha() y color()");
+  ok(/no hay un dron, una misión/.test(falla(() => compilar('modelo("x7")\nmision("grabar")\nficha("nada")', D2, h2))?.message || ""), "ficha() de algo que no existe: error claro");
+  // los campos en inglés
+  ok(compilar('d = drone("Cine")\nmodel("x8")\nmission("film")\nprint(d.thrust_weight, d.radio.range_m, d.guards)', D2, { print: (x) => out.push(x) }) && out.at(-1) === "2.6 500 True", "los campos de los objetos en inglés: " + out.at(-1));
+  // e.cambio, diagnósticos y el narrador
+  const ses = { gen0: 0 };
+  let e;
+  for (let g = 1; g <= 22; g++) e = eE({ gen: g, succ: 0.3, crash: 0.2, rew: 1 + g * 0.3, hist: [] }, ses, ent.escala_premios);
+  ok(e.cambio.exito === 0 && e.cambio.premio === 0.3, "e.cambio: contra la generación anterior");
+  ok(e.diagnosticos.some((x) => /pagando por algo/.test(x)) && e.diagnosticos.some((x) => /se estancó/.test(x)), "e.diagnosticos: paga por lo que no es y se estancó");
+  ok(diagnosticar([{ gen: 1, exito: 0.8 }, ...Array.from({ length: 10 }, (_, i) => ({ gen: i + 2, exito: 0.4, choque: 0.1, premio: 1 }))]).some((x) => x.k === "olvida"), "diagnóstico: el éxito cayó (lr alto)");
+  const Pn = compilar('modelo("x9")\nmision("grabar")\nnarrar(cada=5)', D2, h2);
+  const sesN = { gen0: 0 }, lineasN = [];
+  for (let g = 1; g <= 10; g++) lineasN.push(...Pn.narrar(eE({ gen: g, succ: 0.1 * g, crash: 0.5 - 0.04 * g, rew: g, hist: [] }, sesN, ent.escala_premios), sesN));
+  ok(lineasN.some((l) => /^Gen 5: éxito 50 %/.test(l)) && lineasN.some((l) => /Aprende: en 5 generaciones el éxito subió/.test(l)), "narrar(cada=5): cada 5 generaciones cuenta cómo va: " + lineasN.slice(0, 2).join(" // "));
+  ok(compilar('modelo("x10")\nmision("grabar")', D2, h2).narrar(e, ses).length === 0, "sin narrar() no narra");
+  // la ruta del programador
+  const RUTA = await import("./ruta.js");
+  RUTA.usarCapitulos(data.ruta);
+  const p = { modo: "dev", drones: [{ nombre: "Madera" }, { nombre: "Cine" }] };
+  ok(RUTA.abiertos(p) === 1 && RUTA.actual(p) === 1 && RUTA.nuevos(p).has("modelo"), "la ruta empieza en el capítulo 1 (abierto con el primer dron)");
+  ok(RUTA.alCrearDron(p, { nombre: "Halcón" }) === 2 && p.ruta.drones[2] === "Halcón" && RUTA.abiertos(p) === 2, "crear un dron abre el capítulo 2");
+  ok(RUTA.alCrearDron({ modo: "normal", drones: [] }, { nombre: "x" }) === null, "en el modo normal no hay ruta");
+  const logrados = [];
+  const aviso = (n) => logrados.push(n);
+  RUTA.alGenerar(p, {}, { generaciones_sesion: 20 }, aviso);
+  ok(logrados.join() === "1" && RUTA.actual(p) === 2, "reto 1: 20 generaciones");
+  const src2 = RUTA.programa(p, 2);
+  ok(src2.includes('dron("Halcón")') && src2.includes("cap2_halcon"), "el programa del capítulo trae su dron y su modelo");
+  RUTA.alCompilar(p, "capitulo_2", src2, { revision: null }, aviso);
+  ok(logrados.join() === "1,2", "reto 2: imprimir empuje/peso y minutos (se ve en el código)");
+  for (let k = 0; k < 6; k++) RUTA.alCrearDron(p, { nombre: "D" + k });
+  RUTA.alCompilar(p, "x", "", { revision: { ok: true } }, aviso);
+  RUTA.alGenerar(p, { desde: "cero" }, { generaciones_sesion: 6, choque: 0.1, exito: 0.6 }, aviso, [{ avisar: "ya" }, { premios: {} }]);
+  RUTA.alCompilar(p, "x", "def f():\n    pass\ntabla(hangar(), \"nombre\")", { revision: null }, aviso);
+  ok(logrados.sort((a, b) => a - b).join() === "1,2,3,4,5,6,7,8" && RUTA.actual(p) === null, "los 8 retos se pueden lograr: " + logrados.join());
+  for (const c of data.ruta) {
+    const pp = { modo: "dev", drones: [{ nombre: "Madera" }], ruta: { creados: 9, hechos: {}, drones: {} } };
+    const srcC = RUTA.programa(pp, data.ruta.indexOf(c) + 1);
+    ok(!falla(() => compilar(srcC, { ...D2, drones: ["Madera", "Cine"], hangar: D2.hangar.map((h, i) => (i ? h : { ...h, nombre: "Madera" })) }, h2)), `el programa del capítulo "${c.titulo}" compila`);
+  }
 }
 
 console.log(fallas ? `\n${fallas} pruebas fallaron.` : "\nTodas las pruebas pasan.");

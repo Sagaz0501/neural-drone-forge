@@ -10,6 +10,9 @@ import { compilar, pedidoDe, estadoE, ErrorPB, repr, nivelDe, recomendados, trad
 import { contexto, opciones, delPrograma } from "./autocompletar.js";
 import { dibujarRed as pintarRed } from "./redviz.js";
 import { t, datos, idioma, num } from "./i18n.js";
+import { pieza } from "./parts.js";
+import { mundoLugar, alcanceNecesario } from "./lugares.js";
+import * as RUTA from "./ruta.js";
 const numero = (x) => (Number.isInteger(x) ? String(x) : num(x, 1));       // 4,5 / 4.5 según el idioma
 
 const ARCH = "dronmaker.pbdmm.archivos", ABIERTO = "dronmaker.pbdmm.abierto";
@@ -28,6 +31,7 @@ export function initEstudio(ctx) {
     if (ES.data) return ES.data;
     const r = await fetch("data/pbdmm.json");
     ES.data = await datos("pbdmm", await r.json());            // + la capa del idioma (data/en/pbdmm.json)
+    RUTA.usarCapitulos(ES.data.ruta);
     if (!ES.archivos) {
       ES.archivos = { mi_primer_modelo: ES.data.ejemplos.hover };
       ES.abierto = "mi_primer_modelo";
@@ -44,7 +48,33 @@ export function initEstudio(ctx) {
     tiposPremio: { ...Object.fromEntries(ctx.ent.premios.map((p) => [p.k, p.tipo])), near: "premio" },
     escala: ctx.ent.escala_premios,
     modelos: ES.modelos.length ? ES.modelos : null,     // para revisar desde="otro" (si no hay lista, no se revisa)
+    ...leerJuego(),                                     // PBDMM 2: hangar, misionInfo, inventario (dron_info, revisar, tabla…)
   });
+  /** Lo que PBDMM 2 puede leer del juego: los drones del hangar (con su física), lo que pide cada misión y las piezas. */
+  function leerJuego() {
+    const p = ctx.P(), cat = ctx.cat, PT = ctx.PT;
+    const nombre = (ranura, id) => (id ? pieza(cat, ranura, id)?.nombre || id : null);
+    const hangar = p.drones.map((d) => {
+      const b = PT.build(p, d), arm = PT.dronArmado(p, cat, d);
+      return { nombre: d.nombre, proposito: d.proposito || "", modelo: d.modelo || null, listo: !!(arm?.stats.ok && ctx.estadoDe(d).listo),
+        st: arm?.stats.ok ? arm.stats : null,
+        piezas: Object.fromEntries(PT.RANURAS.map(([slot, ranura]) => [slot, nombre(ranura, b[slot])])),
+        extras: (b.extras || []).map((id) => nombre("extras", id)) };
+    });
+    if (!ES.misionInfo) {                               // lo que pide cada misión: los requisitos de su pedido de la campaña
+      ES.misionInfo = {};
+      for (const m of ctx.ent.misiones) {
+        const pe = m.pedido && ctx.mis.pedidos.find((x) => x.id === m.pedido);
+        if (!pe?.tomas) { if (m.requisitos_ia) ES.misionInfo[m.id] = { para: m.para, requisitos: { ...m.requisitos_ia }, ctx: {} }; continue; }
+        const M = mundoLugar(pe.lugar, pe);
+        ES.misionInfo[m.id] = { para: pe.titulo, requisitos: { ...(pe.requisitos || {}), ...(m.requisitos_ia || {}) },
+          ctx: { segundos: M.shots.reduce((a, x) => a + x.dur, 0), viento: m.viento ?? M.wind, alcance: alcanceNecesario(M.shots) } };
+      }
+    }
+    const ranuraDe = (id) => Object.keys(cat).find((k) => Array.isArray(cat[k]) && cat[k].some((x) => x.id === id)) || "?";
+    const inventario = p.inventario.map((u) => { const r = ranuraDe(u.id), pz = pieza(cat, r, u.id); return { nombre: pz?.nombre || u.id, ranura: r, vida: u.vida, precio: pz?.precio ?? 0, en: PT.dronDe(p, u.uid)?.nombre || null }; });
+    return { hangar, misionInfo: ES.misionInfo, inventario };
+  }
 
   // ---------------- abrir / cerrar ----------------
   async function abrir() {
@@ -57,7 +87,7 @@ export function initEstudio(ctx) {
     cargarModelos();                     // para autocompletar modelo(…) y desde=
     if (!$("es-out").childElementCount) {
       linea(`PBDMM ${ES.data.version} · Python Base Dron Model Maker`, "ok");
-      linea(t('Escribe "ayuda" para ver los comandos. Ctrl/⌘+Enter corre el programa. Empieza por la pestaña "Aprende".'), "muted");
+      linea(t('Escribe "ayuda" para ver los comandos. Ctrl/⌘+Enter corre el programa. Empieza por la pestaña "Ruta": un capítulo por cada dron que creas.'), "muted");
     }
     sondear(true);
     $("es-src").focus();
@@ -279,7 +309,13 @@ export function initEstudio(ctx) {
   function linea(txt, cls = "") {
     const out = $("es-out"), d = document.createElement("div");
     d.className = cls;
-    d.textContent = txt;
+    if (String(txt).includes("\u0001")) {               // color("verde", "…") de PBDMM: \u0001verde\u0002texto\u0003
+      for (const parte of String(txt).split(/(\u0001\w+\u0002[^\u0003]*\u0003)/)) {
+        const m = /^\u0001(\w+)\u0002([^\u0003]*)\u0003$/.exec(parte);
+        if (m) { const sp = document.createElement("span"); sp.className = "es-c-" + m[1]; sp.textContent = m[2]; d.appendChild(sp); }
+        else if (parte) d.appendChild(document.createTextNode(parte));
+      }
+    } else d.textContent = txt;
     out.appendChild(d);
     while (out.childElementCount > 600) out.firstChild.remove();
     out.scrollTop = out.scrollHeight;
@@ -569,6 +605,13 @@ export function initEstudio(ctx) {
       nivel: c.nivel, niv, dron: typeof c.dron === "object" ? t('tu dron "{d}"', { d: c.dron.hangar }) : c.dron === "AZAR" ? t("drones al azar") : t("dron estándar"),
       n: c.drones, donde: c.donde === "blender" ? "Blender" : t("el fondo"), vel: idioma() === "en" ? ES.data.alias_en?.valores?.[c.velocidad] || c.velocidad : c.velocidad }));
     linea(`  ${valoresTxt(c.premiosFinal)}${c.viento ? " · " + t("viento {v} m/s", { v: c.viento }) : ""}${c.lr !== undefined ? ` · lr ${c.lr}` : ""}${c.ent !== undefined ? " · " + t("exploración {v}", { v: c.ent }) : ""}`, "muted");
+    if (prog.revision) {                             // PBDMM 2: el dron de dron(…) contra lo que pide la misión
+      linea("  " + t('revisión de "{d}" para {m}:', { d: c.dron.hangar, m: c.mision }), prog.revision.ok ? "ok" : "warn");
+      prog.revision.lineas.forEach(([ic, tx]) => linea(`    ${ic} ${tx}`, ic === "❌" ? "bad" : ic === "⚠️" ? "warn" : "muted"));
+      if (prog.revision.armado === false) linea("    " + t("Ponle piezas en el garaje: sin piezas no tiene física para entrenar."), "muted");
+      else if (!prog.revision.ok) linea("    " + t("Puedes entrenar igual (aprende con la física de este dron), pero para hacer la misión en el juego le falta eso: consíguelo en la Tienda."), "muted");
+    }
+    RUTA.alCompilar(ctx.P(), ES.abierto, ES.archivos[ES.abierto] || "", prog, avisoRuta);
     linea("  " + t("funciones: {lista}", { lista: prog.hooks.length ? prog.hooks.map((h) => (idioma() === "en" ? ES.data.alias_en?.hooks?.[h] || h : h)).join(", ") : t("ninguna (solo entrena; párala con detener {m})", { m: c.modelo }) }), "muted");
     if (soloRevisar) return;
     let dron = null;
@@ -617,7 +660,7 @@ export function initEstudio(ctx) {
     return { tr: null, activo: false };
   }
   function llamarHook(R, nombre, e) {
-    try { R.prog.reaccionar(nombre, e); }
+    try { return R.prog.reaccionar(nombre, e); }
     catch (err) {
       linea("✗ " + t("en {f}: {msg}", { f: nombre, msg: err.message }), "bad");
       if (err instanceof ErrorPB) marcarError(err);
@@ -654,7 +697,10 @@ export function initEstudio(ctx) {
         } else if ((tr.gen ?? 0) > R.ultGen) {
           R.ultGen = tr.gen;
           if (typeof tr.succ === "number") R.ses.mejor = Math.max(R.ses.mejor ?? 0, tr.succ);
-          if (ES.run === R) llamarHook(R, "cada_generacion", estadoE(tr, R.ses, ctx.ent.escala_premios));
+          const e = estadoE(tr, R.ses, ctx.ent.escala_premios);
+          const acc = ES.run === R ? llamarHook(R, "cada_generacion", e) || [] : [];
+          for (const l of R.prog.narrar(e, R.ses)) linea(l, l.includes("💡") ? "warn" : "muted");
+          RUTA.alGenerar(ctx.P(), R.cfg, e, avisoRuta, acc);
         }
       } else if (R.empezo) {
         linea("■ " + t('"{m}" dejó de entrenar (generación {gen}).', { m: R.cfg.modelo, gen: tr?.gen ?? R.ultGen }), "warn");
@@ -687,19 +733,61 @@ export function initEstudio(ctx) {
     $("es-parar").disabled = !R;
   }
 
-  // ---------------- panel derecho: ayuda · aprende · gráfica ----------------
+  /** Un reto de la ruta cumplido: la terminal lo celebra y el progreso se guarda en la partida. */
+  function avisoRuta(n, cap) {
+    ctx.guardar();
+    linea("🏅 " + t("Ruta del programador: ¡capítulo {n} · {titulo} completo!", { n, titulo: cap.titulo }), "ok");
+    const sig = RUTA.actual(ctx.P());
+    if (sig) linea("   " + t("Sigue el capítulo {n} (pestaña Ruta).", { n: sig }), "muted");
+    else if (RUTA.abiertos(ctx.P()) < RUTA.capitulos().length) linea("   " + t("Crea otro dron en el garaje para abrir el capítulo {n}.", { n: RUTA.abiertos(ctx.P()) + 1 }), "muted");
+    toast(t("🏅 Capítulo {n} completo: {titulo}", { n, titulo: esc(cap.titulo) }), 4000);
+    if (ES.tab === "ruta") renderDer();
+  }
+  /** La pestaña Ruta: los capítulos (uno por dron), su reto y su programa guiado. */
+  function renderRuta(box) {
+    const p = ctx.P(), caps = RUTA.capitulos(), ab = RUTA.abiertos(p), act = RUTA.actual(p);
+    const hechos = caps.filter((_, i) => RUTA.hecho(p, i + 1)).length;
+    box.insertAdjacentHTML("beforeend", `<p class="muted">${t("Aprende PBDMM de a poco: <b>cada dron que creas abre un capítulo</b>, con un programa guiado y un reto que el juego mide solo. Nada se bloquea: todo el lenguaje funciona desde el principio.")}</p>` +
+      `<p><b>${t("{h} de {n} capítulos", { h: hechos, n: caps.length })}</b> <span class="muted">· ${t("{a} abiertos", { a: ab })}</span></p>`);
+    caps.forEach((c, i) => {
+      const n = i + 1, abierto = n <= ab, ok = RUTA.hecho(p, n);
+      const d = document.createElement("details");
+      d.className = "es-lec es-ruta" + (ok ? " hecho" : "") + (abierto ? "" : " cerrado");
+      d.open = n === act;
+      d.innerHTML = `<summary>${ok ? "✅" : abierto ? (n === act ? "▶" : "○") : "🔒"} ${n} · ${esc(c.titulo)}</summary>` +
+        (abierto ? `<p>${esc(c.texto)}</p><p class="muted">${t("Aprendes:")} ${c.aprende.map((x) => `<code>${esc(x)}</code>`).join(" ")}</p>` +
+          `<p><b>${t("Reto:")}</b> ${esc(c.reto_txt)} ${ok ? `<span class="chip on">${t("logrado")}</span>` : ""}</p>` +
+          `<p class="muted">${t("Dron de este capítulo: {d}", { d: esc(RUTA.asegurar(p).drones[n] || p.drones[0]?.nombre || "—") })}</p>`
+          : `<p class="muted">${t("Crea tu dron n.º {k} en el garaje (+ Nuevo dron o Kit del garaje) para abrir este capítulo.", { k: n - 1 })}</p>`);
+      if (abierto) {
+        const b = document.createElement("button");
+        b.className = "btn small " + (n === act ? "main" : "ghost");
+        b.textContent = t("Abrir el programa del capítulo");
+        b.onclick = () => {
+          const nom = `capitulo_${n}`;
+          if (ES.archivos[nom] === undefined) ES.archivos[nom] = RUTA.programa(p, n);
+          ES.abierto = nom; guardarArchivos(); renderArchivos(); cargarEditor();
+          linea(t("Abrí {n}.pbd: lee los comentarios y completa el reto.", { n: nom }), "ok");
+        };
+        d.appendChild(b);
+      }
+      box.appendChild(d);
+    });
+  }
+
+  // ---------------- panel derecho: ayuda · aprende · ruta · gráfica ----------------
   function renderDer() {
     document.querySelectorAll("#es-tabs button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.t === ES.tab)));
     const box = $("es-der"), D = ES.data;
     box.innerHTML = "";
     if (ES.tab === "ayuda") {
       box.insertAdjacentHTML("beforeend", `<p class="muted">${t("Un programa PBDMM describe <b>cómo</b> se entrena un modelo. Arriba: qué modelo, qué misión, con qué dron, sus premios y sus castigos. Abajo: funciones que el juego llama mientras entrena. Toca <b>insertar</b> para poner el ejemplo en tu programa. Al escribir <code>dron(</code>, <code>mision(</code>, <code>premios(</code>, <code>castigos(</code>, <code>e.</code>… te salen las opciones (<b>Ctrl+Espacio</b> las abre cuando quieras).")}</p>`);
-      const grupos = [...new Set(D.funciones.map((f) => f.grupo))];
+      const grupos = [...new Set(D.funciones.map((f) => f.grupo))], nuevos = RUTA.nuevos(ctx.P());
       for (const f of grupos.flatMap((g) => D.funciones.filter((x) => x.grupo === g))) {
         if (f === D.funciones.find((x) => x.grupo === f.grupo)) box.insertAdjacentHTML("beforeend", `<h4>${esc(f.grupo)}</h4>`);
         const d = document.createElement("details");
         d.className = "es-fn";
-        d.innerHTML = `<summary><code>${esc(f.firma)}</code><span class="muted"> · ${{ arriba: t("arriba"), "función": t("en una función"), "las dos": t("arriba o en una función") }[f.donde] || ""}</span></summary>` +
+        d.innerHTML = `<summary><code>${esc(f.firma)}</code>${nuevos.has(f.nombre) ? ` <span class="chip warn">${t("nuevo")}</span>` : ""}<span class="muted"> · ${{ arriba: t("arriba"), "función": t("en una función"), "las dos": t("arriba o en una función") }[f.donde] || ""}</span></summary>` +
           `<p>${esc(f.desc)}</p>${f.params.length ? `<ul>${f.params.map(([k, tx]) => `<li><code>${esc(k)}</code> ${esc(tx)}${rec(f, k)}</li>`).join("")}</ul>` : ""}` +
           `<pre>${esc(f.ejemplo)}</pre>`;
         const b = document.createElement("button");
@@ -711,6 +799,8 @@ export function initEstudio(ctx) {
       box.insertAdjacentHTML("beforeend", `<h4>${t("Funciones que llama el juego")}</h4><ul>${D.hooks_doc.map(([k, tx]) => `<li><code>def ${esc(k)}:</code> ${esc(tx)}</li>`).join("")}</ul>` +
         `<h4>${t("Lo que trae e")}</h4><ul>${D.e_doc.map(([k, tx]) => `<li><code>${esc(k)}</code> ${esc(tx)}</li>`).join("")}</ul>` +
         `<h4>${t("Comandos de la terminal")}</h4><ul>${D.comandos.map(([k, tx]) => `<li><code>${esc(k)}</code> ${esc(tx)}</li>`).join("")}</ul>`);
+    } else if (ES.tab === "ruta") {
+      renderRuta(box);
     } else if (ES.tab === "aprende") {
       for (const l of D.lecciones) {
         const d = document.createElement("details");

@@ -1,6 +1,6 @@
 # PBDMM · Python Base Dron Model Maker
 
-> Versión 1.0. Este archivo se genera desde `app/data/pbdmm.json` con `node app/doc_pbdmm.mjs`: no lo edites a mano.
+> Versión 2.0. Este archivo se genera desde `app/data/pbdmm.json` con `node app/doc_pbdmm.mjs`: no lo edites a mano.
 
 PBDMM es el lenguaje del **modo desarrollador** de Neural Drone Forge. Un programa describe **cómo se entrena** la IA de un dron:
 qué modelo, qué misión, con qué dron, cuánto cerebro, qué premios, y qué hacer mientras aprende. Por detrás hace lo mismo
@@ -53,12 +53,12 @@ Todo nombre del lenguaje tiene su equivalente en inglés, y **los dos funcionan 
 
 | español | English |
 |---|---|
-| funciones: `modelo()`, `red()`, `mision()`, `nivel()`, `dron()`, `drones()`, `entrenar_en()`, `velocidad()`, `viento()`, `aprendizaje()`, `premios()`, `castigos()`, `pausar()`, `seguir()`, `guardar()`, `detener()`, `avisar()` | `model()`, `network()`, `mission()`, `level()`, `drone()`, `drones()`, `train_on()`, `speed()`, `wind()`, `learning()`, `rewards()`, `penalties()`, `pause()`, `resume()`, `save()`, `stop()`, `notify()` |
-| argumentos: `desde=`, `capas=`, `exploracion=` | `start_from=`, `layers=`, `exploration=` |
+| funciones: `modelo()`, `red()`, `mision()`, `nivel()`, `dron()`, `drones()`, `entrenar_en()`, `velocidad()`, `viento()`, `aprendizaje()`, `premios()`, `castigos()`, `pausar()`, `seguir()`, `guardar()`, `detener()`, `avisar()`, `dron_info()`, `mision_info()`, `modelo_info()`, `hangar()`, `inventario()`, `revisar()`, `ficha()`, `tabla()`, `barra()`, `color()`, `explicar()`, `narrar()` | `model()`, `network()`, `mission()`, `level()`, `drone()`, `drones()`, `train_on()`, `speed()`, `wind()`, `learning()`, `rewards()`, `penalties()`, `pause()`, `resume()`, `save()`, `stop()`, `notify()`, `drone_info()`, `mission_info()`, `model_info()`, `hangar()`, `inventory()`, `check()`, `sheet()`, `table()`, `bar()`, `color()`, `explain()`, `narrate()` |
+| argumentos: `desde=`, `capas=`, `exploracion=`, `cada=` | `start_from=`, `layers=`, `exploration=`, `every=` |
 | valores: `"cero"`, `"fondo"`, `"rapido"`, `"estandar"`, `"azar"`, `"grabar"`, `"grabar_viento"`, `"grabar_postes"`, `"repaso_metas"`, `"repaso_columnas"` | `"zero"`, `"background"`, `"fast"`, `"standard"`, `"random"`, `"film"`, `"film_wind"`, `"film_poles"`, `"review_goals"`, `"review_columns"` |
 | premios y castigos: `grabar=`, `mirar=`, `acercarse=`, `meta=`, `cerca=`, `rapidez=`, `chocar=`, `sacudidas=`, `brusco=`, `pegado=`, `peligro=`, `inclinar=`, `tiempo=` | `film=`, `heading=`, `progress=`, `goal=`, `near=`, `speed=`, `crash=`, `stability=`, `smooth=`, `clearance=`, `danger=`, `tilt=`, `time=` |
 | funciones especiales: `def al_empezar(e)`, `def cada_generacion(e)`, `def al_terminar(e)` | `def on_start(e)`, `def every_generation(e)`, `def on_end(e)` |
-| lo que trae e: `e.generacion`, `e.generaciones_sesion`, `e.exito`, `e.choque`, `e.premio`, `e.calidad`, `e.mejor_exito`, `e.historia_exito`, `e.pasos`, `e.minutos`, `e.nivel`, `e.pausado`, `e.exploracion`, `e.ruido`, `e.viento`, `e.premios` | `e.generation`, `e.session_generations`, `e.success`, `e.crash`, `e.reward`, `e.quality`, `e.best_success`, `e.success_history`, `e.steps`, `e.minutes`, `e.level`, `e.paused`, `e.exploration`, `e.noise`, `e.wind`, `e.rewards` |
+| lo que trae e: `e.generacion`, `e.generaciones_sesion`, `e.exito`, `e.choque`, `e.premio`, `e.calidad`, `e.mejor_exito`, `e.historia_exito`, `e.pasos`, `e.minutos`, `e.nivel`, `e.pausado`, `e.exploracion`, `e.ruido`, `e.viento`, `e.premios`, `e.cambio`, `e.diagnosticos` | `e.generation`, `e.session_generations`, `e.success`, `e.crash`, `e.reward`, `e.quality`, `e.best_success`, `e.success_history`, `e.steps`, `e.minutes`, `e.level`, `e.paused`, `e.exploration`, `e.noise`, `e.wind`, `e.rewards`, `e.change`, `e.diagnostics` |
 | comandos: `ayuda`, `correr`, `revisar`, `parar`, `estado`, `modelos`, `pausar`, `seguir`, `detener`, `guardar`, `copiar`, `renombrar`, `borrar`, `archivos`, `nuevo`, `abrir`, `eliminar`, `ejemplo`, `cargar`, `volar`, `avance`, `simular`, `limpiar`, `traducir`, `info`, `blender` | `help`, `run`, `check`, `detach`, `status`, `models`, `pause`, `resume`, `stop`, `save`, `copy`, `rename`, `delete`, `files`, `new`, `open`, `remove`, `example`, `load`, `fly`, `progress`, `simulate`, `clear`, `translate`, `info`, `blender` |
 
 ## Funciones
@@ -90,7 +90,7 @@ red(capas=[64, 64])
 
 #### `mision(id)`
 
-*Arriba del archivo.* Qué practica: el mundo, la tarea y cuándo cuenta como éxito. Trae sus premios recomendados (los cambias con premios() y castigos()).
+*Arriba del archivo.* Qué practica: el mundo, la tarea y cuándo cuenta como éxito. Trae sus premios recomendados (los cambias con premios() y castigos()). Además DEVUELVE la misión como objeto (PBDMM 2): m.pide, m.viento, m.premios (ver mision_info).
 
 - `id`: "grabar", "grabar_viento", "grabar_postes", "repaso_metas" o "repaso_columnas"
 
@@ -110,12 +110,12 @@ nivel(0)
 
 #### `dron(cual)`
 
-*Arriba del archivo.* Con qué física vuela mientras aprende. Un modelo aprende a volar EL dron con el que entrenó: si después lo pones en un dron muy distinto (más pesado, más lento) vuela peor.
+*Arriba del archivo.* Con qué física vuela mientras aprende. Un modelo aprende a volar EL dron con el que entrenó: si después lo pones en un dron muy distinto (más pesado, más lento) vuela peor. Además DEVUELVE el dron como objeto (PBDMM 2): d = dron("Cine (dev)") y lees d.empuje_peso, d.bateria.minutos… (ver dron_info). Con un dron del hangar, el programa lo revisa solo contra lo que pide la misión.
 
 - `cual`: "estandar", "azar" (cada dron con una física distinta: aprende a volar de todo) o el nombre de un dron de tu hangar
 
 ```python
-dron("azar")
+d = dron("azar")          # o un dron tuyo: d = dron("Cine (dev)")
 ```
 
 #### `viento(m_s)`
@@ -277,12 +277,143 @@ red(capas=CAPAS)
 
 #### `if / for / def / listas / f"…" / [x for x in …]`
 
-*Arriba o dentro de una función.* Lo que sí hay de Python: números, textos y f"{x:.2f}", True/False/None, listas [ ], tuplas ( ), diccionarios { }, variables, + - * / // % **, comparaciones, and/or/not, in, is, x if condición else y, if/elif/else, for x in … (y for k, v in d.items()), listas por comprensión [x * 2 for x in xs if x > 0], def/return (con valores por defecto y varios valores: return a, b), f(*lista, **diccionario), a, b = 1, 2, global, pass, break/continue. Funciones: print, str, int, float, round, abs, min, max, sum, len, range, list, type; listas .append() .pop(); diccionarios .get() .keys() .values() .items(); textos .upper() .lower() .split(). No hay while ni import: un programa no puede colgar el juego ni tocar tu compu.
+*Arriba o dentro de una función.* Lo que sí hay de Python: números, textos y f"{x:.2f}", True/False/None, listas [ ], tuplas ( ), diccionarios { }, variables, + - * / // % **, comparaciones, and/or/not, in, is, x if condición else y, if/elif/else, for x in … (y for k, v in d.items()), listas por comprensión [x * 2 for x in xs if x > 0], def/return (con valores por defecto y varios valores: return a, b), f(*lista, **diccionario), a, b = 1, 2, global, pass, break/continue. Rebanadas x[a:b]. Funciones: print, str, int, float, round, abs, min, max, sum, len, range, list, type, sorted, reversed, enumerate, zip, any, all; listas .append() .pop(); diccionarios .get() .keys() .values() .items(); textos .upper() .lower() .split(). No hay while ni import: un programa no puede colgar el juego ni tocar tu compu.
 
 ```python
 CAPAS = [16 * i for i in range(1, 4)]   # [16, 32, 48]
 for k, v in {"grabar": 6, "mirar": 4}.items():
     print(k, v)
+```
+
+### Leer el juego
+
+#### `dron_info(nombre)`
+
+*Arriba o dentro de una función.* Un dron de tu hangar como objeto, sin elegirlo para entrenar: d.nombre, d.peso, d.empuje_peso, d.vel_max, d.minutos, d.bateria.minutos, d.motores, d.helices, d.controladora, d.radio.alcance_m, d.camara.calidad, d.sensores, d.barometro, d.tof, d.protectores, d.nitidez, d.precio, d.ia, d.listo. dron("…") arriba del archivo también lo devuelve (y lo elige).
+
+- `nombre`: el nombre de un dron de tu hangar
+
+```python
+d = dron_info("Cine (dev)")
+print(d.empuje_peso, d.radio.alcance_m)
+```
+
+#### `mision_info(id)`
+
+*Arriba o dentro de una función.* Una misión como objeto: m.id, m.nombre, m.nivel, m.viento, m.para (el pedido del juego), m.pide (lo que necesita el dron: empuje_peso_min, barometro, protectores, camara_min, tof, alcance_m, minutos) y m.premios (los recomendados, 0-10). mision("…") arriba también la devuelve.
+
+- `id`: "grabar", "grabar_viento", "grabar_postes"…
+
+```python
+m = mision_info("grabar_viento")
+print(m.pide)
+```
+
+#### `modelo_info(nombre)`
+
+*Arriba o dentro de una función.* Un modelo tuyo como objeto: generacion, red, exito, choque, mejor_exito, entrenando, donde, desde, guardado.
+
+- `nombre`: el nombre de un modelo (comando modelos)
+
+```python
+print(modelo_info("colibri").mejor_exito)
+```
+
+#### `hangar()`
+
+*Arriba o dentro de una función.* Todos tus drones, como una lista de objetos (los mismos de dron_info). Se recorre con for o se muestra con tabla().
+
+```python
+for d in hangar():
+    print(d.nombre, d.empuje_peso)
+```
+
+#### `inventario(ranura=None)`
+
+*Arriba o dentro de una función.* Tus piezas (todas o las de una ranura): p.nombre, p.ranura, p.vida (%), p.precio, p.en (en qué dron está puesta, o None si está libre).
+
+- `ranura`: "motores", "baterias", "camaras", "radios", "extras"… (opcional)
+
+```python
+tabla(inventario("motores"), "nombre", "vida", "en")
+```
+
+#### `revisar(d, m)`
+
+*Arriba o dentro de una función.* Compara un dron con lo que pide una misión en el juego (empuje/peso con viento, radio, batería, cámara, protectores, sensores ToF…) e imprime ✅ / ⚠️ / ❌. Devuelve r.ok, r.errores y r.avisos. Si el programa elige un dron con dron(…), esto corre solo al revisar o correr.
+
+- `d`: un dron (objeto o nombre)
+- `m`: una misión (objeto o id)
+
+```python
+r = revisar(dron_info("Madera (dev)"), "grabar_viento")
+if not r.ok:
+    print("le falta:", r.errores)
+```
+
+### La terminal
+
+#### `ficha(x)`
+
+*Arriba o dentro de una función.* Imprime todo lo de un dron, una misión o un modelo (el objeto o su nombre), alineado.
+
+- `x`: un objeto, o el nombre de un dron, una misión o un modelo
+
+```python
+ficha("Cine (dev)")
+```
+
+#### `tabla(filas, "col1", "col2", …)`
+
+*Arriba o dentro de una función.* Imprime una lista de objetos (o diccionarios) en columnas. Las columnas pueden ir con punto: "bateria.minutos". Sin columnas, muestra todas.
+
+- `filas`: una lista: hangar(), inventario(), tus listas…
+- `columnas`: los nombres de los campos que quieres ver
+
+```python
+tabla(hangar(), "nombre", "empuje_peso", "bateria.minutos")
+```
+
+#### `barra(x, ancho=20)`
+
+*Arriba o dentro de una función.* Un número de 0 a 1 como barra de texto: ████████░░░░ 60 %.
+
+- `x`: de 0 a 1 (por ejemplo e.exito)
+- `ancho`: cuántos cuadritos (normal 20)
+
+```python
+print(barra(e.exito), "éxito")
+```
+
+#### `color(nombre, texto)`
+
+*Arriba o dentro de una función.* Un texto de color para la terminal: "verde", "rojo", "amarillo", "azul" o "gris".
+
+- `nombre`: verde, rojo, amarillo, azul o gris
+- `texto`: lo que quieres pintar
+
+```python
+print(color("verde", "listo") if e.exito > 0.8 else color("amarillo", "todavía no"))
+```
+
+#### `explicar(tema)`
+
+*Arriba o dentro de una función.* Explica un parámetro o una idea del entrenamiento, con su valor de ahora: lr, exploracion, ruido, generacion, ppo, drones, red, premios, castigos, exito, choque, premio, calidad, viento, desde, dron, mision, curriculum. Sin tema: la lista.
+
+- `tema`: el nombre de lo que quieres entender
+
+```python
+explicar("lr")
+```
+
+#### `narrar(cada=5)`
+
+*Arriba del archivo.* La terminal cuenta cómo va el entrenamiento cada tantas generaciones (éxito, choque y premio, y si sube o baja) y avisa lo que se nota: que se estancó, que olvida (lr alto), que pagas por lo que no es, que choca mucho. Los mismos avisos están en e.diagnosticos.
+
+- `cada`: cada cuántas generaciones (de 1 a 100)
+
+```python
+narrar(cada=5)
 ```
 
 ## Premios y castigos: de 0 a 10
@@ -335,6 +466,8 @@ Con `nivel(n)`: 0 Hover (quedarse quieto) · 1 Meta fija · 2 Metas al azar · 3
 - `e.pausado`: True si está en pausa
 - `e.lr, e.exploracion, e.ruido, e.viento`: cómo está entrenando ahora (ruido = cuánto tiembla al explorar, baja solo con el tiempo)
 - `e.premios`: los valores de ahora, premios y castigos juntos, de 0 a 10 (diccionario: e.premios["crash"])
+- `e.cambio`: lo que cambió desde la generación anterior: e.cambio.exito, e.cambio.choque, e.cambio.premio (None al principio)
+- `e.diagnosticos`: lista de lo que se nota (se estancó, olvida, pagas por lo que no es, choca mucho); vacía si va bien
 
 ## La terminal del estudio
 
@@ -357,7 +490,7 @@ Con `nivel(n)`: 0 Hover (quedarse quieto) · 1 Meta fija · 2 Metas al azar · 3
 
 ## Python que sí hay
 
-Lo que sí hay de Python: números, textos y f"{x:.2f}", True/False/None, listas [ ], tuplas ( ), diccionarios { }, variables, + - * / // % **, comparaciones, and/or/not, in, is, x if condición else y, if/elif/else, for x in … (y for k, v in d.items()), listas por comprensión [x * 2 for x in xs if x > 0], def/return (con valores por defecto y varios valores: return a, b), f(*lista, **diccionario), a, b = 1, 2, global, pass, break/continue. Funciones: print, str, int, float, round, abs, min, max, sum, len, range, list, type; listas .append() .pop(); diccionarios .get() .keys() .values() .items(); textos .upper() .lower() .split(). No hay while ni import: un programa no puede colgar el juego ni tocar tu compu.
+Lo que sí hay de Python: números, textos y f"{x:.2f}", True/False/None, listas [ ], tuplas ( ), diccionarios { }, variables, + - * / // % **, comparaciones, and/or/not, in, is, x if condición else y, if/elif/else, for x in … (y for k, v in d.items()), listas por comprensión [x * 2 for x in xs if x > 0], def/return (con valores por defecto y varios valores: return a, b), f(*lista, **diccionario), a, b = 1, 2, global, pass, break/continue. Rebanadas x[a:b]. Funciones: print, str, int, float, round, abs, min, max, sum, len, range, list, type, sorted, reversed, enumerate, zip, any, all; listas .append() .pop(); diccionarios .get() .keys() .values() .items(); textos .upper() .lower() .split(). No hay while ni import: un programa no puede colgar el juego ni tocar tu compu.
 
 ## Aprende: cómo se entrena una IA
 
@@ -554,6 +687,30 @@ def cada_generacion(e):
             detener()
 ```
 
+### monitor
+
+```python
+# PBDMM 2: leer el juego y revisar antes de entrenar.
+
+modelo("monitor", desde="base")
+m = mision("grabar_postes")
+dron("azar")
+narrar(cada=5)
+
+mis_drones = hangar()
+if mis_drones:
+    tabla(mis_drones, "nombre", "empuje_peso", "minutos", "tof")
+    ficha(mis_drones[0])
+    for d in mis_drones:
+        r = revisar(d, m)
+        print(d.nombre, color("verde", "sirve") if r.ok else color("rojo", "le falta algo"))
+
+def cada_generacion(e):
+    print(f"gen {e.generacion}  {barra(e.exito)}")
+    for x in e.diagnosticos:
+        print(color("amarillo", x))
+```
+
 ## Por dentro
 
 - `app/pbdmm.js`: léxico → árbol → intérprete (un subconjunto de Python) y `compilar()`: el programa → la configuración del entrenamiento + las funciones especiales. `pedidoDe(cfg)` arma el `POST /api/lab`; `estadoE(tr)` arma `e` desde `entrenando.json`.
@@ -561,4 +718,5 @@ def cada_generacion(e):
 - La red en vivo (pestaña Gráfica → Red neuronal): `live_train.py` escribe 4 veces por segundo `<estado>_red.json` (activaciones del dron que mira + las conexiones más fuertes de cada capa); `GET /api/red?modelo=` lo entrega; `POST /api/lab` con `watch: i` cambia el dron que mira (también en Blender).
 - `app/estudio.js`: la pantalla (editor, terminal, ayuda, gráfica). Cada 1,5 s lee `GET /api/lab`; si la generación subió, llama `cada_generacion(e)`, y lo que pida (premios, lr…) va como `ajustar`.
 - `scripts/jugar.py`: `POST /api/lab` acepta `lr`, `ent`, `capas` (red nueva → `info.json`) y la acción `guardar`. `live_train.py --capas` (o `capas` en `info.json`) arma la red.
+- PBDMM 2: `compilar()` también recibe del estudio `hangar` (tus drones con su física), `misionInfo` (lo que pide cada misión: los requisitos de su pedido de la campaña + `requisitos_ia` de entrenamiento.json) e `inventario`. `requisitos.js` hace la revisión (la misma del briefing del juego). `estadoE()` agrega `e.cambio` y `e.diagnosticos` (`diagnosticar()`); `narracion()` es el narrador. `app/ruta.js`: la ruta del programador (capítulos en `ruta` de pbdmm.json).
 - Pruebas: `node app/test_pbdmm.mjs`.

@@ -54,6 +54,12 @@ puede grabar el pedido ("Que grabe la IA") con el último modelo que Santiago en
 docs/              PLAN_JUEGO.md (el juego nuevo), PROYECTO.md (la base), README_drone-rl.md (historia)
 app/               EL JUEGO (Dron Maker): usa los módulos de game/
   main.js          pantallas: inicio, garaje, pedidos, briefing, HUD, resultado
+  negocio.js       EL NEGOCIO (docs/NEGOCIO.md): días, pedidos repetibles desde plantillas con dificultad 1-4, clientes,
+                   relación, recomendaciones, arriendo, pedidos especiales, tutorial (pasoTutorial). Sin pantalla.
+                   partida.negocio. test: node app/test_negocio.mjs
+  celular.js       la pantalla del celular: chats, tarjetas (aceptar, ¿qué me falta?, volar), terminar el día
+  requisitos.js    qué pide un pedido/misión y si un dron cumple (briefing, celular y PBDMM revisar usan este)
+  ruta.js          la ruta del programador (PBDMM 2): 1 capítulo por dron creado en modo dev, retos medidos solos; partida.ruta
   partida.js       la partida v3 (localStorage): plata, reputación, INVENTARIO de unidades (cada pieza comprada,
                    con su vida), el HANGAR (varios drones: nombre, propósito, piezas, banco, su IA), daños, cobrar.
                    Migra las v1/v2 (un dron) y deja respaldo en localStorage "dronmaker.partida_v2"
@@ -75,7 +81,8 @@ app/               EL JUEGO (Dron Maker): usa los módulos de game/
   redviz.js        dibujar una red neuronal en un canvas (Estudio y visor)
   casa.js          la casa (mismas cajas que level.py house_boxes), las rutas de las tomas (RutasView, tomasPedido)
   lugares.js       los lugares de los pedidos: casa, finca (viento), restaurante (postes): colisiones + cómo se ven
-  data/            piezas.json (catálogo con ESC, radio, montaje, extras, herramientas, estilo), misiones.json
+  data/            clientes.json + trabajos.json (el negocio: clientes, mensajes, plantillas, dificultades)
+                   piezas.json (catálogo con ESC, radio, montaje, extras, herramientas, estilo), misiones.json
                    (capítulos + pedidos = guion de tomas + requisitos + cómo entrenar), entrenamiento.json (laboratorio)
   exportar_dron.mjs  un dron del juego -> drones/<nombre>.json (para entrenar con su física)
   pbdmm.js         MODO DESARROLLADOR: el lenguaje PBDMM (subconjunto de Python interpretado en JS, sin import/while,
@@ -130,10 +137,11 @@ python -m pytest -q                    # pruebas del simulador (Python) y del se
 python game/make_fixture.py && node game/test_sim.mjs    # JS == Python ("Todo igual que Python.")
 node app/test_parts.mjs                # piezas -> física
 node app/test_banco.mjs                # banco de armado + partida v3 (migra la partida.json si existe)
-node app/test_pbdmm.mjs                # el lenguaje PBDMM (intérprete, errores, compilar los ejemplos)
+node app/test_pbdmm.mjs                # el lenguaje PBDMM (intérprete, errores, ejemplos, PBDMM 2, la ruta)
+node app/test_negocio.mjs              # el negocio (clientes, días, pedidos, tutorial) y requisitos.js
 node app/test_i18n.mjs                 # las traducciones (cada t() con su inglés, el HTML, las capas de datos)
 node app/test_modulos.mjs              # que nada importado quede tapado por una variable local
-node app/doc_pbdmm.mjs                 # vuelve a escribir docs/PBDMM.md si cambias app/data/pbdmm.json
+node app/doc_pbdmm.mjs                 # vuelve a escribir docs/PBDMM.md y docs/pbdmm/tutorial.md si cambias app/data/pbdmm.json
 node app/exportar_dron.mjs             # vuelve a escribir drones/madera.json si cambian las piezas
 ```
 
@@ -182,10 +190,19 @@ Node v22 está en `/opt/homebrew/bin/node`. Blender 5.2 en `/Applications/Blende
   reales (ESP32, STM32F405/F722/H743, ExpressLRS, BLHeli_32…), ESC que limita el empuje, radio con
   failsafe, vibración → nitidez del video, pintura y forma del chasis (impresora 3D). Los demás pedidos
   están planeados ("Próximamente"). Siguiente: concesionario (tomas bajas) y la toma **seguir** (nivel 13).
-- **Lo siguiente (docs/ROADMAP.md "⏭️ Lo siguiente"):** PBDMM 2 — más claridad al entrenar, funciones incorporadas
-  para leer el juego e imprimir en la terminal (`dron_especificaciones("…")`/`drone_specs`, `mision_info`…) y que el
-  programa revise el dron de `dron(…)` contra los requisitos de la misión (solo si hay `dron()`). Decidido: el tutorial
-  es el modo desarrollador (la demo grabada); imágenes y rendimiento se mejoran sobre la marcha.
+- **El negocio (15-10-2026, docs/NEGOCIO.md):** los clientes escriben al 📱 celular; pedidos repetibles (📷 foto,
+  🔎 inspección, 🎬 video) desde plantillas (`data/trabajos.json`) con dificultad 1-4 (viento, distancia, estrellas,
+  pago, plazo; los requisitos salen de la dificultad), 4 clientes (`data/clientes.json`) con relación ♥ y
+  recomendaciones, días y plazos, arriendo, la campaña como pedidos especiales ⭐ por el chat, tutorial del día 1 (la foto
+  de Doña Marta, guía abajo). Fotos = tomas fijas cortas; el cuadro de la cámara se guarda como foto (`vuelo.js`).
+- **PBDMM 2.0 (15-10-2026):** objetos del juego (`d = dron(…)`, `dron_info`, `mision_info`, `modelo_info`, `hangar()`,
+  `inventario()`; campos bilingües con `bi()`), revisión automática del dron de `dron(…)` contra la misión
+  (`requisitos.js`; `entrenamiento.json` misiones: `pedido` y `requisitos_ia`), `ficha/tabla/barra/color/explicar`,
+  `narrar(cada=)` + `e.cambio` + `e.diagnosticos`, más Python (rebanadas, closures, sorted…) y la ruta del programador
+  (`ruta.js`, `pbdmm.json "ruta"`). Docs: `docs/pbdmm/` (tutorial generado desde la ruta).
+- **Lo siguiente (docs/ROADMAP.md):** el negocio — flota (varios trabajos con la IA a la vez), encargos de armado,
+  pruebas de drones (QA), a mano, entregas. Decidido: el tutorial es el modo desarrollador (la demo grabada);
+  imágenes y rendimiento se mejoran sobre la marcha.
 - **Idiomas (15-10-2026):** español (original) + inglés. `app/i18n.js`: `t("texto en español", {vars})` (la clave es el
   español), diccionarios `app/i18n/en/<parte>.json`, capas de datos `app/data/en/*.json` (se mezclan por id/k o por
   posición), `traducirHTML()` para index.html, la elección en `localStorage["dronmaker.idioma"]` (la primera vez se

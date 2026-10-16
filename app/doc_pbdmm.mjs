@@ -1,4 +1,5 @@
-// Escribe docs/PBDMM.md (la referencia del lenguaje) desde app/data/pbdmm.json: node app/doc_pbdmm.mjs
+// Escribe docs/PBDMM.md (la API del lenguaje) y docs/pbdmm/tutorial.md (la ruta del programador) desde app/data/pbdmm.json:
+//   node app/doc_pbdmm.mjs
 import { readFileSync, writeFileSync } from "fs";
 const D = JSON.parse(readFileSync(new URL("./data/pbdmm.json", import.meta.url)));
 const E = JSON.parse(readFileSync(new URL("./data/entrenamiento.json", import.meta.url)));
@@ -105,6 +106,35 @@ p("- `app/autocompletar.js`: el autocompletado del editor (`dron(` → \"estanda
 p("- La red en vivo (pestaña Gráfica → Red neuronal): `live_train.py` escribe 4 veces por segundo `<estado>_red.json` (activaciones del dron que mira + las conexiones más fuertes de cada capa); `GET /api/red?modelo=` lo entrega; `POST /api/lab` con `watch: i` cambia el dron que mira (también en Blender).");
 p("- `app/estudio.js`: la pantalla (editor, terminal, ayuda, gráfica). Cada 1,5 s lee `GET /api/lab`; si la generación subió, llama `cada_generacion(e)`, y lo que pida (premios, lr…) va como `ajustar`.");
 p("- `scripts/jugar.py`: `POST /api/lab` acepta `lr`, `ent`, `capas` (red nueva → `info.json`) y la acción `guardar`. `live_train.py --capas` (o `capas` en `info.json`) arma la red.");
+p("- PBDMM 2: `compilar()` también recibe del estudio `hangar` (tus drones con su física), `misionInfo` (lo que pide cada misión: los requisitos de su pedido de la campaña + `requisitos_ia` de entrenamiento.json) e `inventario`. `requisitos.js` hace la revisión (la misma del briefing del juego). `estadoE()` agrega `e.cambio` y `e.diagnosticos` (`diagnosticar()`); `narracion()` es el narrador. `app/ruta.js`: la ruta del programador (capítulos en `ruta` de pbdmm.json).");
 p("- Pruebas: `node app/test_pbdmm.mjs`.");
 writeFileSync(new URL("../docs/PBDMM.md", import.meta.url), L.join("\n") + "\n");
 console.log(`docs/PBDMM.md: ${L.length} líneas`);
+
+// ---------------- docs/pbdmm/tutorial.md: la ruta del programador (los mismos capítulos que el juego) ----------------
+const T = [];
+const q = (s = "") => T.push(s);
+q("# Tutorial de PBDMM · la ruta del programador");
+q();
+q(`> Versión ${D.version}. Se genera desde \`app/data/pbdmm.json\` ("ruta") con \`node app/doc_pbdmm.mjs\`: no lo edites a mano.`);
+q();
+q("Son los mismos 8 capítulos que trae el juego. En el **modo desarrollador**, el capítulo 1 está abierto desde el inicio y");
+q("**cada dron que creas en el garaje abre el siguiente**: el programa del capítulo usa ese dron. En el Estudio, pestaña");
+q("**Ruta** → *Abrir el programa del capítulo*. Cada capítulo agrega **una idea** y trae un **reto** que el juego mide solo");
+q("(al revisar o correr el programa, o mientras entrena). Nada se bloquea: todo el lenguaje funciona desde el principio.");
+q();
+q("Aquí `{dron}` es el dron de tu capítulo y `{modelo}` el nombre del modelo (el juego los pone solos).");
+D.ruta.forEach((c, i) => {
+  q(); q("---"); q(); q(`## ${i + 1} · ${c.titulo}`); q();
+  q(c.texto); q();
+  q(`**Aprendes:** ${c.aprende.map((x) => "`" + x + "`").join(" · ")}`); q();
+  q(`**Reto:** ${c.reto_txt}`); q();
+  q("```python"); q(c.programa.trimEnd()); q("```");
+});
+q(); q("---"); q();
+q("## Para seguir"); q();
+q("- [Referencia del lenguaje](referencia.md): todo lo que se puede escribir.");
+q("- [API de entrenamiento](../PBDMM.md): todas las funciones, el objeto `e` y los comandos.");
+q("- En la terminal del Estudio: `ejemplo curriculum`, `ejemplo postes`, `ejemplo monitor`, `explicar(\"lr\")`.");
+writeFileSync(new URL("../docs/pbdmm/tutorial.md", import.meta.url), T.join("\n") + "\n");
+console.log(`docs/pbdmm/tutorial.md: ${T.length} líneas`);
