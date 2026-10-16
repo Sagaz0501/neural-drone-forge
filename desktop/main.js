@@ -5,7 +5,8 @@
 //   2. espera a que responda y abre el juego en una ventana propia (sin barra del navegador)
 //   3. al cerrar la ventana cierra el servidor (los entrenamientos del fondo y Blender siguen: van en su propia sesión)
 // Las partidas del navegador NO pasan solas: Electron guarda su localStorage aparte (falta E3: partidas en archivos).
-//   cd desktop && npm install && npm start            (npm run prueba = abre, guarda una captura y se cierra)
+//   cd desktop && npm install && npm start            (npm start -- --freestyle: directo al freestyle;
+//                                                     npm run prueba = abre, guarda una captura y se cierra)
 // =====================================================================
 const { app, BrowserWindow, Menu, shell } = require("electron");
 const { spawn } = require("child_process");
@@ -38,7 +39,7 @@ async function abrir() {
   const puerto = await puertoLibre();
   servidor = spawn(PY, [path.join(RAIZ, "scripts", "jugar.py"), "--no-browser", "--port", String(puerto)], { cwd: RAIZ, stdio: "inherit" });
   servidor.on("exit", (c) => { servidor = null; if (c && !app.isQuitting) console.log("El servidor se cerró:", c); });
-  const url = `http://127.0.0.1:${puerto}/app/`;
+  const url = `http://127.0.0.1:${puerto}/app/${process.argv.includes("--freestyle") ? "freestyle.html" : ""}`;   // --freestyle: directo al freestyle
   const win = new BrowserWindow({
     width: 1440, height: 900, minWidth: 960, minHeight: 600, backgroundColor: "#0f1714", title: "Neural Drone Forge",
     show: !captura, paintWhenInitiallyHidden: true, webPreferences: { contextIsolation: true, sandbox: true },
