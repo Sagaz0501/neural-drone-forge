@@ -418,3 +418,74 @@ def film_posts(rng, lv, shot, n=(5, 9), keep=1.5):
         zz.append([0.0, rng.uniform(4.0, 6.0)])
     lv.cyl_xy, lv.cyl_r, lv.cyl_z = np.array(xy).reshape(-1, 2), np.array(rr), np.array(zz).reshape(-1, 2)
     return lv
+
+
+# ---------------- pruebas nuevas: carrera, persecución, entrega (niveles 16-18) ----------------
+def race_track(rng, spawn, n=(6, 9), step=(7.0, 15.0), turn=1.2, z=(1.5, 6.0), area=50.0) -> list:
+    """Carrera (nivel 16): una pista de 6-9 portales en orden, lejos unos de otros (7-15 m) y con curvas de hasta
+    ±70°: hay que ir RÁPIDO de uno al siguiente. La pista no se sale del área (rebota hacia el centro)."""
+    goals, p = [], np.asarray(spawn, dtype=float)[:2].copy()
+    ang = rng.uniform(-np.pi, np.pi)
+    for _ in range(int(rng.integers(n[0], n[1] + 1))):
+        ang += rng.uniform(-turn, turn)
+        d = rng.uniform(*step)
+        q = p + d * np.array([np.cos(ang), np.sin(ang)])
+        if np.any(np.abs(q) > area):                       # cerca del borde: girar hacia el centro
+            ang = np.arctan2(-p[1], -p[0]) + rng.uniform(-0.5, 0.5)
+            q = p + d * np.array([np.cos(ang), np.sin(ang)])
+        p = q
+        goals.append(np.array([p[0], p[1], rng.uniform(*z)]))
+    return goals
+
+
+def off_line_pillars(rng, spawn, goals, n=(6, 12), keep_line=2.5, area=50.0) -> tuple[np.ndarray, np.ndarray]:
+    """Columnas por el área pero FUERA de la línea recta entre portales (a más de `keep_line` m): se ven al pasar
+    (los sensores tienen que aprender que no estorban) pero el camino recto queda libre."""
+    pts = np.array([spawn] + list(goals))[:, :2]
+    a, ab = pts[:-1], pts[1:] - pts[:-1]
+    lo, hi = pts.min(axis=0) - 8, pts.max(axis=0) + 8
+    mins, maxs = [], []
+    target = int(rng.integers(n[0], n[1] + 1))
+    for _ in range(400):
+        if len(mins) >= target:
+            break
+        c = rng.uniform(np.maximum(lo, -area), np.minimum(hi, area))
+        half = rng.uniform(0.3, 1.2, 2)
+        u = np.clip(np.sum((c - a) * ab, axis=1) / np.maximum(np.sum(ab * ab, axis=1), 1e-9), 0, 1)
+        if np.min(np.linalg.norm(a + ab * u[:, None] - c, axis=1)) - half.max() < keep_line:
+            continue
+        mins.append(np.array([c[0] - half[0], c[1] - half[1], 0.0]))
+        maxs.append(np.array([c[0] + half[0], c[1] + half[1], rng.uniform(3.0, 12.0)]))
+    return np.array(mins).reshape(-1, 3), np.array(maxs).reshape(-1, 3)
+
+
+def delivery_level(rng, spawn, dist=(14.0, 32.0), n=(5, 11)):
+    """Entrega (nivel 17): una plataforma lejos (14-32 m) y edificios (cajas anchas y altas) en el camino.
+    La meta es quedarse 1 s a 0,6 m sobre la plataforma (después aterriza el piloto automático, como en el juego).
+    Devuelve (meta, box_min, box_max)."""
+    sp = np.asarray(spawn, dtype=float)
+    ang = rng.uniform(-np.pi, np.pi)
+    r = rng.uniform(*dist)
+    pad = sp + np.array([r * np.cos(ang), r * np.sin(ang), 0.0])
+    if rng.random() < 0.3:                                   # a veces en una azotea
+        roof = rng.uniform(2.0, 5.0)
+        h = np.array([rng.uniform(1.5, 2.5), rng.uniform(1.5, 2.5)])
+        roof_box = (np.array([pad[0] - h[0], pad[1] - h[1], 0.0]), np.array([pad[0] + h[0], pad[1] + h[1], roof]))
+        pad = pad + np.array([0.0, 0.0, roof])
+    else:
+        roof_box = None
+    mins, maxs = ([roof_box[0]], [roof_box[1]]) if roof_box else ([], [])
+    target = int(rng.integers(n[0], n[1] + 1))
+    for _ in range(300):
+        if len(mins) >= target:
+            break
+        u = rng.uniform(0.15, 0.85)
+        c = sp[:2] + (pad[:2] - sp[:2]) * u + rng.normal(0, 3.0, 2)
+        half = rng.uniform(0.6, 2.2, 2)
+        bmin = np.array([c[0] - half[0], c[1] - half[1], 0.0])
+        bmax = np.array([c[0] + half[0], c[1] + half[1], rng.uniform(3.0, 10.0)])
+        if any(np.linalg.norm(np.clip(q[:2], bmin[:2], bmax[:2]) - q[:2]) < 2.5 for q in (sp, pad)):
+            continue
+        mins.append(bmin)
+        maxs.append(bmax)
+    return pad + np.array([0.0, 0.0, 0.6]), np.array(mins).reshape(-1, 3), np.array(maxs).reshape(-1, 3)

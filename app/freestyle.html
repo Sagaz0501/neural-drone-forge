@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Neural Drone Forge · Freestyle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --moss: rgba(14, 22, 20, 0.84); --line: rgba(234, 242, 239, 0.14); --text: #eaf2ef; --muted: #9db3a9;
+    --prop: #ff7a1a; --gate: #47f08a; --next: #3ccbff; --crash: #ff5040; --gold: #ffd23f;
+    --font: "Chakra Petch", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #0b1110; color: var(--text); font-family: var(--font); overflow: hidden; }
+  canvas#c, canvas#osd { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  canvas#osd { pointer-events: none; }
+  button, select { font-family: var(--font); }
+  .hidden { display: none !important; }
+  .panel { background: var(--moss); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid var(--line); border-radius: 18px; }
+  .btn { border: 0; border-radius: 11px; padding: 12px 18px; font-size: 16px; font-weight: 600; cursor: pointer; color: var(--text); text-decoration: none; display: inline-block; }
+  .btn.main { background: var(--prop); color: #1b0f05; }
+  .btn.ghost { background: rgba(234,242,239,0.08); border: 1px solid var(--line); }
+  .btn:hover { filter: brightness(1.1); }
+  .btn.small { font-size: 14px; padding: 7px 11px; border-radius: 9px; }
+  .muted { color: var(--muted); }
+  :focus-visible { outline: 2px solid var(--next); outline-offset: 2px; }
+
+  /* menú */
+  #menu { position: fixed; left: 28px; top: 50%; transform: translateY(-50%); width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow: auto; padding: 24px; display: flex; flex-direction: column; gap: 14px; }
+  #menu h1 { margin: 0; font-size: 44px; line-height: .95; letter-spacing: -1px; }
+  #menu h1 small { display: block; font-size: 15px; color: var(--muted); font-weight: 500; margin-top: 8px; letter-spacing: 0; line-height: 1.4; }
+  .mapas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .mapa { text-align: left; background: rgba(234,242,239,.06); border: 1px solid var(--line); border-radius: 12px; padding: 10px; color: var(--text); cursor: pointer; }
+  .mapa i { font-style: normal; font-size: 26px; display: block; }
+  .mapa b { display: block; font-size: 14.5px; margin-top: 4px; }
+  .mapa span { display: block; font-size: 12px; color: var(--muted); line-height: 1.35; margin-top: 3px; }
+  .mapa[aria-pressed="true"], .modo[aria-pressed="true"] { border-color: var(--prop); background: rgba(255,122,26,.14); }
+  .modos { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .modo { text-align: left; background: rgba(234,242,239,.06); border: 1px solid var(--line); border-radius: 12px; padding: 9px 11px; color: var(--text); cursor: pointer; }
+  .modo b { display: block; font-size: 14.5px; } .modo span { font-size: 12px; color: var(--muted); line-height: 1.35; }
+  .fila { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 14.5px; flex-wrap: wrap; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+  .seg button { background: transparent; color: var(--muted); border: 0; padding: 6px 11px; font-size: 13.5px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: rgba(234,242,239,0.14); color: var(--text); }
+  select { background: #17221e; color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font-size: 14px; max-width: 260px; }
+  #record { font-size: 13.5px; color: var(--muted); line-height: 1.45; border-left: 3px solid var(--prop); padding-left: 10px; }
+  #pad { font-size: 13px; color: var(--muted); }
+  .acciones { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  /* HUD */
+  #hud > * { position: fixed; }
+  #h-arriba { top: 16px; left: 50%; transform: translateX(-50%); text-align: center; padding: 8px 18px; border-radius: 14px; }
+  #h-tiempo { font-size: 34px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  #h-info { font-size: 14px; color: var(--muted); }
+  #h-vel { left: 18px; bottom: 18px; padding: 10px 16px; border-radius: 14px; min-width: 170px; }
+  #h-kmh { font-size: 40px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+  #h-sub { font-size: 13px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+  #h-gas { height: 6px; background: rgba(234,242,239,.12); border-radius: 3px; margin-top: 6px; overflow: hidden; }
+  #h-gas i { display: block; height: 100%; background: var(--prop); width: 0; }
+  #h-mini { right: 16px; top: 16px; border-radius: 12px; border: 1px solid var(--line); }
+  #h-teclas { right: 18px; bottom: 18px; font-size: 12.5px; color: var(--muted); max-width: 360px; text-align: right; line-height: 1.45; padding: 8px 12px; border-radius: 12px; }
+  #cuenta { position: fixed; inset: 0; display: grid; place-items: center; font-size: 140px; font-weight: 700; pointer-events: none; text-shadow: 0 4px 30px rgba(0,0,0,.6); }
+  #aviso { position: fixed; left: 50%; top: 26%; transform: translateX(-50%); font-size: 30px; font-weight: 700; pointer-events: none; text-shadow: 0 3px 18px rgba(0,0,0,.7); text-align: center; }
+  #pausa, #fin { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(460px, calc(100vw - 32px)); padding: 22px; display: flex; flex-direction: column; gap: 12px; }
+  #pausa h2, #fin h2 { margin: 0; font-size: 30px; }
+  #fin-tabla { width: 100%; border-collapse: collapse; font-size: 15px; }
+  #fin-tabla td { padding: 5px 4px; border-bottom: 1px solid var(--line); }
+  #fin-tabla td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+  #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); padding: 10px 16px; border-radius: 12px; font-size: 15px; transition: opacity .3s; pointer-events: none; }
+  @media (max-width: 700px) { .mapas { grid-template-columns: 1fr; } #menu { left: 16px; top: 16px; transform: none; } #h-teclas { display: none; } }
+</style>
+<script type="importmap">
+{ "imports": { "three": "../game/vendor/three.module.min.js", "three/addons/": "../game/vendor/" } }
+</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<canvas id="osd"></canvas>
+<section id="menu" class="panel"></section>
+<div id="hud" class="hidden">
+  <div id="h-arriba" class="panel"><div id="h-tiempo"></div><div id="h-info"></div></div>
+  <div id="h-vel" class="panel"><div id="h-kmh">0</div><div id="h-sub"></div><div id="h-gas"><i></i></div></div>
+  <canvas id="h-mini" width="190" height="190"></canvas>
+  <div id="h-teclas" class="panel"></div>
+</div>
+<div id="cuenta" class="hidden"></div>
+<div id="aviso"></div>
+<section id="pausa" class="panel hidden"></section>
+<section id="fin" class="panel hidden"></section>
+<div id="toast" class="panel" style="opacity:0"></div>
+<script type="module" src="./freestyle.js"></script>
+</body>
+</html>

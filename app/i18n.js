@@ -11,7 +11,7 @@
 const CLAVE = "dronmaker.idioma";
 export const IDIOMAS = { es: "Español", en: "English" };
 /** Las partes del diccionario (app/i18n/<idioma>/<parte>.json): cada una la mantiene quien traduce esa parte. */
-export const PARTES = ["html", "main", "banco", "tienda", "estudio", "pbdmm", "sim", "vuelo", "comun", "negocio"];
+export const PARTES = ["html", "main", "banco", "tienda", "estudio", "pbdmm", "sim", "vuelo", "comun", "negocio", "freestyle"];
 
 const leer = () => { try { return localStorage.getItem(CLAVE); } catch { return null; } };
 let LANG = IDIOMAS[leer()] ? leer() : "es";

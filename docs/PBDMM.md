@@ -456,9 +456,9 @@ mantener(segundos=3)
 
 #### `foto(calidad=0.5)`
 
-*Arriba del archivo.* Toma la foto. Pasa la prueba si la calidad (encuadre, quieto, nítida) llega a ese número (0,3 a 0,9): pedir más es más difícil de aprender, pero las fotos salen mejores. Varias foto() seguidas = un set de fotos.
+*Arriba del archivo.* Toma la foto. Pasa la prueba si la calidad (encuadre, quieto, nítida) llega a ese número (0,3 a 0,7): pedir más es más difícil de aprender, pero las fotos salen mejores. Ojo: un piloto automático perfecto saca ~0,55 en promedio, así que 0,6 ya es exigente; con más de 0,7 nunca pasaría y la IA no aprendería nada. Varias foto() seguidas = un set de fotos.
 
-- `calidad`: la nota mínima de 0,3 a 0,9
+- `calidad`: la nota mínima de 0,3 a 0,7 (0,5-0,6 es lo normal)
 
 ```python
 mantener(3)

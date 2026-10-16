@@ -1,0 +1,5 @@
+{
+ "nombre": "fs_racer",
+ "_nota": "El dron de carreras del modo freestyle (rivales de la IA): liviano, empuje/peso 4, inclina hasta 50°.",
+ "fisica": {"mass": 0.48, "twr": 4.0, "drag": 0.035, "max_angle_deg": 50.0, "yaw_rate_deg": 270.0, "att_resp": 11.0, "crash_speed": 4.0, "radius": 0.15}
+}

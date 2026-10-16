@@ -39,8 +39,9 @@ import numpy as np
 from gymnasium import spaces
 
 from .birds import CATCH_R, Z_FOREST, Z_MAX, Z_MIN, Flock
-from .level import (Level, film_house_level, film_posts, forest_level, forest_shapes, hunt_pillars, random_forest, random_goal,
-                    random_pillars)
+from .level import (Level, delivery_level, film_house_level, film_posts, forest_level, forest_shapes, hunt_pillars,
+                    off_line_pillars, race_track, random_forest, random_goal, random_pillars)
+from .liebre import CATCH_R as LIEBRE_R, Liebre
 from .physics import QuadParams, QuadState, Wind, step
 from .physics import yaw_frame
 from .tomas import START_V, Toma, random_foto, random_fotos, random_toma  # noqa: F401
@@ -49,10 +50,13 @@ from .sensing import (N_OBS, OBS_SCALE, RAY_DIRS_LOCAL, RAY_LEN, build_obs, clea
 
 STAGES = {0: "hover", 1: "goal_fixed", 2: "goal_random", 3: "obstacles", 4: "multi_goal", 5: "circuit",
           6: "forest", 7: "forest_multi", 8: "hunt", 9: "hunt_columns", 10: "hunt_forest", 11: "film_fixed", 12: "film_posts",
-          13: "photo", 14: "photo_set"}
+          13: "photo", 14: "photo_set", 16: "race", 17: "delivery", 18: "chase"}     # 15 = la toma "seguir" (planeada)
 HUNT_STAGES = (8, 9, 10)
 FILM_STAGES = (11, 12, 13, 14)
 PHOTO_STAGES = (13, 14)       # fotos: tomas fijas cortas (una, o un set de 2-4 seguidas)
+RACE_STAGE, DELIVERY_STAGE, CHASE_STAGE = 16, 17, 18     # carrera (portales lejos, rápido), entrega (plataforma lejos
+                                                         # entre edificios), persecución (alcanzar a la liebre)
+BIG_BOUNDS = 60.0             # m: las pruebas 16-18 usan un campo más grande que el de siempre (30 m)
 FILM_OK = 0.5            # grabar: calidad media de la toma para que cuente como lograda (sensing.film_quality)
 FILM_TOMAS = ("fija", "orbita", "revelar")
 
@@ -163,7 +167,10 @@ class DroneEnv(gym.Env):
         mission = LEVEL_MISSION if level_path else MISSIONS[stage]
         self.max_seconds = max_seconds or float(mission["tiempo"])
         self.max_steps = int(self.max_seconds * control_hz)
-        self.hold_steps = int(1.0 * control_hz) if (stage == 0 and not level_path) else 0
+        self.hold_steps = int(1.0 * control_hz) if (stage in (0, DELIVERY_STAGE) and not level_path) else 0
+        if stage == RACE_STAGE and not level_path:
+            self.goal_radius = max(goal_radius, 1.0)      # carrera: el portal mide ~2 m (en el juego también)
+        self.liebre = None
 
         self.action_space = spaces.Box(-1.0, 1.0, shape=(4,), dtype=np.float32)
         self.observation_space = spaces.Box(-3.0, 3.0, shape=(N_OBS,), dtype=np.float32)   # 38 (sensing.build_obs)
@@ -201,6 +208,18 @@ class DroneEnv(gym.Env):
         if self.stage == 10:                   # bosque por toda el área de caza (radio ~13 m)
             self.trees = random_forest(rng, sp, [], self.density, margin=13.0)
             lv.cyl_xy, lv.cyl_r, lv.cyl_z, lv.sph_c, lv.sph_r = forest_shapes(self.trees)
+        if self.stage == RACE_STAGE:
+            lv.goals = race_track(rng, sp)
+            lv.box_min, lv.box_max = off_line_pillars(rng, sp, lv.goals)
+            lv.bounds_xy = BIG_BOUNDS
+        elif self.stage == DELIVERY_STAGE:
+            goal, lv.box_min, lv.box_max = delivery_level(rng, sp)
+            lv.goals = [goal]
+            lv.bounds_xy = BIG_BOUNDS
+        elif self.stage == CHASE_STAGE:
+            lv.goals = []                      # la meta es la liebre (se crea en reset)
+            lv.box_min, lv.box_max = hunt_pillars(rng, sp, n=(10, 18), area=32.0, gap=3.0)
+            lv.bounds_xy = BIG_BOUNDS
         if self.stage in FILM_STAGES:          # grabar una casa: la meta es el punto de cámara
             lv, self.subject, _ = film_house_level(rng)
             wall_h, top = float(lv.box_min[1][2]), float(np.max(lv.box_max[:, 2]))
@@ -241,7 +260,9 @@ class DroneEnv(gym.Env):
         self.state = QuadState(pos=self.level.spawn.copy())
         self.goal_idx = 0
         rng = self.np_random
-        self.flock, self.target = None, None
+        self.flock, self.target, self.liebre = None, None, None
+        if self.stage == CHASE_STAGE and self.fixed_level is None:
+            self.liebre = Liebre(self.level, speed=(2.0, max(2.5, self.bird_speed))).reset(self.np_random, self.state.pos)
         if self.stage in HUNT_STAGES and self.fixed_level is None:
             self.flock = Flock(self.n_birds, self.bird_speed, center=self.level.spawn,
                                level=self.level if self.stage > 8 else None,
@@ -294,6 +315,8 @@ class DroneEnv(gym.Env):
     def _goal(self) -> np.ndarray:
         if self.shot is not None:
             return self.shot.point()
+        if self.liebre is not None:
+            return self.liebre.pos
         if self.flock is not None:
             return self.flock.pos[self.target]
         return self.level.goals[min(self.goal_idx, len(self.level.goals) - 1)]
@@ -302,10 +325,12 @@ class DroneEnv(gym.Env):
         """Cómo se mueve la meta (estimado de la última décima de segundo). Aros: quietos = 0."""
         if self.shot is not None:
             return self.shot.vel()
+        if self.liebre is not None:
+            return self.liebre.vel
         return self.flock.est_vel[self.target] if self.flock is not None else np.zeros(3)
 
     def _n_goals(self) -> int:
-        return self.flock.n if self.flock is not None else len(self.level.goals)
+        return self.flock.n if self.flock is not None else 1 if self.liebre is not None else len(self.level.goals)
 
     def _goal_dist(self) -> float:
         return float(np.linalg.norm(self._goal() - self.state.pos))
@@ -352,6 +377,8 @@ class DroneEnv(gym.Env):
             before = self.shot.phase
             self.shot.step(self.dt, self.state.pos, self.state.vel)
             started = before == "ir" and self.shot.phase == "grabando"
+        if self.liebre is not None:                    # la liebre corre
+            self.liebre.step(self.dt, self.np_random)
         if self.flock is not None:                     # los pájaros se mueven (y eligen huir) a la vez que el dron
             self.flock.speed = self.bird_speed
             self.flock.step(self.dt, self.np_random.normal(size=(self.flock.n, 3)), self.state.pos)
@@ -449,7 +476,7 @@ class DroneEnv(gym.Env):
             reward += rw["near"] * np.exp(-dist)
         if film:
             pass
-        elif dist < (CATCH_R if self.flock is not None else self.goal_radius):
+        elif dist < (CATCH_R if self.flock is not None else LIEBRE_R if self.liebre is not None else self.goal_radius):
             if self.hold_steps:
                 self.hold += 1
                 reward += 0.2 - 0.1 * float(np.linalg.norm(self.state.vel))   # quieto = mejor

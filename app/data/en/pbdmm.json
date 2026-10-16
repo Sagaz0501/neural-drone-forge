@@ -760,11 +760,11 @@
     {
       "firma": "photo(quality=0.5)",
       "grupo": "The flight plan",
-      "desc": "Takes the photo. It passes the test if the quality (framing, still, sharp) reaches that number (0.3 to 0.9): asking more is harder to learn, but photos come out better. Several photo() in a row = a photo set.",
+      "desc": "Takes the photo. It passes the test if the quality (framing, still, sharp) reaches that number (0.3 to 0.7): asking more is harder to learn, but photos come out better. Careful: a perfect autopilot averages ~0.55, so 0.6 is already demanding; above 0.7 it would never pass and the AI would learn nothing. Several photo() in a row = a photo set.",
       "params": [
         [
           "quality",
-          "the minimum score, 0.3 to 0.9"
+          "the minimum score, 0.3 to 0.7 (0.5-0.6 is normal)"
         ]
       ],
       "ejemplo": "hold(3)\nphoto(quality=0.6)"

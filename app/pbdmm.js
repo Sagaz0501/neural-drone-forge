@@ -784,7 +784,7 @@ export function compilar(src, data, host = {}) {
     foto: (a, k, n) => {
       if (ultima() !== "mantener") throw new ErrorPB(t("para una foto el dron tiene que estar quieto: pon mantener(…) justo antes de foto()"), n);
       const q = k.calidad ?? a[0] ?? 0.5;
-      accionVuelo("foto", n, { q: rango(q, 0.3, 0.9, "foto(calidad=…)", n) });
+      accionVuelo("foto", n, { q: rango(q, 0.3, 0.7, "foto(calidad=…)", n) });
     },
     grabar: (a, k, n) => {
       if (!enPlan("ir_a")) throw new ErrorPB(t("grabar() empieza donde arranca la toma: primero ir_a(…)"), n);

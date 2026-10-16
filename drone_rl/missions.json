@@ -126,5 +126,29 @@
     "exito": "TODAS las fotos con calidad >= 0,5. Una foto mala y el set no sirve (como un cliente que pide 3 fotos).",
     "falla": "chocar con la casa o con el piso a más de 4 m/s, salir del área de 30 m, o que se acabe el tiempo",
     "premio": "Lo mismo que Foto, por cada foto: 'toma completa' x calidad de cada una, + 'llegar quieto' en cada punto"
+  },
+  "16": {
+    "nombre": "Carrera",
+    "tiempo": 45,
+    "objetivo": "Pasar RÁPIDO por una pista de 6-9 portales en orden, a 7-15 m uno del otro, con curvas. Hay columnas a los lados (no en la línea recta). Campo de 60 m.",
+    "exito": "Pasar todos los portales en orden (el portal mide ~2 m: basta pasar a menos de 1 m del centro).",
+    "falla": "tocar una columna, chocar con el piso a más de 4 m/s, salir del área de 60 m, o que se acabe el tiempo",
+    "premio": "+ por metro hacia el portal, + por cada portal, - al chocar · + velocidad media x 'rapidez' por portal (súbelo: es una carrera)"
+  },
+  "17": {
+    "nombre": "Entrega",
+    "tiempo": 40,
+    "objetivo": "Llevar el paquete a una plataforma lejana (14-32 m), a veces en una azotea, esquivando edificios, y quedarse QUIETO encima.",
+    "exito": "Estar 1 segundo seguido a menos de 0,5 m del punto que está 0,6 m sobre la plataforma (después aterriza el piloto automático).",
+    "falla": "tocar un edificio, chocar con el piso a más de 4 m/s, salir del área de 60 m, o que se acabe el tiempo",
+    "premio": "+ por metro hacia la plataforma, + continuo por estar cerca, + al completar el segundo, - al chocar"
+  },
+  "18": {
+    "nombre": "Persecución",
+    "tiempo": 30,
+    "objetivo": "Alcanzar a la liebre: un blanco que corre solo por un campo de 40 m (2-8 m/s), sube, baja y esquiva columnas. En el juego, la liebre eres tú (freestyle).",
+    "exito": "Pasar a menos de 0,8 m de la liebre.",
+    "falla": "tocar una columna, chocar con el piso a más de 4 m/s, salir del área de 60 m, o que se acabe el tiempo",
+    "premio": "+ por metro que se acerca, + al alcanzarla, - al chocar. 'Velocidad de los pájaros' = la rapidez máxima de la liebre"
   }
 }

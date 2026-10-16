@@ -101,7 +101,7 @@ def test_circuit_two_laps():
     env.reset(seed=0)
     assert len(env.level.goals) == 8                       # 4 aros x 2 vueltas
     assert len(OBS_LABELS) == env.observation_space.shape[0]
-    assert set(MISSIONS) == set(range(15))
+    assert set(MISSIONS) == set(range(15)) | {16, 17, 18}         # 15 = la toma "seguir" (planeada)
     assert run_pilot(5, episodes=5) == 1.0                 # el piloto PD completa las 2 vueltas
 
 
@@ -531,3 +531,30 @@ def test_tarea_pbdmm3():
     d = DroneEnv(stage=13)
     d.reset(seed=2)
     assert 2.5 <= d.shots[0].dur <= 3.5 and d.foto_ok == 0.5        # sin tarea: como siempre
+
+
+def test_new_stages_race_delivery_chase():
+    """16 carrera (la línea recta entre portales libre: un PD la completa), 17 entrega (quedarse 1 s sobre la plataforma),
+    18 persecución (la meta es la liebre y se mueve; su velocidad entra en la observación)."""
+    from drone_rl.controller import PDPilot
+    env = DroneEnv(stage=16)
+    ok = 0
+    for ep in range(5):
+        env.reset(seed=ep)
+        assert 6 <= len(env.level.goals) <= 9 and env.level.bounds_xy == 60.0 and env.goal_radius == 1.0
+        pilot, done = PDPilot(env.p), False
+        while not done:
+            _, _, te, tr, info = env.step(pilot.act(env.state, env._goal()))
+            done = te or tr
+        ok += info["success"]
+    assert ok == 5
+    env = DroneEnv(stage=17)
+    env.reset(seed=1)
+    assert env.hold_steps == 50 and len(env.level.goals) == 1 and len(env.level.box_min) >= 5
+    env = DroneEnv(stage=18, bird_speed=6.0)
+    obs, _ = env.reset(seed=2)
+    g0 = env._goal().copy()
+    for _ in range(25):
+        obs, *_ = env.step(np.zeros(4))
+    assert np.linalg.norm(env._goal() - g0) > 0.5                 # la liebre corre
+    assert np.any(np.abs(obs[24:27]) > 0.05)                      # y el dron ve cómo se mueve

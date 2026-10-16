@@ -1,0 +1,32 @@
+// Los mapas del freestyle: node app/test_freestyle.mjs
+//  · la línea recta entre portales seguidos (y de la salida al primero, y del último al primero) queda libre a 1,2 m
+//    o más: la IA rival (nivel 16 · Carrera) sigue la pista sin que nada se le cruce
+//  · la salida y los portales están adentro del mapa y fuera de lo que choca
+//  · cruza() y orientaciones()
+import { Level } from "../game/sim.js";
+import { MAPAS, ORDEN, nivelDe, orientaciones, cruza } from "./freestyle_mapas.js";
+
+let fallas = 0;
+const ok = (c, msg) => { console.log(`${c ? "ok  " : "MAL "}  ${msg}`); if (!c) fallas++; };
+const HOLGURA = 1.2;
+for (const id of ORDEN) {
+  const M = MAPAS[id], L = new Level(nivelDe(M));
+  ok(M.gates.length >= 8, `${id}: ${M.gates.length} portales`);
+  ok(!L.collides([M.spawn[0], M.spawn[1], 0.3], 1.5), `${id}: la salida está libre`);
+  ok(M.gates.every((g) => Math.abs(g[0]) < M.bounds.xy - 3 && Math.abs(g[1]) < M.bounds.xy - 3 && g[2] < M.bounds.z - 2 && g[2] > 1), `${id}: los portales están adentro del mapa`);
+  const pts = [[M.spawn[0], M.spawn[1], 1.5], ...M.gates, M.gates[0]], malos = [];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], b = pts[i + 1];
+    for (let u = 0; u <= 1; u += 0.01) {
+      const p = a.map((x, k) => x + (b[k] - x) * u);
+      if (L.collides(p, HOLGURA)) { malos.push(`${i}→${i + 1} en (${p.map((x) => x.toFixed(1))})`); break; }
+    }
+  }
+  ok(!malos.length, `${id}: la pista queda libre a ${HOLGURA} m${malos.length ? ": " + malos.join(" · ") : ""}`);
+  const dirs = orientaciones(M.gates, M.spawn);
+  ok(dirs.every((d) => Math.abs(Math.hypot(...d) - 1) < 1e-9), `${id}: cada portal tiene una dirección`);
+}
+ok(cruza([0, -2, 2], [0, 2, 2], [0.5, 0, 2.3]) && !cruza([0, -2, 2], [0, 2, 2], [2, 0, 2]), "cruza(): pasar cerca del centro sí, lejos no");
+ok(!cruza([0, -2, 2], [0, -1, 2], [0, 0, 2], 0.5), "cruza(): sin llegar al portal no cuenta");
+console.log(fallas ? `\n${fallas} pruebas fallaron.` : "\nTodas las pruebas pasan.");
+process.exit(fallas ? 1 : 0);

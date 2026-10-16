@@ -54,12 +54,15 @@ STAGE_ITEMS = [
     ("12", "Grabar entre postes", "Lo mismo que Grabar, con postes / sombrillas a 1,5 m de la ruta: usar los sensores"),
     ("13", "Foto", "Una foto: llegar a un punto, frenar y quedarse quieto 2,5-3,5 s con la casa (o el techo) al centro"),
     ("14", "Set de fotos", "2-4 fotos seguidas alrededor de la casa, en orden: todas buenas = éxito"),
+    ("16", "Carrera", "Una pista de 6-9 portales lejos unos de otros (7-15 m), con curvas: pasarlos RÁPIDO en orden"),
+    ("17", "Entrega", "Llevar el paquete a una plataforma a 14-32 m (a veces en una azotea) entre edificios y quedarse quieto encima"),
+    ("18", "Persecución", "Alcanzar a la liebre: un blanco que corre solo a 2-8 m/s por un campo de 40 m con columnas"),
     ("LEVEL", "Nivel JSON", "Un nivel exportado desde Blender (todos los drones en el mismo nivel)"),
 ]
 STAGE_NAMES = {"hover": "Hover", "goal_fixed": "Meta fija", "goal_random": "Metas", "obstacles": "Columnas",
                "multi_goal": "Varias metas", "circuit": "Circuito", "forest": "Bosque", "forest_multi": "Bosque 3 aros", "hunt": "Caza",
                "hunt_columns": "Caza columnas", "hunt_forest": "Caza bosque", "film_fixed": "Grabar", "film_posts": "Grabar entre postes",
-               "photo": "Foto", "photo_set": "Set de fotos"}
+               "photo": "Foto", "photo_set": "Set de fotos", "race": "Carrera", "delivery": "Entrega", "chase": "Persecución"}
 COLORS = {"fly": (0.9, 0.9, 0.95, 1), 1: (1.0, 0.12, 0.08, 1), 2: (0.1, 1.0, 0.35, 1), 3: (1.0, 0.75, 0.1, 1)}
 REWARD_KEYS = ["progress", "goal", "crash", "time", "smooth", "tilt", "near", "clearance", "danger", "speed",
                "stability", "heading", "film", "framing", "settle", "altitude", "pan", "overspeed", "energy"]

@@ -4,6 +4,7 @@ Claude Code lee este archivo solo al abrir una sesión en esta carpeta. Es el re
 
 | Para… | Lee |
 |---|---|
+| **el plan maestro**: en qué fase vamos, la historia completa en 5 actos, misiones y recompensas, gráficos, la app de escritorio (manda sobre los demás si chocan) | [`docs/PLAN_MAESTRO.md`](docs/PLAN_MAESTRO.md) |
 | **qué sigue: el roadmap paso a paso** (fases, ideas de Santiago anotadas como 📝) | [`docs/ROADMAP.md`](docs/ROADMAP.md) |
 | cómo se juega (para el jugador) · cómo se conecta todo (para quien programa) | [`docs/GUIA.md`](docs/GUIA.md) · [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) |
 | **qué juego vamos a hacer** (la idea original, el ciclo, las etapas) | [`docs/PLAN_JUEGO.md`](docs/PLAN_JUEGO.md) |
@@ -74,6 +75,12 @@ app/               EL JUEGO (Dron Maker): usa los módulos de game/
                    /api/modelos "recientes", sin contar lo copiado del base) -> cliente (NG.primerCliente: Doña Marta).
                    notas(p, contexto) = la nota del paso + consejos
   notas.js         las notas de arriba a la derecha (main.js notasTutorial cada 0,5 s); la mesa señala el pad con un aro amarillo
+  freestyle.html   EL FREESTYLE (página aparte, botón en el inicio): freestyle.js = modos (libre, carrera contra la IA,
+                   contrarreloj, persecución), tu dron Estable (sim.js) o Acro (rate mode con flips, SOLO aquí: la IA nunca lo ve),
+                   los rivales con su red (sim.js step/buildObs/sensorRays + Policy; modelos corredor = nivel 16, cazador = 18),
+                   HUD, minimapa, sonido, récords en localStorage "dronmaker.freestyle"; freestyle_mapas.js = los 3 mapas (solo
+                   datos: cajas/cilindros/esferas + portales; test: node app/test_freestyle.mjs revisa que la pista quede libre);
+                   freestyle_vista.js = texturas en canvas, piezas unidas por material, bloom (game/vendor/postprocessing)
   dialogo.js       confirmar() / pedirTexto(): los diálogos del juego (NO usar confirm/prompt/alert del navegador)
   escenarios.js    LOS SIMULADORES (lógica): comprar en orden, qué misiones/funciones abren (disponibles), iaPuede
   mesa.js          LA MESA DE TRABAJO (3D, su propio canvas): abrir cajas; montar cada pieza con su PROCEDIMIENTO (taller.js:
@@ -138,6 +145,7 @@ game/              la base del juego web (sin build: módulos ES + three.js en g
   main.js          menú, editor de rutas, vuelo, cámaras, HUD (el "simulador/arena" actual)
   test_sim.mjs     compara sim.js con Python (make_fixture.py genera los casos)
 drone_rl/          el simulador en Python (lo usan el entrenamiento y Blender)
+  liebre.py        nivel 18 · Persecución: el blanco que corre (en el juego, el jugador). level.py race_track/delivery_level = 16/17
   physics.py       física del quad (QuadParams: masa, empuje/peso, arrastre…) + viento
   level.py, sensing.py, env.py, birds.py, runtime.py, upgrade.py, controller.py, missions.json
 scripts/
@@ -168,6 +176,7 @@ node app/test_negocio.mjs              # el negocio (clientes, días, pedidos, t
 node --import ./app/three_node.mjs app/test_flota.mjs   # la flota y el vuelo sin pantalla (vuelos de verdad con la IA base)
 node app/test_i18n.mjs                 # las traducciones (cada t() con su inglés, el HTML, las capas de datos)
 node app/test_modulos.mjs              # que nada importado quede tapado por una variable local
+node app/test_freestyle.mjs            # los mapas del freestyle: la pista libre, salida y portales adentro
 node app/doc_pbdmm.mjs                 # vuelve a escribir docs/PBDMM.md y docs/pbdmm/tutorial.md si cambias app/data/pbdmm.json
 node app/exportar_dron.mjs             # vuelve a escribir drones/madera.json si cambian las piezas
 ```
@@ -295,6 +304,11 @@ Node v22 está en `/opt/homebrew/bin/node`. Blender 5.2 en `/Applications/Blende
   tus variables donde sirven. `desde="otro"` se revisa contra `/api/modelos` (si no existe, error: el servidor
   arrancaría con una red al azar); el estudio recarga esa lista al correr y al pedir opciones de `modelo(`. "Que grabe la IA" ya no se bloquea: vuela con la IA
   del dron (o la base), se carga sola, y si no entrega el video cuesta 2 de reputación.
+- **Freestyle y niveles 16-18 (16-10-2026, v2.1):** `app/freestyle.html` (3 mapas: la fábrica, el cañón, el estadio de noche;
+  control PS5/Xbox, FPV, acro). Niveles nuevos de la IA (solo Python, para entrenar): **16 Carrera** (6-9 portales a 7-15 m,
+  campo de 60 m, portal de 1 m de radio), **17 Entrega** (plataforma a 14-32 m entre edificios, quedarse 1 s), **18 Persecución**
+  (la liebre a 2-`bird_speed` m/s). El 15 queda para la toma seguir. `drones/fs_racer.json` = el dron de los rivales.
+  `foto(calidad=)` de PBDMM va de 0,3 a 0,7: un piloto PD perfecto saca ~0,56; con 0,8 la IA nunca pasa y no aprende.
 - **Nivel 12 · Grabar entre postes**: como el 11 con postes a 1,5 m de la ruta (`level.film_posts`).
 - **Niveles 13 · Foto y 14 · Set de fotos** (Fase 1b): tomas fijas cortas; ver arriba.
 - **Nivel 11 · Grabar: tomas con ruta** (`env.py`, `tomas.py`, `missions.json`, Drone Lab): una casa al azar y

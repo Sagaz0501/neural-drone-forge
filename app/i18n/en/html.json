@@ -7,7 +7,6 @@
  "La campaña: empiezas con $150 en un garaje, compras piezas, armas drones en el banco, grabas videos para clientes y entrenas su IA en el laboratorio.": "The campaign: you start with $150 in a garage, buy parts, build drones on the workbench, film videos for clients and train their AI in the lab.",
  "Modo desarrollador": "Developer mode",
  "Creas los modelos de IA con código: el lenguaje": "You create the AI models with code: the",
- "(con cara de Python), una terminal y una gráfica en vivo. Entrena en segundo plano o en Blender. Todo desbloqueado y dos drones listos.": "language (Python-like), a terminal and a live chart. Train in the background or in Blender. Everything unlocked and two drones ready.",
  "Volver": "Back",
  "Calidad gráfica": "Graphics quality",
  "Baja": "Low",
@@ -262,5 +261,7 @@
  "📋 Lista y diseños STL": "📋 List and STL designs",
  "Estante": "Shelf",
  "Simuladores": "Simulators",
- "Monitor": "Monitor"
+ "Monitor": "Monitor",
+ "(con cara de Python), una terminal y una gráfica en vivo. Entrena en segundo plano o en Blender. Empieza igual que el normal (el regalo de mamá) y suma las herramientas de programar.": "language (Python-like), a terminal and a live chart. Train in the background or in Blender. It starts like the normal mode (mom's gift) and adds the programming tools.",
+ "🏁 Freestyle: vuela con tu control": "🏁 Freestyle: fly with your controller"
 }
