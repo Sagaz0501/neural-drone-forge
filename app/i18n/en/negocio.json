@@ -144,5 +144,7 @@
  "¿Qué es?": "What is it?",
  "No se usan en esta misión ({n})": "Not used in this mission ({n})",
  "Si la IA no entrega las fotos (le faltan o se estrella), pierdes {n} de reputación.": "If the AI doesn't deliver the photos (some are missing or it crashes), you lose {n} reputation.",
- "Terminó, pero con tomas flojas": "Finished, but with weak shots"
+ "Terminó, pero con tomas flojas": "Finished, but with weak shots",
+ "Arriendo del garaje": "Garage rent",
+ "{cliente}: {trabajo}": "{cliente}: {trabajo}"
 }

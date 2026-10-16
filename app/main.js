@@ -522,8 +522,10 @@ ctx.abrirSimular = (slug, volver) => sim.abrirSimular(slug, volver);
 $("b-estudio").onclick = () => estudio.abrir();
 const celular = initCelular({ ...ctx, ND, P: () => P(), openBrief: (pe) => openBrief(pe), misPedido: (id) => mis.pedidos.find((x) => x.id === id), fotos: G.fotos, iaDe });
 $("b-celular").onclick = () => celular.abrir();
+ctx.celular = celular;                     // el Estudio lo abre como la app Mensajes
 ctx.esDev = () => P()?.modo === "dev";
 const tienda = initTienda(ctx);
+ctx.tienda = tienda;                       // y la tienda y el inventario como apps
 function abrirBanco() { if (!D()) return; show("banco"); verDron(); banco.abrir(); }
 ctx.abrirBanco = abrirBanco;
 $("b-tienda").onclick = () => tienda.abrirTienda();

@@ -13,6 +13,7 @@
 // =====================================================================
 import { t } from "./i18n.js";
 import { twrParaViento } from "./requisitos.js";
+import { anotar } from "./partida.js";
 
 // ---------------- azar con semilla (cada día, lo mismo si recargas) ----------------
 function rngDe(seed) {
@@ -182,6 +183,7 @@ export function nuevoDia(p, D, { primero = false } = {}) {
     const A = D.trabajos.arriendo;
     if (p.modo !== "dev" && p.rep >= A.desde_rep && N.dia % A.cada === 0) {
       p.plata -= A.monto;
+      anotar(p, -A.monto, t("Arriendo del garaje"));
       out.arriendo = A.monto;
       N.sistema = [...(N.sistema || []), { dia: N.dia, txt: rellenar(D.clientes.sistema.arriendo, { monto: A.monto }) }].slice(-20);
     }
@@ -260,6 +262,7 @@ export function entregar(p, D, id, r) {
   escribir(p, pe.cliente, "ella", texto);
   if (r.piloto === "ia" && e >= 1 && C.msgs.ia) escribir(p, pe.cliente, "ella", C.msgs.ia);
   p.plata += pago;
+  anotar(p, pago, t("{cliente}: {trabajo}", { cliente: C.nombre, trabajo: nombreTipo(pe.tipo, pe.n) }));
   p.rep = Math.max(0, p.rep + rep);
   N.relacion[pe.cliente] = rel;
   let recomienda = null;

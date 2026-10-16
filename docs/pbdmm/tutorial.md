@@ -3,7 +3,7 @@
 > Versión 2.1. Se genera desde `app/data/pbdmm.json` ("ruta") con `node app/doc_pbdmm.mjs`: no lo edites a mano.
 
 Son los mismos 8 capítulos que trae el juego. En el **modo desarrollador**, el capítulo 1 está abierto desde el inicio y
-**cada dron que creas en el garaje abre el siguiente**: el programa del capítulo usa ese dron. En el Estudio, ventana
+**cada dron que creas en el garaje abre el siguiente**: el programa del capítulo usa ese dron. En el Estudio, 📖 Documentación →
 **Ruta** → *Abrir el programa del capítulo*. Cada capítulo agrega **una idea** y trae un **reto** que el juego mide solo
 (al revisar o correr el programa, o mientras entrena). Nada se bloquea: todo el lenguaje funciona desde el principio.
 
@@ -165,7 +165,7 @@ def cada_generacion(e):
 
 ## 7 · Un cerebro a medida
 
-Con desde="cero" el modelo nace con un cerebro al azar, del tamaño que digas con red(capas=[…]). El lr es qué tan grande es cada ajuste y la exploración cuánto prueba cosas nuevas: explicar("lr"). Mira la red en vivo: la ventana 🧠 Red neuronal.
+Con desde="cero" el modelo nace con un cerebro al azar, del tamaño que digas con red(capas=[…]). El lr es qué tan grande es cada ajuste y la exploración cuánto prueba cosas nuevas: explicar("lr"). Mira la red en vivo: la app 📈 Simuladores.
 
 **Aprendes:** `red` · `aprendizaje` · `explicar`
 

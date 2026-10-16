@@ -149,6 +149,12 @@ export function puedeComprar(p, cat, ranura, id) {
   return null;
 }
 
+/** Anota un movimiento de plata (la app Finanzas del Estudio): + entra, − sale. Guarda los últimos 200. */
+export function anotar(p, monto, txt) {
+  if (!monto) return;
+  p.movimientos = [...(p.movimientos || []), { dia: p.negocio?.dia ?? null, monto, txt, saldo: p.plata }].slice(-200);
+}
+
 /** Comprar n unidades (o una herramienta). Devuelve un texto de error o null. */
 export function comprar(p, cat, ranura, id, n = 1) {
   const err = puedeComprar(p, cat, ranura, id);
@@ -156,6 +162,7 @@ export function comprar(p, cat, ranura, id, n = 1) {
   const pz = pieza(cat, ranura, id), total = precioDe(p, pz) * n;
   if (p.plata < total) return t("Te faltan ${n}.", { n: total - p.plata });
   p.plata -= total;
+  anotar(p, -total, n > 1 ? `${pz.nombre} × ${n}` : pz.nombre);
   if (ranura === "herramientas") p.herramientas = [...(p.herramientas || []), id];
   else for (let i = 0; i < n; i++) {
     const u = agregarUnidad(p, id);
@@ -187,6 +194,7 @@ export function vender(p, cat, uid) {
   const plata = Math.round((pz?.precio || 0) * VENTA * (u.vida / 100));
   p.inventario = p.inventario.filter((x) => x.uid !== uid);
   p.plata += plata;
+  anotar(p, plata, t("Venta: {pieza}", { pieza: pz?.nombre || u.id }));
   return plata;
 }
 
@@ -281,6 +289,7 @@ export function reparar(p, cat, d) {
   const c = costoReparar(p, cat, d);
   if (c > p.plata) return t("Te faltan ${n}.", { n: c - p.plata });
   p.plata -= c;
+  anotar(p, -c, t("Reparación: {dron}", { dron: d.nombre }));
   for (const uid of Object.values(d.slots)) { const u = unidad(p, uid); if (u) u.vida = 100; }
   return null;
 }
@@ -330,6 +339,7 @@ export function cobrar(p, misiones, pedido, estrellas) {
   const pago = Math.round(pedido.pago * misiones.pago_por_estrellas[estrellas]);
   const rep = misiones.reputacion_por_estrellas[estrellas];
   p.plata += pago;
+  anotar(p, pago, pedido.titulo || pedido.id);
   p.rep = Math.max(0, p.rep + rep);
   p.hechos[pedido.id] = Math.max(p.hechos[pedido.id] ?? 0, estrellas);
   return { pago, rep };

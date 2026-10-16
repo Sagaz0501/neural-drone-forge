@@ -148,7 +148,7 @@ export function initBanco(ctx) {
 
   function imprimirChasis(d, chU, chP, dis, reimprimir) {
     const p = P();
-    if (reimprimir) { const c = reimpresion(chP); if (p.plata < c) { toast(t("Te faltan ${n} de filamento.", { n: c - p.plata })); return; } p.plata -= c; }
+    if (reimprimir) { const c = reimpresion(chP); if (p.plata < c) { toast(t("Te faltan ${n} de filamento.", { n: c - p.plata })); return; } p.plata -= c; PT.anotar(p, -c, t("Filamento para reimprimir")); }
     ocupado(async () => {
       const g = buildDrone({ chasis: chP.id, diseno: dis, estilo: d.estilo }, cat).userData.slots.chasis;
       ctx.garaje.view = "imprimir";

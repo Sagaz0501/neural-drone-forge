@@ -101,6 +101,22 @@ tutorial, el más fácil), 🎬 video, 🔎 inspección, 🛠️ encargos de arm
   cumplan; ver la repetición de un vuelo de la flota; que la flota cueste algo (baterías, mantenimiento).
 - 📝 🛠️ Encargos de armado y 🧪 pruebas de drones (con la Fase 2), 🎮 a mano (Fase 3), 📦 entregas.
 - 📝 Más clientes y lugares.
+- 📝 **Perder plata, no solo ganar** *(Santiago, 16-10-2026)*. Hoy casi todo suma; el único gasto fijo es el arriendo.
+  La idea es que el negocio tenga presión y decisiones. Ya hay un registro de cada movimiento (`p.movimientos`,
+  `partida.js anotar`) que muestra la app **🏦 Finanzas** del Estudio: cada gasto nuevo se anota ahí.
+  - **Gastos fijos:** arriendo (ya existe), **servicios** (luz: sube con lo que entrenas y cargas baterías; internet),
+    seguro del taller (opcional: cubre un choque al mes). Se cobran al terminar el día, con aviso en el celular.
+  - **Quejas de clientes:** un video flojo o tarde → el cliente reclama; eliges devolver parte del pago, repetir el
+    trabajo gratis o ignorarlo (pierdes relación ♥ y te deja una mala reseña que baja los pedidos de otros).
+  - **Multas:** volar donde no se puede (zonas con gente, de noche, sin permiso en el restaurante del centro), daños
+    a terceros si chocas contra algo ajeno (una ventana, un auto).
+  - **Desgaste:** las baterías pierden capacidad con los ciclos y hay que reemplazarlas; los motores también; la
+    flota gasta más (cada vuelo de la flota cuesta su carga y su desgaste).
+  - **Imprevistos:** una pieza que llega mala (con la Fase 2), un robo o una lluvia que daña lo que dejaste afuera,
+    un mes flojo con menos pedidos.
+  - **Deuda:** si la plata baja de 0, un préstamo con interés o vender piezas; nunca "perder la partida" de golpe.
+  - Balance: que un taller que trabaja bien siempre gane más de lo que gasta; los gastos castigan el descuido, no el
+    jugar. Todos los montos en `data/trabajos.json` (balancear = editar números).
 
 ## Fase 1b · Premios, castigos y misiones que exigen al dron *(Santiago, 15-10-2026)*
 

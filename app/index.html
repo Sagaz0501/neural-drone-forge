@@ -366,17 +366,42 @@
   .modo b { font-size: 18px; } .modo span { font-size: 13.5px; color: var(--muted); line-height: 1.4; }
   .modo:hover { border-color: var(--prop); } .modo.dev:hover { border-color: var(--next); }
   .modo.dev b { color: var(--next); }
-  /* el Estudio es un escritorio: una barra arriba y ventanas que se mueven (editor, terminal, gráfica, red, ruta) */
-  #estudio { position: fixed; inset: 0; z-index: 3; display: flex; flex-direction: column; background: radial-gradient(ellipse at 30% 20%, #15241f 0%, #0b1210 70%); }
-  #es-top { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap; background: rgba(13, 20, 18, 0.92); z-index: 2; }
-  .es-logo { font-size: 18px; color: var(--next); letter-spacing: .5px; } .es-sp { flex: 1; }
-  .es-grupo { display: flex; align-items: center; gap: 6px; padding: 0 0 0 8px; border-left: 1px solid var(--line); }
-  @media (max-width: 980px) { .es-grupo { border-left: 0; padding: 0; } }
+  /* el Estudio es un computador: un escritorio con íconos de apps, ventanas que se mueven y una barra de tareas abajo */
+  #estudio { position: fixed; inset: 0; z-index: 3; display: flex; flex-direction: column; background: radial-gradient(ellipse at 70% 30%, #1a2e27 0%, #0b1210 75%); }
+  .es-logo { font-size: 16px; color: var(--next); letter-spacing: .5px; } .es-sp { flex: 1; }
+  #es-barra { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-top: 1px solid var(--line); background: rgba(10, 16, 14, 0.94); z-index: 2; flex-wrap: wrap; }
+  #es-tareas { display: flex; gap: 4px; flex-wrap: wrap; }
+  #es-tareas button { background: rgba(234,242,239,.06); border: 1px solid transparent; color: var(--text); border-radius: 8px; padding: 5px 10px; font: 13px var(--font); cursor: pointer; }
+  #es-tareas button[aria-pressed="true"] { border-color: rgba(60,203,255,.45); background: rgba(60,203,255,.12); }
+  #es-reloj { font-size: 13px; white-space: nowrap; padding-left: 6px; }
+  #es-reloj b { color: var(--gate); font-weight: 600; }
+  #es-iconos { position: absolute; left: 10px; top: 10px; display: flex; flex-direction: column; gap: 6px; z-index: 0; }
+  .es-icono { position: relative; width: 84px; display: flex; flex-direction: column; align-items: center; gap: 3px; background: none; border: 1px solid transparent; border-radius: 12px; padding: 7px 4px; color: var(--text); cursor: pointer; font: 12.5px var(--font); text-shadow: 0 1px 3px #000; }
+  .es-icono i { font-style: normal; font-size: 30px; line-height: 1.1; }
+  .es-icono:hover, .es-icono:focus-visible { background: rgba(234,242,239,.08); border-color: var(--line); }
+  .es-icono.abierta { background: rgba(60,203,255,.1); }
+  .es-badge { position: absolute; top: 2px; right: 14px; background: var(--crash); color: #fff; border-radius: 10px; font-size: 11px; padding: 1px 6px; }
+  .es-badge[hidden] { display: none; }
+  .es-tool { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .es-tool .btn { padding: 4px 10px; } .es-tool b { font-size: 14px; }
+  .es-tip { font-size: 12px; }
   #es-run { font-size: 13px; white-space: nowrap; }
   #es-graf-m { max-width: 170px; border-radius: 8px; }
-  #es-dock button { padding: 6px 9px; font-size: 15px; }
+  .es-tbar { display: flex; align-items: center; gap: 8px; padding: 4px 6px 4px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .es-ide #es-editor { flex: 62; } .es-ide #es-term { flex: 38; }
+  .es-graf-l { flex: 0 0 38%; }
+  /* las apps del juego (celular, tienda, inventario) dentro de una ventana */
+  .es-host .es-wbody { overflow: auto; }
+  .es-wbody > .alojado { position: static !important; transform: none !important; width: auto !important; height: 100% !important; max-height: none !important; border-radius: 0 !important; border: 0 !important; box-shadow: none !important; margin: 0; backdrop-filter: none; background: #101916; }
+  #es-banco { overflow-y: auto; padding: 14px 16px; font-size: 14px; }
+  .bk-saldo { font-size: 34px; font-weight: 700; } .bk-sub { display: flex; gap: 14px; flex-wrap: wrap; margin: 4px 0 12px; color: var(--muted); font-size: 13.5px; }
+  .bk-cajas { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .bk-cajas div { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; } .bk-cajas b { display: block; font-size: 18px; }
+  .bk-mov { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 10px; align-items: baseline; font-size: 13.5px; }
+  .bk-mov .d { color: var(--muted); font-size: 12px; } .bk-mov .m { text-align: right; font-variant-numeric: tabular-nums; }
+  .bk-mov .m.mas { color: var(--gate); } .bk-mov .m.menos { color: var(--crash); }
   #es-escritorio { position: relative; flex: 1; min-height: 0; overflow: hidden; }
-  .es-win { position: absolute; display: flex; flex-direction: column; min-width: 220px; min-height: 120px; background: rgba(16, 25, 22, 0.97); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 34px rgba(0,0,0,.45); overflow: hidden; }
+  .es-win { position: absolute; display: flex; flex-direction: column; min-width: 220px; min-height: 120px; background: #101916; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 34px rgba(0,0,0,.45); overflow: hidden; }
   .es-win.arriba { border-color: rgba(60,203,255,.4); }
   .es-win[hidden] { display: none; }
   .es-wbar { display: flex; align-items: center; gap: 8px; padding: 5px 6px 5px 12px; background: rgba(234,242,239,0.05); border-bottom: 1px solid var(--line); cursor: grab; user-select: none; font-size: 13.5px; font-weight: 600; touch-action: none; }
@@ -430,20 +455,15 @@
   .es-c-verde { color: var(--gate); } .es-c-rojo { color: var(--crash); } .es-c-amarillo { color: var(--gold); } .es-c-azul { color: var(--next); } .es-c-gris { color: var(--muted); }
   #es-prompt { display: flex; gap: 8px; align-items: center; padding: 6px 12px; border-top: 1px solid var(--line); font-family: ui-monospace, Menlo, monospace; color: var(--next); }
   #es-in { flex: 1; background: none; border: 0; color: var(--text); font: 13.5px ui-monospace, Menlo, monospace; outline: none; }
-  /* la ruta: una lista corta; el detalle de cada capítulo sale en una ventanita */
-  #es-ruta { overflow-y: auto; padding: 8px 10px; font-size: 14px; }
+  /* la ruta: una lista corta de capítulos */
   .es-prog { height: 6px; border-radius: 4px; background: rgba(234,242,239,.1); overflow: hidden; margin: 4px 0 8px; } .es-prog i { display: block; height: 100%; background: var(--gate); }
   .es-cap { display: flex; gap: 8px; align-items: center; width: 100%; text-align: left; background: none; border: 1px solid transparent; color: var(--text); padding: 6px 8px; border-radius: 9px; cursor: pointer; font: inherit; }
   .es-cap:hover, .es-cap:focus-visible { border-color: var(--line); background: rgba(234,242,239,.05); }
   .es-cap.cerrado { opacity: .5; } .es-cap.hecho b { color: var(--gate); } .es-cap.ahora { border-color: rgba(60,203,255,.4); }
   .es-cap b { font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  /* las ventanitas (popups): manual, lecciones, capítulos, ayuda de una función */
-  #es-velo { position: absolute; inset: 0; background: rgba(0,0,0,.35); z-index: 7; }
-  #es-velo[hidden], #es-pop[hidden] { display: none; }
-  #es-pop { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(560px, calc(100vw - 24px)); max-height: min(78vh, 680px); display: flex; flex-direction: column; border-radius: 16px; z-index: 8; background: #15201c; border: 1px solid var(--line); box-shadow: 0 20px 50px rgba(0,0,0,.6); }
-  #es-pop header { display: flex; align-items: center; gap: 8px; padding: 10px 10px 10px 16px; border-bottom: 1px solid var(--line); }
-  #es-pop header b { flex: 1; font-size: 16px; }
-  #es-pop-c { overflow-y: auto; padding: 12px 16px 16px; font-size: 14.5px; line-height: 1.5; }
+  /* la app Documentación: manual, ruta y lecciones */
+  #es-pop-h { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #es-pop-c { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 16px 16px; font-size: 14.5px; line-height: 1.5; }
   #es-pop-c p { margin: 6px 0 10px; } #es-pop-c ul { padding-left: 18px; margin: 6px 0; } #es-pop-c li { margin: 4px 0; }
   #es-pop-c code, #es-pop-c pre { font-family: ui-monospace, Menlo, monospace; font-size: 13px; }
   #es-pop-c code { color: var(--next); }
@@ -463,9 +483,9 @@
   @media (max-width: 980px) {
     #estudio { overflow-y: auto; }
     #es-escritorio { overflow: visible; display: flex; flex-direction: column; gap: 10px; padding: 10px; flex: none; }
-    .es-win { position: static !important; width: auto !important; height: auto !important; }
-    .es-win[data-w="editor"] { height: 60vh !important; } .es-win[data-w="terminal"] { height: 40vh !important; }
-    .es-win[data-w="grafica"], .es-win[data-w="red"] { height: 50vh !important; } .es-win[data-w="ruta"] { max-height: 60vh; }
+    #es-iconos { position: static; flex-direction: row; flex-wrap: wrap; justify-content: center; }
+    .es-icono { width: 76px; }
+    .es-win { position: static !important; width: auto !important; height: 70vh !important; }
     .es-wbar { cursor: default; } .es-wtam { display: none; }
   }
   /* ---------------- simulaciones ---------------- */
@@ -541,39 +561,50 @@
 
 <!-- ============ ESTUDIO PBDMM (modo desarrollador) ============ -->
 <section id="estudio" class="hidden" aria-label="Estudio PBDMM">
-  <header id="es-top">
-    <b class="es-logo">PBDMM</b>
-    <button class="btn ghost small" id="es-archivo-b" aria-haspopup="true" title="Tus programas y los ejemplos">📄 <span id="es-nombre"></span> ▾</button>
-    <button class="btn main small" id="es-correr" title="Ctrl/⌘ + Enter">▶ Correr</button>
-    <button class="btn ghost small" id="es-revisar" title="Revisa el programa sin entrenar">✓ Revisar</button>
-    <button class="btn ghost small" id="es-parar" disabled title="Dejar de escuchar">■</button>
-    <span id="es-run"></span>
-    <span class="es-sp"></span>
-    <div class="es-grupo"><select id="es-graf-m" class="sim-sel" aria-label="Qué modelo mirar"></select><button class="btn ghost small" id="es-avance" title="El mejor y el peor intento de cada nivel">Avance</button><button class="btn ai small" id="es-simular" title="Una prueba nueva con su última generación">Simular</button></div>
-    <div class="es-grupo"><div class="seg" id="es-dock" aria-label="Ventanas"><button data-w="editor" title="Editor">📝</button><button data-w="terminal" title="Terminal">⌨️</button><button data-w="grafica" title="Gráfica">📈</button><button data-w="red" title="Red neuronal">🧠</button><button data-w="ruta" title="Ruta del programador">🗺️</button></div><button class="btn ghost small" id="es-ordenar" title="Ordenar las ventanas">⊞</button></div>
-    <div class="es-grupo"><button class="btn ghost small" id="es-manual-b" title="El manual del lenguaje (F1 sobre una palabra)" aria-label="Manual">📖</button><button class="btn ghost small" id="es-aprende-b" title="Cómo aprende una IA">💡</button><button class="btn ai small" id="es-blender">Blender</button><button class="btn ghost small" id="es-volver">Garaje</button></div>
-  </header>
   <div id="es-escritorio">
+    <nav id="es-iconos" aria-label="Apps">
+      <button class="es-icono" data-w="ide"><i>💻</i><span>IDE</span></button>
+      <button class="es-icono" data-w="docs"><i>📖</i><span>Documentación</span></button>
+      <button class="es-icono" data-w="mensajes"><i>💬</i><span>Mensajes</span><b class="es-badge" id="es-badge" hidden></b></button>
+      <button class="es-icono" data-w="tienda"><i>🛒</i><span>Tienda</span></button>
+      <button class="es-icono" data-w="inventario"><i>📦</i><span>Inventario</span></button>
+      <button class="es-icono" data-w="sim"><i>📈</i><span>Simuladores</span></button>
+      <button class="es-icono" data-w="banco"><i>🏦</i><span>Finanzas</span></button>
+      <button class="es-icono" id="es-armar"><i>🔧</i><span>Banco de armado</span></button>
+    </nav>
     <div id="es-archivo-m" class="es-pop-menu" hidden>
       <h4>Tus programas</h4><div id="es-archivos"></div>
       <div class="es-acc"><button class="btn ghost small" id="es-nuevo">+ Nuevo</button><label class="btn ghost small">Abrir .pbd<input type="file" id="es-subir" accept=".pbd,.py,.txt" hidden></label><button class="btn ghost small" id="es-bajar">Descargar .pbd</button></div>
       <h4>Ejemplos</h4><div id="es-ejemplos"></div>
     </div>
-    <div class="es-win" data-w="editor" aria-label="Editor"><div class="es-wbar"><span>📝 Editor</span><span class="es-wsub" id="es-ed-sub"></span><button class="es-wx" data-x="editor" aria-label="Cerrar">×</button></div>
-      <div class="es-wbody"><div id="es-editor"><div id="es-gut" aria-hidden="true"></div><div id="es-area"><pre id="es-hl" aria-hidden="true"></pre><div id="es-ac" role="listbox" aria-label="Opciones" hidden></div><textarea id="es-src" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Programa PBDMM"></textarea></div></div></div><div class="es-wtam"></div></div>
-    <div class="es-win" data-w="terminal" aria-label="Terminal"><div class="es-wbar"><span>⌨️ Terminal</span><span class="es-wsub"></span><button class="es-wx" id="es-limpiar" title="Limpiar" aria-label="Limpiar">⌫</button><button class="es-wx" data-x="terminal" aria-label="Cerrar">×</button></div>
-      <div class="es-wbody"><div id="es-term"><div id="es-out" role="log" aria-live="polite"></div><div id="es-prompt"><span>›</span><input id="es-in" autocomplete="off" spellcheck="false" placeholder="ayuda · modelos · estado · correr · info &lt;modelo&gt;" aria-label="Terminal"></div></div></div><div class="es-wtam"></div></div>
-    <div class="es-win" data-w="grafica" aria-label="Gráfica"><div class="es-wbar"><span>📈 Gráfica</span><span class="es-wsub" id="es-graf-t"></span><button class="es-wx" data-x="grafica" aria-label="Cerrar">×</button></div>
-      <div class="es-wbody"><div class="es-lienzo"><canvas id="es-graf" aria-label="Gráfica del entrenamiento"></canvas><div class="es-vacio" id="es-graf-v">Corre un programa para ver cómo aprende</div></div>
-        <div class="es-pie es-ley"><span style="color:var(--gate)">■ éxito</span><span style="color:var(--crash)">■ choque</span><span style="color:var(--next)">■ calidad</span></div></div><div class="es-wtam"></div></div>
-    <div class="es-win" data-w="red" aria-label="Red neuronal"><div class="es-wbar"><span>🧠 Red neuronal</span><span class="es-wsub" id="es-red-t"></span><button class="es-wx" data-x="red" aria-label="Cerrar">×</button></div>
-      <div class="es-wbody"><div class="es-lienzo"><canvas id="es-redc" aria-label="La red neuronal del dron, en vivo"></canvas><div class="es-vacio" id="es-red-v">La red se ve en vivo mientras entrena</div></div>
+    <div class="es-win" data-w="ide" aria-label="IDE"><div class="es-wbar"><span>💻 IDE</span><span class="es-wsub" id="es-ed-sub"></span><button class="es-wx" data-x="ide" aria-label="Cerrar">×</button></div>
+      <div class="es-tool"><button class="btn ghost small" id="es-archivo-b" aria-haspopup="true" title="Tus programas y los ejemplos">📄 <span id="es-nombre"></span> ▾</button><button class="btn main small" id="es-correr" title="Ctrl/⌘ + Enter">▶ Correr</button><button class="btn ghost small" id="es-revisar" title="Revisa el programa sin entrenar">✓ Revisar</button><button class="btn ghost small" id="es-parar" disabled title="Dejar de escuchar">■</button><span id="es-run"></span><span class="es-sp"></span><span class="muted es-tip">F1 = ayuda</span></div>
+      <div class="es-wbody es-ide"><div id="es-editor"><div id="es-gut" aria-hidden="true"></div><div id="es-area"><pre id="es-hl" aria-hidden="true"></pre><div id="es-ac" role="listbox" aria-label="Opciones" hidden></div><textarea id="es-src" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Programa PBDMM"></textarea></div></div>
+        <div id="es-term"><div class="es-tbar"><span>⌨️ Terminal</span><span class="es-sp"></span><button class="es-wx" id="es-limpiar" title="Limpiar" aria-label="Limpiar">⌫</button></div><div id="es-out" role="log" aria-live="polite"></div><div id="es-prompt"><span>›</span><input id="es-in" autocomplete="off" spellcheck="false" placeholder="ayuda · modelos · estado · correr · info &lt;modelo&gt;" aria-label="Terminal"></div></div></div><div class="es-wtam"></div></div>
+    <div class="es-win" data-w="docs" aria-label="Documentación"><div class="es-wbar"><span>📖 Documentación</span><span class="es-wsub"></span><button class="es-wx" data-x="docs" aria-label="Cerrar">×</button></div>
+      <div class="es-tool"><button class="es-wx" id="es-pop-atras" aria-label="Atrás" hidden>←</button><div class="seg" id="es-doc-tabs"><button data-d="manual">Manual</button><button data-d="ruta">Ruta</button><button data-d="aprende">Lecciones</button></div><b id="es-pop-h"></b></div>
+      <div class="es-wbody"><div id="es-pop-c"></div></div><div class="es-wtam"></div></div>
+    <div class="es-win es-host" data-w="mensajes" aria-label="Mensajes"><div class="es-wbar"><span>💬 Mensajes</span><span class="es-wsub"></span><button class="es-wx" data-x="mensajes" aria-label="Cerrar">×</button></div><div class="es-wbody"></div><div class="es-wtam"></div></div>
+    <div class="es-win es-host" data-w="tienda" aria-label="Tienda"><div class="es-wbar"><span>🛒 Tienda</span><span class="es-wsub"></span><button class="es-wx" data-x="tienda" aria-label="Cerrar">×</button></div><div class="es-wbody"></div><div class="es-wtam"></div></div>
+    <div class="es-win es-host" data-w="inventario" aria-label="Inventario"><div class="es-wbar"><span>📦 Inventario</span><span class="es-wsub"></span><button class="es-wx" data-x="inventario" aria-label="Cerrar">×</button></div><div class="es-wbody"></div><div class="es-wtam"></div></div>
+    <div class="es-win" data-w="sim" aria-label="Simuladores"><div class="es-wbar"><span>📈 Simuladores</span><span class="es-wsub" id="es-graf-t"></span><button class="es-wx" data-x="sim" aria-label="Cerrar">×</button></div>
+      <div class="es-tool"><select id="es-graf-m" class="sim-sel" aria-label="Qué modelo mirar"></select><button class="btn ghost small" id="es-avance" title="El mejor y el peor intento de cada nivel">Avance</button><button class="btn ai small" id="es-simular" title="Una prueba nueva con su última generación">Simular</button><span class="es-sp"></span><span class="es-ley"><span style="color:var(--gate)">■ éxito</span><span style="color:var(--crash)">■ choque</span><span style="color:var(--next)">■ calidad</span></span></div>
+      <div class="es-wbody"><div class="es-lienzo es-graf-l"><canvas id="es-graf" aria-label="Gráfica del entrenamiento"></canvas><div class="es-vacio" id="es-graf-v">Corre un programa para ver cómo aprende</div></div>
+        <div class="es-tbar"><span>🧠 Red neuronal</span><span class="es-wsub" id="es-red-t"></span></div>
+        <div class="es-lienzo"><canvas id="es-redc" aria-label="La red neuronal del dron, en vivo"></canvas><div class="es-vacio" id="es-red-v">La red se ve en vivo mientras entrena</div></div>
         <div class="es-pie"><button class="btn ghost small" id="es-red-ant" aria-label="Dron anterior">◀</button><label>Dron <input type="number" id="es-red-i" min="1" value="1"></label><span id="es-red-n"></span><button class="btn ghost small" id="es-red-sig" aria-label="Dron siguiente">▶</button><button class="btn ghost small" id="es-red-azar">Al azar</button><span class="es-sp"></span><span id="es-red-top" title="Lo que más siente ahora"></span></div></div><div class="es-wtam"></div></div>
-    <div class="es-win" data-w="ruta" aria-label="Ruta del programador"><div class="es-wbar"><span>🗺️ Ruta</span><span class="es-wsub" id="es-ruta-sub"></span><button class="es-wx" data-x="ruta" aria-label="Cerrar">×</button></div>
-      <div class="es-wbody"><div id="es-ruta"></div></div><div class="es-wtam"></div></div>
-    <div id="es-velo" hidden></div>
-    <div id="es-pop" role="dialog" aria-modal="false" aria-labelledby="es-pop-h" hidden><header><button class="es-wx" id="es-pop-atras" aria-label="Atrás" hidden>←</button><b id="es-pop-h"></b><button class="es-wx" id="es-pop-x" aria-label="Cerrar">×</button></header><div id="es-pop-c"></div></div>
+    <div class="es-win" data-w="banco" aria-label="Finanzas"><div class="es-wbar"><span>🏦 Finanzas</span><span class="es-wsub"></span><button class="es-wx" data-x="banco" aria-label="Cerrar">×</button></div>
+      <div class="es-wbody"><div id="es-banco"></div></div><div class="es-wtam"></div></div>
   </div>
+  <footer id="es-barra">
+    <b class="es-logo">PBDMM</b>
+    <div id="es-tareas" aria-label="Apps abiertas"></div>
+    <span class="es-sp"></span>
+    <button class="btn ghost small" id="es-ordenar" title="Ordenar las ventanas" aria-label="Ordenar las ventanas">⊞</button>
+    <button class="btn ai small" id="es-blender">Blender</button>
+    <button class="btn ghost small" id="es-volver">Garaje</button>
+    <span id="es-reloj" class="muted"></span>
+  </footer>
 </section>
 
 <!-- ============ SIMULACIONES (Avance del modelo · Simular prueba) ============ -->

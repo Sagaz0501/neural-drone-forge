@@ -14,6 +14,7 @@ import { t, datos, idioma, num } from "./i18n.js";
 import { pieza } from "./parts.js";
 import { mundoLugar, alcanceNecesario } from "./lugares.js";
 import * as RUTA from "./ruta.js";
+import * as NG from "./negocio.js";
 const numero = (x) => (Number.isInteger(x) ? String(x) : num(x, 1));       // 4,5 / 4.5 según el idioma
 
 const ARCH = "dronmaker.pbdmm.archivos", ABIERTO = "dronmaker.pbdmm.abierto";
@@ -86,7 +87,6 @@ export function initEstudio(ctx) {
     renderArchivos();
     cargarEditor();
     colocar();
-    renderRuta();
     cargarModelos().then(renderSel);     // para autocompletar modelo(…) y desde=, y el selector de arriba
     if (!$("es-out").childElementCount) {
       linea(`PBDMM ${ES.data.version} · Python Base Dron Model Maker`, "ok");
@@ -94,9 +94,9 @@ export function initEstudio(ctx) {
     }
     sondear(true);
     redSondear(true);
-    if (abierta("editor")) $("es-src").focus();
+    if (abierta("ide")) $("es-src").focus();
   }
-  function cerrar() { sondear(!!ES.run); redSondear(false); cerrarPop(); menuArchivos(false); ctx.irTaller(); }
+  function cerrar() { sondear(!!ES.run); redSondear(false); menuArchivos(false); for (const w of Object.keys(HOST)) ventana(w, false); ctx.irTaller(); }
 
   // ---------------- editor ----------------
   const KWS = /\b(def|return|if|elif|else|for|in|and|or|not|is|global|pass|break|continue)\b/;
@@ -348,7 +348,7 @@ export function initEstudio(ctx) {
     return Object.keys(al).find((es) => al[es] === c) || c;
   };
   async function comando(c) {
-    if (!abierta("terminal")) ventana("terminal", true);      // que se vea la respuesta
+    if (!abierta("ide")) ventana("ide", true);      // que se vea la respuesta
     linea("› " + c, "cmd");
     const [cmd, ...args] = c.split(/\s+/);
     const a0 = args[0], a1 = args[1];
@@ -728,7 +728,9 @@ export function initEstudio(ctx) {
       ES.grafActivo = activo;
       ES.grafTr = tr;
     }
-    if (abierta("grafica")) dibujarGrafica();
+    if (abierta("sim")) dibujarGrafica();
+    reloj();
+    if (abierta("banco")) renderBanco();
     renderRun();
   }
   function sondear(on) {
@@ -746,32 +748,31 @@ export function initEstudio(ctx) {
     ctx.guardar();
     linea("🏅 " + t("Ruta del programador: ¡capítulo {n} · {titulo} completo!", { n, titulo: cap.titulo }), "ok");
     const sig = RUTA.actual(ctx.P());
-    if (sig) linea("   " + t("Sigue el capítulo {n} (ventana Ruta).", { n: sig }), "muted");
+    if (sig) linea("   " + t("Sigue el capítulo {n} (Documentación → Ruta).", { n: sig }), "muted");
     else if (RUTA.abiertos(ctx.P()) < RUTA.capitulos().length) linea("   " + t("Crea otro dron en el garaje para abrir el capítulo {n}.", { n: RUTA.abiertos(ctx.P()) + 1 }), "muted");
     toast(t("🏅 Capítulo {n} completo: {titulo}", { n, titulo: esc(cap.titulo) }), 4000);
-    renderRuta();
+    if (ES.doc === "ruta" && abierta("docs")) ruta();
   }
-  /** La ventana Ruta: una lista corta de capítulos (uno por dron); el detalle sale en una ventanita. */
-  function renderRuta() {
-    const box = $("es-ruta"), p = ctx.P();
-    if (!box || !p || !ES.data) return;
-    const caps = RUTA.capitulos(), ab = RUTA.abiertos(p), act = RUTA.actual(p);
+  /** La Ruta (en Documentación): una lista corta de capítulos (uno por dron); tocar uno abre su detalle. */
+  function ruta() {
+    const p = ctx.P(), caps = RUTA.capitulos(), ab = RUTA.abiertos(p), act = RUTA.actual(p);
     const hechos = caps.filter((_, i) => RUTA.hecho(p, i + 1)).length;
-    $("es-ruta-sub").textContent = t("{h} de {n}", { h: hechos, n: caps.length });
-    box.innerHTML = `<div class="es-prog" title="${t("{h} de {n} capítulos", { h: hechos, n: caps.length })}"><i style="width:${Math.round((hechos / Math.max(1, caps.length)) * 100)}%"></i></div>`;
-    caps.forEach((c, i) => {
-      const n = i + 1, abierto = n <= ab, ok = RUTA.hecho(p, n);
-      const b = document.createElement("button");
-      b.className = "es-cap" + (ok ? " hecho" : "") + (abierto ? "" : " cerrado") + (n === act ? " ahora" : "");
-      b.innerHTML = `<span>${ok ? "✅" : abierto ? (n === act ? "▶" : "○") : "🔒"}</span><b>${n} · ${esc(c.titulo)}</b>`;
-      b.onclick = () => verCapitulo(n);
-      box.appendChild(b);
+    abrirDoc("ruta", t("{h} de {n} capítulos", { h: hechos, n: caps.length }), (box) => {
+      box.innerHTML = `<div class="es-prog"><i style="width:${Math.round((hechos / Math.max(1, caps.length)) * 100)}%"></i></div>`;
+      caps.forEach((c, i) => {
+        const n = i + 1, abierto = n <= ab, ok = RUTA.hecho(p, n);
+        const b = document.createElement("button");
+        b.className = "es-cap" + (ok ? " hecho" : "") + (abierto ? "" : " cerrado") + (n === act ? " ahora" : "");
+        b.innerHTML = `<span>${ok ? "✅" : abierto ? (n === act ? "▶" : "○") : "🔒"}</span><b>${n} · ${esc(c.titulo)}</b>`;
+        b.onclick = () => verCapitulo(n);
+        box.appendChild(b);
+      });
+      box.insertAdjacentHTML("beforeend", `<p class="muted" style="margin:8px 4px">${t("Cada dron que creas abre un capítulo.")}</p>`);
     });
-    box.insertAdjacentHTML("beforeend", `<p class="muted" style="font-size:12.5px;margin:8px 4px">${t("Cada dron que creas abre un capítulo.")}</p>`);
   }
   function verCapitulo(n) {
     const p = ctx.P(), c = RUTA.capitulos()[n - 1], abierto = n <= RUTA.abiertos(p), ok = RUTA.hecho(p, n);
-    abrirPop(`${n} · ${c.titulo}`, (box) => {
+    abrirDoc("ruta", `${n} · ${c.titulo}`, (box) => {
       if (!abierto) { box.innerHTML = `<p>🔒 ${t("Crea tu dron n.º {k} en el garaje (+ Nuevo dron o Kit del garaje) para abrir este capítulo.", { k: n - 1 })}</p>`; return; }
       box.innerHTML = `<p>${esc(c.texto)}</p><p>${c.aprende.map((x) => `<code>${esc(x)}</code>`).join(" ")}</p>` +
         `<p><b>${t("Reto:")}</b> ${esc(c.reto_txt)} ${ok ? `<span class="chip on">${t("logrado")}</span>` : ""}</p>` +
@@ -783,21 +784,29 @@ export function initEstudio(ctx) {
         const nom = `capitulo_${n}`;
         if (ES.archivos[nom] === undefined) ES.archivos[nom] = RUTA.programa(p, n);
         ES.abierto = nom; guardarArchivos(); renderArchivos(); cargarEditor();
-        cerrarPop(); ventana("editor", true);
+        ventana("ide", true);
         linea(t("Abrí {n}.pbd: lee los comentarios y completa el reto.", { n: nom }), "ok");
       };
       box.appendChild(b);
-    });
+    }, ruta);
   }
 
-  // ---------------- el escritorio: ventanas que se mueven, se agrandan, se cierran y se abren desde la barra ----------------
-  const VENT = "dronmaker.pbdmm.ventanas";
-  const LAYOUT0 = { editor: { x: 0, y: 0, w: 0.56, h: 0.63, open: true }, terminal: { x: 0, y: 0.63, w: 0.56, h: 0.37, open: true },
-    grafica: { x: 0.56, y: 0, w: 0.44, h: 0.42, open: true }, red: { x: 0.56, y: 0.42, w: 0.44, h: 0.58, open: true },
-    ruta: { x: 0.3, y: 0.06, w: 0.3, h: 0.62, open: false } };
+  // ---------------- el escritorio: íconos de apps, ventanas que se mueven y se agrandan, la barra de tareas ----------------
+  const VENT = "dronmaker.pbdmm.escritorio";
+  const LAYOUT0 = { ide: { x: 0.075, y: 0, w: 0.555, h: 1, open: true }, sim: { x: 0.63, y: 0, w: 0.37, h: 1, open: true },
+    docs: { x: 0.33, y: 0.04, w: 0.4, h: 0.86, open: false }, mensajes: { x: 0.18, y: 0.03, w: 0.6, h: 0.92, open: false },
+    tienda: { x: 0.14, y: 0.02, w: 0.7, h: 0.94, open: false }, inventario: { x: 0.2, y: 0.05, w: 0.6, h: 0.86, open: false },
+    banco: { x: 0.38, y: 0.06, w: 0.3, h: 0.8, open: false } };
+  /** Las apps: ícono y nombre (función: t() corre después de cargar el idioma). */
+  const APPS = () => ({ ide: ["💻", "IDE"], docs: ["📖", t("Documentación")], mensajes: ["💬", t("Mensajes")], tienda: ["🛒", t("Tienda")],
+    inventario: ["📦", t("Inventario")], sim: ["📈", t("Simuladores")], banco: ["🏦", t("Finanzas")] });
+  /** Las apps que son pantallas del juego (el celular, la tienda, el inventario): se meten en una ventana. */
+  const HOST = { mensajes: ["celular", () => ctx.celular?.abrir()], tienda: ["tienda", () => ctx.tienda?.abrirTienda()], inventario: ["inventario", () => ctx.tienda?.abrirInventario()] };
   const copia0 = () => JSON.parse(JSON.stringify(LAYOUT0));
   ES.win = { ...copia0(), ...leerLS(VENT, {}) };
+  for (const w of Object.keys(HOST)) ES.win[w].open = false;    // las del juego se abren cuando las pides
   ES.orden = Object.keys(LAYOUT0);                    // de atrás hacia adelante
+  ES.doc = "manual";
   const winEl = (w) => document.querySelector(`.es-win[data-w="${w}"]`);
   const abierta = (w) => !!ES.win[w]?.open;
   const angosto = () => matchMedia("(max-width: 980px)").matches;
@@ -813,19 +822,63 @@ export function initEstudio(ctx) {
       el.style.zIndex = 1 + ES.orden.indexOf(w);
       el.classList.toggle("arriba", ES.orden.at(-1) === w);
     }
-    document.querySelectorAll("#es-dock button").forEach((b) => b.setAttribute("aria-pressed", String(abierta(b.dataset.w))));
+    document.querySelectorAll(".es-icono[data-w]").forEach((b) => b.classList.toggle("abierta", abierta(b.dataset.w)));
+    barra();
+  }
+  /** La barra de tareas: una pestaña por app abierta (tocarla la trae al frente) y abajo a la derecha la plata y el día. */
+  function barra() {
+    const A = APPS(), box = $("es-tareas"), arriba = ES.orden.filter(abierta).at(-1);
+    box.innerHTML = "";
+    for (const w of Object.keys(LAYOUT0).filter(abierta)) {
+      const b = document.createElement("button");
+      b.textContent = `${A[w][0]} ${A[w][1]}`;
+      b.setAttribute("aria-pressed", String(w === arriba));
+      b.onclick = () => alFrente(w);
+      box.appendChild(b);
+    }
+    reloj();
+  }
+  function reloj() {
+    const p = ctx.P();
+    if (!p) return;
+    $("es-reloj").innerHTML = `<b>$${p.plata.toLocaleString(idioma())}</b> · ⭐ ${p.rep}${p.negocio ? ` · ${t("Día {n}", { n: p.negocio.dia })}` : ""}`;
+    const n = p.negocio ? NG.noLeidos(p) : 0;
+    $("es-badge").hidden = !n; $("es-badge").textContent = n;
   }
   function alFrente(w) { ES.orden = [...ES.orden.filter((x) => x !== w), w]; colocar(); }
-  /** Abre o cierra una ventana (sin "on": la alterna). */
+  /** Abre o cierra una app (sin "on": la alterna). */
   function ventana(w, on) {
-    ES.win[w].open = on ?? !ES.win[w].open;
+    const quiere = on ?? !ES.win[w].open;
+    if (quiere === ES.win[w].open && !quiere) return;
+    ES.win[w].open = quiere;
     guardarVent();
-    if (ES.win[w].open) alFrente(w); else colocar();
-    if (w === "ruta" && abierta("ruta")) renderRuta();
-    if (w === "red") redSondear(abierta("red"));
-    if (w === "grafica" && abierta("grafica")) dibujarGrafica();
-    if (w === "editor" && abierta("editor")) $("es-src").focus();
-    if (w === "terminal" && abierta("terminal")) $("es-in").focus();
+    if (HOST[w]) quiere ? alojar(w) : desalojar(w);
+    if (quiere) alFrente(w); else colocar();
+    if (w === "docs" && quiere && !$("es-pop-c").childElementCount) ({ manual, ruta, aprende: () => aprende(0) })[ES.doc]();
+    if (w === "sim") { redSondear(quiere); if (quiere) dibujarGrafica(); }
+    if (w === "banco" && quiere) renderBanco();
+    if (w === "ide" && quiere) $("es-src").focus();
+  }
+  /** Mete la pantalla del juego (el celular, la tienda…) en su ventana; si el juego la cierra, la ventana se cierra. */
+  const HOGAR = {};
+  function alojar(w) {
+    const [id, abrirla] = HOST[w], el = $(id), body = winEl(w).querySelector(".es-wbody");
+    if (el.parentElement !== body) { HOGAR[id] = { padre: el.parentElement, sig: el.nextSibling }; body.appendChild(el); }
+    el.classList.add("alojado");
+    abrirla();
+    HOGAR[id].obs?.disconnect();
+    HOGAR[id].obs = new MutationObserver(() => { if (el.classList.contains("hidden") && abierta(w)) ventana(w, false); });
+    HOGAR[id].obs.observe(el, { attributes: true, attributeFilter: ["class"] });
+  }
+  function desalojar(w) {
+    const [id] = HOST[w], el = $(id), H = HOGAR[id];
+    if (!H) return;
+    H.obs?.disconnect();
+    el.classList.remove("alojado");
+    if (!el.classList.contains("hidden")) ctx.modal(id, false);
+    H.padre.insertBefore(el, H.sig);
+    delete HOGAR[id];
+    reloj();
   }
   /** Arrastrar una ventana por su barra, o agrandarla por la esquina. */
   function arrastre(el, w, modo) {
@@ -837,7 +890,7 @@ export function initEstudio(ctx) {
       const mover = (e) => {
         const dx = (e.clientX - x0) / box.width, dy = (e.clientY - y0) / box.height;
         if (modo === "mover") { L.x = Math.max(-L.w + 0.08, Math.min(0.92, L0.x + dx)); L.y = Math.max(0, Math.min(0.94, L0.y + dy)); }
-        else { L.w = Math.max(240 / box.width, Math.min(1 - L.x, L0.w + dx)); L.h = Math.max(140 / box.height, Math.min(1 - L.y, L0.h + dy)); }
+        else { L.w = Math.max(260 / box.width, Math.min(1 - L.x, L0.w + dx)); L.h = Math.max(160 / box.height, Math.min(1 - L.y, L0.h + dy)); }
         colocar();
       };
       const soltar = () => { removeEventListener("pointermove", mover); removeEventListener("pointerup", soltar); guardarVent(); redibujar(); };
@@ -852,9 +905,12 @@ export function initEstudio(ctx) {
     el.addEventListener("pointerdown", () => { if (ES.orden.at(-1) !== w) alFrente(w); }, true);
   }
   document.querySelectorAll(".es-wx[data-x]").forEach((b) => (b.onclick = () => ventana(b.dataset.x, false)));
-  document.querySelectorAll("#es-dock button").forEach((b) => (b.onclick = () => ventana(b.dataset.w)));
-  $("es-ordenar").onclick = () => { ES.win = copia0(); ES.orden = Object.keys(LAYOUT0); guardarVent(); colocar(); redibujar(); redSondear(true); };
-  function redibujar() { if (abierta("grafica")) dibujarGrafica(); if (abierta("red")) dibujarRed(); }
+  document.querySelectorAll(".es-icono[data-w]").forEach((b) => (b.onclick = () => (abierta(b.dataset.w) ? alFrente(b.dataset.w) : ventana(b.dataset.w, true))));
+  $("es-ordenar").onclick = () => {
+    for (const w of Object.keys(HOST)) if (abierta(w)) ventana(w, false);
+    ES.win = copia0(); ES.orden = Object.keys(LAYOUT0); guardarVent(); colocar(); redibujar(); redSondear(true);
+  };
+  function redibujar() { if (abierta("sim")) { dibujarGrafica(); dibujarRed(); } }
   new ResizeObserver(() => { if (ctx.G.screen === "estudio") { colocar(); redibujar(); } }).observe($("es-escritorio"));
 
   // ---------------- el menú de programas ----------------
@@ -863,15 +919,18 @@ export function initEstudio(ctx) {
     m.hidden = !(on ?? m.hidden);
     if (!m.hidden) {
       const r = b.getBoundingClientRect(), c = $("es-escritorio").getBoundingClientRect();
-      m.style.left = Math.max(4, r.left - c.left) + "px"; m.style.top = "4px";
+      m.style.left = Math.max(4, r.left - c.left) + "px"; m.style.top = Math.max(4, r.bottom - c.top + 4) + "px";
+      m.style.zIndex = 100;
     }
   }
   $("es-archivo-b").onclick = (ev) => { ev.stopPropagation(); menuArchivos(); };
   document.addEventListener("pointerdown", (ev) => { if (!$("es-archivo-m").hidden && !ev.target.closest("#es-archivo-m, #es-archivo-b")) menuArchivos(false); });
 
-  // ---------------- las ventanitas: el manual, las lecciones, los capítulos ----------------
-  /** Abre la ventanita con un título y lo que pinte llenar(box). atras = una función para el botón ←. */
-  function abrirPop(titulo, llenar, atras = null) {
+  // ---------------- la app Documentación: el manual, la ruta y las lecciones ----------------
+  /** Pinta una página de Documentación (y abre la app). tab = manual|ruta|aprende; atras = una función para ←. */
+  function abrirDoc(tab, titulo, llenar, atras = null) {
+    ES.doc = tab;
+    document.querySelectorAll("#es-doc-tabs button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.d === tab)));
     $("es-pop-h").textContent = titulo;
     const box = $("es-pop-c");
     box.innerHTML = "";
@@ -879,13 +938,10 @@ export function initEstudio(ctx) {
     llenar(box);
     $("es-pop-atras").hidden = !atras;
     $("es-pop-atras").onclick = atras;
-    $("es-pop").hidden = false; $("es-velo").hidden = false;
+    if (!abierta("docs")) ventana("docs", true); else alFrente("docs");
     menuArchivos(false);
   }
-  function cerrarPop() { $("es-pop").hidden = true; $("es-velo").hidden = true; }
-  $("es-pop-x").onclick = cerrarPop;
-  $("es-velo").onclick = cerrarPop;
-  $("estudio").addEventListener("keydown", (ev) => { if (ev.key === "Escape" && !$("es-pop").hidden) { ev.preventDefault(); cerrarPop(); $("es-src").focus(); } });
+  document.querySelectorAll("#es-doc-tabs button").forEach((b) => (b.onclick = () => ({ manual, ruta, aprende: () => aprende(0) })[b.dataset.d]()));
 
   /** El manual: buscar, filtrar por grupo y tocar una función para ver cómo se usa. */
   const MAN = { q: "", grupo: null };
@@ -893,7 +949,7 @@ export function initEstudio(ctx) {
   function manual() {
     const D = ES.data, nuevos = RUTA.nuevos(ctx.P());
     const extras = [["e", t("Lo que trae e"), D.e_doc], ["hooks", t("Funciones que llama el juego"), D.hooks_doc.map(([k, x]) => [`def ${k}`, x])], ["comandos", t("Comandos de la terminal"), D.comandos]];
-    abrirPop("📖 " + t("Manual de PBDMM"), (box) => {
+    abrirDoc("manual", "", (box) => {
       box.innerHTML = `<input class="es-buscar" type="search" placeholder="${t("Buscar: dron, premios, e.exito…")}" aria-label="${t("Buscar en el manual")}" value="${esc(MAN.q)}">` +
         `<div class="es-chips"></div><div class="es-fnl"></div>`;
       const chips = box.querySelector(".es-chips"), lista = box.querySelector(".es-fnl"), q = box.querySelector("input");
@@ -921,27 +977,26 @@ export function initEstudio(ctx) {
         }
         for (const [k, , xs] of extras) {
           if (MAN.grupo && MAN.grupo !== k) continue;
-          for (const [c, d] of xs) if (hay(c, d)) fila(c, d, () => abrirPop(c, (b2) => (b2.innerHTML = `<pre>${esc(c)}</pre><p>${esc(d)}</p>`), manual));
+          for (const [c, d] of xs) if (hay(c, d)) fila(c, d, () => abrirDoc("manual", c, (b2) => (b2.innerHTML = `<pre>${esc(c)}</pre><p>${esc(d)}</p>`), manual));
         }
         if (!lista.childElementCount) lista.innerHTML = `<p class="muted">${t("Nada con eso.")}</p>`;
       };
       q.oninput = () => { MAN.q = q.value; pintar(); };
       pintar();
-      setTimeout(() => q.focus(), 0);
     });
   }
   /** El nombre de una función en el idioma del juego (en inglés: mission, rewards…; los dos funcionan igual). */
   const nombreFn = (f) => (idioma() === "en" ? ES.data.alias_en?.funciones?.[f.nombre] || f.nombre : f.nombre);
   /** Una función del lenguaje: qué hace, sus parámetros, un ejemplo y "insertar". */
   function verFuncion(f, atras = null) {
-    abrirPop(nombreFn(f), (box) => {
+    abrirDoc("manual", nombreFn(f), (box) => {
       const donde = { arriba: t("arriba"), "función": t("en una función"), "las dos": t("arriba o en una función") }[f.donde] || "";
       box.innerHTML = `<pre>${esc(f.firma)}</pre><p>${esc(f.desc)}</p>` +
         (f.params.length ? `<div class="es-param">${f.params.map(([k, tx]) => `<code>${esc(k)}</code><span>${esc(tx)}${rec(f, k)}</span>`).join("")}</div>` : "") +
         `<pre>${esc(f.ejemplo)}</pre>` + (donde ? `<p class="muted">${t("Dónde va:")} ${donde}</p>` : "");
       const b = document.createElement("button");
       b.className = "btn main small"; b.textContent = t("insertar");
-      b.onclick = () => { cerrarPop(); ventana("editor", true); insertar(f.ejemplo + "\n"); };
+      b.onclick = () => { ventana("ide", true); insertar(f.ejemplo + "\n"); };
       box.appendChild(b);
     }, atras);
   }
@@ -961,18 +1016,27 @@ export function initEstudio(ctx) {
     const L = ES.data.lecciones, n = L.length + 1;
     i = Math.max(0, Math.min(n - 1, i));
     const fin = i === L.length;
-    abrirPop("💡 " + (fin ? t("La red") : L[i].titulo), (box) => {
-      box.innerHTML = fin ? `<div aria-label="${t("La red: 38 entradas, capas ocultas, 4 palancas")}">${redSVG()}</div><p class="muted">${t("38 sensores entran, pasan por las capas ocultas y salen 4 palancas. La ventana 🧠 la muestra en vivo.")}</p>`
+    abrirDoc("aprende", fin ? t("La red") : L[i].titulo, (box) => {
+      box.innerHTML = fin ? `<div aria-label="${t("La red: 38 entradas, capas ocultas, 4 palancas")}">${redSVG()}</div><p class="muted">${t("38 sensores entran, pasan por las capas ocultas y salen 4 palancas. Simuladores la muestra en vivo.")}</p>`
         : `<p>${esc(L[i].texto)}</p>`;
       box.insertAdjacentHTML("beforeend", `<div class="es-pasos">${Array.from({ length: n }, (_, k) => `<i class="${k === i ? "on" : ""}"></i>`).join("")}</div>` +
-        `<div class="go" style="display:flex;gap:8px;justify-content:space-between;margin-top:10px"><button class="btn ghost small" ${i ? "" : "disabled"}>◀ ${t("Antes")}</button><button class="btn ${fin ? "ghost" : "main"} small">${fin ? t("Cerrar") : t("Siguiente") + " ▶"}</button></div>`);
+        `<div class="go" style="display:flex;gap:8px;justify-content:space-between;margin-top:10px"><button class="btn ghost small" ${i ? "" : "disabled"}>◀ ${t("Antes")}</button><button class="btn main small" ${fin ? "disabled" : ""}>${t("Siguiente")} ▶</button></div>`);
       const [ant, sig] = box.querySelectorAll(".go button");
       ant.onclick = () => aprende(i - 1);
-      sig.onclick = () => (fin ? cerrarPop() : aprende(i + 1));
+      sig.onclick = () => aprende(i + 1);
     });
   }
-  $("es-manual-b").onclick = () => manual();
-  $("es-aprende-b").onclick = () => aprende(0);
+
+  // ---------------- la app Finanzas: la plata, lo que entra y lo que sale ----------------
+  function renderBanco() {
+    const p = ctx.P(), box = $("es-banco"), ms = p.movimientos || [];
+    const ent = ms.filter((m) => m.monto > 0).reduce((a, m) => a + m.monto, 0), sal = ms.filter((m) => m.monto < 0).reduce((a, m) => a - m.monto, 0);
+    const din = (x) => "$" + Math.abs(x).toLocaleString(idioma());
+    box.innerHTML = `<div class="bk-saldo">${din(p.plata)}</div><div class="bk-sub"><span>⭐ ${t("reputación {n}", { n: p.rep })}</span>${p.negocio ? `<span>${t("Día {n}", { n: p.negocio.dia })}</span>` : ""}</div>` +
+      `<div class="bk-cajas"><div><span class="muted">${t("Entró")}</span><b class="ok">+${din(ent)}</b></div><div><span class="muted">${t("Salió")}</span><b class="bad">−${din(sal)}</b></div></div>` +
+      (ms.length ? `<div class="bk-mov">${ms.slice().reverse().slice(0, 60).map((m) => `<span class="d">${m.dia != null ? t("día {n}", { n: m.dia }) : ""}</span><span>${esc(m.txt)}</span><span class="m ${m.monto > 0 ? "mas" : "menos"}">${m.monto > 0 ? "+" : "−"}${din(m.monto)}</span>`).join("")}</div>`
+        : `<p class="muted">${t("Todavía no hay movimientos: aquí sale lo que cobras y lo que gastas.")}</p>`);
+  }
 
   // ---------------- qué modelo mirar (gráfica, red, Avance y Simular) ----------------
   function renderSel() {
@@ -989,7 +1053,7 @@ export function initEstudio(ctx) {
     for (const [v, tx] of modelosVer) sel.add(new Option(tx, v, false, v === ES.grafSlug));
     sel.title = ES.grafSlug ? t("Mirando: {m}", { m: ES.grafSlug }) : "";
   }
-  $("es-graf-m").onchange = (ev) => { ES.grafSlug = ev.target.value; ES.grafFijo = true; ES.graf = []; ES.red = null; renderSel(); tick(); if (abierta("red")) leerRed(); };
+  $("es-graf-m").onchange = (ev) => { ES.grafSlug = ev.target.value; ES.grafFijo = true; ES.graf = []; ES.red = null; renderSel(); tick(); if (abierta("sim")) leerRed(); };
   const mirado = () => ES.grafSlug || ES.run?.cfg.modelo;
   $("es-avance").onclick = () => (mirado() ? comando("avance " + mirado()) : linea(t("Corre un programa o escribe info <modelo> primero."), "bad"));
   $("es-simular").onclick = () => (mirado() ? comando("simular " + mirado()) : linea(t("Corre un programa o escribe info <modelo> primero."), "bad"));
@@ -1002,10 +1066,10 @@ export function initEstudio(ctx) {
   function redSondear(on) {
     clearInterval(ES.redPoll);
     ES.redPoll = 0;
-    if (on && ctx.G.screen === "estudio" && abierta("red")) { ES.redPoll = setInterval(leerRed, 400); leerRed(); }
+    if (on && ctx.G.screen === "estudio" && abierta("sim")) { ES.redPoll = setInterval(leerRed, 400); leerRed(); }
   }
   async function leerRed() {
-    if (ctx.G.screen !== "estudio" || !abierta("red")) return redSondear(false);
+    if (ctx.G.screen !== "estudio" || !abierta("sim")) return redSondear(false);
     if (!ES.grafSlug) await tick();                 // recién abierto: buscar qué está entrenando
     const slug = ES.grafSlug;
     if (!slug) { ES.red = null; return dibujarRed(); }
@@ -1097,6 +1161,7 @@ export function initEstudio(ctx) {
   $("es-revisar").onclick = () => comando("revisar");
   $("es-parar").onclick = () => comando("parar");
   $("es-bajar").onclick = () => { menuArchivos(false); descargar(); };
+  $("es-armar").onclick = () => { cerrar(); ctx.abrirBanco?.(); };     // el banco de armado es la mesa 3D del garaje
   $("es-limpiar").onclick = () => { $("es-out").innerHTML = ""; };
   $("es-nuevo").onclick = () => { menuArchivos(false); const n = prompt(t("Nombre del programa:"), "mi_modelo"); if (n) comando("nuevo " + n); };
   $("es-blender").onclick = () => comando("blender");

@@ -1,10 +1,10 @@
 # Cambios de PBDMM
 
-## El Estudio como escritorio · 16-10-2026
+## El Estudio como computador · 16-10-2026
 
-No cambia el lenguaje. El Estudio pasa a ser un escritorio con ventanas (editor, terminal, gráfica, red neuronal en
-vivo, ruta) que se mueven y se agrandan, y la documentación sale en ventanitas: **📖 Manual** (con buscador), **F1**
-sobre una palabra del editor y **💡** las lecciones, una por página.
+No cambia el lenguaje. El Estudio pasa a ser un computador con apps en ventanas que se mueven y se agrandan: IDE,
+**Documentación** (Manual con buscador, Ruta y Lecciones; **F1** sobre una palabra del editor), Mensajes, Tienda,
+Inventario, Simuladores (gráfica y red en vivo) y Finanzas.
 
 ## 2.1 · 16-10-2026
 

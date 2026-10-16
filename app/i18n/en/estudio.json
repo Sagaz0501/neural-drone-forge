@@ -230,5 +230,19 @@
  "Lo que más siente ahora: {lista}": "What it feels most right now: {lista}",
  "gen {a}-{b}": "gen {a}-{b}",
  "Todavía no hay datos de {m}.": "No data for {m} yet.",
- "Corre un programa para ver cómo aprende.": "Run a program to see how it learns."
+ "Corre un programa para ver cómo aprende.": "Run a program to see how it learns.",
+ "Sigue el capítulo {n} (Documentación → Ruta).": "Next is chapter {n} (Documentation → Path).",
+ "Documentación": "Documentation",
+ "Simuladores": "Simulators",
+ "38 sensores entran, pasan por las capas ocultas y salen 4 palancas. Simuladores la muestra en vivo.": "38 sensors go in, pass through the hidden layers and 4 sticks come out. Simulators shows it live.",
+ "reputación {n}": "reputation {n}",
+ "Entró": "In",
+ "Salió": "Out",
+ "día {n}": "day {n}",
+ "Todavía no hay movimientos: aquí sale lo que cobras y lo que gastas.": "No transactions yet: what you earn and what you spend shows up here.",
+ "Venta: {pieza}": "Sale: {pieza}",
+ "Reparación: {dron}": "Repair: {dron}",
+ "Filamento para reimprimir": "Filament to reprint",
+ "IDE": "IDE",
+ "Finanzas": "Finances"
 }

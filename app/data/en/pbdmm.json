@@ -1009,7 +1009,7 @@
   {
    "id": "cap7",
    "titulo": "A brain made to measure",
-   "texto": "With start_from=\"zero\" the model is born with a random brain, of the size you set with network(layers=[…]). lr is how big each adjustment is and exploration how much it tries new things: explain(\"lr\"). Watch the network live: the 🧠 Neural network window.",
+   "texto": "With start_from=\"zero\" the model is born with a random brain, of the size you set with network(layers=[…]). lr is how big each adjustment is and exploration how much it tries new things: explain(\"lr\"). Watch the network live: the 📈 Simulators app.",
    "reto_txt": "A model from zero that reaches 30 % success.",
    "programa": "# Chapter 7 · A brain made to measure\n\nmodel(\"{modelo}\", start_from=\"zero\")\nnetwork(layers=[64, 64])    # 38 sensors → 64 → 64 → 4 sticks\nlevel(0)                    # hover in place\ndrone(\"{dron}\")\nlearning(lr=0.0003)\nnarrate(every=10)\n\nexplain(\"lr\")\nrewards(near=8)\npenalties(crash=4, tilt=8)\n"
   },

@@ -43,6 +43,7 @@ let r = NG.entregar(p, D, tut.id, { estrellas: 0 });
 ok(r.pago === 0 && tut.estado === "aceptado", "0 estrellas: no paga y se puede repetir");
 r = NG.entregar(p, D, tut.id, { estrellas: 3, fotos: 1 });
 ok(r.pago === 26 && tut.estado === "hecho" && p.plata === 176, `3 estrellas: paga ×1,3 (${r.pago})`);
+ok(p.movimientos?.length === 1 && p.movimientos[0].monto === 26 && p.movimientos[0].saldo === 176, "Finanzas: el pago queda anotado (0 estrellas no anota nada)");
 ok(NG.pasoTutorial(p, {}) === null, "el tutorial terminó");
 ok(N.ofrecidos.includes("casa_venta") && N.chats.marta.some((m) => m.especial === "casa_venta"), "después de la foto llega el video de la casa (pedido especial ⭐)");
 
