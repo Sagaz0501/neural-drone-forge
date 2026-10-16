@@ -1,8 +1,8 @@
 # El negocio · cómo se juega Neural Drone Forge
 
-> **Estado (15-10-2026):** hecho el celular, el tutorial del día 1, fotos, inspecciones, videos repetibles, las 4
-> dificultades, los 4 clientes con relación y recomendaciones, el arriendo y los pedidos especiales por el chat (pasos 1 a 4
-> del orden de trabajo). Falta: flota, encargos de armado, pruebas de drones, a mano y entregas.
+> **Estado (16-10-2026):** hecho el celular, el tutorial del día 1, fotos, inspecciones, videos repetibles, las 4
+> dificultades, los 4 clientes con relación y recomendaciones, el arriendo, los pedidos especiales por el chat (v1.0) y
+> la **flota** (pasos 1 a 5 del orden de trabajo). Falta: encargos de armado, pruebas de drones, a mano y entregas.
 >
 > Diseño del 15-10-2026 (idea de Santiago). Cambia la forma del juego: deja de ser una lista de misiones y pasa a ser
 > **un negocio de drones al que le escriben los clientes**. La campaña de [`HISTORIA.md`](HISTORIA.md) no se pierde:
@@ -123,9 +123,21 @@ dificultad y cuánto paga.
    a sacar la foto de la casa solo"*.
 3. **"Que lo haga la IA"** en la tarjeta del pedido (ya existe para el pedido de la casa). El trabajo se vuela con la
    IA del dron y lo puedes mirar o saltar.
-4. **Flota:** con varios drones con IA, mandas varios trabajos ★ a la vez mientras vuelas el ★★★★. Es ingreso pasivo
-   y es la razón para entrenar bien.
-5. Un trabajo mal hecho por la IA cuesta reputación (ya pasa: −2). Entrenar mal tiene precio.
+4. **Flota ✅:** con varios drones con IA, mandas varios trabajos a la vez mientras vuelas el ★★★★. Es ingreso pasivo
+   y es la razón para entrenar bien. Cómo funciona (16-10-2026):
+   - En la tarjeta del pedido, **🤖 A la flota** → eliges el dron. Cada dron lleva **un trabajo por día**; los que no
+     pueden dicen por qué (sin armar, piezas rotas, sin terminar en el banco, le falta lo que el cliente exige sí o sí).
+     El tutorial no: ese lo vuelas tú.
+   - Al **terminar el día** sale la flota: cada trabajo es un **vuelo de verdad sin pantalla** (`mision_sim.js`, la
+     misma física, batería, radio y calificación que un vuelo que miras; ruta nueva cada vez) con la IA del dron (la suya
+     o la base). Tarda menos de 0,1 s por trabajo.
+   - Si entrega, el cliente paga por el chat como siempre. Si no (le faltaron tomas, chocó, batería, failsafe), **el
+     cliente no se entera**: el pedido sigue abierto hasta que venza, y en su chat queda una nota 🤖 con el motivo. Los
+     choques sí dañan el dron.
+   - Sale un **reporte de la flota** en el celular: quién voló qué, con qué IA, estrellas, calidad de cada toma, plata
+     y daños.
+5. Un trabajo mal hecho por la IA cuesta reputación (ya pasa: −2 con "Que grabe la IA"). Entrenar mal tiene precio. Con
+   la flota: si entrega y no le gusta (0 ★), baja la relación; si no entrega, se pierde el día del dron y los daños.
 
 En el **modo desarrollador** el negocio sigue igual, pero cada dron nuevo abre un capítulo de la ruta del
 programador ([`PBDMM2_PLAN.md`](PBDMM2_PLAN.md) §7), y los trabajos que llegan al celular son los retos de entrenar.
@@ -166,9 +178,12 @@ app/data/trabajos.json   plantillas: tipo, lugar, tomas o puntos, cómo cambia c
                          mensajes de entrega por estrellas
 app/data/misiones.json   sigue siendo la campaña: sus pedidos = pedidos especiales ⭐
 app/negocio.js           el día, generar pedidos (semilla + dificultad + reputación), relación, vencer
-app/celular.js           la pantalla del chat (tarjetas, respuestas, entregas)
+app/celular.js           la pantalla del chat (tarjetas, respuestas, entregas, 🤖 a la flota, el reporte)
+app/flota.js             la flota: vuela los trabajos asignados al terminar el día y aplica lo que pasó
+app/mision_sim.js        un vuelo sin pantalla (vuelo.js hereda de él): lo usa la flota
 app/requisitos.js        qué pide un pedido y qué dron cumple (lo comparten el chat, el briefing y PBDMM)
 partida.negocio          { dia, chats: {cliente: [...mensajes]}, pedidos: [...], relacion: {cliente: n} }
+                         un pedido con flota lleva pe.flota = id del dron; las notas de la flota son mensajes "sistema"
 ```
 
 ## Orden de trabajo
@@ -177,6 +192,6 @@ partida.negocio          { dia, chats: {cliente: [...mensajes]}, pedidos: [...],
 2. **El celular** con el tutorial del día 1 (Doña Marta), los días y los plazos.
 3. **Plantillas y dificultad ★–★★★★** + generar pedidos repetibles + clientes con relación.
 4. **🔎 Inspección.**
-5. **Que lo haga la IA** para cualquier trabajo y **flota** (varios a la vez).
+5. ✅ **Que lo haga la IA** para cualquier trabajo y **flota** (varios a la vez).
 6. **🛠️ Encargos de armado** y **🧪 Pruebas de dron** (con la Fase 2 del roadmap).
 7. 🎮 Pilotaje a mano (Fase 3) y 📦 entregas.

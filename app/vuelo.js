@@ -8,19 +8,16 @@
 // graba, esa esquina se copia (30 veces por segundo) a un lienzo que MediaRecorder guarda como .webm.
 // =====================================================================
 import * as THREE from "three";
-import { Level, Flight, CONTROL_HZ, CAM, filmQuality } from "../game/sim.js";
-import { levelDict } from "../game/worlds.js";
+import { CONTROL_HZ, CAM } from "../game/sim.js";
 import { V, makeMaterials, makeSky, makeLights, WorldView, poseDrone, Trail } from "../game/scene.js";
 import { ManualPilot } from "../game/pilot.js";
-import { paramsFisica, potencia, BATERIA_USABLE } from "./parts.js";
+import { potencia } from "./parts.js";
 import { buildDrone, disposeDrone } from "./dron3d.js";
 import { RutasView } from "./casa.js";
 import { mundoLugar } from "./lugares.js";
-import { estrellasDe } from "./partida.js";
-import { t } from "./i18n.js";
+import { MisionSim, TOMA_OK } from "./mision_sim.js";
 
-export const TOMA_OK = 0.5;       // calidad media para que una toma cuente (drone_rl/env.py FILM_OK)
-const NOMBRE_TOMA = { fija: () => t("fija"), orbita: () => t("órbita"), revelar: () => t("revelar"), seguir: () => t("seguir") };
+export { TOMA_OK };
 const VIDEO_RES = { cam_juguete: [426, 240], cam_accion: [640, 360], cam_4k: [960, 540], cam_gimbal2: [960, 540], cam_gimbal: [1280, 720] };
 const MIMES = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm", "video/mp4"];
 
@@ -82,53 +79,24 @@ function padTexture() {
   return tex;
 }
 
-export class Vuelo {
+export class Vuelo extends MisionSim {
   /**
    * opts: { quality, cat, build, stats, pedido (o null = vuelo de prueba), piloto: "yo" | "ia", policy, ctl, keys,
    *         onEnd(result), onToast(msg), videoCanvas (canvas 2D donde se dibuja lo que graba la cámara) }
+   * La física, la batería, la radio y las tomas son de MisionSim (mision_sim.js, la misma que usa la flota).
    */
   constructor(renderer, opts) {
+    super(opts);
     this.r = renderer;
-    this.o = opts;
-    const pedido = opts.pedido;
-    const lugar = pedido?.lugar || "casa";
-    const M = (this.M = mundo(opts.quality, lugar));
+    const M = (this.M = mundo(opts.quality, opts.pedido?.lugar || "casa"));
     this.scene = M.scene;
-    const casa = mundoLugar(lugar, pedido);
-    this.lugar = casa;
-    this.subject = casa.subject;
-    // el guion del pedido: una lista de tomas (rutas de cámara) que se graban en orden
-    this.shots = casa.shots;
-    this.k = 0;                                          // toma de ahora
-    this.res = this.shots.map((s) => ({ nombre: s.nombre, tipo: s.tipo, n: 0, q: 0, framing: 0, track: 0, flow: 0, steady: 0, lista: false }));
-    // fotos (docs/NEGOCIO.md): cada toma es fija y corta; al terminarla se guarda el cuadro de la cámara como foto
-    this.foto = ["foto", "inspeccion"].includes(pedido?.tipo);
-    this.fotos = [];
     if (M.zona) this.scene.remove(M.zona);
     this.rutasView = this.shots.length ? new RutasView(this.shots) : null;   // las rutas (solo las ve el piloto)
     M.zona = this.rutasView ? this.rutasView.group : new THREE.Group();
     this.scene.add(M.zona);
-
-    // ---- la física de TU dron ----
-    this.st = opts.stats;
-    this.p = paramsFisica(opts.stats);
-    const ld = levelDict(M.base.world, this.shots.length ? [this.shots[0].start()] : []);
-    ld.boxes = casa.boxes;
-    ld.cylinders = [...ld.cylinders, ...casa.cylinders];
-    ld.spheres = [...ld.spheres, ...casa.spheres];
-    this.level = new Level(ld);
     const ay = new Set(opts.stats.ayudas);
     this.ctl = { ...opts.ctl, altHold: ay.has("altura"), brake: ay.has("frenar") };
     this.manual = new ManualPilot(this.ctl, opts.keys, this.p);
-    this.ia = opts.piloto === "ia";
-    this.dead = false;                                   // batería agotada: motores apagados
-    const cut = [-1, 0, 0, 0];
-    const policy = this.ia ? { act: (obs) => (this.dead ? cut : opts.policy.act(obs)) } : null;
-    this.fl = new Flight(this.level, policy, {
-      params: this.p, subject: casa.subject, film: true, shot: this.shots[0] || null, seed: 1 + Math.floor(Math.random() * 1e6),
-      wind: casa.wind || 0,
-      pilot: this.ia ? "ia" : (s) => (this.dead ? cut : this.manual.act(s, 1 / CONTROL_HZ)),
-    }).reset([0, 0, 0], Math.atan2(casa.subject[1], casa.subject[0]));
 
     // ---- el dron en 3D (con sus piezas) ----
     this.drone = buildDrone(opts.build, opts.cat);
@@ -140,7 +108,6 @@ export class Vuelo {
     this.cam = new THREE.PerspectiveCamera(62, 1, 0.03, 900);
     this.dcam = new THREE.PerspectiveCamera((CAM.vfov * 180) / Math.PI, 16 / 9, 0.03, 500);
     this.camMode = "persecucion";
-    this.gimbal = !!opts.stats.gimbal;
     this.gimbalPitch = -CAM.tilt;
     const [vw, vh] = VIDEO_RES[opts.build.camara] || [640, 360];
     this.vres = [vw, vh];
@@ -148,35 +115,15 @@ export class Vuelo {
     this.vc.width = vw; this.vc.height = vh;
     this.vctx = this.vc.getContext("2d");
 
-    // ---- la radio: más lejos que su alcance, failsafe (aterriza solo donde esté) ----
-    this.alcance = opts.stats.alcance_m || 20;
-    this.lejosT = 0; this.failsafe = false; this.avisoSenal = false;
-
-    // ---- estado del vuelo ----
     this.acc = 0;
-    this.prev = this.snap();
-    this.prevAtt = [0, 0];
-    this.wh = this.st.wh * BATERIA_USABLE;                  // energía que se puede usar (Wh)
-    this.used = 0;
-    this.rec = false;
-    this.recT = 0;
-    this.q = { framing: 0, track: 0, flow: 0, steady: 0, q: 0 };
-    this.prevYaw = this.fl.state.yaw; this.yawRate = 0;
-    this.tookOff = false;
-    this.groundT = 0;
     this.toldDone = false;
-    this.toldLow = false;
-    this.ended = false;
     this.paused = false;
-    this.t = 0;
-    this.maxH = 0;
-    this.lastVel = [0, 0, 0];
     this.chunks = [];
     this.recorder = null;
   }
 
-  snap() { const s = this.fl.state; return { pos: s.pos.slice(), roll: s.roll, pitch: s.pitch, yaw: s.yaw }; }
-  get battery() { return Math.max(0, 1 - this.used / this.wh); }
+  actManual(s, dt) { return this.manual.act(s, dt); }
+  capturarFoto() { try { return this.vc.toDataURL("image/jpeg", 0.88); } catch { return null; } }
 
   // ---------------- grabar ----------------
   toggleRec(on = !this.rec) {
@@ -213,10 +160,7 @@ export class Vuelo {
     this.acc += dt;
     let n = 0;
     while (this.acc >= step && n < 12 && !this.ended) {
-      this.prev = this.snap();
-      this.lastVel = this.fl.state.vel.slice();
-      this.fl.step();
-      this.afterStep(step);
+      this.paso();
       this.acc -= step;
       n++;
       if (n % 2 === 0) this.M.trail.push(this.fl.state.pos);
@@ -224,119 +168,11 @@ export class Vuelo {
     if (n >= 12) this.acc = 0;
   }
 
-  /** La toma de ahora (o null si ya se grabaron todas / vuelo de prueba). */
-  get shot() { return this.shots[this.k] || null; }
-  get done() { return this.shots.length > 0 && this.k >= this.shots.length; }
-
-  afterStep(dt) {
-    const fl = this.fl, s = fl.state, sh = this.shot;
-    this.t += dt;
-    const ang = Math.hypot(s.roll - this.prevAtt[0], s.pitch - this.prevAtt[1]) / dt;
-    this.prevAtt = [s.roll, s.pitch];
-    const yr = Math.atan2(Math.sin(s.yaw - this.prevYaw), Math.cos(s.yaw - this.prevYaw)) / dt;
-    const yawAcc = (yr - this.yawRate) / dt;
-    this.prevYaw = s.yaw; this.yawRate = yr;
-    // calidad de imagen contra el punto de cámara de la toma (sin toma: contra donde está el dron, solo encuadre)
-    const cp = sh ? sh.point() : s.pos, cv = sh && sh.phase === "grabando" ? sh.at(sh.progress)[1] : sh ? [0, 0, 0] : s.vel;
-    this.q = filmQuality(s, this.subject, cp, cv, ang, yawAcc, this.gimbal);
-    // batería: la potencia crece con el gas
-    if (!this.dead) {
-      this.used += (potencia(this.st, s.throttle) * dt) / 3600;
-      if (this.battery <= 0) {
-        this.dead = true;
-        if (fl.phase === "aterrizaje") fl.phase = "ruta";
-        this.o.onToast(t("¡Batería agotada! Los motores se apagaron."), 3000);
-      } else if (this.battery < 0.2 && !this.toldLow) {
-        this.toldLow = true;
-        this.o.onToast(t("Batería baja (20 %): vuelve a la base"), 3000);
-      }
-    }
-    if (s.pos[2] > 0.3) this.tookOff = true;
-    this.maxH = Math.max(this.maxH, s.pos[2]);
-    // radio: señal según la distancia a la base (donde estás parado con el control)
-    const dist = Math.hypot(s.pos[0], s.pos[1], s.pos[2]);
-    this.senal = Math.max(0, 1 - dist / this.alcance);
-    if (!this.failsafe) {
-      if (dist > 0.85 * this.alcance && !this.avisoSenal) { this.avisoSenal = true; this.o.onToast(t("Señal débil: estás llegando al límite de tu radio"), 2500); }
-      if (dist < 0.75 * this.alcance) this.avisoSenal = false;
-      this.lejosT = dist > this.alcance ? this.lejosT + dt : 0;
-      if (this.lejosT > 0.3) {
-        this.failsafe = true;
-        this.toggleRec(false);
-        fl.landOn = [s.pos[0], s.pos[1], 0];
-        fl.phase = "aterrizaje";
-        this.o.onToast(t("¡Failsafe! Se perdió la señal a {d} m (tu radio llega a {alcance} m): el dron aterriza solo", { d: Math.round(dist), alcance: this.alcance }), 5000);
-      }
-    }
-    // ---- las tomas: graba sola mientras el punto de cámara recorre la ruta ----
-    if (sh) {
-      const r = this.res[this.k];
-      if (sh.phase === "grabando" || (sh.phase === "lista" && !r.lista)) {
-        if (!this.rec) { this.toggleRec(true); this.o.onToast(this.foto ? t("📷 {nombre}: ¡quieto!…", { nombre: sh.nombre }) : t("¡Grabando {nombre}! Sigue el punto sin perder el encuadre", { nombre: sh.nombre }), 2200); }
-        r.n++; r.q += this.q.q; r.framing += this.q.framing; r.track += this.q.track; r.flow += this.q.flow; r.steady += this.q.steady;
-      }
-      if (sh.phase === "lista" && !r.lista) {
-        r.lista = true;
-        this.toggleRec(false);
-        const qm = r.q / Math.max(r.n, 1);
-        if (this.foto) { try { this.fotos.push({ nombre: r.nombre, q: qm, url: this.vc.toDataURL("image/jpeg", 0.88) }); } catch { /* sin foto */ } }
-        this.k++;
-        const next = this.shot;
-        fl.shot = next; if (next) { fl.toma = next.tipo; next.reset(); }
-        this.o.onToast(`${this.foto ? "📷 " : ""}${r.nombre}: ${Math.round(qm * 100)} % ${qm >= TOMA_OK ? "✓" : t("(floja)")} · ` +
-          (next ? t("siguiente: {nombre}", { nombre: next.nombre }) : this.foto ? t("¡todas las fotos! Vuelve a la base y aterriza") : t("¡todas las tomas! Vuelve a la base y aterriza")), 3500);
-      }
-    }
-    // la IA: hace las tomas en orden y al terminar (o si no puede: 150 s o poca batería) vuelve a la base
-    if (this.ia && !this.dead && fl.phase === "ruta") {
-      const giveUp = this.t > 150 || this.battery < 0.25;
-      if (this.done || giveUp || !this.shots.length) {
-        this.toggleRec(false);
-        fl.landOn = [0, 0, 0];
-        fl.phase = "aterrizaje";
-        this.o.onToast(this.done ? t("La IA terminó las tomas: vuelve a la base") : t("La IA no alcanzó: vuelve a la base"), 3000);
-      }
-    }
-    if (this.rec) this.recT += dt;
-    // ¿terminó?
-    if (fl.phase === "choque") {
-      const imp = Math.hypot(...this.lastVel);
-      return this.finish({ crash: true, reason: fl.reason, impact: imp });
-    }
-    if (fl.phase === "aterrizado") return this.finish({ crash: false, failsafe: this.failsafe });
-    if (!this.ia && this.tookOff) {
-      const grounded = s.pos[2] < 0.02 && Math.hypot(...s.vel) < 0.4 && (s.throttle < 0.2 || this.dead);
-      this.groundT = grounded ? this.groundT + dt : 0;
-      if (this.groundT > 0.8) {
-        const home = Math.hypot(s.pos[0], s.pos[1]) < 2.5;
-        if (this.done || !this.o.pedido) return this.finish({ crash: false, home });
-        if (this.groundT < 0.8 + dt * 1.5) this.o.onToast(t("Aterrizaste, pero faltan {n} tomas. Despega otra vez (Espacio).", { n: this.shots.length - this.k }), 3500);
-        this.tookOff = false;
-      }
-    }
-    if (this.dead && s.pos[2] < 0.02 && Math.hypot(...s.vel) < 0.1 && this.t > 1) return this.finish({ crash: false, dead: true });
-  }
-
   async finish(extra) {
     if (this.ended) return;
-    this.ended = true;
-    this.rec = false;
+    super.finish(extra);
     const video = await this.stopRecorder();
-    // cada toma: su calidad media (las que no se grabaron cuentan 0); el video: 75 % tomas + 25 % la cámara
-    const tomas = this.res.map((r) => {
-      const n = Math.max(r.n, 1);
-      return { nombre: r.nombre, tipo: NOMBRE_TOMA[r.tipo]?.() || r.tipo, lista: r.lista, q: r.q / n,
-        framing: r.framing / n, track: r.track / n, flow: r.flow / n, steady: r.steady / n };
-    });
-    const cal = this.st.calidad / 100, nitidez = this.st.nitidez ?? 1;
-    const qMedia = tomas.length ? tomas.reduce((a, r) => a + (r.lista ? r.q : 0), 0) / tomas.length : 0;
-    const completa = this.done && tomas.every((r) => r.q >= TOMA_OK) && !extra.failsafe;
-    const puntaje = tomas.length ? Math.round(100 * (0.75 * qMedia * nitidez + 0.25 * cal)) : 0;
-    const estrellas = completa ? estrellasDe(puntaje, this.o.pedido?.estrellas) : 0;
-    this.o.onEnd({
-      ...extra, piloto: this.ia ? "ia" : "yo", pedido: this.o.pedido, recT: this.recT, tomas, qMedia, cal, nitidez, puntaje, completa,
-      estrellas, video, fotos: this.fotos, foto: this.foto, t: this.t, bateria: this.battery, maxH: this.maxH,
-    });
+    this.o.onEnd({ ...this.resultado, fotos: this.fotos.filter((f) => f.url), video });
   }
 
   // ---------------- dibujar ----------------

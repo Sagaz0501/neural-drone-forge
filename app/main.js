@@ -496,6 +496,17 @@ function cargarIAenDron(d) {
   if (B.ia?.modelo !== slug || (gen !== undefined && B.ia.gen !== gen)) { B.ia = { modelo: slug, gen }; guardar(); toast(t("Cargué la IA \"{slug}\" (generación {gen}) en {nombre}.", { slug, gen: gen ?? "?", nombre: d.nombre }), 3000); }
 }
 
+/** La IA con la que sale un dron de la flota (flota.js): la suya o la base, cargada en el dron sin avisar. */
+async function iaDe(d) {
+  if (d.modelo && G.ias[d.modelo] === undefined) await loadModel(d.modelo);
+  if (G.ias.base === undefined) await loadModel("base");
+  const slug = slugIA(d), I = G.ias[slug];
+  if (!I) return null;
+  const gen = I.meta?.generaciones;
+  (d.banco || (d.banco = {})).ia = { modelo: slug, gen };
+  return { slug, gen, policy: I.policy };
+}
+
 // ---------------- el banco ----------------
 const ctx = { G, cat, PT, BA, $, fmt, esc, toast, descr, api, guardar, modal, show, D, U, estadoDe, dronVista, verDron, get garaje() { return garaje; },
   renderTaller, irTaller, infoModelo, loadModelos, abrirLab: () => abrirLab(), canvas };
@@ -507,7 +518,7 @@ const sim = initSim(ctx);
 ctx.abrirAvance = (slug, volver) => sim.abrirAvance(slug, volver);
 ctx.abrirSimular = (slug, volver) => sim.abrirSimular(slug, volver);
 $("b-estudio").onclick = () => estudio.abrir();
-const celular = initCelular({ ...ctx, ND, P: () => P(), openBrief: (pe) => openBrief(pe), misPedido: (id) => mis.pedidos.find((x) => x.id === id), fotos: G.fotos });
+const celular = initCelular({ ...ctx, ND, P: () => P(), openBrief: (pe) => openBrief(pe), misPedido: (id) => mis.pedidos.find((x) => x.id === id), fotos: G.fotos, iaDe });
 $("b-celular").onclick = () => celular.abrir();
 ctx.esDev = () => P()?.modo === "dev";
 const tienda = initTienda(ctx);

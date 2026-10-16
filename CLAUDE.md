@@ -75,7 +75,10 @@ app/               EL JUEGO (Dron Maker): usa los módulos de game/
   dron3d.js        el dron en 3D armado con sus piezas (formas, tu STL, carcasa, cables, piezas "fantasma" sin instalar)
   garaje.js        la escena del garaje + el banco: impresora 3D, portátil con USB, animaciones (instalar, chispas,
                    humo, motores girando, prueba atada, la caja del pedido) y los sonidos (sintetizados)
-  vuelo.js         un vuelo: física del dron armado, batería, cámara del dron, grabar, calificar, IA
+  mision_sim.js    un vuelo SIN pantalla (física del dron armado, batería, radio, tomas, calificación, IA): la flota
+  vuelo.js         el mismo vuelo con pantalla (class Vuelo extends MisionSim): 3D, cámara del dron, grabar video, fotos
+  flota.js         LA FLOTA: los pedidos asignados a un dron (pe.flota) los vuela su IA al terminar el día (mision_sim)
+                   test: node --import ./app/three_node.mjs app/test_flota.mjs (three_node.mjs = "three" en Node)
   simulacion.js    el visor de grabaciones (Avance del modelo / Simular prueba): escena, recorrido, cámaras, gráficas
   ui_sim.js        su pantalla (pestañas mejor/peor, línea de tiempo, cámaras, red del instante)
   redviz.js        dibujar una red neuronal en un canvas (Estudio y visor)
@@ -138,7 +141,8 @@ python game/make_fixture.py && node game/test_sim.mjs    # JS == Python ("Todo i
 node app/test_parts.mjs                # piezas -> física
 node app/test_banco.mjs                # banco de armado + partida v3 (migra la partida.json si existe)
 node app/test_pbdmm.mjs                # el lenguaje PBDMM (intérprete, errores, ejemplos, PBDMM 2, la ruta)
-node app/test_negocio.mjs              # el negocio (clientes, días, pedidos, tutorial) y requisitos.js
+node app/test_negocio.mjs              # el negocio (clientes, días, pedidos, tutorial, flota) y requisitos.js
+node --import ./app/three_node.mjs app/test_flota.mjs   # la flota y el vuelo sin pantalla (vuelos de verdad con la IA base)
 node app/test_i18n.mjs                 # las traducciones (cada t() con su inglés, el HTML, las capas de datos)
 node app/test_modulos.mjs              # que nada importado quede tapado por una variable local
 node app/doc_pbdmm.mjs                 # vuelve a escribir docs/PBDMM.md y docs/pbdmm/tutorial.md si cambias app/data/pbdmm.json
@@ -200,7 +204,10 @@ Node v22 está en `/opt/homebrew/bin/node`. Blender 5.2 en `/Applications/Blende
   (`requisitos.js`; `entrenamiento.json` misiones: `pedido` y `requisitos_ia`), `ficha/tabla/barra/color/explicar`,
   `narrar(cada=)` + `e.cambio` + `e.diagnosticos`, más Python (rebanadas, closures, sorted…) y la ruta del programador
   (`ruta.js`, `pbdmm.json "ruta"`). Docs: `docs/pbdmm/` (tutorial generado desde la ruta).
-- **Lo siguiente (docs/ROADMAP.md):** el negocio — flota (varios trabajos con la IA a la vez), encargos de armado,
+- **v1.0 publicada (16-10-2026)**: tag `v1.0.0` y release en GitHub.
+- **La flota (16-10-2026):** 🤖 A la flota en la tarjeta del pedido (un trabajo por dron); al terminar el día cada IA vuela
+  su trabajo sin pantalla (`mision_sim.js`, la misma clase de la que hereda `Vuelo`) y sale el reporte en el celular.
+- **Lo siguiente (docs/ROADMAP.md):** Fase 1b (premios para que la flota cumpla), encargos de armado,
   pruebas de drones (QA), a mano, entregas. Decidido: el tutorial es el modo desarrollador (la demo grabada);
   imágenes y rendimiento se mejoran sobre la marcha.
 - **Idiomas (15-10-2026):** español (original) + inglés. `app/i18n.js`: `t("texto en español", {vars})` (la clave es el

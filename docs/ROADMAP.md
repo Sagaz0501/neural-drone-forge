@@ -95,7 +95,10 @@ tutorial, el más fácil), 🎬 video, 🔎 inspección, 🛠️ encargos de arm
 
 ## ⏭️ Lo siguiente · El negocio, parte 2
 
-- 🔜 **Flota:** varios trabajos ★ con la IA a la vez.
+- ✅ **Flota** *(16-10-2026)*: 🤖 en la tarjeta del pedido, un trabajo por dron; al terminar el día cada IA vuela su
+  trabajo de verdad sin pantalla (`mision_sim.js`) y sale el reporte en el celular. Lo que no entrega sigue abierto.
+- 🔜 Lo que sigue para la flota: la **Fase 1b** (premios para fotos, altura, velocidad, encuadre) para que las IA
+  cumplan; ver la repetición de un vuelo de la flota; que la flota cueste algo (baterías, mantenimiento).
 - 📝 🛠️ Encargos de armado y 🧪 pruebas de drones (con la Fase 2), 🎮 a mano (Fase 3), 📦 entregas.
 - 📝 Más clientes y lugares.
 
@@ -180,8 +183,21 @@ Entrenar toma minutos u horas. Que ese tiempo también sea juego.
 
 ## Fase 5 · Producto 📝
 
-1. 📝 **Instalador de un clic** (Windows / macOS / Linux): empaquetar el juego y el entrenador (Tauri o Electron
-   + Python embebido) para que nadie tenga que abrir una terminal.
+1. 📝 **Una app, no solo el navegador** *(Santiago, 16-10-2026: nota para el futuro; primero se termina aquí)*.
+   Hoy el juego es web (`app/`) y el entrenamiento es Python (`jugar.py` + PyTorch, Blender opcional). Por pasos:
+   - **Paso 0 · PWA** (lo más barato): un `manifest.json` y un service worker, y Chrome/Edge lo "instalan" con su
+     ícono y en ventana propia. No cambia el código, pero el entrenador sigue necesitando `python scripts/jugar.py`.
+   - **Paso 1 · Escritorio** (Windows / macOS / Linux, instalador de un clic): **Electron** (trae su Chromium: WebGL y
+     el video `.webm` funcionan igual en todos lados; pesa ~150 MB) o **Tauri** (usa el navegador del sistema, pesa
+     ~10 MB, pero Safari/WebKit en macOS graba video distinto). El servidor y el entrenador van adentro como un
+     programa aparte ("sidecar": Python + PyTorch empaquetado con PyInstaller, ~300 MB por PyTorch). Recomendado:
+     Electron primero, porque el juego ya está probado en Chromium. Con esto se puede publicar en itch.io y Steam.
+   - **Paso 2 · Celular** (iOS / Android, con **Capacitor**: el mismo juego web adentro de una app). Jugar sí:
+     garaje, celular, vuelos (falta controles táctiles y bajar la calidad 3D). Entrenar en el teléfono no (PyTorch no
+     corre ahí): el teléfono se conecta al PC de la casa por la red local para entrenar, o se hace un entrenador más
+     chico en JavaScript solo para afinar.
+   - **Qué conviene ir dejando listo desde ya:** que la partida y los programas `.pbd` se guarden en archivos (no solo
+     en el navegador), que el juego no dependa de rutas fijas del servidor y que todo se pueda jugar sin el ratón.
 2. 📝 **Inglés** además de español (los textos ya viven en JSON: `app/data/`).
 3. 📝 **Guardado en archivos** (exportar e importar la partida y los modelos) y más ranuras de partida.
 4. 📝 **Accesibilidad:** tamaño de letra, controles reasignables, modo daltónico para el cableado.

@@ -4,6 +4,10 @@
 // los entregas por el chat. La relación con cada cliente sube o baja y los buenos clientes te recomiendan a otros.
 // Los pedidos de la campaña (misiones.json) llegan como "pedidos especiales" ⭐ del cliente que corresponde.
 //
+// La FLOTA: un pedido aceptado se le asigna a un dron del hangar (pe.flota = id del dron, uno por dron) y su IA lo vuela
+// sola al terminar el día (flota.js, con la misma simulación de un vuelo). Si entrega, se cobra como siempre; si no,
+// el pedido sigue abierto.
+//
 // Solo lógica (sin pantalla): la pantalla es celular.js. Todo vive en partida.negocio. Pruebas: node app/test_negocio.mjs
 //   D = { clientes (data/clientes.json), trabajos (data/trabajos.json), misiones (data/misiones.json) }
 // =====================================================================
@@ -150,6 +154,7 @@ export function nuevoDia(p, D, { primero = false } = {}) {
     for (const pe of N.pedidos) {
       if ((pe.estado === "nuevo" || pe.estado === "aceptado") && N.dia > pe.limite) {
         pe.estado = "vencido";
+        delete pe.flota;
         out.vencidos.push(pe);
         if (pe.cliente) {
           N.relacion[pe.cliente] = Math.max(0, (N.relacion[pe.cliente] || 0) - 1);
@@ -233,6 +238,7 @@ export function entregar(p, D, id, r) {
   const rep = M.reputacion_por_estrellas[e];
   const antes = N.relacion[pe.cliente] || 0;
   const rel = Math.max(0, Math.min(R.max, antes + (e >= 2 ? 1 : e === 0 ? -1 : 0)));
+  delete pe.flota;
   escribir(p, pe.cliente, "yo", pe.tipo === "video" ? t("¡Listo! Aquí está el video 🎬") : nombreTipo(pe.tipo, pe.n) === t("1 foto") ? t("¡Listo! Aquí está la foto 📷") : t("¡Listo! Aquí están las fotos 📷"), { entrega: id, fotos: r.fotos || 0, estrellas: e });
   const texto = rngDe(N_(p) + e).uno(C.msgs.gracias[e]);
   escribir(p, pe.cliente, "ella", texto);
@@ -263,6 +269,48 @@ export function entregarEspecial(p, D, idCampana, estrellas) {
   escribir(p, cid, "ella", rngDe(N_(p) + 7 * e).uno(C.msgs.gracias[e]));
   if (e >= 2) p.negocio.relacion[cid] = Math.min(D.trabajos.relacion.max, (p.negocio.relacion[cid] || 0) + 1);
   if (e >= 1) p.negocio.hoy++;
+}
+
+// ---------------- la flota ----------------
+/** El pedido que tiene asignado un dron (o null): cada dron vuela un trabajo por día. */
+export function ocupado(p, dronId) {
+  return p.negocio?.pedidos.find((x) => x.flota === dronId && (x.estado === "nuevo" || x.estado === "aceptado")) || null;
+}
+/** Los pedidos que la flota vuela al terminar el día. */
+export function flota(p) {
+  return (p.negocio?.pedidos || []).filter((x) => x.flota && (x.estado === "nuevo" || x.estado === "aceptado"));
+}
+/**
+ * Mandar un pedido a la flota con un dron (si era nuevo, se acepta). El tutorial no: ese lo vuelas tú.
+ * Devuelve { ok, msg }. Si el dron tenía otro pedido, se le quita (un trabajo por dron).
+ */
+export function asignar(p, D, id, dronId) {
+  const pe = pedido(p, id);
+  if (!pe || (pe.estado !== "nuevo" && pe.estado !== "aceptado")) return { ok: false, msg: t("Ese pedido ya no está abierto.") };
+  if (pe.tutorial) return { ok: false, msg: t("Este primero vuélalo tú: es tu primer trabajo.") };
+  if (!p.drones.some((d) => d.id === dronId)) return { ok: false, msg: t("Ese dron no está en tu hangar.") };
+  if (pe.estado === "nuevo") aceptar(p, D, id);
+  const otro = ocupado(p, dronId);
+  if (otro && otro.id !== id) delete otro.flota;
+  pe.flota = dronId;
+  return { ok: true, quitado: otro && otro.id !== id ? otro : null };
+}
+export function quitarFlota(p, id) {
+  const pe = pedido(p, id);
+  if (pe) delete pe.flota;
+  return pe;
+}
+/**
+ * Lo que pasó con un trabajo de la flota que no se entregó (le faltaron tomas, chocó, batería, failsafe): el cliente no
+ * se entera, el pedido sigue abierto (hasta que venza: si vencía hoy, vence al terminar el día) y en su chat queda una nota.
+ */
+export function falloFlota(p, D, id, dron, motivo) {
+  const pe = pedido(p, id);
+  if (!pe) return null;
+  delete pe.flota;
+  const v = { dron, titulo: pe.titulo, motivo };
+  escribir(p, pe.cliente, "sistema", pe.limite <= p.negocio.dia ? t("🤖 {dron} no pudo con «{titulo}»: {motivo}. Hoy vencía.", v) : t("🤖 {dron} no pudo con «{titulo}»: {motivo}. El pedido sigue abierto.", v));
+  return pe;
 }
 
 /** Los pedidos que esperan algo de ti: nuevos (responder) y aceptados (volar), con los días que quedan. */

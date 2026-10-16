@@ -10,7 +10,9 @@ Cómo se conectan las piezas de **Neural Drone Forge**. Para la base de la que n
  │  main.js        pantallas, garaje, pedidos, vuelo, Laboratorio                                     │
  │  partida.js     la partida (localStorage): plata, inventario por unidades, hangar, modo normal/dev │
  │  banco.js / ui_banco.js   el banco de armado (pines, cortos, firmware, motores) y su pantalla       │
- │  vuelo.js       un vuelo: game/sim.js (la física) + la red (Policy) + la cámara + la calificación   │
+ │  mision_sim.js  un vuelo sin pantalla: game/sim.js (la física) + la red + batería + calificación   │
+ │  vuelo.js       el mismo vuelo con pantalla (hereda de mision_sim): 3D, cámara del dron, video     │
+ │  negocio.js / celular.js / flota.js   los clientes, el chat y la flota (vuela con mision_sim)      │
  │  pbdmm.js / autocompletar.js / estudio.js   el lenguaje PBDMM, su autocompletado y el IDE          │
  └───────────────┬──────────────────────────────────────────────────────────────▲─────────────────────┘
                  │ POST /api/lab (entrenar: modelo, misión, dron, premios, lr, capas…)│ GET /api/lab, /api/red,

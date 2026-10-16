@@ -24,5 +24,5 @@ jobs:
         run: python -m pytest -q
       - name: JavaScript == Python
         run: python game/make_fixture.py && node game/test_sim.mjs
-      - name: Piezas, banco de armado y PBDMM
-        run: node app/test_parts.mjs && node app/test_banco.mjs && node app/test_pbdmm.mjs && node app/test_modulos.mjs && node app/test_i18n.mjs
+      - name: Piezas, banco de armado, PBDMM, el negocio y la flota
+        run: node app/test_parts.mjs && node app/test_banco.mjs && node app/test_pbdmm.mjs && node app/test_modulos.mjs && node app/test_i18n.mjs && node app/test_negocio.mjs && node --import ./app/three_node.mjs app/test_flota.mjs

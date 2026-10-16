@@ -93,6 +93,10 @@ distancia, obstáculos), cuánto paga y para cuándo.
 - Un pedido aceptado tiene **Volar ▶**: abre el briefing y vuelas tú o la IA. Al terminar, se entrega por el chat y el
   cliente responde según las estrellas. Con 0 estrellas no paga, pero puedes intentarlo otra vez antes de que venza.
 - **Fotos:** llega al aro y **quédate quieto** unos segundos con el sujeto al centro: clic.
+- **🤖 A la flota:** en vez de volarlo tú, le das el pedido a un dron de tu hangar y **su IA lo vuela sola al terminar
+  el día** (un trabajo por dron). Después sale el **reporte de la flota**: qué entregó, con cuántas estrellas, cuánto
+  pagaron y qué se dañó. Lo que no entregó sigue abierto (el cliente no se entera). Cuanto mejor entrenes la IA de
+  cada dron, más plata trae la flota.
 - **Terminar el día 🌙:** llegan pedidos nuevos (más y más difíciles con más reputación) y vencen los que no hiciste.
 - Cada cliente tiene su **relación** (♥): sube con buenas entregas, baja si fallas o dejas vencer, y los contentos te
   **recomiendan** a otros. Desde la reputación 6 se paga arriendo cada 7 días.

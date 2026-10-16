@@ -92,6 +92,29 @@ const dv = partida({ modo: "dev", rep: 30 });
 NG.asegurar(dv, D);
 ok(NG.pasoTutorial(dv, {}) === null && dv.negocio.pedidos.length >= 1, "modo desarrollador: sin tutorial, con pedidos");
 
+// 3b) la flota: un pedido por dron, el tutorial no, al fallar el pedido sigue abierto, al vencer suelta al dron
+const fl = partida({ modo: "dev", rep: 30, drones: [{ id: "d1", nombre: "Uno" }, { id: "d2", nombre: "Dos" }] });
+NG.asegurar(fl, D);
+const rngFijo = Object.assign(() => 0.5, { entre: (x, y) => (x + y) / 2, int: (x) => x, uno: (xs) => xs[0] });
+const f1 = NG.crearPedido(fl, D, "marta", "foto_casa", 1, rngFijo), f2 = NG.crearPedido(fl, D, "marta", "video_casa", 1, rngFijo);
+ok(NG.asignar(fl, D, f1.id, "d1").ok && f1.estado === "aceptado" && f1.flota === "d1", "flota: asignar acepta el pedido y le pone el dron");
+ok(!NG.asignar(fl, D, f1.id, "nadie").ok, "flota: un dron que no está en el hangar, no");
+const r2 = NG.asignar(fl, D, f2.id, "d1");
+ok(r2.ok && r2.quitado?.id === f1.id && !f1.flota && NG.ocupado(fl, "d1")?.id === f2.id, "flota: un trabajo por dron (el nuevo le quita el anterior)");
+NG.asignar(fl, D, f1.id, "d2");
+ok(NG.flota(fl).length === 2, "flota: dos drones, dos trabajos");
+NG.falloFlota(fl, D, f1.id, "Dos", "se estrelló");
+ok(f1.estado === "aceptado" && !f1.flota && fl.negocio.chats.marta.at(-1).de === "sistema", "flota: si no entrega, el pedido sigue abierto y queda una nota en el chat");
+const plataF = fl.plata;
+NG.entregar(fl, D, f2.id, { estrellas: 2, piloto: "ia" });
+ok(f2.estado === "hecho" && !f2.flota && fl.plata > plataF && NG.flota(fl).length === 0, "flota: entregar cobra y suelta al dron");
+NG.asignar(fl, D, f1.id, "d2");
+for (let k = 0; k < 6; k++) NG.nuevoDia(fl, D);
+ok(f1.estado === "vencido" && !f1.flota && !NG.ocupado(fl, "d2"), "flota: un pedido vencido suelta al dron");
+const tu = partida({ drones: [{ id: "d1", nombre: "Kit" }] });
+NG.asegurar(tu, D);
+ok(!NG.asignar(tu, D, tu.negocio.pedidos[0].id, "d1").ok, "flota: el pedido del tutorial lo vuelas tú");
+
 // 4) requisitos
 const st = { twr: 1.9, calidad: 30, alcance_m: 20, minutos: 4, ayudas: [], nitidez: 0.7 };
 const L = REQ.requisitos({ twr_min: 2.2, barometro: true, protectores: true, calidad_min: 50 }, st, { segundos: 20, viento: 2.5, alcance: 25 });
