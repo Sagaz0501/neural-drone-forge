@@ -262,7 +262,7 @@ class DroneEnv(gym.Env):
         rng = self.np_random
         self.flock, self.target, self.liebre = None, None, None
         if self.stage == CHASE_STAGE and self.fixed_level is None:
-            self.liebre = Liebre(self.level, speed=(2.0, max(2.5, self.bird_speed))).reset(self.np_random, self.state.pos)
+            self.liebre = Liebre(self.level, speed=(2.0, max(6.0, self.bird_speed))).reset(self.np_random, self.state.pos)   # 2-6 m/s; más rápido con bird_speed
         if self.stage in HUNT_STAGES and self.fixed_level is None:
             self.flock = Flock(self.n_birds, self.bird_speed, center=self.level.spawn,
                                level=self.level if self.stage > 8 else None,

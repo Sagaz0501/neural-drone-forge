@@ -368,6 +368,14 @@ ok(salida.join("|") === "0 a|1 b|[[1, 3], [2, 4]] True False [2, 1]", "enumerate
   ok(pedidoDe(compilar(data.ejemplos.curriculum, D, host).cfg, () => null).tarea === undefined, "sin simuladores (programas de antes): nada cambia");
   const pp = { plata: 100, escenarios: ["foto_fija"] };
   ok(ESC.comprar(pp, ES3, "video_ruta") && ESC.comprar(pp, ES3, "set_fotos") === null && pp.plata === 20 && ESC.estado(pp, ES3, "video_ruta") === "comprable", "comprar en orden: Set de fotos ($80) abre Video con ruta");
+  // las pruebas nuevas (niveles 16-18): con todos los simuladores, cada misión compila y entrena su nivel
+  const todos = { escenarios: ES3.escenarios.map((e) => e.id) }, dT = ESC.disponibles(todos, ES3);
+  const DT = { ...D, misionesDisponibles: dT.misiones, nivelesDisponibles: dT.niveles, bloqueadas: dT.bloqueadas, planes: dT.planes };
+  for (const [m, nv, plan] of [["entrega", 17, "despegar()\nir_a()\nesquivar()\nmantener(1)\naterrizar()"], ["carrera", 16, "despegar()\nir_a()"], ["persecucion", 18, "despegar()\nir_a()"]]) {
+    const Pm = falla(() => compilar(`modelo("x")\nmision("${m}")\n${plan}`, DT, host)) || compilar(`modelo("x")\nmision("${m}")\n${plan}`, DT, host);
+    ok(Pm.cfg?.nivel === nv, `mision("${m}") entrena el nivel ${nv}${Pm.message ? ": " + Pm.message : ""}`);
+  }
+  ok(/todavía no la tienes|simulador/.test(err3('modelo("x")\nmision("carrera")\ndespegar()\nir_a()')), "la carrera sin su simulador: error");
 }
 
 console.log(fallas ? `\n${fallas} pruebas fallaron.` : "\nTodas las pruebas pasan.");

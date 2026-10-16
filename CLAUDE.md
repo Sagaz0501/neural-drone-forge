@@ -307,7 +307,7 @@ Node v22 está en `/opt/homebrew/bin/node`. Blender 5.2 en `/Applications/Blende
 - **Freestyle y niveles 16-18 (16-10-2026, v2.1):** `app/freestyle.html` (3 mapas: la fábrica, el cañón, el estadio de noche;
   control PS5/Xbox, FPV, acro). Niveles nuevos de la IA (solo Python, para entrenar): **16 Carrera** (6-9 portales a 7-15 m,
   campo de 60 m, portal de 1 m de radio), **17 Entrega** (plataforma a 14-32 m entre edificios, quedarse 1 s), **18 Persecución**
-  (la liebre a 2-`bird_speed` m/s). El 15 queda para la toma seguir. `drones/fs_racer.json` = el dron de los rivales.
+  (la liebre a 2-6 m/s, o hasta `bird_speed` si es mayor). El 15 queda para la toma seguir. `drones/fs_racer.json` = el dron de los rivales.
   `foto(calidad=)` de PBDMM va de 0,3 a 0,7: un piloto PD perfecto saca ~0,56; con 0,8 la IA nunca pasa y no aprende.
 - **Nivel 12 · Grabar entre postes**: como el 11 con postes a 1,5 m de la ruta (`level.film_posts`).
 - **Niveles 13 · Foto y 14 · Set de fotos** (Fase 1b): tomas fijas cortas; ver arriba.

@@ -48,6 +48,27 @@
       "para": "Jobs with 2-4 photos",
       "desc": "Same as Photo, but 2-4 photos in a row around the house, in order: each one 40-90° past the previous one. After each photo it has to fly to the next one without hitting the house.",
       "exito": "Set done = ALL photos with quality ≥ 50 %."
+    },
+    {
+      "id": "carrera",
+      "nombre": "Race",
+      "para": "The league and the freestyle rivals (🏁)",
+      "desc": "A track of 6-9 gates in order, far apart (7-15 m) and with turns, on a 60 m field with columns on the sides. They must be passed FAST: the speed reward pays each leg's speed. It's what the freestyle rivals fly.",
+      "exito": "Pass all gates in order (passing within 1 m of the center is enough)."
+    },
+    {
+      "id": "entrega",
+      "nombre": "Delivery",
+      "para": "Package deliveries (📦)",
+      "desc": "A far platform (14-32 m), sometimes on a rooftop, with buildings in the way and a bit of wind. Get there without crashing and hold STILL for 1 s above it: then the autopilot lands, as in the game.",
+      "exito": "Stay 1 s in a row within 0.5 m of the point 0.6 m above the platform."
+    },
+    {
+      "id": "persecucion",
+      "nombre": "Chase",
+      "para": "Catching something that moves (🐇)",
+      "desc": "The hare: a target that runs on its own over a 40 m field at 2-6 m/s, climbs, dives, changes pace and dodges columns. The drone knows where it is and how it moves: to catch it, it has to cut corners. In freestyle, you are the hare.",
+      "exito": "Pass within 0.8 m of the hare."
     }
   ],
   "premios": [

@@ -618,8 +618,13 @@ function camara(dt, pos, q, yaw) {
     camera.quaternion.copy(q).multiply(FPV_Q);
   } else {
     if (camera.fov !== 72) { camera.fov = 72; camera.updateProjectionMatrix(); }
-    const lejos = cfg.cam === "lejos", back = lejos ? 7 : 2.6, up = lejos ? 3.2 : 0.9;
+    const lejos = cfg.cam === "lejos";
+    let back = lejos ? 7 : 2.6, up = lejos ? 3.2 : 0.9;
+    // si una pared o una roca queda entre el dron y la cámara, la cámara se acerca (no se mete adentro)
+    const L = Math.hypot(back, up), libre = S.nivel.raycast(pos, [[-Math.cos(yaw) * back / L, -Math.sin(yaw) * back / L, up / L]], L)[0];
+    if (libre < L) { const f = Math.max((libre - 0.3) / L, 0.12); back *= f; up *= f; }
     const want = V(pos[0] - Math.cos(yaw) * back, pos[1] - Math.sin(yaw) * back, pos[2] + up);
+    if (libre < L) camPos.copy(want);
     camPos.lerp(want, 1 - Math.exp(-6 * dt));
     camera.position.copy(camPos);
     camera.lookAt(V(pos[0] + Math.cos(yaw) * 2, pos[1] + Math.sin(yaw) * 2, pos[2] + 0.3));

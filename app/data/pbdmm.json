@@ -21,7 +21,10 @@
     11,
     12,
     13,
-    14
+    14,
+    16,
+    17,
+    18
   ],
   "nombres_niveles": {
     "0": "Hover (quedarse quieto)",
@@ -38,7 +41,10 @@
     "11": "Grabar: tomas con ruta",
     "12": "Grabar entre postes",
     "13": "Foto",
-    "14": "Set de fotos"
+    "14": "Set de fotos",
+    "16": "Carrera",
+    "17": "Entrega",
+    "18": "Persecución"
   },
   "alias_premios": {
     "grabar": "film",
@@ -169,7 +175,7 @@
       "params": [
         [
           "id",
-          "\"grabar\", \"grabar_viento\", \"grabar_postes\", \"foto\", \"set_fotos\", \"repaso_metas\" o \"repaso_columnas\""
+          "\"grabar\", \"grabar_viento\", \"grabar_postes\", \"foto\", \"set_fotos\", \"repaso_metas\", \"repaso_columnas\", \"entrega\", \"carrera\" o \"persecucion\""
         ]
       ],
       "ejemplo": "mision(\"grabar_postes\")",
@@ -1218,7 +1224,10 @@
       "repaso_metas": "review_goals",
       "repaso_columnas": "review_columns",
       "foto": "photo",
-      "set_fotos": "photo_set"
+      "set_fotos": "photo_set",
+      "carrera": "race",
+      "entrega": "delivery",
+      "persecucion": "chase"
     },
     "comandos": {
       "ayuda": "help",

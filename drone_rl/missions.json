@@ -146,9 +146,9 @@
   "18": {
     "nombre": "Persecución",
     "tiempo": 30,
-    "objetivo": "Alcanzar a la liebre: un blanco que corre solo por un campo de 40 m (2-8 m/s), sube, baja y esquiva columnas. En el juego, la liebre eres tú (freestyle).",
+    "objetivo": "Alcanzar a la liebre: un blanco que corre solo por un campo de 40 m (2-6 m/s, o hasta la 'velocidad de los pájaros' si es mayor), sube, baja y esquiva columnas. En el juego, la liebre eres tú (freestyle).",
     "exito": "Pasar a menos de 0,8 m de la liebre.",
     "falla": "tocar una columna, chocar con el piso a más de 4 m/s, salir del área de 60 m, o que se acabe el tiempo",
-    "premio": "+ por metro que se acerca, + al alcanzarla, - al chocar. 'Velocidad de los pájaros' = la rapidez máxima de la liebre"
+    "premio": "+ por metro que se acerca, + al alcanzarla, - al chocar"
   }
 }

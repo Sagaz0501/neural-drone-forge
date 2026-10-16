@@ -21,6 +21,15 @@
       "plan": ["despegar", "ir_a", "grabar"], "abre": ["viento", "aprendizaje", "revisar", "hangar", "inventario"], "trabajos": "Videos en la finca (viento)" },
     { "id": "video_postes", "icono": "🏮", "nombre": "Entre postes", "mision": "grabar_postes", "nivel": 12, "precio": 420, "requiere": "video_viento",
       "desc": "Grabar con postes a metro y medio de la ruta: precisión de verdad.",
-      "plan": ["despegar", "ir_a", "esquivar", "grabar"], "abre": ["red", "nivel", "explicar"], "trabajos": "Videos del restaurante (postes)" }
+      "plan": ["despegar", "ir_a", "esquivar", "grabar"], "abre": ["red", "nivel", "explicar"], "trabajos": "Videos del restaurante (postes)" },
+    { "id": "entrega", "icono": "📦", "nombre": "Entregas", "mision": "entrega", "nivel": 17, "precio": 520, "requiere": "video_postes",
+      "desc": "Llevar un paquete a una plataforma lejos (a veces en una azotea) esquivando edificios, y quedarse quieto encima para que aterrice.",
+      "plan": ["despegar", "ir_a", "esquivar", "mantener", "aterrizar"], "abre": [], "trabajos": "Entregas (llegan con el taller grande)" },
+    { "id": "carrera", "icono": "🏁", "nombre": "Carrera", "mision": "carrera", "nivel": 16, "precio": 650, "requiere": "entrega",
+      "desc": "Una pista de portales lejos unos de otros: pasarlos rápido y en orden. Tu modelo puede ser el rival del freestyle.",
+      "plan": ["despegar", "ir_a"], "abre": [], "trabajos": "La liga de carreras y los rivales del freestyle" },
+    { "id": "persecucion", "icono": "🐇", "nombre": "Persecución", "mision": "persecucion", "nivel": 18, "precio": 750, "requiere": "carrera",
+      "desc": "Alcanzar a la liebre, un blanco que corre y cambia de rumbo: adelantarse en las curvas. Tu modelo puede perseguirte en el freestyle.",
+      "plan": ["despegar", "ir_a"], "abre": [], "trabajos": "Persecuciones de la liga y el cazador del freestyle" }
   ]
 }

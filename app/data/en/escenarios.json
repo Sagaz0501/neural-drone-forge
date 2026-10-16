@@ -6,6 +6,9 @@
     { "id": "video_ruta", "nombre": "Video on a path", "desc": "Follow a camera path (static, orbit, reveal) with the house centered, without losing it.", "trabajos": "House videos" },
     { "id": "repaso_columnas", "nombre": "Column forest", "desc": "Reach the goal dodging columns: it learns not to crash.", "trabajos": "Dodging training" },
     { "id": "video_viento", "nombre": "Video in wind", "desc": "The same shots with wind gusts: hold on without losing the framing.", "trabajos": "Farm videos (wind)" },
-    { "id": "video_postes", "nombre": "Between poles", "desc": "Film with poles a meter and a half from the path: real precision.", "trabajos": "Restaurant videos (poles)" }
+    { "id": "video_postes", "nombre": "Between poles", "desc": "Film with poles a meter and a half from the path: real precision.", "trabajos": "Restaurant videos (poles)" },
+    { "id": "entrega", "nombre": "Deliveries", "desc": "Carry a package to a far platform (sometimes on a rooftop) dodging buildings, and hold still above it so it can land.", "trabajos": "Deliveries (they come with the big workshop)" },
+    { "id": "carrera", "nombre": "Race", "desc": "A track of gates far apart: pass them fast and in order. Your model can be the freestyle rival.", "trabajos": "The racing league and the freestyle rivals" },
+    { "id": "persecucion", "nombre": "Chase", "desc": "Catch the hare, a target that runs and changes direction: cut the corners. Your model can chase you in freestyle.", "trabajos": "League chases and the freestyle chaser" }
   ]
 }

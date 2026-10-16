@@ -14,7 +14,10 @@
     "11": "Filming: shots with a route",
     "12": "Filming between poles",
     "13": "Photo",
-    "14": "Photo set"
+    "14": "Photo set",
+    "16": "Race",
+    "17": "Delivery",
+    "18": "Chase"
   },
   "funciones": [
     {
@@ -120,7 +123,7 @@
       "params": [
         [
           "id",
-          "\"film\", \"film_wind\", \"film_poles\", \"photo\", \"photo_set\", \"review_goals\" or \"review_columns\""
+          "\"film\", \"film_wind\", \"film_poles\", \"photo\", \"photo_set\", \"review_goals\", \"review_columns\", \"delivery\", \"race\" or \"chase\""
         ]
       ],
       "firma": "mission(id)",
