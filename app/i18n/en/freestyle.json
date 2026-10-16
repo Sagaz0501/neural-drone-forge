@@ -68,5 +68,8 @@
   "Vuelta {v} de {n} · portal {k} de {m}": "Lap {v} of {n} · gate {k} of {m}",
   "Puesto {p} de {n}": "Position {p} of {n}",
   "el más cerca a {d} m": "closest at {d} m",
-  "Vuelo libre · {m}": "Free flight · {m}"
+  "Vuelo libre · {m}": "Free flight · {m}",
+  "Racer de la liga (el de los rivales)": "League racer (same as the rivals)",
+  "Tu dron: {n}": "Your drone: {n}",
+  "Dron": "Drone"
 }

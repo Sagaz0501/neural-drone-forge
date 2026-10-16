@@ -16,7 +16,9 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { Level, Policy, step as fisica, newState, buildObs, sensorRays, actionToThrottle, CONTROL_HZ, SUBSTEPS } from "../game/sim.js";
 import { V, makeDrone } from "../game/scene.js";
 import { readGamepad, rawSticks } from "../game/pilot.js";
-import { t, cargarIdioma, num } from "./i18n.js";
+import { t, cargarIdioma, num, datos } from "./i18n.js";
+import * as PT from "./partida.js";
+import { paramsFisica } from "./parts.js";
 import { MAPAS, ORDEN, nivelDe, orientaciones, cruza } from "./freestyle_mapas.js";
 import { construirMapa, Portales, fondoMinimapa } from "./freestyle_vista.js";
 
@@ -27,7 +29,7 @@ const DT = 1 / CONTROL_HZ;
 
 // ---------------- lo que se recuerda ----------------
 const CLAVE = "dronmaker.freestyle";
-const cfg = { mapa: "fabrica", modo: "libre", acro: false, rival: "corredor", cazador: "cazador", nRivales: 1, vueltas: 2, cam: "fpv",
+const cfg = { dron: "racer", mapa: "fabrica", modo: "libre", acro: false, rival: "corredor", cazador: "cazador", nRivales: 1, vueltas: 2, cam: "fpv",
   mando: 2, gasLineal: false, tasa: 600, tilt: 25, records: {} };
 try { Object.assign(cfg, JSON.parse(localStorage.getItem(CLAVE) || "{}")); } catch { /* sin almacenamiento */ }
 const guardar = () => { try { localStorage.setItem(CLAVE, JSON.stringify(cfg)); } catch { /* sin almacenamiento */ } };
@@ -40,6 +42,23 @@ const aP = (f) => { const p = { mass: f.mass, g: 9.81, twr: f.twr, drag: f.drag,
 let RACER = aP({ mass: 0.48, twr: 4.0, drag: 0.035, max_angle_deg: 50, yaw_rate_deg: 270, att_resp: 11, crash_speed: 4, radius: 0.15 });
 try { RACER = aP((await (await fetch("../drones/fs_racer.json")).json()).fisica); } catch { /* el de arriba (es el mismo) */ }
 const ACRO = aP({ mass: 0.5, twr: 6.0, drag: 0.02, max_angle_deg: 90, yaw_rate_deg: 400, att_resp: 22, crash_speed: 5.5, radius: 0.15 });
+/** Tus drones del hangar (la partida del juego): su física sale de sus piezas, como en el resto del juego. */
+async function dronesHangar() {
+  try {
+    const p = PT.cargar();
+    if (!p?.drones?.length) return [];
+    const cat = await datos("piezas", await (await fetch("./data/piezas.json")).json());
+    return p.drones.map((d) => {
+      const a = PT.dronArmado(p, cat, d);
+      return a && !a.stats.errores?.length ? { id: "h:" + d.id, nombre: d.nombre, p: paramsFisica(a.stats) } : null;
+    }).filter(Boolean);
+  } catch { return []; }
+}
+const fisicaDe = (id) => (S.hangar.find((h) => h.id === id)?.p) || RACER;
+/** Vibrar el control (si se puede: el DualSense y el de Xbox sí, en Chrome). */
+function vibrar(fuerte, ms = 160) {
+  try { readGamepad()?.vibrationActuator?.playEffect("dual-rumble", { duration: ms, strongMagnitude: fuerte, weakMagnitude: Math.min(1, fuerte + 0.2) }); } catch { /* no vibra */ }
+}
 
 // cuaterniones en ejes de la simulación (w, x, y, z): X adelante, Y izquierda, Z arriba
 const qMul = (a, b) => [a[0] * b[0] - a[1] * b[1] - a[2] * b[2] - a[3] * b[3], a[0] * b[1] + a[1] * b[0] + a[2] * b[3] - a[3] * b[2],
@@ -58,7 +77,12 @@ const aThree = (q, out) => out.set(q[1], q[3], -q[2], q[0]);     // los mismos e
 
 /** Tu dron: Estable (sim.js) o Acro (rate mode, solo aquí). */
 class Piloto {
-  constructor(acro) { this.acro = acro; this.p = acro ? ACRO : RACER; this.cmd = [0, 0, 0, 0]; }
+  constructor(acro, p = RACER) {
+    this.acro = acro;
+    // acro: tu dron con la respuesta de uno de carreras (el racer de la liga usa el de acro, más liviano)
+    this.p = !acro ? p : p === RACER ? ACRO : { ...p, attResp: 22, crashSpeed: Math.max(p.crashSpeed, 4.5) };
+    this.cmd = [0, 0, 0, 0];
+  }
   reset(pos, yaw) {
     this.s = newState(pos, yaw);
     this.q = qEuler(0, 0, yaw); this.w = [0, 0, 0];
@@ -209,7 +233,7 @@ window.addEventListener("pointerdown", prenderAudio);
 window.addEventListener("keydown", prenderAudio);
 
 // ---------------- el estado del juego ----------------
-const S = { pantalla: "menu", mapa: null, vista: null, portales: null, nivel: null, dirs: null, piloto: null, ias: [], modelos: [],
+const S = { hangar: [], pantalla: "menu", mapa: null, vista: null, portales: null, nivel: null, dirs: null, piloto: null, ias: [], modelos: [],
   t: 0, acc: 0, cuenta: 0, pausa: false, fin: false, k: 0, vueltaT0: 0, vueltas: [], vmax: 0, muerto: 0, vidas: 3, atrapado: 0, avisoT: 0 };
 const keys = new Set();
 
@@ -266,6 +290,7 @@ function menu() {
   S.ias.forEach((r) => scene.remove(r.mesh)); S.ias = [];
   ponerMapa(cfg.mapa);
   dron.visible = false;
+  fantasma.visible = false;
   const m = $("menu");
   m.innerHTML = `<h1>Freestyle<small>${t("Conecta tu control y vuela por gusto: rápido, en FPV, contra la IA o con la IA detrás de ti.")}</small></h1>`;
   const mapas = document.createElement("div"); mapas.className = "mapas";
@@ -286,6 +311,14 @@ function menu() {
   }
   m.appendChild(modos);
   const fila = (txt, el) => { const f = document.createElement("div"); f.className = "fila"; const s = document.createElement("span"); s.className = "muted"; s.textContent = txt; f.append(s, el); m.appendChild(f); return f; };
+  if (S.hangar.length) {
+    const sel = document.createElement("select");
+    for (const [id, nom] of [["racer", t("Racer de la liga (el de los rivales)")], ...S.hangar.map((h) => [h.id, t("Tu dron: {n}", { n: h.nombre })])]) {
+      const o = document.createElement("option"); o.value = id; o.textContent = nom; o.selected = id === cfg.dron; sel.appendChild(o);
+    }
+    sel.onchange = () => { cfg.dron = sel.value; guardar(); };
+    fila(t("Dron"), sel);
+  }
   fila(t("Cómo vuela tu dron"), seg("s-acro", [[false, t("Estable (como la IA)")], [true, t("Acro (flips)")]], cfg.acro, (v) => { cfg.acro = v; guardar(); menu(); }));
   if (cfg.modo === "carrera" || cfg.modo === "persecucion") {
     const sel = document.createElement("select"), clave = cfg.modo === "carrera" ? "rival" : "cazador";
@@ -341,7 +374,7 @@ function salida(i) {
 async function empezar() {
   prenderAudio();
   const M = S.mapa, modo = cfg.modo;
-  S.piloto = new Piloto(cfg.acro);
+  S.piloto = new Piloto(cfg.acro, fisicaDe(cfg.dron));
   S.ias.forEach((r) => scene.remove(r.mesh)); S.ias = [];
   if (modo === "carrera" || modo === "persecucion") {
     const slug = modo === "carrera" ? cfg.rival : cfg.cazador;
@@ -355,6 +388,25 @@ async function empezar() {
   S.pantalla = "vuelo";
   reiniciar();
 }
+// ---------------- el fantasma: tu mejor vuelta en este mapa (contrarreloj y carrera) ----------------
+const claveF = () => `dronmaker.freestyle.fantasma.${S.mapa.id}`;
+const fantasma = makeDrone();
+fantasma.traverse((o) => { if (o.material) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = 0.35; o.material.depthWrite = false; } });
+fantasma.visible = false;
+scene.add(fantasma);
+function cargarFantasma() {
+  try { S.fantasma = JSON.parse(localStorage.getItem(claveF()) || "null"); } catch { S.fantasma = null; }
+}
+/** Terminó una vuelta: si es la mejor, queda como fantasma (una muestra cada 2 pasos: x, y, z, w, qx, qy, qz). */
+function fantasmaVuelta(tv) {
+  const lista = S.grabando || [];
+  S.grabando = [];
+  if (S.vueltasSucias) { S.vueltasSucias = false; return; }                 // volviste al portal con T: no cuenta
+  if (!S.fantasma || tv < S.fantasma.t) {
+    S.fantasma = { t: tv, p: lista };
+    try { localStorage.setItem(claveF(), JSON.stringify(S.fantasma)); } catch { /* sin espacio */ }
+  }
+}
 function reiniciar() {
   const M = S.mapa, modo = cfg.modo;
   const p0 = modo === "persecucion" ? [M.spawn[0], M.spawn[1], 0] : salida(S.ias.length);
@@ -367,6 +419,8 @@ function reiniciar() {
   Object.assign(S, { t: 0, acc: 0, cuenta: modo === "libre" ? 0 : 3.0, pausa: false, fin: false, k: 0, vueltaT0: 0, vueltas: [], vmax: 0, muerto: 0,
     vidas: 3, atrapado: 0, tFin: null, camNueva: true });
   S.portales.pintar(modo === "libre" ? -1 : 0);
+  S.grabando = []; S.vueltasSucias = false;
+  cargarFantasma();
   dron.visible = cfg.cam !== "fpv";
   $("fin").classList.add("hidden"); $("pausa").classList.add("hidden");
   teclasHUD();
@@ -391,6 +445,7 @@ function palancas() {
 function chocar(quien, pos) {
   chispas.en(pos);
   golpeSonido();
+  if (quien === S.piloto) vibrar(1, 350);
   if (quien === S.piloto) { S.muerto = 1.1; aviso(t("¡Choque!"), "#ff5040"); }
 }
 /** Volver al último portal pasado (o a la salida), mirando al siguiente. */
@@ -428,8 +483,10 @@ function paso() {
       S.portales.destello(S.k % n);
       S.k++;
       bip(988, 0.09, 0.1);
+      vibrar(0.25, 80);
       if (S.k % n === 0) {                                    // terminó una vuelta
         S.vueltas.push(S.t - S.vueltaT0);
+        fantasmaVuelta(S.t - S.vueltaT0);
         S.vueltaT0 = S.t;
         const tot = modo === "persecucion" ? Infinity : cfg.vueltas;
         if (S.vueltas.length >= tot) { S.tFin = S.t; terminar(); }
@@ -438,6 +495,8 @@ function paso() {
       if (!S.fin) S.portales.pintar(S.k % n);
     }
     S.vmax = Math.max(S.vmax, Math.hypot(...P.vel) * 3.6);
+    if ((modo === "reloj" || modo === "carrera") && (S.n = (S.n || 0) + 1) % 2 === 0)
+      S.grabando.push([...P.pos.map((x) => +x.toFixed(2)), ...P.q.map((x) => +x.toFixed(3))]);
   }
   // los drones con IA
   for (const r of S.ias) {
@@ -663,6 +722,10 @@ function cuadro(now) {
     dron.position.copy(V(...pos));
     dron.quaternion.copy(qPrev);
     dron.visible = cfg.cam !== "fpv" && S.muerto <= 0;
+    const F = S.fantasma, conF = F && (cfg.modo === "reloj" || cfg.modo === "carrera") && S.cuenta <= 0 && !S.fin;
+    const iF = conF ? Math.floor((S.t - S.vueltaT0) / (2 * DT)) : -1;
+    fantasma.visible = conF && iF < F.p.length;
+    if (fantasma.visible) { const m = F.p[iF]; fantasma.position.copy(V(m[0], m[1], m[2])); aThree(m.slice(3), fantasma.quaternion); }
     yaw = P.s.yaw;
     const spin = (8 + 40 * P.thr) * 2 * Math.PI * dt;
     for (const pr of dron.userData.props) { pr.rotation.y += spin * pr.userData.dir; pr.userData.disc.visible = P.thr > 0.05; pr.userData.blade.visible = P.thr < 0.3; }
@@ -691,6 +754,8 @@ function cuadro(now) {
 
 // ---------------- arranque ----------------
 S.modelos = await listaModelos();
+S.hangar = await dronesHangar();
+if (cfg.dron !== "racer" && !S.hangar.some((h) => h.id === cfg.dron)) cfg.dron = "racer";
 if (!S.modelos.includes(cfg.rival)) cfg.rival = S.modelos.includes("corredor") ? "corredor" : "base";
 if (!S.modelos.includes(cfg.cazador)) cfg.cazador = S.modelos.includes("cazador") ? "cazador" : "base";
 menu();
