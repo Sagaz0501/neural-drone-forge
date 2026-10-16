@@ -144,6 +144,10 @@ entrenamiento debería reflejarlo:
 
 Hoy cablear es "tocar un pin y otro". La idea es que armar sea un oficio, pero simple de jugar.
 
+**El plan completo está en [`ARMADO_PLAN.md`](ARMADO_PLAN.md)** (16-10-2026, Santiago: piezas que se vean de verdad,
+colocar, atornillar, soldar con la estación —prender, esperar, limpiar, flux, estaño—, la guía de conexión aparte y
+conectar la batería con riesgo). Ya hay un prototipo de piezas hechas por script en Blender (ESP32 y soldador).
+
 1. 📝 **Soldar** *(Santiago)*: calentar el cautín (temperatura: frío = soldadura fría que falla después;
    muy caliente = levantas el pad), poner flux, estañar la punta, estañar el pad y el cable, y soldar.
    Un minijuego corto por punto de soldadura: los cables de los motores, el XT60, los pines del receptor.

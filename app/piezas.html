@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Piezas GLB</title>
+<!-- página de desarrollo (no sale en el juego): mira los GLB de blender/piezas/ -->
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; height: 100%; background: #111316; color: #d8dade; font: 13px/1.4 system-ui, sans-serif; overflow: hidden; }
+  #vista { position: fixed; inset: 0; }
+  #panel { position: fixed; top: 12px; left: 12px; background: #1b1e23e6; border: 1px solid #2c3038; border-radius: 8px; padding: 10px; min-width: 180px; }
+  #panel button { display: block; width: 100%; margin: 3px 0; padding: 5px 8px; background: #262a31; color: inherit; border: 1px solid #353a43; border-radius: 5px; text-align: left; cursor: pointer; font: inherit; }
+  #panel button.activa { background: #2f5d8a; border-color: #4a7fb3; }
+  #panel label { display: block; margin-top: 8px; cursor: pointer; }
+  #info { position: fixed; bottom: 12px; left: 12px; right: 12px; font: 12px ui-monospace, monospace; color: #9fb4c8; white-space: pre-wrap; pointer-events: none; }
+  #nombre { position: fixed; top: 12px; right: 12px; background: #1b1e23e6; border: 1px solid #2c3038; border-radius: 8px; padding: 8px 12px; font: 14px ui-monospace, monospace; color: #ffd27a; min-height: 18px; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "../game/vendor/three.module.min.js", "three/addons/": "../game/vendor/" } }
+</script>
+</head>
+<body>
+<div id="vista"></div>
+<div id="panel">
+  <div id="lista"></div>
+  <label><input type="checkbox" id="caliente"> punta caliente</label>
+  <label><input type="checkbox" id="giro" checked> girar</label>
+</div>
+<div id="nombre">—</div>
+<div id="info"></div>
+<script type="module" src="piezas_visor.js"></script>
+</body>
+</html>

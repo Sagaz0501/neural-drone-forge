@@ -173,18 +173,25 @@ tiempo. Teclas: **Espacio** pausa, **← →** 2 segundos, **C** cambia la cáma
 
 Botón **Estudio PBDMM** (arriba). Tres zonas:
 
-- **Izquierda:** tus programas `.pbd` (la × los elimina; *Descargar .pbd* para guardarlos en un archivo) y los
-  ejemplos: `hover`, `grabar`, `curriculum`, `postes`, `cerebro_chico`, `variables`.
-- **Centro:** el editor (con colores y **autocompletado**: ↑↓, Enter/Tab, Esc, Ctrl+Espacio) y la **terminal**.
-- **Derecha:** **Ayuda** (cada función con su ejemplo e *insertar*; lo nuevo del capítulo sale marcado), **Ruta** (la
-  ruta del programador: 8 capítulos, **uno por cada dron que creas**, cada uno con su programa guiado y un reto que el
-  juego mide solo), **Aprende** (7 lecciones de cómo aprende una IA) y **Gráfica** (curvas de éxito/choque/calidad, y **Red neuronal**: la red en vivo de cualquiera de los drones
-  que entrenan; ◀ ▶, el número o *Al azar*).
+El Estudio es un **escritorio** con ventanas que se arrastran por la barra, se agrandan por la esquina y se cierran
+con ×; los botones 📝 ⌨️ 📈 🧠 🗺️ de arriba las vuelven a abrir y ⊞ las ordena (el juego recuerda dónde las dejaste).
+
+- **Arriba:** 📄 tus programas `.pbd` y los ejemplos (`hover`, `grabar`, `curriculum`, `postes`, `cerebro_chico`,
+  `variables`; nuevo, abrir, descargar, la × elimina), **▶ Correr**, **✓ Revisar**, qué modelo mirar con **Avance** y
+  **Simular**, y **Blender**.
+- **📝 Editor** (con colores y **autocompletado**: ↑↓, Enter/Tab, Esc, Ctrl+Espacio) y **⌨️ Terminal**.
+- **📈 Gráfica** (éxito, choque y calidad por generación) y **🧠 Red neuronal** (la red en vivo de cualquiera de los
+  drones que entrenan; ◀ ▶, el número o *Al azar*).
+- **🗺️ Ruta:** la ruta del programador, 8 capítulos, **uno por cada dron que creas**; toca uno para ver su reto y
+  abrir su programa guiado.
+- La documentación no ocupa pantalla: **📖 Manual** (buscar, filtrar por grupo, tocar una función para ver sus
+  parámetros, un ejemplo e *insertar*), **F1** sobre una palabra del editor (su ayuda directa) y **💡** (las 7
+  lecciones de cómo aprende una IA, una por página).
 
 Tu primer modelo en 1 minuto:
 
 1. Ejemplo **hover** → **▶ Correr** (o Ctrl/⌘+Enter).
-2. Mira la terminal (`gen 12: éxito 40 %`…) y la pestaña **Gráfica**.
+2. Mira la terminal (`gen 12: éxito 40 %`…) y la ventana **📈 Gráfica**.
 3. `estado` para ver qué entrena; `detener colibri` para pararlo.
 4. `volar colibri` lo pone en tu dron activo: ve a Pedidos → *Que grabe la IA*.
 

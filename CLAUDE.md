@@ -12,6 +12,7 @@ Claude Code lee este archivo solo al abrir una sesión en esta carpeta. Es el re
 | la historia día a día del proyecto base (bitácora, experimentos) | [`docs/README_drone-rl.md`](docs/README_drone-rl.md) |
 | **el lenguaje PBDMM** del modo desarrollador: la API (se genera desde `app/data/pbdmm.json`) · la documentación completa (tutorial, referencia, gramática, biblioteca, errores; a mano: si cambias `pbdmm.js`, actualízala) · el plan de PBDMM 2 | [`docs/PBDMM.md`](docs/PBDMM.md) · [`docs/pbdmm/`](docs/pbdmm/README.md) · [`docs/PBDMM2_PLAN.md`](docs/PBDMM2_PLAN.md) |
 | **el negocio**: clientes que escriben al celular, trabajos repetibles ★–★★★★, tipos de trabajo, tutorial del día 1 | [`docs/NEGOCIO.md`](docs/NEGOCIO.md) |
+| **el armado de verdad** (Fase 2): la mesa, soldar con la estación, atornillar, la guía aparte, la batería; las piezas 3D hechas por script en Blender (`blender/piezas/` → `app/modelos/*.glb`) | [`docs/ARMADO_PLAN.md`](docs/ARMADO_PLAN.md) |
 
 ## La idea
 
@@ -91,7 +92,8 @@ app/               EL JUEGO (Dron Maker): usa los módulos de game/
   pbdmm.js         MODO DESARROLLADOR: el lenguaje PBDMM (subconjunto de Python interpretado en JS, sin import/while,
                    con límite de operaciones) y compilar(): programa -> pedido de /api/lab + hooks (al_empezar,
                    cada_generacion(e), al_terminar). test: node app/test_pbdmm.mjs
-  estudio.js       el Estudio PBDMM (editor con colores, terminal con comandos, ayuda, lecciones, gráfica en vivo);
+  estudio.js       el Estudio PBDMM: un ESCRITORIO de ventanas (editor, terminal, gráfica, red en vivo, ruta; layout en
+                   localStorage "dronmaker.pbdmm.ventanas") y la documentación en ventanitas (📖 Manual, F1, 💡 lecciones);
                    lee GET /api/lab cada 1,5 s y llama los hooks. Programas en localStorage "dronmaker.pbdmm.archivos"
   autocompletar.js el autocompletado del editor PBDMM: contexto(texto antes del cursor) + opciones() (las fijas en
                    data/pbdmm.json "opciones"; $drones/$misiones/$modelos/$premios salen del juego). Pruebas en test_pbdmm
@@ -216,6 +218,8 @@ Node v22 está en `/opt/homebrew/bin/node`. Blender 5.2 en `/Applications/Blende
 - **Menús más visuales (16-10-2026):** briefing (etiquetas, fichas de tomas, requisitos con el porqué en chiquito, tarjeta
   de la IA), resultado (casillas grandes + barras por toma), Laboratorio (misiones en mosaico con `icono`, premios por grupo
   con ⓘ, los que no se usan plegados).
+- **El Estudio como escritorio (16-10-2026):** ventanas (editor, terminal, gráfica, red en vivo, ruta) y la documentación
+  en ventanitas (📖 Manual con buscador, F1 sobre una palabra, 💡 lecciones). Menos texto en pantalla.
 - **Lo siguiente (docs/ROADMAP.md):** Fase 1b parte 2 (la física del dron en el entrenamiento), encargos de armado,
   pruebas de drones (QA), a mano, entregas. Decidido: el tutorial es el modo desarrollador (la demo grabada);
   imágenes y rendimiento se mejoran sobre la marcha.
@@ -245,7 +249,7 @@ Node v22 está en `/opt/homebrew/bin/node`. Blender 5.2 en `/Applications/Blende
   elegida para que lo recomendado quede en ~4); `pbdmm.js` realDe/nivelDe/recomendados. El backend sigue en valores reales, `aprendizaje(lr, exploracion)` + hooks; terminal: correr, estado,
   modelos, info, pausar/seguir/detener, copiar/renombrar/borrar, blender, volar. Backend: `/api/lab` acepta `lr`,
   `ent`, `capas` (-> info.json; `live_train.py --capas` o la lee de ahí) y `accion: "guardar"`; `/api/modelos` trae
-  `red`, `ultimo` (última fila de la historia) y `mejor_exito`. La red EN VIVO (Gráfica → Red neuronal): live_train escribe
+  `red`, `ultimo` (última fila de la historia) y `mejor_exito`. La red EN VIVO (la ventana 🧠 del Estudio): live_train escribe
   `<estado>_red.json` (4/s: activaciones del dron que mira + conexiones fuertes por capa), `GET /api/red?modelo=`,
   y `watch: i` en `/api/lab` cambia el dron que mira (fondo o Blender).
   PBDMM también tiene variables, tuplas, `[x for x in …]`, `x if c else y`, `f(*lista, **dicc)`; el autocompletado ofrece

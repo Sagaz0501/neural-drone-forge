@@ -1,7 +1,8 @@
 // =====================================================================
-// El ESTUDIO PBDMM (modo desarrollador): un "IDE" para crear y entrenar modelos con el lenguaje PBDMM.
-//   izquierda: tus programas (.pbd, en este navegador) y los ejemplos · centro: el editor y la TERMINAL
-//   derecha: la ayuda (funciones, e, comandos), las lecciones (cómo aprende una IA) y la gráfica en vivo
+// El ESTUDIO PBDMM (modo desarrollador): un "escritorio" para crear y entrenar modelos con el lenguaje PBDMM.
+//   arriba: la barra (programas, correr, qué modelo mirar + Avance/Simular, las ventanas, el manual)
+//   ventanas que se mueven y se agrandan: editor, terminal, gráfica, red neuronal en vivo, ruta (layout en localStorage)
+//   la documentación va en ventanitas (📖 Manual, F1 sobre una palabra, 💡 lecciones, el detalle de cada capítulo)
 // Correr un programa = el mismo pedido que el Laboratorio (POST /api/lab -> live_train.py, en el fondo o en Blender);
 // mientras entrena, el estudio lee el progreso (GET /api/lab) y llama las funciones del programa (cada_generacion…).
 // El lenguaje vive en pbdmm.js; la ayuda en data/pbdmm.json.
@@ -23,9 +24,9 @@ const chispa = (xs) => xs.map((x) => (typeof x === "number" ? "▁▂▃▄▅�
 
 export function initEstudio(ctx) {
   const { $, esc, api, toast } = ctx;
-  const ES = { data: null, archivos: leerLS(ARCH, null), abierto: leerLS(ABIERTO, null), tab: "ayuda", hist: [], hi: -1,
+  const ES = { data: null, archivos: leerLS(ARCH, null), abierto: leerLS(ABIERTO, null), hist: [], hi: -1,
     run: null, poll: 0, graf: null, grafSlug: null, modelos: [], errLinea: null, tema: null,
-    ac: { items: [], sel: 0, cx: null, abierto: false }, vista: "curvas", red: null, redPoll: 0 };
+    ac: { items: [], sel: 0, cx: null, abierto: false }, red: null, redPoll: 0 };
 
   async function cargarData() {
     if (ES.data) return ES.data;
@@ -84,16 +85,18 @@ export function initEstudio(ctx) {
     ctx.show("estudio");
     renderArchivos();
     cargarEditor();
-    renderDer();
-    cargarModelos();                     // para autocompletar modelo(…) y desde=
+    colocar();
+    renderRuta();
+    cargarModelos().then(renderSel);     // para autocompletar modelo(…) y desde=, y el selector de arriba
     if (!$("es-out").childElementCount) {
       linea(`PBDMM ${ES.data.version} · Python Base Dron Model Maker`, "ok");
-      linea(t('Escribe "ayuda" para ver los comandos. Ctrl/⌘+Enter corre el programa. Empieza por la pestaña "Ruta": un capítulo por cada dron que creas.'), "muted");
+      linea(t("ayuda = comandos · 📖 Manual o F1 = el lenguaje · Ctrl/⌘+Enter = correr"), "muted");
     }
     sondear(true);
-    $("es-src").focus();
+    redSondear(true);
+    if (abierta("editor")) $("es-src").focus();
   }
-  function cerrar() { sondear(!!ES.run); redSondear(false); ctx.irTaller(); }
+  function cerrar() { sondear(!!ES.run); redSondear(false); cerrarPop(); menuArchivos(false); ctx.irTaller(); }
 
   // ---------------- editor ----------------
   const KWS = /\b(def|return|if|elif|else|for|in|and|or|not|is|global|pass|break|continue)\b/;
@@ -127,6 +130,7 @@ export function initEstudio(ctx) {
     $("es-src").readOnly = !ES.abierto;
     $("es-src").placeholder = ES.abierto ? "" : t("Sin programa abierto: crea uno (+ Nuevo) o abre un ejemplo.");
     $("es-nombre").textContent = ES.abierto ? ES.abierto + ".pbd" : t("(sin archivo)");
+    $("es-ed-sub").textContent = ES.abierto ? ES.abierto + ".pbd" : "";
     ES.errLinea = null;
     pintar();
   }
@@ -148,6 +152,7 @@ export function initEstudio(ctx) {
     }
     if (A.abierto && ev.key === "Escape") { ev.preventDefault(); cerrarAC(); return; }
     if (ev.ctrlKey && ev.code === "Space") { ev.preventDefault(); autocompletar(true); return; }
+    if (ev.key === "F1") { ev.preventDefault(); cerrarAC(); ayudaAqui(); return; }
     if ((ev.metaKey || ev.ctrlKey) && ev.key === "Enter") { ev.preventDefault(); comando("correr"); return; }
     if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === "s") { ev.preventDefault(); toast(t("Guardado (se guarda solo en este navegador). Para tenerlo en un archivo: Descargar.")); return; }
     if (ev.key === "Tab") { ev.preventDefault(); ta.setRangeText("    ", s, ta.selectionEnd, "end"); ta.dispatchEvent(new Event("input")); return; }
@@ -250,7 +255,7 @@ export function initEstudio(ctx) {
       b.setAttribute("aria-pressed", String(n === ES.abierto));
       b.textContent = n + ".pbd";
       b.title = n + ".pbd";
-      b.onclick = () => { ES.abierto = n; guardarArchivos(); renderArchivos(); cargarEditor(); };
+      b.onclick = () => { ES.abierto = n; guardarArchivos(); renderArchivos(); cargarEditor(); menuArchivos(false); };
       x.className = "es-borrar";
       x.textContent = "×";
       x.title = t("Eliminar {n}.pbd", { n });
@@ -266,7 +271,7 @@ export function initEstudio(ctx) {
       const b = document.createElement("button");
       b.className = "es-item muted";
       b.textContent = n;
-      b.onclick = () => comando("ejemplo " + n);
+      b.onclick = () => { menuArchivos(false); comando("ejemplo " + n); };
       ej.appendChild(b);
     }
   }
@@ -343,6 +348,7 @@ export function initEstudio(ctx) {
     return Object.keys(al).find((es) => al[es] === c) || c;
   };
   async function comando(c) {
+    if (!abierta("terminal")) ventana("terminal", true);      // que se vea la respuesta
     linea("› " + c, "cmd");
     const [cmd, ...args] = c.split(/\s+/);
     const a0 = args[0], a1 = args[1];
@@ -483,7 +489,7 @@ export function initEstudio(ctx) {
     if (!tema) {
       linea(t("Comandos:"), "ok");
       D.comandos.forEach(([c, d]) => linea(`  ${c.padEnd(40)} ${d}`));
-      linea(t("Funciones del lenguaje: ayuda <función> (o la pestaña Ayuda). Lo que trae e: ayuda e."), "muted");
+      linea(t("Funciones del lenguaje: ayuda <función>, o 📖 Manual (F1 sobre una palabra del editor). Lo que trae e: ayuda e."), "muted");
       return;
     }
     if (tema === "e") { D.e_doc.forEach(([k, d]) => linea(`  ${k.padEnd(34)} ${d}`)); return; }
@@ -532,8 +538,8 @@ export function initEstudio(ctx) {
     if (m.rango_fisica) linea("  " + t("drones que conoce: empuje/peso {twr} · masa {masa} kg", { twr: m.rango_fisica.twr?.join("-"), masa: m.rango_fisica.masa_kg?.join("-") }), "muted");
     const hs = (h?.historia || []).slice(-60);
     if (hs.length) linea("  " + t("éxito (últimas {n} gen.): {chispa}  {pct}", { n: hs.length, chispa: chispa(hs.map((x) => x[2])), pct: pct(hs.at(-1)[2]) }));
-    linea(`  ${m.entrenando ? t("entrenando en {donde}", { donde: m.donde }) : t("quieto")} · ${t("para graficarlo: pestaña Gráfica")}`, "muted");
-    ES.grafSlug = slug; ES.grafFijo = true; ES.graf = hs; if (ES.tab === "grafica") renderDer();
+    linea(`  ${m.entrenando ? t("entrenando en {donde}", { donde: m.donde }) : t("quieto")} · ${t("su gráfica está en la ventana 📈")}`, "muted");
+    ES.grafSlug = slug; ES.grafFijo = true; ES.graf = hs; ES.red = null; renderSel(); dibujarGrafica();
   }
   async function estado() {
     const s = await api("/api/lab");
@@ -637,7 +643,8 @@ export function initEstudio(ctx) {
     }
     R = { prog, cfg: c, ses: { t0: Date.now(), gen0: null, mejor: null }, ultGen: null, empezo: false, t0: Date.now(), lrPend: c.donde === "blender" && (c.lr !== undefined || c.ent !== undefined) };
     ES.run = R;
-    ES.grafSlug = c.modelo; ES.graf = [];
+    ES.grafSlug = c.modelo; ES.graf = []; ES.red = null; ES.grafFijo = false;
+    renderSel();
     renderRun();
     sondear(true);
   }
@@ -684,8 +691,8 @@ export function initEstudio(ctx) {
     // sin un modelo elegido (o el elegido ya no entrena y hay otro que sí): mirar el que está entrenando
     if (ES.entrenando.length && (!ES.grafSlug || (!ES.grafFijo && !ES.entrenando.some((x) => x.slug === ES.grafSlug)))) {
       ES.grafSlug = ES.entrenando[0].slug;
-      if (ES.tab === "grafica") renderDer();
     }
+    renderSel();
     const R = ES.run;
     if (R) {
       const { tr, activo } = trDe(s, R.cfg.modelo);
@@ -721,7 +728,7 @@ export function initEstudio(ctx) {
       ES.grafActivo = activo;
       ES.grafTr = tr;
     }
-    if (ES.tab === "grafica" && ES.vista !== "red") dibujarGrafica();
+    if (abierta("grafica")) dibujarGrafica();
     renderRun();
   }
   function sondear(on) {
@@ -730,7 +737,7 @@ export function initEstudio(ctx) {
   }
   function renderRun() {
     const R = ES.run, el = $("es-run");
-    el.innerHTML = R ? `<span class="ok">●</span> ${esc(R.cfg.modelo)} · ${R.empezo ? `gen ${R.ultGen}` : t("esperando…")}` : `<span class="muted">○ ${t("nada corriendo")}</span>`;
+    el.innerHTML = R ? `<span class="ok">●</span> ${esc(R.cfg.modelo)} · ${R.empezo ? `gen ${R.ultGen}` : t("esperando…")}` : `<span class="muted" title="${t("nada corriendo")}">○</span>`;
     $("es-parar").disabled = !R;
   }
 
@@ -739,129 +746,266 @@ export function initEstudio(ctx) {
     ctx.guardar();
     linea("🏅 " + t("Ruta del programador: ¡capítulo {n} · {titulo} completo!", { n, titulo: cap.titulo }), "ok");
     const sig = RUTA.actual(ctx.P());
-    if (sig) linea("   " + t("Sigue el capítulo {n} (pestaña Ruta).", { n: sig }), "muted");
+    if (sig) linea("   " + t("Sigue el capítulo {n} (ventana Ruta).", { n: sig }), "muted");
     else if (RUTA.abiertos(ctx.P()) < RUTA.capitulos().length) linea("   " + t("Crea otro dron en el garaje para abrir el capítulo {n}.", { n: RUTA.abiertos(ctx.P()) + 1 }), "muted");
     toast(t("🏅 Capítulo {n} completo: {titulo}", { n, titulo: esc(cap.titulo) }), 4000);
-    if (ES.tab === "ruta") renderDer();
+    renderRuta();
   }
-  /** La pestaña Ruta: los capítulos (uno por dron), su reto y su programa guiado. */
-  function renderRuta(box) {
-    const p = ctx.P(), caps = RUTA.capitulos(), ab = RUTA.abiertos(p), act = RUTA.actual(p);
+  /** La ventana Ruta: una lista corta de capítulos (uno por dron); el detalle sale en una ventanita. */
+  function renderRuta() {
+    const box = $("es-ruta"), p = ctx.P();
+    if (!box || !p || !ES.data) return;
+    const caps = RUTA.capitulos(), ab = RUTA.abiertos(p), act = RUTA.actual(p);
     const hechos = caps.filter((_, i) => RUTA.hecho(p, i + 1)).length;
-    box.insertAdjacentHTML("beforeend", `<p class="muted">${t("Aprende PBDMM de a poco: <b>cada dron que creas abre un capítulo</b>, con un programa guiado y un reto que el juego mide solo. Nada se bloquea: todo el lenguaje funciona desde el principio.")}</p>` +
-      `<p><b>${t("{h} de {n} capítulos", { h: hechos, n: caps.length })}</b> <span class="muted">· ${t("{a} abiertos", { a: ab })}</span></p>`);
+    $("es-ruta-sub").textContent = t("{h} de {n}", { h: hechos, n: caps.length });
+    box.innerHTML = `<div class="es-prog" title="${t("{h} de {n} capítulos", { h: hechos, n: caps.length })}"><i style="width:${Math.round((hechos / Math.max(1, caps.length)) * 100)}%"></i></div>`;
     caps.forEach((c, i) => {
       const n = i + 1, abierto = n <= ab, ok = RUTA.hecho(p, n);
-      const d = document.createElement("details");
-      d.className = "es-lec es-ruta" + (ok ? " hecho" : "") + (abierto ? "" : " cerrado");
-      d.open = n === act;
-      d.innerHTML = `<summary>${ok ? "✅" : abierto ? (n === act ? "▶" : "○") : "🔒"} ${n} · ${esc(c.titulo)}</summary>` +
-        (abierto ? `<p>${esc(c.texto)}</p><p class="muted">${t("Aprendes:")} ${c.aprende.map((x) => `<code>${esc(x)}</code>`).join(" ")}</p>` +
-          `<p><b>${t("Reto:")}</b> ${esc(c.reto_txt)} ${ok ? `<span class="chip on">${t("logrado")}</span>` : ""}</p>` +
-          `<p class="muted">${t("Dron de este capítulo: {d}", { d: esc(RUTA.asegurar(p).drones[n] || p.drones[0]?.nombre || "—") })}</p>`
-          : `<p class="muted">${t("Crea tu dron n.º {k} en el garaje (+ Nuevo dron o Kit del garaje) para abrir este capítulo.", { k: n - 1 })}</p>`);
-      if (abierto) {
-        const b = document.createElement("button");
-        b.className = "btn small " + (n === act ? "main" : "ghost");
-        b.textContent = t("Abrir el programa del capítulo");
-        b.onclick = () => {
-          const nom = `capitulo_${n}`;
-          if (ES.archivos[nom] === undefined) ES.archivos[nom] = RUTA.programa(p, n);
-          ES.abierto = nom; guardarArchivos(); renderArchivos(); cargarEditor();
-          linea(t("Abrí {n}.pbd: lee los comentarios y completa el reto.", { n: nom }), "ok");
-        };
-        d.appendChild(b);
-      }
-      box.appendChild(d);
+      const b = document.createElement("button");
+      b.className = "es-cap" + (ok ? " hecho" : "") + (abierto ? "" : " cerrado") + (n === act ? " ahora" : "");
+      b.innerHTML = `<span>${ok ? "✅" : abierto ? (n === act ? "▶" : "○") : "🔒"}</span><b>${n} · ${esc(c.titulo)}</b>`;
+      b.onclick = () => verCapitulo(n);
+      box.appendChild(b);
+    });
+    box.insertAdjacentHTML("beforeend", `<p class="muted" style="font-size:12.5px;margin:8px 4px">${t("Cada dron que creas abre un capítulo.")}</p>`);
+  }
+  function verCapitulo(n) {
+    const p = ctx.P(), c = RUTA.capitulos()[n - 1], abierto = n <= RUTA.abiertos(p), ok = RUTA.hecho(p, n);
+    abrirPop(`${n} · ${c.titulo}`, (box) => {
+      if (!abierto) { box.innerHTML = `<p>🔒 ${t("Crea tu dron n.º {k} en el garaje (+ Nuevo dron o Kit del garaje) para abrir este capítulo.", { k: n - 1 })}</p>`; return; }
+      box.innerHTML = `<p>${esc(c.texto)}</p><p>${c.aprende.map((x) => `<code>${esc(x)}</code>`).join(" ")}</p>` +
+        `<p><b>${t("Reto:")}</b> ${esc(c.reto_txt)} ${ok ? `<span class="chip on">${t("logrado")}</span>` : ""}</p>` +
+        `<p class="muted">${t("Dron de este capítulo: {d}", { d: esc(RUTA.asegurar(p).drones[n] || p.drones[0]?.nombre || "—") })}</p>`;
+      const b = document.createElement("button");
+      b.className = "btn main small";
+      b.textContent = t("Abrir el programa del capítulo");
+      b.onclick = () => {
+        const nom = `capitulo_${n}`;
+        if (ES.archivos[nom] === undefined) ES.archivos[nom] = RUTA.programa(p, n);
+        ES.abierto = nom; guardarArchivos(); renderArchivos(); cargarEditor();
+        cerrarPop(); ventana("editor", true);
+        linea(t("Abrí {n}.pbd: lee los comentarios y completa el reto.", { n: nom }), "ok");
+      };
+      box.appendChild(b);
     });
   }
 
-  // ---------------- panel derecho: ayuda · aprende · ruta · gráfica ----------------
-  function renderDer() {
-    document.querySelectorAll("#es-tabs button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.t === ES.tab)));
-    const box = $("es-der"), D = ES.data;
-    box.innerHTML = "";
-    if (ES.tab === "ayuda") {
-      box.insertAdjacentHTML("beforeend", `<p class="muted">${t("Un programa PBDMM describe <b>cómo</b> se entrena un modelo. Arriba: qué modelo, qué misión, con qué dron, sus premios y sus castigos. Abajo: funciones que el juego llama mientras entrena. Toca <b>insertar</b> para poner el ejemplo en tu programa. Al escribir <code>dron(</code>, <code>mision(</code>, <code>premios(</code>, <code>castigos(</code>, <code>e.</code>… te salen las opciones (<b>Ctrl+Espacio</b> las abre cuando quieras).")}</p>`);
-      const grupos = [...new Set(D.funciones.map((f) => f.grupo))], nuevos = RUTA.nuevos(ctx.P());
-      for (const f of grupos.flatMap((g) => D.funciones.filter((x) => x.grupo === g))) {
-        if (f === D.funciones.find((x) => x.grupo === f.grupo)) box.insertAdjacentHTML("beforeend", `<h4>${esc(f.grupo)}</h4>`);
-        const d = document.createElement("details");
-        d.className = "es-fn";
-        d.innerHTML = `<summary><code>${esc(f.firma)}</code>${nuevos.has(f.nombre) ? ` <span class="chip warn">${t("nuevo")}</span>` : ""}<span class="muted"> · ${{ arriba: t("arriba"), "función": t("en una función"), "las dos": t("arriba o en una función") }[f.donde] || ""}</span></summary>` +
-          `<p>${esc(f.desc)}</p>${f.params.length ? `<ul>${f.params.map(([k, tx]) => `<li><code>${esc(k)}</code> ${esc(tx)}${rec(f, k)}</li>`).join("")}</ul>` : ""}` +
-          `<pre>${esc(f.ejemplo)}</pre>`;
-        const b = document.createElement("button");
-        b.className = "btn ghost small"; b.textContent = t("insertar");
-        b.onclick = () => insertar(f.ejemplo + "\n");
-        d.appendChild(b);
-        box.appendChild(d);
-      }
-      box.insertAdjacentHTML("beforeend", `<h4>${t("Funciones que llama el juego")}</h4><ul>${D.hooks_doc.map(([k, tx]) => `<li><code>def ${esc(k)}:</code> ${esc(tx)}</li>`).join("")}</ul>` +
-        `<h4>${t("Lo que trae e")}</h4><ul>${D.e_doc.map(([k, tx]) => `<li><code>${esc(k)}</code> ${esc(tx)}</li>`).join("")}</ul>` +
-        `<h4>${t("Comandos de la terminal")}</h4><ul>${D.comandos.map(([k, tx]) => `<li><code>${esc(k)}</code> ${esc(tx)}</li>`).join("")}</ul>`);
-    } else if (ES.tab === "ruta") {
-      renderRuta(box);
-    } else if (ES.tab === "aprende") {
-      for (const l of D.lecciones) {
-        const d = document.createElement("details");
-        d.className = "es-lec";
-        d.open = l === D.lecciones[0];
-        d.innerHTML = `<summary>${esc(l.titulo)}</summary><p>${esc(l.texto)}</p>`;
-        box.appendChild(d);
-      }
-      box.insertAdjacentHTML("beforeend", `<div class="es-red" aria-label="${t("La red: 38 entradas, capas ocultas, 4 palancas")}">${redSVG()}</div>`);
-    } else {
-      box.innerHTML = `<div class="seg" id="es-vista"><button data-v="curvas">${t("Curvas")}</button><button data-v="red">${t("Red neuronal")}</button></div>` +
-        `<div class="es-red-ctl"><label>${t("Modelo")} <select id="es-graf-m" class="sim-sel" aria-label="${t("Qué modelo mirar")}"></select></label>` +
-        `<button class="btn ghost small" id="es-avance">${t("Avance del modelo")}</button><button class="btn ai small" id="es-simular">${t("Simular prueba")}</button></div>`;
-      const sel = box.querySelector("#es-graf-m");
-      const modelosVer = [...(ES.entrenando || []).map((x) => [x.slug, `${x.slug} · ${t("entrenando ({donde})", { donde: x.donde })}`]),
-        ...ES.modelos.filter((m) => m.tiene_modelo && !(ES.entrenando || []).some((x) => x.slug === m.slug)).map((m) => [m.slug, m.slug])];
-      if (ES.grafSlug && !modelosVer.some(([v]) => v === ES.grafSlug)) modelosVer.unshift([ES.grafSlug, ES.grafSlug]);
-      if (!modelosVer.length) modelosVer.push(["", t("(ningún modelo)")]);
-      for (const [v, tx] of modelosVer) sel.add(new Option(tx, v, false, v === ES.grafSlug));
-      sel.onchange = () => { ES.grafSlug = sel.value; ES.grafFijo = true; ES.graf = []; ES.red = null; renderDer(); };
-      const m = () => ES.grafSlug || ES.run?.cfg.modelo;
-      box.querySelector("#es-avance").onclick = () => (m() ? comando("avance " + m()) : linea(t("Corre un programa o escribe info <modelo> primero."), "bad"));
-      box.querySelector("#es-simular").onclick = () => (m() ? comando("simular " + m()) : linea(t("Corre un programa o escribe info <modelo> primero."), "bad"));
-      box.querySelectorAll("#es-vista button").forEach((b) => {
-        b.setAttribute("aria-pressed", String(b.dataset.v === ES.vista));
-        b.onclick = () => { ES.vista = b.dataset.v; renderDer(); };
-      });
-      if (ES.vista === "red") {
-        box.insertAdjacentHTML("beforeend", `<p class="muted" id="es-red-t">${t("Buscando la red…")}</p>` +
-          `<div class="es-red-ctl"><button class="btn ghost small" id="es-red-ant" aria-label="${t("Dron anterior")}">◀</button><label>${t("Dron")} <input type="number" id="es-red-i" min="1" value="1"></label><span id="es-red-n" class="muted"></span>` +
-          `<button class="btn ghost small" id="es-red-sig" aria-label="${t("Dron siguiente")}">▶</button><button class="btn ghost small" id="es-red-azar">${t("Al azar")}</button></div>` +
-          `<canvas id="es-redc" aria-label="${t("La red neuronal del dron, en vivo")}"></canvas>` +
-          `<p class="es-ley"><span style="color:#ff9e5e">■ ${t("positivo")}</span> <span style="color:#3ccbff">■ ${t("negativo")}</span> <span class="muted">· ${t("más brillante = más activo · las líneas son las conexiones más fuertes")}</span></p>` +
-          `<p id="es-red-top" class="muted"></p>`);
-        const ir = (i) => mirarDron(i);
-        $("es-red-ant").onclick = () => ir((ES.red?.i ?? 0) - 1);
-        $("es-red-sig").onclick = () => ir((ES.red?.i ?? 0) + 1);
-        $("es-red-azar").onclick = () => ir(Math.floor(Math.random() * (ES.red?.n || 50)));
-        $("es-red-i").onchange = (ev) => ir(Number(ev.target.value) - 1);
-        redSondear(true);
-        dibujarRed();
-      } else {
-        redSondear(false);
-        box.insertAdjacentHTML("beforeend", `<p class="muted" id="es-graf-t"></p><canvas id="es-graf" width="560" height="300" aria-label="${t("Gráfica del entrenamiento")}"></canvas>` +
-          `<p class="es-ley"><span style="color:var(--gate)">■ ${t("éxito")}</span> <span style="color:var(--crash)">■ ${t("choque")}</span> <span style="color:var(--next)">■ ${t("calidad (grabar)")}</span></p>` +
-          `<p class="muted">${t("Muestra el modelo que está corriendo, o el último que miraste con <code>info &lt;modelo&gt;</code>. Cada punto es una generación.")}</p>`);
-        dibujarGrafica();
-      }
+  // ---------------- el escritorio: ventanas que se mueven, se agrandan, se cierran y se abren desde la barra ----------------
+  const VENT = "dronmaker.pbdmm.ventanas";
+  const LAYOUT0 = { editor: { x: 0, y: 0, w: 0.56, h: 0.63, open: true }, terminal: { x: 0, y: 0.63, w: 0.56, h: 0.37, open: true },
+    grafica: { x: 0.56, y: 0, w: 0.44, h: 0.42, open: true }, red: { x: 0.56, y: 0.42, w: 0.44, h: 0.58, open: true },
+    ruta: { x: 0.3, y: 0.06, w: 0.3, h: 0.62, open: false } };
+  const copia0 = () => JSON.parse(JSON.stringify(LAYOUT0));
+  ES.win = { ...copia0(), ...leerLS(VENT, {}) };
+  ES.orden = Object.keys(LAYOUT0);                    // de atrás hacia adelante
+  const winEl = (w) => document.querySelector(`.es-win[data-w="${w}"]`);
+  const abierta = (w) => !!ES.win[w]?.open;
+  const angosto = () => matchMedia("(max-width: 980px)").matches;
+  const guardarVent = () => ponerLS(VENT, ES.win);
+  function colocar() {
+    const box = $("es-escritorio"), W = box.clientWidth, H = box.clientHeight, g = 6;
+    for (const [w, L] of Object.entries(ES.win)) {
+      const el = winEl(w);
+      if (!el) continue;
+      el.hidden = !L.open;
+      el.style.left = Math.round(L.x * W + g) + "px"; el.style.top = Math.round(L.y * H + g) + "px";
+      el.style.width = Math.round(L.w * W - 2 * g) + "px"; el.style.height = Math.round(L.h * H - 2 * g) + "px";
+      el.style.zIndex = 1 + ES.orden.indexOf(w);
+      el.classList.toggle("arriba", ES.orden.at(-1) === w);
     }
-    if (ES.tab !== "grafica" || ES.vista !== "red") redSondear(false);
+    document.querySelectorAll("#es-dock button").forEach((b) => b.setAttribute("aria-pressed", String(abierta(b.dataset.w))));
   }
+  function alFrente(w) { ES.orden = [...ES.orden.filter((x) => x !== w), w]; colocar(); }
+  /** Abre o cierra una ventana (sin "on": la alterna). */
+  function ventana(w, on) {
+    ES.win[w].open = on ?? !ES.win[w].open;
+    guardarVent();
+    if (ES.win[w].open) alFrente(w); else colocar();
+    if (w === "ruta" && abierta("ruta")) renderRuta();
+    if (w === "red") redSondear(abierta("red"));
+    if (w === "grafica" && abierta("grafica")) dibujarGrafica();
+    if (w === "editor" && abierta("editor")) $("es-src").focus();
+    if (w === "terminal" && abierta("terminal")) $("es-in").focus();
+  }
+  /** Arrastrar una ventana por su barra, o agrandarla por la esquina. */
+  function arrastre(el, w, modo) {
+    return (ev) => {
+      if (angosto() || ev.button !== 0 || (modo === "mover" && ev.target.closest("button"))) return;
+      ev.preventDefault();
+      alFrente(w);
+      const box = $("es-escritorio").getBoundingClientRect(), L = ES.win[w], x0 = ev.clientX, y0 = ev.clientY, L0 = { ...L };
+      const mover = (e) => {
+        const dx = (e.clientX - x0) / box.width, dy = (e.clientY - y0) / box.height;
+        if (modo === "mover") { L.x = Math.max(-L.w + 0.08, Math.min(0.92, L0.x + dx)); L.y = Math.max(0, Math.min(0.94, L0.y + dy)); }
+        else { L.w = Math.max(240 / box.width, Math.min(1 - L.x, L0.w + dx)); L.h = Math.max(140 / box.height, Math.min(1 - L.y, L0.h + dy)); }
+        colocar();
+      };
+      const soltar = () => { removeEventListener("pointermove", mover); removeEventListener("pointerup", soltar); guardarVent(); redibujar(); };
+      addEventListener("pointermove", mover);
+      addEventListener("pointerup", soltar);
+    };
+  }
+  for (const w of Object.keys(LAYOUT0)) {
+    const el = winEl(w);
+    el.querySelector(".es-wbar").addEventListener("pointerdown", arrastre(el, w, "mover"));
+    el.querySelector(".es-wtam").addEventListener("pointerdown", arrastre(el, w, "tam"));
+    el.addEventListener("pointerdown", () => { if (ES.orden.at(-1) !== w) alFrente(w); }, true);
+  }
+  document.querySelectorAll(".es-wx[data-x]").forEach((b) => (b.onclick = () => ventana(b.dataset.x, false)));
+  document.querySelectorAll("#es-dock button").forEach((b) => (b.onclick = () => ventana(b.dataset.w)));
+  $("es-ordenar").onclick = () => { ES.win = copia0(); ES.orden = Object.keys(LAYOUT0); guardarVent(); colocar(); redibujar(); redSondear(true); };
+  function redibujar() { if (abierta("grafica")) dibujarGrafica(); if (abierta("red")) dibujarRed(); }
+  new ResizeObserver(() => { if (ctx.G.screen === "estudio") { colocar(); redibujar(); } }).observe($("es-escritorio"));
+
+  // ---------------- el menú de programas ----------------
+  function menuArchivos(on) {
+    const m = $("es-archivo-m"), b = $("es-archivo-b");
+    m.hidden = !(on ?? m.hidden);
+    if (!m.hidden) {
+      const r = b.getBoundingClientRect(), c = $("es-escritorio").getBoundingClientRect();
+      m.style.left = Math.max(4, r.left - c.left) + "px"; m.style.top = "4px";
+    }
+  }
+  $("es-archivo-b").onclick = (ev) => { ev.stopPropagation(); menuArchivos(); };
+  document.addEventListener("pointerdown", (ev) => { if (!$("es-archivo-m").hidden && !ev.target.closest("#es-archivo-m, #es-archivo-b")) menuArchivos(false); });
+
+  // ---------------- las ventanitas: el manual, las lecciones, los capítulos ----------------
+  /** Abre la ventanita con un título y lo que pinte llenar(box). atras = una función para el botón ←. */
+  function abrirPop(titulo, llenar, atras = null) {
+    $("es-pop-h").textContent = titulo;
+    const box = $("es-pop-c");
+    box.innerHTML = "";
+    box.scrollTop = 0;
+    llenar(box);
+    $("es-pop-atras").hidden = !atras;
+    $("es-pop-atras").onclick = atras;
+    $("es-pop").hidden = false; $("es-velo").hidden = false;
+    menuArchivos(false);
+  }
+  function cerrarPop() { $("es-pop").hidden = true; $("es-velo").hidden = true; }
+  $("es-pop-x").onclick = cerrarPop;
+  $("es-velo").onclick = cerrarPop;
+  $("estudio").addEventListener("keydown", (ev) => { if (ev.key === "Escape" && !$("es-pop").hidden) { ev.preventDefault(); cerrarPop(); $("es-src").focus(); } });
+
+  /** El manual: buscar, filtrar por grupo y tocar una función para ver cómo se usa. */
+  const MAN = { q: "", grupo: null };
+  const primera = (s) => String(s).split(/(?<=\.)\s/)[0];
+  function manual() {
+    const D = ES.data, nuevos = RUTA.nuevos(ctx.P());
+    const extras = [["e", t("Lo que trae e"), D.e_doc], ["hooks", t("Funciones que llama el juego"), D.hooks_doc.map(([k, x]) => [`def ${k}`, x])], ["comandos", t("Comandos de la terminal"), D.comandos]];
+    abrirPop("📖 " + t("Manual de PBDMM"), (box) => {
+      box.innerHTML = `<input class="es-buscar" type="search" placeholder="${t("Buscar: dron, premios, e.exito…")}" aria-label="${t("Buscar en el manual")}" value="${esc(MAN.q)}">` +
+        `<div class="es-chips"></div><div class="es-fnl"></div>`;
+      const chips = box.querySelector(".es-chips"), lista = box.querySelector(".es-fnl"), q = box.querySelector("input");
+      const grupos = [[null, t("Todo")], ...[...new Set(D.funciones.map((f) => f.grupo))].map((g) => [g, g]), ...extras.map(([k, n]) => [k, n])];
+      for (const [g, n] of grupos) {
+        const b = document.createElement("button");
+        b.className = "chip"; b.textContent = n; b.setAttribute("aria-pressed", String(MAN.grupo === g));
+        b.onclick = () => { MAN.grupo = g; manual(); };
+        chips.appendChild(b);
+      }
+      const pintar = () => {
+        const s = normal(MAN.q), hay = (...xs) => !s || xs.some((x) => normal(x).includes(s));
+        lista.innerHTML = "";
+        const fila = (code, txt, onclick, chip = "") => {
+          const b = document.createElement(onclick ? "button" : "div");
+          b.className = "es-fnb";
+          b.innerHTML = `<code>${esc(code)}</code>${chip}<span title="${esc(txt)}">${esc(primera(txt))}</span>`;
+          if (onclick) b.onclick = onclick;
+          lista.appendChild(b);
+        };
+        for (const f of D.funciones) {
+          const nom = nombreFn(f);
+          if ((MAN.grupo && MAN.grupo !== f.grupo) || !hay(f.nombre, nom, f.firma, f.desc)) continue;
+          fila(nom + "(…)", f.desc, () => verFuncion(f, manual), nuevos.has(f.nombre) ? ` <span class="chip warn">${t("nuevo")}</span>` : "");
+        }
+        for (const [k, , xs] of extras) {
+          if (MAN.grupo && MAN.grupo !== k) continue;
+          for (const [c, d] of xs) if (hay(c, d)) fila(c, d, () => abrirPop(c, (b2) => (b2.innerHTML = `<pre>${esc(c)}</pre><p>${esc(d)}</p>`), manual));
+        }
+        if (!lista.childElementCount) lista.innerHTML = `<p class="muted">${t("Nada con eso.")}</p>`;
+      };
+      q.oninput = () => { MAN.q = q.value; pintar(); };
+      pintar();
+      setTimeout(() => q.focus(), 0);
+    });
+  }
+  /** El nombre de una función en el idioma del juego (en inglés: mission, rewards…; los dos funcionan igual). */
+  const nombreFn = (f) => (idioma() === "en" ? ES.data.alias_en?.funciones?.[f.nombre] || f.nombre : f.nombre);
+  /** Una función del lenguaje: qué hace, sus parámetros, un ejemplo y "insertar". */
+  function verFuncion(f, atras = null) {
+    abrirPop(nombreFn(f), (box) => {
+      const donde = { arriba: t("arriba"), "función": t("en una función"), "las dos": t("arriba o en una función") }[f.donde] || "";
+      box.innerHTML = `<pre>${esc(f.firma)}</pre><p>${esc(f.desc)}</p>` +
+        (f.params.length ? `<div class="es-param">${f.params.map(([k, tx]) => `<code>${esc(k)}</code><span>${esc(tx)}${rec(f, k)}</span>`).join("")}</div>` : "") +
+        `<pre>${esc(f.ejemplo)}</pre>` + (donde ? `<p class="muted">${t("Dónde va:")} ${donde}</p>` : "");
+      const b = document.createElement("button");
+      b.className = "btn main small"; b.textContent = t("insertar");
+      b.onclick = () => { cerrarPop(); ventana("editor", true); insertar(f.ejemplo + "\n"); };
+      box.appendChild(b);
+    }, atras);
+  }
+  /** F1 en el editor: la ayuda de la palabra donde está el cursor. */
+  function ayudaAqui() {
+    const ta = $("es-src"), v = ta.value, s = ta.selectionStart;
+    const ini = s - (/[\wáéíóúñ]*$/i.exec(v.slice(0, s))[0].length), fin = s + /^[\wáéíóúñ]*/i.exec(v.slice(s))[0].length;
+    const w = v.slice(ini, fin), D = ES.data;
+    const esDe = Object.fromEntries(Object.entries(D.alias_en?.funciones || {}).map(([es, en]) => [en, es]));
+    const f = D.funciones.find((x) => x.nombre === (esDe[w] || w));
+    if (f) return verFuncion(f, manual);
+    MAN.grupo = w === "e" ? "e" : null; MAN.q = w === "e" ? "" : w;
+    manual();
+  }
+  /** Las lecciones (cómo aprende una IA), una por página. */
+  function aprende(i = 0) {
+    const L = ES.data.lecciones, n = L.length + 1;
+    i = Math.max(0, Math.min(n - 1, i));
+    const fin = i === L.length;
+    abrirPop("💡 " + (fin ? t("La red") : L[i].titulo), (box) => {
+      box.innerHTML = fin ? `<div aria-label="${t("La red: 38 entradas, capas ocultas, 4 palancas")}">${redSVG()}</div><p class="muted">${t("38 sensores entran, pasan por las capas ocultas y salen 4 palancas. La ventana 🧠 la muestra en vivo.")}</p>`
+        : `<p>${esc(L[i].texto)}</p>`;
+      box.insertAdjacentHTML("beforeend", `<div class="es-pasos">${Array.from({ length: n }, (_, k) => `<i class="${k === i ? "on" : ""}"></i>`).join("")}</div>` +
+        `<div class="go" style="display:flex;gap:8px;justify-content:space-between;margin-top:10px"><button class="btn ghost small" ${i ? "" : "disabled"}>◀ ${t("Antes")}</button><button class="btn ${fin ? "ghost" : "main"} small">${fin ? t("Cerrar") : t("Siguiente") + " ▶"}</button></div>`);
+      const [ant, sig] = box.querySelectorAll(".go button");
+      ant.onclick = () => aprende(i - 1);
+      sig.onclick = () => (fin ? cerrarPop() : aprende(i + 1));
+    });
+  }
+  $("es-manual-b").onclick = () => manual();
+  $("es-aprende-b").onclick = () => aprende(0);
+
+  // ---------------- qué modelo mirar (gráfica, red, Avance y Simular) ----------------
+  function renderSel() {
+    const sel = $("es-graf-m");
+    if (document.activeElement === sel) return;
+    const modelosVer = [...(ES.entrenando || []).map((x) => [x.slug, `● ${x.slug}`]),
+      ...ES.modelos.filter((m) => m.tiene_modelo && !(ES.entrenando || []).some((x) => x.slug === m.slug)).map((m) => [m.slug, m.slug])];
+    if (ES.grafSlug && !modelosVer.some(([v]) => v === ES.grafSlug)) modelosVer.unshift([ES.grafSlug, ES.grafSlug]);
+    if (!modelosVer.length) modelosVer.push(["", t("(ningún modelo)")]);
+    const firma = JSON.stringify([modelosVer, ES.grafSlug]);
+    if (firma === ES.selFirma) return;
+    ES.selFirma = firma;
+    sel.innerHTML = "";
+    for (const [v, tx] of modelosVer) sel.add(new Option(tx, v, false, v === ES.grafSlug));
+    sel.title = ES.grafSlug ? t("Mirando: {m}", { m: ES.grafSlug }) : "";
+  }
+  $("es-graf-m").onchange = (ev) => { ES.grafSlug = ev.target.value; ES.grafFijo = true; ES.graf = []; ES.red = null; renderSel(); tick(); if (abierta("red")) leerRed(); };
+  const mirado = () => ES.grafSlug || ES.run?.cfg.modelo;
+  $("es-avance").onclick = () => (mirado() ? comando("avance " + mirado()) : linea(t("Corre un programa o escribe info <modelo> primero."), "bad"));
+  $("es-simular").onclick = () => (mirado() ? comando("simular " + mirado()) : linea(t("Corre un programa o escribe info <modelo> primero."), "bad"));
+  $("es-red-ant").onclick = () => mirarDron((ES.red?.i ?? 0) - 1);
+  $("es-red-sig").onclick = () => mirarDron((ES.red?.i ?? 0) + 1);
+  $("es-red-azar").onclick = () => mirarDron(Math.floor(Math.random() * (ES.red?.n || 50)));
+  $("es-red-i").onchange = (ev) => mirarDron(Number(ev.target.value) - 1);
 
   // ---------------- la red neuronal en vivo (de un dron de los que entrenan) ----------------
   function redSondear(on) {
     clearInterval(ES.redPoll);
     ES.redPoll = 0;
-    if (on) { ES.redPoll = setInterval(leerRed, 400); leerRed(); }
+    if (on && ctx.G.screen === "estudio" && abierta("red")) { ES.redPoll = setInterval(leerRed, 400); leerRed(); }
   }
   async function leerRed() {
-    if (G_screen() !== "estudio" || ES.tab !== "grafica" || ES.vista !== "red") return redSondear(false);
+    if (ctx.G.screen !== "estudio" || !abierta("red")) return redSondear(false);
     if (!ES.grafSlug) await tick();                 // recién abierto: buscar qué está entrenando
     const slug = ES.grafSlug;
     if (!slug) { ES.red = null; return dibujarRed(); }
@@ -869,7 +1013,6 @@ export function initEstudio(ctx) {
     ES.red = r.ok ? r : null;
     dibujarRed();
   }
-  const G_screen = () => ctx.G.screen;
   async function mirarDron(i) {
     const R = ES.red, slug = ES.grafSlug;
     if (!R || !slug) return;
@@ -883,20 +1026,24 @@ export function initEstudio(ctx) {
   }
   function dibujarRed() {
     const cv = $("es-redc"), R = ES.red;
-    if (!cv) return;
-    const el = $("es-red-t");
+    const vacio = $("es-red-v");
+    vacio.hidden = !!R;
     if (!R) {
-      el.textContent = ES.grafSlug ? t('"{m}" no está entrenando: la red se ve en vivo mientras entrena (en el fondo o en Blender).', { m: ES.grafSlug }) : t("Corre un programa (o escribe info <modelo> de uno que esté entrenando) para ver su red.");
+      vacio.textContent = ES.grafSlug ? t('"{m}" no está entrenando: la red se ve en vivo mientras entrena.', { m: ES.grafSlug }) : t("Corre un programa para ver su red en vivo.");
+      $("es-red-t").textContent = "";
       cv.getContext("2d").clearRect(0, 0, cv.width, cv.height);
       $("es-red-n").textContent = ""; $("es-red-top").textContent = "";
       return;
     }
-    el.innerHTML = t('"{m}" · mirando el dron <b>{i}</b> de {n} · generación {gen} · red {red}', { m: esc(R.modelo || ES.grafSlug), i: R.i + 1, n: R.n, gen: R.gen ?? "?", red: R.capas.join(" → ") });
+    $("es-red-t").textContent = t("{m} · gen {gen} · {red}", { m: R.modelo || ES.grafSlug, gen: R.gen ?? "?", red: R.capas.join("→") });
     const inp = $("es-red-i");
     if (document.activeElement !== inp) { inp.value = R.i + 1; inp.max = R.n; }
     $("es-red-n").textContent = t("de {n}", { n: R.n });
-    const top = pintarRed(cv, R);
-    $("es-red-top").textContent = t("Lo que más siente ahora: {lista}. Cada capa oculta tiene sus neuronas (los números de abajo); las palancas son lo que decide.", { lista: top.join(" · ") });
+    const h = cv.parentElement.clientHeight;
+    if (!h) return;
+    const top = pintarRed(cv, R, { altoMin: h, altoMax: h });
+    $("es-red-top").textContent = t("siente: {lista}", { lista: top.slice(0, 2).join(" · ") });
+    $("es-red-top").title = t("Lo que más siente ahora: {lista}", { lista: top.join(" · ") });
   }
   /** " · normal 4" para los parámetros de premios() y castigos() (lo que recomiendan las misiones, de 0 a 10). */
   function rec(f, k) {
@@ -917,12 +1064,19 @@ export function initEstudio(ctx) {
   function dibujarGrafica() {
     const cv = $("es-graf");
     if (!cv) return;
-    const el = $("es-graf-t"), hs = ES.graf || [];
-    el.textContent = ES.grafSlug ? `"${ES.grafSlug}" · ${ES.grafActivo ? t("entrenando") : t("quieto")} · ${hs.length ? t("generaciones {a}-{b}", { a: hs[0][0], b: hs.at(-1)[0] }) : t("sin datos todavía")}` : t("Nada que graficar: corre un programa o escribe info <modelo>.");
-    const g = cv.getContext("2d"), W = cv.width, H = cv.height, P = 28;
+    const hs = ES.graf || [];
+    $("es-graf-t").textContent = ES.grafSlug ? `${ES.grafSlug} · ${ES.grafActivo ? t("entrenando") : t("quieto")}${hs.length ? " · " + t("gen {a}-{b}", { a: hs[0][0], b: hs.at(-1)[0] }) : ""}` : "";
+    const vacio = $("es-graf-v");
+    vacio.hidden = hs.length >= 2;
+    vacio.textContent = ES.grafSlug ? t("Todavía no hay datos de {m}.", { m: ES.grafSlug }) : t("Corre un programa para ver cómo aprende.");
+    const dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight, P = 28;
+    if (!W || !H) return;
+    if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+    const g = cv.getContext("2d");
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, W, H);
-    g.strokeStyle = "rgba(234,242,239,.12)"; g.fillStyle = "#9db3a9"; g.font = "11px sans-serif";
-    for (const v of [0, 0.25, 0.5, 0.75, 1]) { const y = H - P - v * (H - 2 * P); g.beginPath(); g.moveTo(P, y); g.lineTo(W - 8, y); g.stroke(); g.fillText(Math.round(v * 100) + "%", 0, y + 4); }
+    g.strokeStyle = "rgba(234,242,239,.1)"; g.fillStyle = "#9db3a9"; g.font = "11px sans-serif";
+    for (const v of [0, 0.25, 0.5, 0.75, 1]) { const y = H - P - v * (H - 2 * P); g.beginPath(); g.moveTo(P + 6, y); g.lineTo(W - 8, y); g.stroke(); g.fillText(Math.round(v * 100) + "%", 2, y + 4); }
     if (hs.length < 2) return;
     const serie = (idx, color) => {
       g.strokeStyle = color; g.lineWidth = 2; g.beginPath();
@@ -930,21 +1084,21 @@ export function initEstudio(ctx) {
       hs.forEach((h, i) => {
         const v = h[idx];
         if (typeof v !== "number") return;
-        const x = P + (i * (W - P - 8)) / (hs.length - 1), y = H - P - Math.max(0, Math.min(1, v)) * (H - 2 * P);
+        const x = P + 6 + (i * (W - P - 14)) / (hs.length - 1), y = H - P - Math.max(0, Math.min(1, v)) * (H - 2 * P);
         primero ? g.moveTo(x, y) : g.lineTo(x, y); primero = false;
       });
       g.stroke();
     };
     serie(3, "#ff5040"); serie(5, "#3ccbff"); serie(2, "#47f08a");
   }
-  document.querySelectorAll("#es-tabs button").forEach((b) => (b.onclick = () => { ES.tab = b.dataset.t; renderDer(); }));
 
   // ---------------- botones ----------------
   $("es-correr").onclick = () => comando("correr");
   $("es-revisar").onclick = () => comando("revisar");
   $("es-parar").onclick = () => comando("parar");
-  $("es-bajar").onclick = descargar;
-  $("es-nuevo").onclick = () => { const n = prompt(t("Nombre del programa:"), "mi_modelo"); if (n) comando("nuevo " + n); };
+  $("es-bajar").onclick = () => { menuArchivos(false); descargar(); };
+  $("es-limpiar").onclick = () => { $("es-out").innerHTML = ""; };
+  $("es-nuevo").onclick = () => { menuArchivos(false); const n = prompt(t("Nombre del programa:"), "mi_modelo"); if (n) comando("nuevo " + n); };
   $("es-blender").onclick = () => comando("blender");
   $("es-volver").onclick = cerrar;
 

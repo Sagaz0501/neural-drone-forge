@@ -24,7 +24,7 @@ entrenar revisa si el dron de madera aguanta el viento de la finca (✅ / ⚠️
 imprime cómo va, y se detiene solo cuando 8 de cada 10 intentos logran la misión.
 
 **Versión 2.1** ([cambios](CHANGELOG.md)). Para aprender, en el juego está la **ruta del programador**: cada dron que
-creas abre un capítulo con un programa guiado y un reto (Estudio → pestaña **Ruta**).
+creas abre un capítulo con un programa guiado y un reto (Estudio → ventana **🗺️ Ruta**).
 
 ## La documentación
 

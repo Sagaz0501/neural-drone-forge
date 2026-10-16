@@ -1,5 +1,11 @@
 # Cambios de PBDMM
 
+## El Estudio como escritorio · 16-10-2026
+
+No cambia el lenguaje. El Estudio pasa a ser un escritorio con ventanas (editor, terminal, gráfica, red neuronal en
+vivo, ruta) que se mueven y se agrandan, y la documentación sale en ventanitas: **📖 Manual** (con buscador), **F1**
+sobre una palabra del editor y **💡** las lecciones, una por página.
+
 ## 2.1 · 16-10-2026
 
 - **Misiones de fotos:** `mision("foto")` (nivel 13: llegar, frenar y quedarse quieto) y `mision("set_fotos")` (nivel 14:

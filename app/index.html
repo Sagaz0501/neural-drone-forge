@@ -366,12 +366,36 @@
   .modo b { font-size: 18px; } .modo span { font-size: 13.5px; color: var(--muted); line-height: 1.4; }
   .modo:hover { border-color: var(--prop); } .modo.dev:hover { border-color: var(--next); }
   .modo.dev b { color: var(--next); }
-  #estudio { position: fixed; inset: 12px; border-radius: 16px; display: grid; grid-template-columns: 200px minmax(0, 1fr) 380px; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; z-index: 3; background: rgba(13, 20, 18, 0.95); }
-  #es-top { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  /* el Estudio es un escritorio: una barra arriba y ventanas que se mueven (editor, terminal, gráfica, red, ruta) */
+  #estudio { position: fixed; inset: 0; z-index: 3; display: flex; flex-direction: column; background: radial-gradient(ellipse at 30% 20%, #15241f 0%, #0b1210 70%); }
+  #es-top { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap; background: rgba(13, 20, 18, 0.92); z-index: 2; }
   .es-logo { font-size: 18px; color: var(--next); letter-spacing: .5px; } .es-sp { flex: 1; }
-  #es-run { font-size: 13.5px; }
-  #es-izq { border-right: 1px solid var(--line); padding: 8px 10px; overflow-y: auto; }
-  #es-izq h4, #es-der h4 { margin: 12px 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); }
+  .es-grupo { display: flex; align-items: center; gap: 6px; padding: 0 0 0 8px; border-left: 1px solid var(--line); }
+  @media (max-width: 980px) { .es-grupo { border-left: 0; padding: 0; } }
+  #es-run { font-size: 13px; white-space: nowrap; }
+  #es-graf-m { max-width: 170px; border-radius: 8px; }
+  #es-dock button { padding: 6px 9px; font-size: 15px; }
+  #es-escritorio { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+  .es-win { position: absolute; display: flex; flex-direction: column; min-width: 220px; min-height: 120px; background: rgba(16, 25, 22, 0.97); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 34px rgba(0,0,0,.45); overflow: hidden; }
+  .es-win.arriba { border-color: rgba(60,203,255,.4); }
+  .es-win[hidden] { display: none; }
+  .es-wbar { display: flex; align-items: center; gap: 8px; padding: 5px 6px 5px 12px; background: rgba(234,242,239,0.05); border-bottom: 1px solid var(--line); cursor: grab; user-select: none; font-size: 13.5px; font-weight: 600; touch-action: none; }
+  .es-wbar:active { cursor: grabbing; }
+  .es-wsub { font-weight: 400; color: var(--muted); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+  .es-wx { background: none; border: 0; color: var(--muted); font-size: 16px; line-height: 1; padding: 3px 8px; border-radius: 7px; cursor: pointer; }
+  .es-wx:hover, .es-wx:focus-visible { color: var(--text); background: rgba(234,242,239,.1); }
+  .es-wbody { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
+  .es-wtam { position: absolute; right: 0; bottom: 0; width: 16px; height: 16px; cursor: nwse-resize; touch-action: none; background: linear-gradient(135deg, transparent 50%, rgba(234,242,239,.25) 50%, transparent 62%, rgba(234,242,239,.25) 70%, transparent 80%); }
+  .es-pie { display: flex; gap: 10px; align-items: center; padding: 5px 10px; font-size: 12.5px; color: var(--muted); border-top: 1px solid var(--line); flex-wrap: wrap; }
+  .es-pie input { width: 52px; background: rgba(0,0,0,.3); color: var(--text); border: 1px solid var(--line); border-radius: 7px; padding: 3px 5px; font: inherit; }
+  .es-pie .btn { padding: 3px 9px; }
+  .es-lienzo { flex: 1; min-height: 0; position: relative; }
+  .es-lienzo canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .es-vacio { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 16px; color: var(--muted); font-size: 13.5px; pointer-events: none; }
+  .es-vacio[hidden] { display: none; }
+  .es-pop-menu { position: absolute; z-index: 6; min-width: 240px; max-height: 60vh; overflow-y: auto; background: #18231f; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 14px 34px rgba(0,0,0,.5); padding: 6px; }
+  .es-pop-menu[hidden] { display: none; }
+  .es-pop-menu h4 { margin: 8px 8px 4px; font-size: 11.5px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); }
   .es-item { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; background: none; border: 0; color: var(--text); padding: 5px 8px; border-radius: 7px; font-size: 14px; cursor: pointer; font-family: ui-monospace, Menlo, monospace; }
   .es-item:hover { background: rgba(234,242,239,0.07); } .es-item[aria-pressed="true"] { background: rgba(60,203,255,0.16); color: var(--next); }
   #es-ac { position: absolute; z-index: 4; min-width: 260px; max-width: min(520px, 92%); max-height: 300px; overflow-y: auto; background: #18231f; border: 1px solid rgba(60,203,255,.45); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.5); font-size: 13px; }
@@ -389,8 +413,7 @@
   .es-borrar { background: none; border: 0; color: var(--muted); font-size: 18px; line-height: 1; padding: 3px 7px; border-radius: 7px; cursor: pointer; opacity: .55; }
   .es-borrar:hover, .es-borrar:focus-visible { opacity: 1; color: var(--crash); background: rgba(255,80,64,.12); }
   .es-acc { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
-  #es-centro { display: grid; grid-template-rows: minmax(0, 1fr) 36%; min-width: 0; }
-  #es-editor { display: flex; min-height: 0; border-bottom: 1px solid var(--line); }
+  #es-editor { display: flex; flex: 1; min-height: 0; }
   #es-gut { width: 44px; padding: 10px 6px 10px 0; text-align: right; color: #5d726a; font: 13.5px/20px ui-monospace, Menlo, monospace; overflow: hidden; user-select: none; flex: none; }
   #es-gut .err { color: #fff; background: var(--crash); border-radius: 0 4px 4px 0; }
   #es-area { position: relative; flex: 1; min-width: 0; }
@@ -401,31 +424,49 @@
   #es-src::selection { background: rgba(60,203,255,.3); color: transparent; }
   .tc { color: #6f877d; font-style: italic; } .ts { color: #ffd23f; } .tn { color: #ff9e5e; } .tk { color: #ff7ab8; font-weight: 600; }
   .tf { color: #3ccbff; } .th { color: #47f08a; font-weight: 600; } .te { color: #c8a6ff; }
-  #es-term { display: flex; flex-direction: column; min-height: 0; background: rgba(0,0,0,.25); }
+  #es-term { display: flex; flex-direction: column; flex: 1; min-height: 0; background: rgba(0,0,0,.25); }
   #es-out { flex: 1; overflow-y: auto; padding: 8px 12px; font: 13px/1.45 ui-monospace, Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
   #es-out .cmd { color: var(--next); margin-top: 4px; }
   .es-c-verde { color: var(--gate); } .es-c-rojo { color: var(--crash); } .es-c-amarillo { color: var(--gold); } .es-c-azul { color: var(--next); } .es-c-gris { color: var(--muted); }
-  .es-ruta.cerrado summary { opacity: .55; } .es-ruta.hecho summary { color: var(--gate); }
   #es-prompt { display: flex; gap: 8px; align-items: center; padding: 6px 12px; border-top: 1px solid var(--line); font-family: ui-monospace, Menlo, monospace; color: var(--next); }
   #es-in { flex: 1; background: none; border: 0; color: var(--text); font: 13.5px ui-monospace, Menlo, monospace; outline: none; }
-  #es-dercol { border-left: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; padding: 10px 12px; gap: 8px; }
-  #es-der { overflow-y: auto; font-size: 14px; line-height: 1.5; flex: 1; }
-  #es-der p { margin: 6px 0; } #es-der ul { padding-left: 18px; margin: 6px 0; } #es-der li { margin: 3px 0; }
-  #es-der code, #es-der pre { font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; }
-  #es-der pre { background: rgba(0,0,0,.3); padding: 8px; border-radius: 8px; white-space: pre-wrap; margin: 6px 0; }
-  #es-der code { color: var(--next); }
-  .es-fn, .es-lec { border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; margin: 6px 0; }
-  .es-fn summary, .es-lec summary { cursor: pointer; } .es-lec summary { font-weight: 600; }
-  #es-graf { width: 100%; height: auto; background: rgba(0,0,0,.25); border-radius: 10px; }
-  .es-ley { display: flex; gap: 12px; font-size: 13px; flex-wrap: wrap; }
-  #es-vista { margin-bottom: 6px; }
-  .es-red-ctl { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 6px 0; font-size: 14px; }
-  .es-red-ctl input { width: 64px; background: rgba(0,0,0,.3); color: var(--text); border: 1px solid var(--line); border-radius: 7px; padding: 5px 6px; font: inherit; }
-  #es-redc { width: 100%; display: block; background: rgba(0,0,0,.25); border-radius: 10px; }
+  /* la ruta: una lista corta; el detalle de cada capítulo sale en una ventanita */
+  #es-ruta { overflow-y: auto; padding: 8px 10px; font-size: 14px; }
+  .es-prog { height: 6px; border-radius: 4px; background: rgba(234,242,239,.1); overflow: hidden; margin: 4px 0 8px; } .es-prog i { display: block; height: 100%; background: var(--gate); }
+  .es-cap { display: flex; gap: 8px; align-items: center; width: 100%; text-align: left; background: none; border: 1px solid transparent; color: var(--text); padding: 6px 8px; border-radius: 9px; cursor: pointer; font: inherit; }
+  .es-cap:hover, .es-cap:focus-visible { border-color: var(--line); background: rgba(234,242,239,.05); }
+  .es-cap.cerrado { opacity: .5; } .es-cap.hecho b { color: var(--gate); } .es-cap.ahora { border-color: rgba(60,203,255,.4); }
+  .es-cap b { font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* las ventanitas (popups): manual, lecciones, capítulos, ayuda de una función */
+  #es-velo { position: absolute; inset: 0; background: rgba(0,0,0,.35); z-index: 7; }
+  #es-velo[hidden], #es-pop[hidden] { display: none; }
+  #es-pop { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(560px, calc(100vw - 24px)); max-height: min(78vh, 680px); display: flex; flex-direction: column; border-radius: 16px; z-index: 8; background: #15201c; border: 1px solid var(--line); box-shadow: 0 20px 50px rgba(0,0,0,.6); }
+  #es-pop header { display: flex; align-items: center; gap: 8px; padding: 10px 10px 10px 16px; border-bottom: 1px solid var(--line); }
+  #es-pop header b { flex: 1; font-size: 16px; }
+  #es-pop-c { overflow-y: auto; padding: 12px 16px 16px; font-size: 14.5px; line-height: 1.5; }
+  #es-pop-c p { margin: 6px 0 10px; } #es-pop-c ul { padding-left: 18px; margin: 6px 0; } #es-pop-c li { margin: 4px 0; }
+  #es-pop-c code, #es-pop-c pre { font-family: ui-monospace, Menlo, monospace; font-size: 13px; }
+  #es-pop-c code { color: var(--next); }
+  #es-pop-c pre { background: rgba(0,0,0,.3); padding: 9px 10px; border-radius: 9px; white-space: pre-wrap; margin: 8px 0; }
+  #es-pop-c .muted { font-size: 13px; }
+  .es-buscar { width: 100%; box-sizing: border-box; background: rgba(0,0,0,.3); color: var(--text); border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; font: 14px var(--font); margin-bottom: 8px; }
+  .es-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .es-chips button { cursor: pointer; background: none; font-family: var(--font); }
+  .es-chips button[aria-pressed="true"] { color: var(--next); border-color: rgba(60,203,255,.5); }
+  .es-fnl { display: flex; flex-direction: column; gap: 2px; }
+  .es-fnb { display: flex; gap: 10px; align-items: baseline; text-align: left; background: none; border: 0; color: var(--text); padding: 6px 8px; border-radius: 8px; cursor: pointer; font: inherit; }
+  .es-fnb:hover, .es-fnb:focus-visible { background: rgba(234,242,239,.06); }
+  .es-fnb code, .es-fnb .chip { white-space: nowrap; flex: none; } .es-fnb span { color: var(--muted); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .es-param { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 8px 0; font-size: 13.5px; }
+  .es-pasos { display: flex; gap: 5px; justify-content: center; margin-top: 12px; } .es-pasos i { width: 7px; height: 7px; border-radius: 50%; background: rgba(234,242,239,.2); } .es-pasos i.on { background: var(--next); }
+  .es-ley { display: flex; gap: 12px; font-size: 12.5px; flex-wrap: wrap; }
   @media (max-width: 980px) {
-    #estudio { inset: 0; border-radius: 0; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr) auto; overflow-y: auto; }
-    #es-izq { border-right: 0; border-bottom: 1px solid var(--line); max-height: 120px; }
-    #es-centro { min-height: 70vh; } #es-dercol { border-left: 0; border-top: 1px solid var(--line); max-height: 60vh; }
+    #estudio { overflow-y: auto; }
+    #es-escritorio { overflow: visible; display: flex; flex-direction: column; gap: 10px; padding: 10px; flex: none; }
+    .es-win { position: static !important; width: auto !important; height: auto !important; }
+    .es-win[data-w="editor"] { height: 60vh !important; } .es-win[data-w="terminal"] { height: 40vh !important; }
+    .es-win[data-w="grafica"], .es-win[data-w="red"] { height: 50vh !important; } .es-win[data-w="ruta"] { max-height: 60vh; }
+    .es-wbar { cursor: default; } .es-wtam { display: none; }
   }
   /* ---------------- simulaciones ---------------- */
   #sim-top { position: fixed; left: 12px; right: 12px; top: 12px; border-radius: 14px; padding: 10px 14px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; z-index: 3; }
@@ -499,29 +540,40 @@
 <aside id="taller-der" class="panel hidden" aria-label="Tu dron"><h3 id="dron-nombre">Tu dron</h3><div id="stats"></div><div id="errores"></div></aside>
 
 <!-- ============ ESTUDIO PBDMM (modo desarrollador) ============ -->
-<section id="estudio" class="panel hidden" aria-label="Estudio PBDMM">
+<section id="estudio" class="hidden" aria-label="Estudio PBDMM">
   <header id="es-top">
-    <b class="es-logo">PBDMM <span class="muted">estudio</span></b>
-    <span id="es-nombre" class="muted"></span>
+    <b class="es-logo">PBDMM</b>
+    <button class="btn ghost small" id="es-archivo-b" aria-haspopup="true" title="Tus programas y los ejemplos">📄 <span id="es-nombre"></span> ▾</button>
+    <button class="btn main small" id="es-correr" title="Ctrl/⌘ + Enter">▶ Correr</button>
+    <button class="btn ghost small" id="es-revisar" title="Revisa el programa sin entrenar">✓ Revisar</button>
+    <button class="btn ghost small" id="es-parar" disabled title="Dejar de escuchar">■</button>
     <span id="es-run"></span>
     <span class="es-sp"></span>
-    <button class="btn main small" id="es-correr" title="Ctrl/⌘ + Enter">▶ Correr</button>
-    <button class="btn ghost small" id="es-revisar">Revisar</button>
-    <button class="btn ghost small" id="es-parar" disabled>Dejar de escuchar</button>
-    <button class="btn ghost small" id="es-bajar">Descargar .pbd</button>
-    <button class="btn ai small" id="es-blender">Blender</button>
-    <button class="btn ghost small" id="es-volver">Garaje</button>
+    <div class="es-grupo"><select id="es-graf-m" class="sim-sel" aria-label="Qué modelo mirar"></select><button class="btn ghost small" id="es-avance" title="El mejor y el peor intento de cada nivel">Avance</button><button class="btn ai small" id="es-simular" title="Una prueba nueva con su última generación">Simular</button></div>
+    <div class="es-grupo"><div class="seg" id="es-dock" aria-label="Ventanas"><button data-w="editor" title="Editor">📝</button><button data-w="terminal" title="Terminal">⌨️</button><button data-w="grafica" title="Gráfica">📈</button><button data-w="red" title="Red neuronal">🧠</button><button data-w="ruta" title="Ruta del programador">🗺️</button></div><button class="btn ghost small" id="es-ordenar" title="Ordenar las ventanas">⊞</button></div>
+    <div class="es-grupo"><button class="btn ghost small" id="es-manual-b" title="El manual del lenguaje (F1 sobre una palabra)" aria-label="Manual">📖</button><button class="btn ghost small" id="es-aprende-b" title="Cómo aprende una IA">💡</button><button class="btn ai small" id="es-blender">Blender</button><button class="btn ghost small" id="es-volver">Garaje</button></div>
   </header>
-  <nav id="es-izq" aria-label="Programas">
-    <h4>Tus programas</h4><div id="es-archivos"></div>
-    <div class="es-acc"><button class="btn ghost small" id="es-nuevo">+ Nuevo</button><label class="btn ghost small">Abrir .pbd<input type="file" id="es-subir" accept=".pbd,.py,.txt" hidden></label></div>
-    <h4>Ejemplos</h4><div id="es-ejemplos"></div>
-  </nav>
-  <div id="es-centro">
-    <div id="es-editor"><div id="es-gut" aria-hidden="true"></div><div id="es-area"><pre id="es-hl" aria-hidden="true"></pre><div id="es-ac" role="listbox" aria-label="Opciones" hidden></div><textarea id="es-src" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Programa PBDMM"></textarea></div></div>
-    <div id="es-term"><div id="es-out" role="log" aria-live="polite"></div><div id="es-prompt"><span>›</span><input id="es-in" autocomplete="off" spellcheck="false" placeholder="ayuda · modelos · estado · correr · info &lt;modelo&gt;" aria-label="Terminal"></div></div>
+  <div id="es-escritorio">
+    <div id="es-archivo-m" class="es-pop-menu" hidden>
+      <h4>Tus programas</h4><div id="es-archivos"></div>
+      <div class="es-acc"><button class="btn ghost small" id="es-nuevo">+ Nuevo</button><label class="btn ghost small">Abrir .pbd<input type="file" id="es-subir" accept=".pbd,.py,.txt" hidden></label><button class="btn ghost small" id="es-bajar">Descargar .pbd</button></div>
+      <h4>Ejemplos</h4><div id="es-ejemplos"></div>
+    </div>
+    <div class="es-win" data-w="editor" aria-label="Editor"><div class="es-wbar"><span>📝 Editor</span><span class="es-wsub" id="es-ed-sub"></span><button class="es-wx" data-x="editor" aria-label="Cerrar">×</button></div>
+      <div class="es-wbody"><div id="es-editor"><div id="es-gut" aria-hidden="true"></div><div id="es-area"><pre id="es-hl" aria-hidden="true"></pre><div id="es-ac" role="listbox" aria-label="Opciones" hidden></div><textarea id="es-src" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Programa PBDMM"></textarea></div></div></div><div class="es-wtam"></div></div>
+    <div class="es-win" data-w="terminal" aria-label="Terminal"><div class="es-wbar"><span>⌨️ Terminal</span><span class="es-wsub"></span><button class="es-wx" id="es-limpiar" title="Limpiar" aria-label="Limpiar">⌫</button><button class="es-wx" data-x="terminal" aria-label="Cerrar">×</button></div>
+      <div class="es-wbody"><div id="es-term"><div id="es-out" role="log" aria-live="polite"></div><div id="es-prompt"><span>›</span><input id="es-in" autocomplete="off" spellcheck="false" placeholder="ayuda · modelos · estado · correr · info &lt;modelo&gt;" aria-label="Terminal"></div></div></div><div class="es-wtam"></div></div>
+    <div class="es-win" data-w="grafica" aria-label="Gráfica"><div class="es-wbar"><span>📈 Gráfica</span><span class="es-wsub" id="es-graf-t"></span><button class="es-wx" data-x="grafica" aria-label="Cerrar">×</button></div>
+      <div class="es-wbody"><div class="es-lienzo"><canvas id="es-graf" aria-label="Gráfica del entrenamiento"></canvas><div class="es-vacio" id="es-graf-v">Corre un programa para ver cómo aprende</div></div>
+        <div class="es-pie es-ley"><span style="color:var(--gate)">■ éxito</span><span style="color:var(--crash)">■ choque</span><span style="color:var(--next)">■ calidad</span></div></div><div class="es-wtam"></div></div>
+    <div class="es-win" data-w="red" aria-label="Red neuronal"><div class="es-wbar"><span>🧠 Red neuronal</span><span class="es-wsub" id="es-red-t"></span><button class="es-wx" data-x="red" aria-label="Cerrar">×</button></div>
+      <div class="es-wbody"><div class="es-lienzo"><canvas id="es-redc" aria-label="La red neuronal del dron, en vivo"></canvas><div class="es-vacio" id="es-red-v">La red se ve en vivo mientras entrena</div></div>
+        <div class="es-pie"><button class="btn ghost small" id="es-red-ant" aria-label="Dron anterior">◀</button><label>Dron <input type="number" id="es-red-i" min="1" value="1"></label><span id="es-red-n"></span><button class="btn ghost small" id="es-red-sig" aria-label="Dron siguiente">▶</button><button class="btn ghost small" id="es-red-azar">Al azar</button><span class="es-sp"></span><span id="es-red-top" title="Lo que más siente ahora"></span></div></div><div class="es-wtam"></div></div>
+    <div class="es-win" data-w="ruta" aria-label="Ruta del programador"><div class="es-wbar"><span>🗺️ Ruta</span><span class="es-wsub" id="es-ruta-sub"></span><button class="es-wx" data-x="ruta" aria-label="Cerrar">×</button></div>
+      <div class="es-wbody"><div id="es-ruta"></div></div><div class="es-wtam"></div></div>
+    <div id="es-velo" hidden></div>
+    <div id="es-pop" role="dialog" aria-modal="false" aria-labelledby="es-pop-h" hidden><header><button class="es-wx" id="es-pop-atras" aria-label="Atrás" hidden>←</button><b id="es-pop-h"></b><button class="es-wx" id="es-pop-x" aria-label="Cerrar">×</button></header><div id="es-pop-c"></div></div>
   </div>
-  <aside id="es-dercol"><div id="es-tabs" class="seg"><button data-t="ayuda">Ayuda</button><button data-t="ruta">Ruta</button><button data-t="aprende">Aprende</button><button data-t="grafica">Gráfica</button></div><div id="es-der"></div></aside>
 </section>
 
 <!-- ============ SIMULACIONES (Avance del modelo · Simular prueba) ============ -->

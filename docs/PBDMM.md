@@ -510,7 +510,7 @@ Lo que sí hay de Python: números, textos y f"{x:.2f}", True/False/None, listas
 
 ### 1 · Qué es la IA del dron
 
-La IA es una red neuronal: una función con miles de números adentro (los pesos). Cada instante recibe 38 números —lo que siente el dron: su inclinación, su velocidad, hacia dónde está la meta, 10 sensores de distancia, dónde está la casa que graba, cómo es su física— y devuelve 4: las palancas (gas, roll, pitch, yaw). Al principio los pesos son al azar: el dron se cae. Entrenar es cambiar esos números poco a poco hasta que las palancas que salen lo hagan volar bien. Míralo en vivo: pestaña Gráfica → Red neuronal, y elige cuál de los drones que entrenan quieres ver.
+La IA es una red neuronal: una función con miles de números adentro (los pesos). Cada instante recibe 38 números —lo que siente el dron: su inclinación, su velocidad, hacia dónde está la meta, 10 sensores de distancia, dónde está la casa que graba, cómo es su física— y devuelve 4: las palancas (gas, roll, pitch, yaw). Al principio los pesos son al azar: el dron se cae. Entrenar es cambiar esos números poco a poco hasta que las palancas que salen lo hagan volar bien. Míralo en vivo: la ventana 🧠 Red neuronal del Estudio, y elige cuál de los drones que entrenan quieres ver.
 
 ### 2 · Cómo aprende: premios
 
@@ -729,7 +729,7 @@ def cada_generacion(e):
 
 - `app/pbdmm.js`: léxico → árbol → intérprete (un subconjunto de Python) y `compilar()`: el programa → la configuración del entrenamiento + las funciones especiales. `pedidoDe(cfg)` arma el `POST /api/lab`; `estadoE(tr)` arma `e` desde `entrenando.json`.
 - `app/autocompletar.js`: el autocompletado del editor (`dron(` → "estandar", "azar" y tus drones; `mision(`, `nivel(`, `premios(`, `desde=`, `e.`, `def `). Las opciones fijas están en `opciones` de cada función en `app/data/pbdmm.json`; las de tu juego (`$drones`, `$misiones`, `$modelos`…) se llenan solas. Ctrl+Espacio las abre.
-- La red en vivo (pestaña Gráfica → Red neuronal): `live_train.py` escribe 4 veces por segundo `<estado>_red.json` (activaciones del dron que mira + las conexiones más fuertes de cada capa); `GET /api/red?modelo=` lo entrega; `POST /api/lab` con `watch: i` cambia el dron que mira (también en Blender).
+- La red en vivo (la ventana 🧠 Red neuronal del Estudio): `live_train.py` escribe 4 veces por segundo `<estado>_red.json` (activaciones del dron que mira + las conexiones más fuertes de cada capa); `GET /api/red?modelo=` lo entrega; `POST /api/lab` con `watch: i` cambia el dron que mira (también en Blender).
 - `app/estudio.js`: la pantalla (editor, terminal, ayuda, gráfica). Cada 1,5 s lee `GET /api/lab`; si la generación subió, llama `cada_generacion(e)`, y lo que pida (premios, lr…) va como `ajustar`.
 - `scripts/jugar.py`: `POST /api/lab` acepta `lr`, `ent`, `capas` (red nueva → `info.json`) y la acción `guardar`. `live_train.py --capas` (o `capas` en `info.json`) arma la red.
 - PBDMM 2: `compilar()` también recibe del estudio `hangar` (tus drones con su física), `misionInfo` (lo que pide cada misión: los requisitos de su pedido de la campaña + `requisitos_ia` de entrenamiento.json) e `inventario`. `requisitos.js` hace la revisión (la misma del briefing del juego). `estadoE()` agrega `e.cambio` y `e.diagnosticos` (`diagnosticar()`); `narracion()` es el narrador. `app/ruta.js`: la ruta del programador (capítulos en `ruta` de pbdmm.json).
