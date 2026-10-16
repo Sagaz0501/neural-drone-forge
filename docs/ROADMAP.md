@@ -79,7 +79,7 @@ Leer el juego desde el programa (`d = dron(…)`, `mision_info`, `hangar()`, `in
 programador**: 8 capítulos, uno por cada dron que creas, con programa guiado y reto medido solo.
 Falta: lo que agregue la Fase 1b (premios y castigos nuevos) también en PBDMM.
 
-## ⏭️ Lo siguiente · El negocio: los clientes te escriben *(Santiago, 15-10-2026)*
+## ✅ El negocio: los clientes te escriben *(Santiago, hecho 15-10-2026 · v1.0)*
 
 > Diseño completo en [`NEGOCIO.md`](NEGOCIO.md).
 
@@ -92,8 +92,12 @@ tutorial, el más fácil), 🎬 video, 🔎 inspección, 🛠️ encargos de arm
 - ✅ Hecho: el celular (chats, tarjetas, ¿qué me falta?, terminar el día), el tutorial del día 1 (la foto de Doña
   Marta), 📷 fotos y 🔎 inspecciones, 🎬 videos repetibles, 4 dificultades desde plantillas, 4 clientes con relación y
   recomendaciones, arriendo, pedidos especiales por el chat, `requisitos.js` compartido.
-- ⏭️ Falta: **flota** (varios trabajos ★ con la IA a la vez), 🛠️ encargos de armado y 🧪 pruebas de drones (con la
-  Fase 2), 🎮 a mano (Fase 3), 📦 entregas, más clientes y lugares.
+
+## ⏭️ Lo siguiente · El negocio, parte 2
+
+- 🔜 **Flota:** varios trabajos ★ con la IA a la vez.
+- 📝 🛠️ Encargos de armado y 🧪 pruebas de drones (con la Fase 2), 🎮 a mano (Fase 3), 📦 entregas.
+- 📝 Más clientes y lugares.
 
 ## Fase 1b · Premios, castigos y misiones que exigen al dron 📝 *(Santiago, 15-10-2026)*
 

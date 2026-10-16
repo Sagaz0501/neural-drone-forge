@@ -146,7 +146,7 @@ de éxito. El juego le manda los pedidos y Blender los toma solo. Sin Blender se
 
 ## Estado
 
-**Demo jugable (v0.1).** Lo que hay hoy:
+**Versión 1.0** ([releases](https://github.com/Sagaz0501/neural-drone-forge/releases)). Lo que hay hoy:
 
 - ✅ Garaje 3D, tienda con piezas reales, inventario y hangar con varios drones.
 - ✅ Banco de armado: impresión 3D (formas o tu STL), cableado con pines reales y fallas, prueba de humo,
@@ -157,6 +157,10 @@ de éxito. El juego le manda los pedidos y Blender los toma solo. Sin Blender se
 - ✅ **Avance del modelo** (su mejor y su peor intento) y **Simular prueba** (la misma prueba del entrenamiento, con
   la última generación): recorrido, red neuronal, gráficas y cámaras. Pedidos distintos en cada intento.
 - ✅ Blender como pantalla del entrenamiento, con **Modo video** para grabar.
+- ✅ **El negocio:** los clientes te escriben al 📱 celular; fotos, inspecciones y videos repetibles de ★ a ★★★★,
+  días con plazos, relación con cada cliente y el tutorial del día 1.
+- ✅ **PBDMM 2.0:** leer el juego desde el programa (`d = dron(…)`), revisar el dron contra la misión, el narrador del
+  entrenamiento y la ruta del programador (8 capítulos).
 
 Lo que viene (soldar con cautín, más fallas en el banco, mando de PS5, mapas de freestyle y FPV, misiones
 que solo la IA puede cumplir, video con varios drones…) está en el **[Roadmap](docs/ROADMAP.md)**.

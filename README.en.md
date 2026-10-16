@@ -15,7 +15,7 @@ trying at once while the neural network lights up as it learns.
 *25 drones learning at once in Blender's Drone Lab: each camera cone turns from red to green when the shot is good.
 [Watch the full minute (MP4)](docs/media/blender_entrenamiento.mp4).*
 
-*Playable demo · Spanish and English · 100% local (your computer trains, nothing goes online) · MIT*
+*Version 1.0 · Spanish and English · 100% local (your computer trains, nothing goes online) · MIT*
 
 </div>
 
