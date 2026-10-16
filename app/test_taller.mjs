@@ -109,5 +109,51 @@ ok(TA.peor(["buena", "fria", "buena"]) === "fria" && TA.peor(["buena", "buena", 
   ok(TA.esEnchufe({ tipo: "fc_conn" }) && TA.esEnchufe({ tipo: "ufl" }) && !TA.esEnchufe({ tipo: "tx" }), "el arnés y la antena se enchufan; lo demás se suelda");
 }
 
+// 5) desoldar: la bomba chupa de un golpe (solo con el estaño derretido) y la malla lo absorbe de a poco
+{
+  const E = estacion(340), J = TA.junta0("chico");
+  J.estano = 2.6; J.flux = true;
+  ok(TA.extraer(J) === 0 && J.estano === 2.6, "la bomba con el estaño frío no saca nada");
+  for (let i = 0; i < 30; i++) TA.tickJunta(J, E, 0.05, true, false);
+  const sacado = TA.extraer(J);
+  ok(sacado > 1 && J.estano < 1.3, `con el estaño derretido, la bomba chupa ${sacado.toFixed(1)} de un golpe`);
+  ok(TA.resultadoJunta(J).q !== "puente", "después de la bomba ya no hay puente");
+  const J2 = TA.junta0("chico"); J2.estano = 2.5;
+  for (let i = 0; i < 40; i++) TA.tickJunta(J2, E, 0.05, true, false, true);
+  ok(J2.estano < 0.5, `la malla absorbe el estaño (${J2.estano.toFixed(2)} queda)`);
+}
+// 6) el cautín de lápiz (sin perilla, poca potencia) sufre con los pads grandes; la estación no
+{
+  const cat2 = JSON.parse(readFileSync(new URL("data/piezas.json", import.meta.url), "utf8"));
+  const spec = (id) => cat2.soldadura.find((x) => x.id === id).cautin;
+  const pad = (c) => { const E = TA.estacion0(spec(c)); E.on = true; if (!E.ajustable) E.set = spec(c).set; else E.set = 340; for (let i = 0; i < 300; i++) TA.tickEstacion(E, 0.05); const J = TA.junta0("grande"); for (let i = 0; i < 60; i++) { TA.tickEstacion(E, 0.05, TA.PADS.grande.masa); TA.tickJunta(J, E, 0.05, true, false); } return J.temp; };
+  const lapiz = pad("cautin_lapiz"), est = pad("estacion");
+  ok(lapiz < est - 25, `el pad de la batería en 3 s: lápiz ${Math.round(lapiz)} °C vs estación ${Math.round(est)} °C`);
+}
+// 7) insumos y herramientas de soldar
+{
+  const p = PT.nuevaPartida(); p.plata = 200;
+  ok(!PT.cautinDe(p, cat) && PT.insumo(p, "estano") === 0, "una partida nueva no trae cautín ni estaño");
+  PT.comprarCarrito(p, cat, [{ ranura: "soldadura", id: "cautin_lapiz", n: 1 }, { ranura: "soldadura", id: "estano", n: 2 }, { ranura: "soldadura", id: "flux", n: 1 }]);
+  ok(PT.cautinDe(p, cat)?.id === "cautin_lapiz" && PT.insumo(p, "estano") === 20 && PT.insumo(p, "flux") === 5, "comprar el cautín (herramienta) y estaño ×2 + flux (insumos)");
+  ok(PT.puedeComprar(p, cat, "soldadura", "cautin_lapiz") !== null, "el cautín no se compra dos veces");
+  ok(PT.gastar(p, "flux", 0.25) && PT.insumo(p, "flux") === 4.75 && !PT.gastar(p, "flux", 10) && PT.insumo(p, "flux") === 4.75, "gastar flux; si no alcanza, no gasta");
+  PT.comprar(p, cat, "soldadura", "estacion", 1);
+  ok(PT.cautinDe(p, cat)?.id === "estacion", "con la estación, se usa la estación");
+  const vieja = { v: 3, herramientas: [] };
+  PT.asegurarTaller(vieja);
+  ok(vieja.herramientas.includes("cautin_lapiz") && vieja.insumos.estano > 0, "una partida de antes: el garaje ya tenía un cautín viejo y algo de estaño");
+}
+// 8) un puente NO avisa en el paso de cablear: se descubre con el multímetro o al conectar la batería
+{
+  const b = { chasis: "madera", motores: "m1806", esc: "esc20", controladora: "fc_basica", bateria: "b2s1000", radio: "rx_espnow" };
+  const d = { slots: {}, extras: [], banco: { cables: [], instalado: {} } };
+  const comps = BA.componentes(cat, b, d), B = { cables: BA.manual(comps) };
+  const bat = B.cables.find((c) => c.includes("esc.bat+"));
+  B.juntas = { [TA.claveCable(bat)]: { q: "puente", n: 1, s: [{ q: "puente" }] } };
+  const r = BA.cableado(comps, B).rev;
+  ok(!r.faltan.length && r.danos.length, "con un puente: no falta nada (cablear ✓) pero algo se va a quemar");
+}
+
 console.log(fallas ? `\n${fallas} pruebas fallaron.` : "\nTodas las pruebas pasan.");
 process.exit(fallas ? 1 : 0);

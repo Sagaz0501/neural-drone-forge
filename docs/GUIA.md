@@ -83,6 +83,17 @@ Abre un dron del hangar → **Banco de armado**. A la izquierda los pasos (✓ o
 
 El **multímetro** ($8) avisa antes de conectar la batería si algo va a quemarse (y marca las soldaduras frías).
 
+**Soldar gasta.** Necesitas un cautín (el de lápiz no tiene perilla y le cuestan los pads grandes; la estación y la
+T12 calientan mejor) y se van gastando el **estaño**, el **flux** y el **cable**: se compran en la tienda, sección
+🔥 Soldadura. Para **desoldar**: el **extractor** (bomba, tecla **X** con el estaño derretido) chupa de un golpe y la
+**malla** (mantén **M**) lo absorbe de a poco. La mesa **no avisa** si una junta salió mal: un puente de estaño se ve en la
+placa o lo encuentra el **multímetro** (tecla **T**: pita en un corto, la lectura salta en una junta fría)… o se quema
+algo al conectar la batería.
+
+**La tienda (🛒 DronMarket)** va por secciones (motores, baterías, controladoras, cámaras, soldadura…): cada pieza con su
+foto, sus barras (comparadas con lo mejor de la sección), cuándo llega y cuántas tienes. Toca una para ver el detalle y
+compararla con la que tiene tu dron (▲ mejor / ▼ peor); la 🧺 canasta suma, dice qué llega hoy y cuánto te queda.
+
 **Las piezas llegan en caja.** Lo barato del barrio llega el mismo día; lo bueno al día siguiente (🚚 en la tienda dice
 cuándo), y lo de lujo en 2 días. Lo que viene en camino llega al empezar ese día (📱 → Terminar el día). La plancha
 verde de la mesa muestra las cajas; el inventario dice 🚚 *llega el día N* o 📦 *en su caja*.

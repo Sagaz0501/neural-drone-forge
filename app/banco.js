@@ -360,7 +360,9 @@ export function estado(cat, d, b, unidadDe, opts = {}) {
   add("armar", t("Armar"), !faltaInst.length && !exFalta && !(chP?.imprimible && opts.impresora && !chU?.diseno),
     faltaInst.length || exFalta ? t("Falta instalar: {lista}.", { lista: [...faltaInst.map((s) => NOMBRE_SLOT[s] || s), ...(exFalta ? [t("extras")] : [])].join(", ") }) : "");
   const armado = pasos.at(-1).ok;
-  add("cablear", t("Cablear"), armado && rev.ok, !armado ? t("Primero arma.") : rev.danos.length ? t("Hay cables que van a quemar algo.") : rev.fallas.length ? rev.fallas[0].msg : rev.faltan.length ? t("{n} conexiones por hacer.", { n: rev.faltan.length }) : "");
+  // cablear queda ✓ cuando todo está conectado: un corto, un puente de estaño o un cable mal puesto NO avisan aquí;
+  // se descubren con el multímetro… o al conectar la batería (prueba de humo)
+  add("cablear", t("Cablear"), armado && !rev.faltan.length, !armado ? t("Primero arma.") : rev.faltan.length ? t("{n} conexiones por hacer.", { n: rev.faltan.length }) : "");
   const sig = firma(comps, cab.cables);
   add("humo", t("Prueba de humo"), armado && rev.ok && B.humo === sig, B.humo === sig ? "" : t("Conecta la batería (con el probador de humo si lo tienes)."));
   const fwOk = fcU?.fw?.ok && FIRMWARES.find((f) => f.id === fcU.fw.id)?.chip === CHIP[fcU.id];

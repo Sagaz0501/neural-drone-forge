@@ -232,5 +232,15 @@
  "Más temperatura": "Higher temperature",
  "Limpiar la punta (C)": "Clean the tip (C)",
  "Flux (F): toca el pad": "Flux (F): tap the pad",
- "Estaño: mantén Espacio mientras el cautín calienta el pad": "Solder: hold Space while the iron heats the pad"
+ "Estaño: mantén Espacio mientras el cautín calienta el pad": "Solder: hold Space while the iron heats the pad",
+ "🛒 DronMarket": "🛒 DronMarket",
+ "Saldo": "Balance",
+ "Espacio ·": "Space ·",
+ "Buscar piezas…": "Search parts…",
+ "Buscar en la tienda": "Search the shop",
+ "Canasta": "Basket",
+ "Secciones": "Sections",
+ "Extractor de estaño (X): con el estaño derretido, chupa de un golpe": "Desoldering pump (X): with the solder molten, it sucks it up in one go",
+ "Malla desoldante: mantén M con el cautín sobre el estaño": "Desoldering braid: hold M with the iron on the solder",
+ "Multímetro (T): continuidad entre pads": "Multimeter (T): continuity between pads"
 }

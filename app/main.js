@@ -212,6 +212,7 @@ function descr(ranura, pz) {
     case "montajes": return pz.desc || "";
     case "extras": return `${pz.masa_g} g · ${pz.desc || ""}`;
     case "herramientas": return pz.desc || "";
+    case "soldadura": return pz.desc || "";
     default: return "";
   }
 }
@@ -299,9 +300,16 @@ function avisoRutaDron(d) {
   const n = RUTA.alCrearDron(P(), d);
   if (n) setTimeout(() => toast(t("📘 Ruta del programador: se abrió el capítulo {n} con \"{d}\" (Estudio PBDMM → Ruta).", { n, d: esc(d.nombre) }), 4500), 900);
 }
-const kitCosto = () => Object.entries(DRONES_EJEMPLO.madera).reduce((s, [slot, id]) => s + (PT.libres(P(), id).length ? 0 : pieza(cat, PT.RANURA[slot], id)?.precio || 0), 0);
+/** Lo del kit que te falta: las piezas del dron de madera y, si no tienes, lo básico para soldar (cautín, estaño, flux, cable). */
+function kitFaltan(p = P()) {
+  const out = Object.entries(DRONES_EJEMPLO.madera).filter(([, id]) => !PT.libres(p, id).length).map(([slot, id]) => ({ ranura: PT.RANURA[slot], id, n: 1 }));
+  if (!PT.cautinDe(p, cat)) out.push({ ranura: "soldadura", id: "cautin_lapiz", n: 1 });
+  for (const [k, id, min] of [["estano", "estano", 3], ["flux", "flux", 1.5], ["cable", "cables", 2]]) if (PT.insumo(p, k) < min) out.push({ ranura: "soldadura", id, n: 1 });
+  return out;
+}
+const kitCosto = () => kitFaltan().reduce((s, x) => s + (pieza(cat, x.ranura, x.id)?.precio || 0) * x.n, 0);
 function armarKit() {
-  const p = P(), faltan = Object.entries(DRONES_EJEMPLO.madera).filter(([, id]) => !PT.libres(p, id).length).map(([slot, id]) => ({ ranura: PT.RANURA[slot], id, n: 1 }));
+  const p = P(), faltan = kitFaltan(p);
   const err = PT.comprarCarrito(p, cat, faltan, { envio: true });
   if (err) { toast(err); return; }
   const d = PT.nuevoDron(p, t("Madera"), t("El primer dron: videos de casas"));

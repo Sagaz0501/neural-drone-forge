@@ -69,14 +69,17 @@ app/               EL JUEGO (Dron Maker): usa los módulos de game/
                    punta que se ensucia, flux, estaño que solo moja si el pad está caliente) -> junta buena/fría/puente/
                    levantado en d.banco.juntas; efectivos() = el cableado que conduce. test: node app/test_taller.mjs
   mesa.js          LA MESA DE TRABAJO (3D, su propio canvas): abrir cajas, montar, atornillar, soldar con el cautín (ratón)
-                   y el estaño (Espacio) a la vez, enchufar el arnés; la ESP32 de Blender (app/modelos/*.glb)
+                   y el estaño (Espacio) a la vez, enchufar el arnés, desoldar (bomba X, malla M), multímetro (T); NO avisa
+                   si una junta salió mal. Gasta p.insumos (estaño, flux, cable, malla: PT.gastar); el cautín = PT.cautinDe
+  miniaturas.js    las fotos de la tienda: cada pieza dibujada una vez en 3D (dron3d.js, los GLB de Blender), en cola
   banco.js         el banco de armado (lógica, sin pantalla): componentes y pines, cableado del manual, revisar()
                    (qué se quema / no funciona / falta), firmwares, orden y sentido de motores, estado() = pasos
                    test: node app/test_banco.mjs
   ui_banco.js      la pantalla del banco: imprimir (forma, tu STL, carcasa, descargar STL), armar (animación),
                    mesa de cableado (SVG), prueba de humo, programar (flashear, calibrar, puertos, radio, motores, IA),
                    hélices, prueba atada
-  tienda.js        tienda por categorías con cantidades + carrito, inventario (vender usado), importar STL
+  tienda.js        la tienda virtual (🛒 DronMarket): secciones, tarjetas con foto y barras de stats, detalle que compara con
+                   tu dron, canasta (envío, saldo); inventario (vender usado, insumos), importar STL
   stl.js           leer STL (binario/ASCII), volumen -> peso impreso, puntas de los brazos -> motores, exportar STL
   parts.js         piezas -> física (masa, twr, drag…) + batería y vel. máx.   test: node app/test_parts.mjs
   dron3d.js        el dron en 3D armado con sus piezas (formas, tu STL, carcasa, cables, piezas "fantasma" sin instalar)
@@ -229,7 +232,9 @@ Node v22 está en `/opt/homebrew/bin/node`. Blender 5.2 en `/Applications/Blende
 - **El armado de verdad (16-10-2026, Fase 2a-2c):** lo que compras llega en caja (el aluminio al otro día); en la mesa de
   trabajo (mesa.js) cortas la cinta, montas cada pieza y atornillas (mantener hasta el clic); para cablear prendes la
   estación, pones cada cable en su pad y sueldas con el cautín (ratón) + estaño (Espacio), flux (F) y limpiar (C). Las
-  juntas salen buenas, frías (se pueden soltar en vuelo: mision_sim.js frias), con puente (corto) o con el pad levantado.
+  juntas salen buenas, frías (se pueden soltar en vuelo: mision_sim.js frias), con puente (corto) o con el pad levantado;
+  la mesa no avisa (cablear queda ✓ si todo está conectado): se descubre con el multímetro o en la prueba de humo.
+  Soldar gasta insumos (piezas.json "soldadura": cautines con potencia, extractor, estaño, flux, cable, malla).
   El diagrama viejo quedó como la 📄 Guía de conexión (solo mirar). Falta: la batería y el multímetro en la mesa.
 - **El Estudio como computador (16-10-2026):** íconos de apps (IDE, Documentación, Mensajes, Tienda, Inventario,
   Simuladores, Finanzas, Banco de armado), ventanas que se mueven y una barra de tareas. Toda plata que entra o sale se

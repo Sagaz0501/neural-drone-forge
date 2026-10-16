@@ -246,23 +246,60 @@
   .prop-in { background: transparent; border: 1px solid transparent; border-radius: 8px; color: var(--muted); font: inherit; font-size: 14px; width: 100%; padding: 2px 6px; margin-left: -6px; }
   .prop-in:hover, .prop-in:focus { border-color: var(--line); outline: none; color: var(--text); }
   .wide { width: min(1120px, calc(100vw - 24px)) !important; max-height: calc(100vh - 24px) !important; }
-  .tienda { display: grid; grid-template-columns: 170px 1fr 260px; gap: 16px; margin-top: 12px; min-height: 0; }
-  .cats { display: flex; flex-direction: column; gap: 4px; }
-  .cats button { text-align: left; background: transparent; border: 1px solid transparent; color: var(--muted); border-radius: 9px; padding: 7px 10px; font-size: 14.5px; cursor: pointer; }
-  .cats button[aria-pressed="true"] { color: var(--text); border-color: var(--line); background: rgba(234,242,239,0.07); }
-  .prods { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; align-content: start; max-height: calc(100vh - 190px); overflow-y: auto; padding-right: 4px; }
-  .prod { border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; display: flex; flex-direction: column; gap: 6px; background: rgba(234,242,239,0.03); }
-  .prod.bloq { opacity: .5; }
-  .prod b { font-size: 15px; } .prod small { color: var(--muted); font-size: 12.5px; line-height: 1.4; flex: 1; }
-  .prod small.envio { flex: none; color: var(--next); }
-  .prod .fila { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  /* la tienda virtual (tienda.js): secciones, tarjetas con foto y barras, el detalle o la canasta a la derecha */
+  #tienda { padding: 0; overflow: hidden; display: flex; flex-direction: column; height: min(820px, calc(100vh - 24px)); }
+  #tienda.hidden { display: none; }
+  .tv-top { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .tv-logo { font-size: 20px; letter-spacing: .3px; } .tv-sp { flex: 1; }
+  #t-buscar { flex: 0 1 280px; background: rgba(0,0,0,.3); color: var(--text); border: 1px solid var(--line); border-radius: 20px; padding: 7px 14px; font: 14px var(--font); }
+  .tv-saldo { font-size: 14px; color: var(--muted); }
+  #b-t-canasta[aria-pressed="true"] { outline: 2px solid rgba(255,255,255,.35); }
+  .tv { flex: 1; min-height: 0; display: grid; grid-template-columns: 176px minmax(0, 1fr) 300px; }
+  .tv-cats { display: flex; flex-direction: column; gap: 2px; padding: 10px 8px; border-right: 1px solid var(--line); overflow-y: auto; }
+  .tv-cats button { display: flex; align-items: center; gap: 9px; text-align: left; background: transparent; border: 0; color: var(--muted); border-radius: 10px; padding: 8px 10px; font: 14.5px var(--font); cursor: pointer; }
+  .tv-cats button span { font-size: 17px; width: 22px; text-align: center; }
+  .tv-cats button:hover { background: rgba(234,242,239,.05); color: var(--text); }
+  .tv-cats button[aria-pressed="true"] { color: var(--text); background: rgba(255,122,26,.14); }
+  .tv-main { display: flex; flex-direction: column; min-height: 0; }
+  #t-head { display: flex; align-items: baseline; gap: 12px; padding: 12px 16px 4px; flex-wrap: wrap; }
+  #t-head h3 { margin: 0; font-size: 19px; }
+  .tv-chips { display: flex; gap: 6px; flex-wrap: wrap; } .tv-chips span { font-size: 12.5px; border: 1px solid var(--line); border-radius: 20px; padding: 2px 9px; color: var(--muted); }
+  .tv-grid { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(188px, 1fr)); gap: 12px; padding: 8px 16px 16px; align-content: start; grid-auto-rows: max-content; }
+  .tv-card { position: relative; border: 1px solid var(--line); border-radius: 14px; background: rgba(234,242,239,.03); display: flex; flex-direction: column; cursor: pointer; transition: transform .12s, border-color .12s; }
+  .tv-card > * { flex-shrink: 0; }
+  .tv-card:hover { transform: translateY(-2px); border-color: rgba(234,242,239,.3); }
+  .tv-card.sel { border-color: var(--prop); }
+  .tv-card.bloq { cursor: default; } .tv-card.bloq > :not(.tv-candado) { opacity: .4; }
+  .tv-img { aspect-ratio: 36 / 24; border-radius: 13px 13px 0 0; overflow: hidden; background: radial-gradient(ellipse at 50% 40%, #33413c 0%, #18211e 75%); display: grid; place-items: center; }
+  .tv-img img { width: 100%; height: 100%; object-fit: contain; }
+  .tv-img.grande { border-radius: 12px; margin-bottom: 8px; }
+  .tv-ico { font-size: 40px; opacity: .6; }
+  .tv-info { display: flex; justify-content: space-between; gap: 8px; padding: 9px 11px 2px; align-items: baseline; }
+  .tv-info b { font-size: 14px; line-height: 1.25; }
+  .tv-precio { color: var(--gold); font-weight: 700; font-size: 16px; white-space: nowrap; }
+  .tv-precio small { color: var(--next); font-weight: 400; font-size: 12.5px; margin-left: 6px; }
+  .tv-stats { padding: 4px 11px; display: flex; flex-direction: column; gap: 4px; }
+  .tv-st { display: grid; grid-template-columns: 74px 1fr auto; gap: 7px; align-items: center; font-size: 11.5px; color: var(--muted); }
+  .tv-st i { height: 5px; border-radius: 3px; background: rgba(234,242,239,.1); overflow: hidden; } .tv-st i b { display: block; height: 100%; background: linear-gradient(90deg, var(--prop), var(--gold)); border-radius: 3px; }
+  .tv-st em { font-style: normal; color: var(--text); font-variant-numeric: tabular-nums; }
+  .tv-pie { margin-top: auto; display: flex; align-items: center; gap: 8px; padding: 8px 11px 10px; font-size: 12px; }
+  .tv-envio { color: var(--next); } .tv-tengo { color: var(--muted); flex: 1; text-align: right; }
+  .tv-add { width: 30px; height: 30px; border-radius: 50%; border: 0; background: var(--prop); color: #1a1208; font-weight: 700; font-size: 16px; cursor: pointer; flex: none; }
+  .tv-candado { position: absolute; inset: auto 8px 8px 8px; text-align: center; font-size: 13px; background: rgba(10,16,14,.85); border-radius: 9px; padding: 6px; }
+  .tv-lado { border-left: 1px solid var(--line); padding: 14px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+  .tv-lado h3 { margin: 0; font-size: 18px; } .tv-lado h4 { margin: 8px 0 0; font-size: 13.5px; } .tv-lado h4 small { color: var(--muted); font-weight: 400; }
+  .tv-lado .tv-stats { padding: 0; } .tv-desc { font-size: 13.5px; line-height: 1.45; color: var(--muted); margin: 0; }
+  .tv-cmp { list-style: none; padding: 0; margin: 0; font-size: 13px; display: flex; flex-direction: column; gap: 3px; }
+  .tv-vacio { text-align: center; margin: auto 0; } .tv-vacio span { font-size: 44px; opacity: .5; }
+  .tv-linea { display: grid; grid-template-columns: 52px 1fr auto; gap: 9px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .tv-linea span b { display: block; font-size: 13.5px; font-weight: 500; } .tv-linea small { color: var(--muted); font-size: 12px; }
+  .tv-mini { width: 52px; height: 38px; border-radius: 8px; overflow: hidden; background: #1e2825; display: grid; place-items: center; } .tv-mini img { width: 100%; height: 100%; object-fit: contain; } .tv-mini .tv-ico { font-size: 20px; }
+  .tv-resumen { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; font-size: 14px; } .tv-resumen div { display: flex; justify-content: space-between; gap: 8px; }
   .qty { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 8px; }
   .qty button { background: none; border: 0; color: var(--text); width: 26px; height: 26px; cursor: pointer; font-size: 16px; }
   .qty span { min-width: 22px; text-align: center; font-variant-numeric: tabular-nums; }
-  .carrito { border-left: 1px solid var(--line); padding-left: 14px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
-  .carrito .it { display: flex; justify-content: space-between; gap: 6px; }
   .tengo { font-size: 12px; color: var(--next); }
-  @media (max-width: 860px) { .tienda { grid-template-columns: 1fr; } .cats { flex-direction: row; flex-wrap: wrap; } .carrito { border-left: 0; padding-left: 0; } .prods { max-height: none; } }
+  @media (max-width: 980px) { #tienda { height: auto; max-height: calc(100vh - 24px); overflow-y: auto; } .tv { grid-template-columns: 1fr; } .tv-cats { flex-direction: row; flex-wrap: wrap; border-right: 0; border-bottom: 1px solid var(--line); } .tv-lado { border-left: 0; border-top: 1px solid var(--line); } .tv-grid { overflow: visible; } }
   .inv-t { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 8px; }
   .inv-t td, .inv-t th { padding: 6px 8px; border-top: 1px solid rgba(234,242,239,0.07); text-align: left; vertical-align: top; }
   .inv-t th { color: var(--muted); font-weight: 500; font-size: 12.5px; text-transform: uppercase; letter-spacing: 1px; }
@@ -325,6 +362,9 @@
   #mesa-sold { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 8px; align-items: stretch; padding: 8px; border-radius: 16px; }
   .ms-b { position: relative; min-width: 62px; background: rgba(234,242,239,.07); border: 1px solid var(--line); color: var(--text); border-radius: 12px; font-size: 22px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 6px 8px; }
   .ms-b small { font-size: 10.5px; color: var(--muted); }
+  .ms-sep { width: 1px; background: var(--line); margin: 4px 2px; }
+  .ms-b:disabled { opacity: .35; cursor: not-allowed; }
+  .ms-b.vacio small { color: var(--crash); }
   .ms-b[aria-pressed="true"] { border-color: rgba(60,203,255,.6); background: rgba(60,203,255,.15); }
   #ms-on[aria-pressed="true"] { border-color: rgba(255,122,26,.7); background: rgba(255,122,26,.18); color: #ffb070; }
   .ms-temp { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 110px; }
@@ -745,10 +785,19 @@
 </section>
 
 <section id="tienda" class="modal panel wide hidden" role="dialog" aria-label="Tienda">
-  <div class="top" style="display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap"><div><h2>Tienda</h2><p class="muted" style="margin:0;font-size:14px">Pide las piezas que quieras, las cantidades que quieras: llegan a tu estante y las usas en cualquier dron.</p></div><span>Plata <b class="money" id="t-plata">$0</b></span></div>
-  <div class="tienda"><div class="cats" id="t-cats"></div><div class="prods" id="t-prods"></div>
-    <div class="carrito"><b style="font-size:16px">Tu pedido</b><div id="t-carrito"></div><div class="it" style="border-top:1px solid var(--line);padding-top:6px"><span>Total</span><b class="money" id="t-total">$0</b></div>
-      <button class="btn main" id="b-t-comprar">Comprar</button><button class="btn ghost small" id="b-t-cerrar">Cerrar</button></div></div>
+  <header class="tv-top">
+    <b class="tv-logo">🛒 DronMarket</b>
+    <input id="t-buscar" type="search" placeholder="Buscar piezas…" aria-label="Buscar en la tienda">
+    <span class="tv-sp"></span>
+    <span class="tv-saldo">Saldo <b class="money" id="t-plata">$0</b></span>
+    <button class="btn main small" id="b-t-canasta" aria-label="Canasta">🧺 <span id="t-n">0</span> · <span id="t-total">$0</span></button>
+    <button class="btn ghost small" id="b-t-cerrar">Cerrar</button>
+  </header>
+  <div class="tv">
+    <nav class="tv-cats" id="t-cats" aria-label="Secciones"></nav>
+    <div class="tv-main"><div id="t-head"></div><div class="tv-grid" id="t-prods"></div></div>
+    <aside class="tv-lado" id="t-lado"></aside>
+  </div>
 </section>
 
 <section id="inventario" class="modal panel wide hidden" role="dialog" aria-label="Inventario">
@@ -796,8 +845,12 @@
     <button class="ms-b" id="ms-on" title="Prender / apagar la estación">⏻</button>
     <div class="ms-temp"><b id="ms-temp">25 °C</b><small><button id="ms-menos" aria-label="Menos temperatura">−</button><span id="ms-set">330 °C</span><button id="ms-mas" aria-label="Más temperatura">+</button></small></div>
     <button class="ms-b" id="ms-limpiar" title="Limpiar la punta (C)">🧽<small>C</small><span class="ms-barra"><i id="ms-punta"></i></span></button>
-    <button class="ms-b" id="ms-flux" title="Flux (F): toca el pad">💧<small>F</small></button>
-    <button class="ms-b" id="ms-estano" title="Estaño: mantén Espacio mientras el cautín calienta el pad">🧵<small>Espacio</small></button>
+    <button class="ms-b" id="ms-flux" title="Flux (F): toca el pad">💧<small>F · <span id="ms-q-flux"></span></small></button>
+    <button class="ms-b" id="ms-estano" title="Estaño: mantén Espacio mientras el cautín calienta el pad">🧵<small>Espacio · <span id="ms-q-estano"></span></small></button>
+    <span class="ms-sep"></span>
+    <button class="ms-b" id="ms-bomba" title="Extractor de estaño (X): con el estaño derretido, chupa de un golpe">🥤<small>X</small></button>
+    <button class="ms-b" id="ms-malla" title="Malla desoldante: mantén M con el cautín sobre el estaño">🟫<small>M · <span id="ms-q-malla"></span></small></button>
+    <button class="ms-b" id="ms-multi" title="Multímetro (T): continuidad entre pads">📟<small>T</small></button>
   </div>
 </section>
 

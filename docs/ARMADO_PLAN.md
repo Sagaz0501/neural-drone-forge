@@ -19,7 +19,10 @@ caliente, temperatura, limpiar la punta, flux), el cautín en el ratón y el est
 frías (se pueden soltar en vuelo), con puente (corto) o con el pad levantado; enchufar el arnés y la antena; la ESP32 de
 Blender como placa real; la guía de conexión aparte. Lógica y pruebas en `app/taller.js` y `app/test_taller.mjs`.
 
-🔜 **Falta:** conectar la batería en la mesa (con el XT60 y el smoke stopper), el multímetro de verdad sobre los pads,
+✅ **También (16-10-2026):** desoldar (extractor X, malla M), multímetro en la mesa (T), la mesa no avisa si una junta
+salió mal, insumos que se gastan (estaño, flux, cable, malla) y cautines con distinta potencia; la tienda por secciones.
+
+🔜 **Falta:** conectar la batería en la mesa (con el XT60 y el smoke stopper), medir voltajes con el multímetro,
 cortar y pelar cables a medida, más piezas hechas en Blender (ESC, motores, batería, receptor), componentes dañados.
 
 ## 1. Cómo estaba

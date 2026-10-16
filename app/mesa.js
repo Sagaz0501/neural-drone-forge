@@ -19,7 +19,7 @@ import { buildDrone } from "./dron3d.js";
 import { sfx } from "./garaje.js";
 import * as TA from "./taller.js";
 import { CHIP } from "./banco.js";
-import { t } from "./i18n.js";
+import { t, num } from "./i18n.js";
 
 const COLOR_PIN = { "vbat+": "#e02020", "5v+": "#ff8a1a", "3v3+": "#ffd23f", vbat_in: "#e02020", "5v_in": "#ff8a1a", "3v3_in": "#ffd23f", gnd: "#1d1f22",
   tx: "#3ccbff", rx: "#3c8bff", sda: "#c07bff", scl: "#9a5bff", led_out: "#47f08a", led_in: "#47f08a", m_out: "#2ad8b0", m_in: "#2ad8b0",
@@ -127,7 +127,7 @@ export function initMesa(ctx) {
     addEventListener("pointerup", arriba);
     cv.addEventListener("contextmenu", (e) => e.preventDefault());
     addEventListener("keydown", tecla);
-    addEventListener("keyup", (e) => { if (e.code === "Space") M.espacio = false; });
+    addEventListener("keyup", (e) => { if (e.code === "Space") M.espacio = false; if (e.key === "m" || e.key === "M") M.malla = false; });
   }
   function tam() {
     const cv = $("mesa-c"), w = cv.clientWidth || innerWidth, h = cv.clientHeight || innerHeight;
@@ -183,6 +183,8 @@ export function initMesa(ctx) {
     const p = P();
     p.taller = p.taller || { punta: 1 };
     M.E.limpia = p.taller.punta ?? 1;
+    M.cautin = PT.cautinDe(p, cat);                      // con qué sueldas (el de lápiz no tiene perilla y le cuestan los pads grandes)
+    if (M.cautin) Object.assign(M.E, { potencia: M.cautin.potencia, tau: M.cautin.tau, ajustable: M.cautin.ajustable }, M.cautin.ajustable ? {} : { set: M.cautin.set });
     M.abierta = true; M.modo = modo; M.enMano = null; M.hold = null; M.flux = false; M.vista = null;
     ctx.show("mesa");
     $("mesa-dron").textContent = D().nombre;
@@ -555,6 +557,8 @@ export function initMesa(ctx) {
     for (const o of CABLES) M.placaG.remove(o);
     CABLES.length = 0;
     const B = D().banco, J = B.juntas || {};
+    M.gotas = {};
+    for (const x of M.pads.values()) x.medida = null;
     for (const c of B.cables) {
       // el lado del cable que está en esta placa (los enchufes, como el arnés ESC-controladora, se ven en las dos)
       const aqui = c.find((r) => r.split(".")[0] === M.placa), placa = TA.placaDe(c, M.comps);
@@ -570,9 +574,19 @@ export function initMesa(ctx) {
         const sj = j ? j.s?.[s] : { q: "buena", estano: TA.PADS[P_.pad].ideal[1] * 0.8 };      // partida vieja: soldado bien
         if (!P_.enchufe && sj && sj.q !== "sin") {
           const gota = gotaMesh(sj.estano, sj.q, P_);
-          M.placaG.add(gota); CABLES.push(gota);
+          M.placaG.add(gota); CABLES.push(gota); M.gotas[`${P_.ref}#${P_.sub}`] = gota;
+          P_.medida = sj.q === "puente" ? "corto" : sj.q === "fria" || sj.q === "levantado" ? "fria" : "ok";
           if (sj.q === "puente") { const pu = puenteMesh(P_); if (pu) { M.placaG.add(pu); CABLES.push(pu); } }
         }
+      }
+    }
+    if (M.multi) {                                        // el multímetro: verde bien, amarillo la lectura salta, rojo pita (corto)
+      for (const x of M.pads.values()) {
+        if (!x.medida) continue;
+        const r = new THREE.Mesh(new THREE.RingGeometry(0.0021, 0.0027, 28), new THREE.MeshBasicMaterial({ color: { ok: 0x47f08a, fria: 0xffd23f, corto: 0xff4030 }[x.medida], side: THREE.DoubleSide, depthTest: false, transparent: true, opacity: 0.9 }));
+        r.rotation.x = -Math.PI / 2; r.position.copy(x.pos).add(new THREE.Vector3(0, 0.0016, 0)); r.renderOrder = 6;
+        r.scale.setScalar(x.pad === "grande" ? 2.2 : x.pad === "medio" ? 1.1 : 0.9);
+        M.placaG.add(r); CABLES.push(r);
       }
     }
     hud();
@@ -648,6 +662,8 @@ export function initMesa(ctx) {
     if (TA.esEnchufe(pf) !== info.enchufe) return aviso(info.enchufe ? t("Eso es un enchufe: ahí va un conector, no un cable para soldar.") : t("Ese cable termina en un conector: búscale su enchufe."));
     const c = [fuente, info.ref];
     if (B.cables.some((x) => TA.claveCable(x) === TA.claveCable(c))) return aviso(t("Ese cable ya está ahí."));
+    const metros = info.enchufe || pf?.tipo === "vbat+" || fuente.startsWith("xt60") ? 0 : 0.1 * TA.juntasDe(pf, info.pin);   // el arnés y el cable de la batería vienen con su pieza
+    if (metros && !PT.gastar(P(), "cable", metros)) return aviso(t("Se te acabó el cable: compra más en la tienda (Soldadura)."));
     B.cables.push(c);
     B.juntas = B.juntas || {};
     B.juntas[TA.claveCable(c)] = { q: "sin", n: TA.juntasDe(pf, info.pin), s: [] };
@@ -685,29 +701,50 @@ export function initMesa(ctx) {
       if (prev) { J.estano = prev.estano; J.flux = !!prev.fluxNuevo; }
       M.juntas.set(key, J);
     }
-    if (M.flux) { J.flux = true; J.fluxQueda = 1; M.flux = false; hud(); }
+    if (M.flux) {
+      if (PT.gastar(P(), "flux", 0.25)) { J.flux = true; J.fluxQueda = 1; } else aviso(t("Se te acabó el flux: compra más en la tienda (Soldadura)."));
+      M.flux = false; hud();
+    }
     M.hold = { tipo: "soldar", info, c, J, key };
+    if (M.gotas?.[key]) M.gotas[key].visible = false;            // la gota que había se derrite (se dibuja la de ahora)
     if (!c) aviso(t("Ese pad no tiene cable: pon uno primero (izquierda)."));
   }
   function terminarJunta() {
     const { info, c, J, key } = M.hold;
     M.hold = null;
     if (!c) return;
-    if (J.estano < 0.25) { hud(); return; }                     // todavía no hay junta: queda para seguir
     const B = D().banco, j = B.juntas[TA.claveCable(c)] || (B.juntas[TA.claveCable(c)] = { q: "sin", n: TA.juntasDe(pinDe(c[0]), pinDe(c[1])), s: [] });
-    if (j.s[info.sub]?.q === "puente" && J.flux && J.tMax > 300) J.estano = Math.min(J.estano, TA.PADS[info.pad].ideal[1]);   // con flux y calor, lo de más se recoge
-    const r = TA.resultadoJunta(J, !!TA.vecino(M.comps, info.ref));
+    const antes = j.s[info.sub];
+    if (J.estano < 0.25 && !antes) { hud(); return; }               // todavía no hay junta: queda para seguir
+    const r = TA.resultadoJunta(J, P_vecino(info));
     j.s[info.sub] = { q: r.q, estano: +J.estano.toFixed(2) };
     const hechas = Array.from({ length: j.n }, (_, i) => j.s[i]?.q || "sin");
     j.q = TA.peor(hechas);
     M.juntas.delete(key);
     info.mesh.material.emissive?.setRGB(0, 0, 0);
     guardar();
-    const txt = { buena: "✓ " + t("Buena junta: brillante y en forma de cono."), fria: "❄️ " + t("Soldadura fría ({por}). Vuelve a calentarla con flux.", { por: t(r.por) }),
-      puente: "⚠️ " + t("¡Puente de estaño con el pad de al lado! Caliéntalo con flux para recoger el estaño."), levantado: "💥 " + t("Mucho calor: se levantó el pad. Suéldalo otra vez (con un puente de cable)."), sin: "" }[r.q];
-    if (txt) aviso(txt, r.q === "buena");
-    sfx(r.q === "buena" ? "listo" : r.q === "sin" ? "click" : "error");
+    // la mesa no dice si salió bien: eso se ve (la gota, un puente) o se mide con el multímetro… o se descubre con la batería
+    if (r.q === "sin") { if (antes && antes.q !== "sin") aviso(t("Desoldado: el cable quedó suelto en el pad.")); }
+    else aviso(t("Soldado."));
+    sfx(r.q === "sin" ? "click" : "chispa");
     dibujarCables();
+  }
+
+  /** ¿El pad tiene uno al lado con el que pueda hacer puente? */
+  const P_vecino = (info) => info.pad === "medio" || info.pad === "grande" || !!TA.vecino(M.comps, info.ref);
+  /** El extractor (bomba): con el cautín sobre el estaño derretido, chupa de un golpe. */
+  function bomba() {
+    if (M.modo !== "soldar") return;
+    if (!PT.tieneHerramienta(P(), "extractor")) return aviso(t("No tienes extractor de estaño: está en la tienda (Soldadura)."));
+    const h = M.hold;
+    if (h?.tipo !== "soldar") return aviso(t("Pon el cautín sobre la junta (mantén el clic) y aprieta X para chupar el estaño."));
+    if (M.t - (M.bombaT || -9) < 0.8) return;                     // hay que volver a cargar la bomba
+    M.bombaT = M.t;
+    const q = TA.extraer(h.J);
+    if (!q) return aviso(t("El estaño todavía no está derretido: caliéntalo un poco más."));
+    sfx("pop");
+    if (h.gota) { M.placaG.remove(h.gota); h.gota = null; }
+    aviso(t("🥤 ¡Chupaste el estaño!"), true);
   }
 
   // ---------------- el ratón y el teclado ----------------
@@ -770,18 +807,45 @@ export function initMesa(ctx) {
     if (e.code === "Space") { M.espacio = true; e.preventDefault(); }
     else if (e.key === "f" || e.key === "F") toggleFlux();
     else if (e.key === "c" || e.key === "C") limpiarPunta();
+    else if (e.key === "x" || e.key === "X") bomba();
+    else if (e.key === "m" || e.key === "M") M.malla = true;
+    else if (e.key === "t" || e.key === "T") multimetro();
     else if (e.key === "Escape") { if (M.enMano) { M.enMano = null; hud(); } else cerrar(); }
   }
-  function toggleFlux() { if (M.modo !== "soldar") return; M.flux = !M.flux; hud(); }
+  function toggleFlux() {
+    if (M.modo !== "soldar") return;
+    if (!M.flux && PT.insumo(P(), "flux") < 0.25) return aviso(t("Se te acabó el flux: compra más en la tienda (Soldadura)."));
+    M.flux = !M.flux; hud();
+  }
+  /** El multímetro en continuidad: pita entre dos pads unidos por estaño (corto) y la lectura salta en una junta fría. */
+  function multimetro() {
+    if (M.modo !== "soldar") return;
+    if (!PT.tieneHerramienta(P(), "multimetro")) return aviso(t("No tienes multímetro: está en la tienda (Herramientas)."));
+    M.multi = !M.multi; sfx("click");
+    dibujarCables();
+    if (!M.multi) return;
+    const malas = [...M.pads.values()].filter((x) => x.medida && x.medida !== "ok");
+    const cortos = malas.filter((x) => x.medida === "corto"), frias = malas.filter((x) => x.medida === "fria");
+    aviso(cortos.length ? "📟 " + t("¡Pita! Hay continuidad entre {a} y el pad de al lado: un corto.", { a: nombrePad(cortos[0]) })
+      : frias.length ? "📟 " + t("La lectura salta en {a}: soldadura fría.", { a: nombrePad(frias[0]) }) : "📟 " + t("Nada raro: sin cortos ni juntas frías en esta placa."), !malas.length);
+  }
+  const nombrePad = (x) => `${x.pin.nombre}${x.pad === "medio" ? ` (${x.sub + 1})` : ""}`;
   function limpiarPunta() {
     if (M.modo !== "soldar") return;
     TA.limpiarPunta(M.E); sfx("rasgar");
     aviso(M.E.on ? t("🧽 Punta limpia: transmite mejor el calor.") : t("🧽 Punta limpia (se limpia mejor caliente)."), true);
     hud();
   }
-  $("ms-on").onclick = () => { M.E.on = !M.E.on; sfx("click"); hud(); };
-  $("ms-menos").onclick = () => { M.E.set = Math.max(250, M.E.set - 10); hud(); };
-  $("ms-mas").onclick = () => { M.E.set = Math.min(450, M.E.set + 10); hud(); };
+  $("ms-on").onclick = () => {
+    if (!M.cautin) return aviso(t("No tienes con qué soldar: compra un cautín en la tienda (Soldadura)."));
+    M.E.on = !M.E.on; sfx("click"); hud();
+  };
+  $("ms-menos").onclick = () => { if (!M.E.ajustable) return aviso(t("Tu cautín de lápiz no tiene perilla: siempre a {n} °C.", { n: M.E.set })); M.E.set = Math.max(250, M.E.set - 10); hud(); };
+  $("ms-mas").onclick = () => { if (!M.E.ajustable) return aviso(t("Tu cautín de lápiz no tiene perilla: siempre a {n} °C.", { n: M.E.set })); M.E.set = Math.min(450, M.E.set + 10); hud(); };
+  $("ms-bomba").onclick = bomba;
+  $("ms-multi").onclick = multimetro;
+  $("ms-malla").onpointerdown = () => { M.malla = true; };
+  $("ms-malla").onpointerup = $("ms-malla").onpointerleave = () => { M.malla = false; };
   $("ms-limpiar").onclick = limpiarPunta;
   $("ms-flux").onclick = toggleFlux;
   $("ms-estano").onpointerdown = () => { M.espacio = true; };
@@ -864,15 +928,21 @@ export function initMesa(ctx) {
       return;
     }
     if (h.tipo === "soldar") {
-      const ev = TA.tickJunta(h.J, M.E, dt, true, M.espacio && !!h.c);
+      const e0 = h.J.estano, conMalla = M.malla && PT.insumo(P(), "malla") > 0;
+      if (M.malla && !conMalla && M.t - M.avisoT > 2.5) { M.avisoT = M.t; aviso(t("Se te acabó la malla desoldante: compra más en la tienda (Soldadura).")); }
+      const ev = TA.tickJunta(h.J, M.E, dt, true, M.espacio && !!h.c && !conMalla, conMalla);
+      const mas = h.J.estano - e0;
+      if (mas > 0 && !PT.gastar(P(), "estano", mas * TA.GRAMOS)) {
+        h.J.estano = e0;
+        if (M.t - M.avisoT > 2.5) { M.avisoT = M.t; aviso(t("Se te acabó el estaño: compra más en la tienda (Soldadura).")); }
+      }
+      if (ev === "absorbe") { PT.gastar(P(), "malla", dt * 0.03); h.ruido = (h.ruido || 0) + dt; if (h.ruido > 0.25) { h.ruido = 0; sfx("chispa"); } }
       if (ev === "derrite") { h.ruido = (h.ruido || 0) + dt; if (h.ruido > 0.2) { h.ruido = 0; sfx("chispa"); } }
       if (ev === "no_derrite" && M.t - M.avisoT > 2.5) { M.avisoT = M.t; aviso(M.E.temp < 200 ? t("El estaño no se derrite: el cautín está frío.") : t("Todavía no: calienta el pad un poco más antes de meter estaño.")); }
       if (ev === "humo" && Math.random() < dt * 10) humo(h.info.pos);
       // la gota mientras está líquida
-      if (h.J.estano > 0.05) {
-        if (h.gota) M.placaG.remove(h.gota);
-        h.gota = gotaMesh(h.J.estano, "liquido", h.info); M.placaG.add(h.gota);
-      }
+      if (h.gota) { M.placaG.remove(h.gota); h.gota = null; }
+      if (h.J.estano > 0.05) { h.gota = gotaMesh(h.J.estano, h.J.temp > TA.FUSION ? "liquido" : "ok", h.info); M.placaG.add(h.gota); }
       // el pad se pone naranja con el calor
       const ph = Math.max(0, Math.min(1, (h.J.temp - 120) / 250));
       if (h.info.mesh.material.emissive) h.info.mesh.material.emissive.setRGB(ph * 0.5, ph * 0.18, 0);
@@ -938,7 +1008,7 @@ export function initMesa(ctx) {
       const B = D().banco, J = B.juntas || {};
       for (const f of fuentes()) {
         const li = document.createElement("li"), j = f.cable ? J[TA.claveCable(f.cable)] : null;
-        const q = !f.cable ? "" : j ? j.q : "buena", icq = { "": "", sin: "○", buena: "✅", enchufado: "🔌", fria: "❄️", puente: "⚠️", levantado: "💥" }[q];
+        const q = !f.cable ? "" : j ? j.q : "buena", icq = { "": "", sin: "○", buena: "🔘", enchufado: "🔌", fria: "🔘", puente: "🔘", levantado: "🔘" }[q];   // la lista no dice si salió bien
         li.className = "cab" + (M.enMano === f.ref ? " mano" : "") + (f.cable ? " puesto" : "");
         li.innerHTML = `<i style="background:${COLOR_PIN[f.pin.tipo] || "#ccc"}"></i><b>${esc(f.comp.k === "xt60" ? "XT60" : f.comp.k === "esc" ? "ESC" : f.comp.k.startsWith("m") ? f.comp.nombre : f.comp.nombre.split(" ").slice(0, 2).join(" "))} · ${esc(f.pin.nombre)}</b><small>${icq}</small>`;
         li.title = f.cable ? t("Toca para quitarlo") : t("Toca para tomarlo");
@@ -946,8 +1016,17 @@ export function initMesa(ctx) {
         lista.appendChild(li);
       }
       const E = M.E;
-      pista.textContent = M.enMano ? t("Pon el cable en su pad (mira la 📄 Guía) · Esc para soltarlo") : !E.on ? t("Prende la estación ⏻ y espera que caliente") : E.temp < 280 ? t("Calentando la punta…") : M.flux ? t("Flux listo: toca el pad donde lo quieres") : t("Mantén el clic en el pad (cautín) y aprieta Espacio (estaño)");
+      pista.textContent = M.enMano ? t("Pon el cable en su pad (mira la 📄 Guía) · Esc para soltarlo") : !M.cautin ? t("Necesitas un cautín: tienda → Soldadura") : !E.on ? t("Prende la estación ⏻ y espera que caliente") : E.temp < 280 ? t("Calentando la punta…") : M.flux ? t("Flux listo: toca el pad donde lo quieres") : t("Mantén el clic en el pad (cautín) y aprieta Espacio (estaño)");
       $("ms-on").setAttribute("aria-pressed", String(E.on));
+      $("ms-on").classList.toggle("vacio", !M.cautin);
+      $("ms-on").title = M.cautin ? M.cautin.nombre : t("No tienes con qué soldar: compra un cautín en la tienda (Soldadura).");
+      const p = P(), q = (k, u, d = 1) => `${num(PT.insumo(p, k), d)} ${u}`;
+      $("ms-q-estano").textContent = q("estano", "g"); $("ms-q-flux").textContent = q("flux", "ml"); $("ms-q-malla").textContent = q("malla", "m", 2);
+      $("ms-estano").classList.toggle("vacio", PT.insumo(p, "estano") < 0.1); $("ms-flux").classList.toggle("vacio", PT.insumo(p, "flux") < 0.25); $("ms-malla").classList.toggle("vacio", PT.insumo(p, "malla") <= 0);
+      $("ms-bomba").disabled = !PT.tieneHerramienta(p, "extractor"); $("ms-multi").disabled = !PT.tieneHerramienta(p, "multimetro");
+      $("ms-multi").setAttribute("aria-pressed", String(!!M.multi));
+      $("ms-menos").disabled = $("ms-mas").disabled = !E.ajustable;
+      lista.insertAdjacentHTML("afterbegin", `<li class="stock"><small>🧷 ${t("cable")}: ${q("cable", "m")}</small></li>`);
       $("ms-set").textContent = `${E.set} °C`;
       $("ms-flux").setAttribute("aria-pressed", String(M.flux));
       hudTemp();

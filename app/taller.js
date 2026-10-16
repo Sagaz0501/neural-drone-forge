@@ -53,12 +53,17 @@ export const PADS = {
   medio: { masa: 1.7, ideal: [0.9, 1.9], puente: 2.4, maxCalor: 7, nombre: "medio" },
   grande: { masa: 3.6, ideal: [1.4, 3.2], puente: 4.2, maxCalor: 11, nombre: "grande" },
 };
-export const estacion0 = () => ({ on: false, set: 330, temp: AMB, limpia: 1, minutosOn: 0 });
+/**
+ * La estación (o el cautín): cautin = piezas.json soldadura[].cautin: potencia (cuánto calor recupera: el de lápiz
+ * 0,55, la estación 1, la T12 1,7), tau (qué tan rápido calienta) y si tiene perilla (ajustable) o un set fijo.
+ */
+export const estacion0 = (cautin = null) => ({ on: false, set: cautin?.set ?? 330, temp: AMB, limpia: 1, minutosOn: 0,
+  potencia: cautin?.potencia ?? 1, tau: cautin?.tau ?? 2.6, ajustable: cautin?.ajustable ?? true });
 /** La estación: sube hacia la temperatura elegida (o se enfría apagada); tocar un pad le roba calor a la punta. */
 export function tickEstacion(E, dt, carga = 0) {
-  const meta = E.on ? E.set : AMB, tau = E.on ? 2.6 : 7;
+  const meta = E.on ? E.set : AMB, tau = E.on ? E.tau ?? 2.6 : 7;
   E.temp += (meta - E.temp) * (1 - Math.exp(-dt / tau));
-  if (carga) E.temp = Math.max(AMB, E.temp - carga * 6 * dt);
+  if (carga) E.temp = Math.max(AMB, E.temp - (carga * 6 * dt) / (E.potencia ?? 1));
   if (E.on && E.temp > 280) { E.limpia = Math.max(0.15, E.limpia - dt * (E.temp > 400 ? 0.02 : 0.008)); E.minutosOn += dt / 60; }
 }
 export const limpiarPunta = (E) => { E.limpia = 1; };
@@ -68,11 +73,11 @@ export const junta0 = (pad = "chico") => ({ pad, temp: AMB, tMax: AMB, tCalor: 0
  * Devuelve qué pasa: "derrite" (el estaño entra), "no_derrite" (el pad está frío: el estaño no moja), "humo" (el flux
  * hierve), o null.
  */
-export function tickJunta(J, E, dt, tocando, estanando) {
+export function tickJunta(J, E, dt, tocando, estanando, mecha = false) {
   const P = PADS[J.pad];
   let ev = null;
   if (tocando && E.temp > AMB + 5) {
-    const k = (3.2 * (0.3 + 0.7 * E.limpia) * (J.flux ? 1.35 : 1) * (J.estano > 0.2 ? 1.25 : 1)) / P.masa;
+    const k = (3.2 * (0.3 + 0.7 * E.limpia) * (J.flux ? 1.35 : 1) * (J.estano > 0.2 ? 1.25 : 1) * (mecha ? 0.7 : 1)) / P.masa;
     J.temp += (E.temp - J.temp) * (1 - Math.exp(-k * dt));
     J.tCalor += dt;
     if (J.flux && J.temp > 150 && J.fluxQueda > 0) { J.fluxQueda = Math.max(0, J.fluxQueda - dt * 0.35); ev = "humo"; }
@@ -80,12 +85,27 @@ export function tickJunta(J, E, dt, tocando, estanando) {
     J.temp += (AMB - J.temp) * (1 - Math.exp(-dt / (0.9 * P.masa)));
   }
   J.tMax = Math.max(J.tMax, J.temp);
+  if (mecha && tocando) {                                   // la malla absorbe el estaño derretido
+    if (J.temp > FUSION + 5 && J.estano > 0) { J.estano = Math.max(0, J.estano - dt * 1.2); return "absorbe"; }
+    return "no_derrite";
+  }
   if (estanando) {
     if (tocando && J.temp >= MOJA) { J.estano += dt * 0.85; ev = "derrite"; }
     else ev = "no_derrite";
   }
   if (!tocando && J.estano > 0 && J.temp < FUSION) J.frio = 1;
   return ev;
+}
+/** Gramos de estaño por cada unidad de J.estano (una junta chica ≈ 1 unidad). */
+export const GRAMOS = 0.1;
+/** Cuánto estaño saca la bomba de un golpe (en unidades). */
+export const EXTRACTOR = 1.4;
+/** El extractor (bomba): con el estaño derretido, chupa de un golpe. Devuelve cuánto sacó (0 si estaba frío). */
+export function extraer(J) {
+  if (J.temp < FUSION + 5 || J.estano <= 0) return 0;
+  const q = Math.min(J.estano, EXTRACTOR);
+  J.estano = +(J.estano - q).toFixed(3);
+  return q;
 }
 /** Qué tal salió una junta cuando el estaño se enfría. */
 export function resultadoJunta(J, conVecino = true) {

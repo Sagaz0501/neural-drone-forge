@@ -649,6 +649,104 @@
       "desc": "Un soporte flexible impreso en TPU (necesita la impresora 3D)."
     }
   ],
+  "soldadura": [
+    {
+      "id": "cautin_lapiz",
+      "nombre": "Cautín de lápiz 30 W",
+      "etapa": 1,
+      "precio": 12,
+      "herramienta": true,
+      "cautin": {
+        "ajustable": false,
+        "set": 340,
+        "potencia": 0.55,
+        "tau": 4.5
+      },
+      "desc": "El de toda la vida: se enchufa y calienta a unos 340 °C, sin perilla. Le cuesta con los pads grandes (la batería en el ESC)."
+    },
+    {
+      "id": "estacion",
+      "nombre": "Estación de soldar 60 W",
+      "etapa": 1,
+      "precio": 45,
+      "herramienta": true,
+      "cautin": {
+        "ajustable": true,
+        "potencia": 1,
+        "tau": 2.6
+      },
+      "desc": "Con perilla de temperatura y soporte. Recupera el calor rápido: los pads de la batería ya no son un problema."
+    },
+    {
+      "id": "estacion_t12",
+      "nombre": "Estación T12 90 W",
+      "etapa": 2,
+      "precio": 95,
+      "herramienta": true,
+      "cautin": {
+        "ajustable": true,
+        "potencia": 1.7,
+        "tau": 1.3
+      },
+      "desc": "Calienta en segundos y casi no pierde temperatura en pads grandes. La de los talleres de drones."
+    },
+    {
+      "id": "extractor",
+      "nombre": "Extractor de estaño (bomba)",
+      "etapa": 1,
+      "precio": 6,
+      "herramienta": true,
+      "desc": "Con el estaño derretido, aprietas (X) y chupa casi todo de un golpe. Para quitar puentes, el estaño de más o desoldar un cable."
+    },
+    {
+      "id": "estano",
+      "nombre": "Estaño 63/37 · 0,8 mm · 10 g",
+      "etapa": 1,
+      "precio": 3,
+      "insumo": {
+        "k": "estano",
+        "n": 10,
+        "unidad": "g"
+      },
+      "desc": "Con alma de flux. Una junta chica gasta ~0,1 g; la de la batería, ~0,3 g."
+    },
+    {
+      "id": "flux",
+      "nombre": "Flux en jeringa · 5 ml",
+      "etapa": 1,
+      "precio": 3,
+      "insumo": {
+        "k": "flux",
+        "n": 5,
+        "unidad": "ml"
+      },
+      "desc": "Limpia el pad para que el estaño moje. Cada gota (F) gasta 0,25 ml."
+    },
+    {
+      "id": "cables",
+      "nombre": "Cable de silicona de colores · 2 m",
+      "etapa": 1,
+      "precio": 3,
+      "insumo": {
+        "k": "cable",
+        "n": 2,
+        "unidad": "m"
+      },
+      "desc": "Rojo, negro y de colores, 22-26 AWG. Cada cable que pones gasta 10 cm (un motor son 3)."
+    },
+    {
+      "id": "malla",
+      "nombre": "Malla desoldante · 1,5 m",
+      "etapa": 1,
+      "precio": 4,
+      "insumo": {
+        "k": "malla",
+        "n": 1.5,
+        "unidad": "m"
+      },
+      "desc": "Cobre trenzado: pones la malla sobre el estaño (mantén M) y con el cautín encima lo absorbe. Más fina que la bomba."
+    }
+  ],
   "herramientas": [
     {
       "id": "impresora",

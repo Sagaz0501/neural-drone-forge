@@ -213,11 +213,11 @@ export function initBanco(ctx) {
     const lst = [...rev.faltan.slice(0, 6).map((x) => `○ ${x.msg}`)];
     if (tieneMulti) lst.push(...rev.danos.map((x) => `<span class="bad">⚡ ${vaAQuemar(x.msg)}</span>`), ...rev.fallas.map((x) => `<span class="warn">✗ ${x.msg}</span>`), ...(rev.frias || []).map((x) => `<span class="warn">❄️ ${x.msg}</span>`));
     h(der, lst.length ? `<ul class="lista" style="display:block">${lst.slice(0, 10).map((x) => `<li style="display:block">${x}</li>`).join("")}</ul>` :
-      `<p class="${rev.ok ? "ok" : ""}">${rev.ok ? t("✓ Todo conectado.") : tieneMulti ? "" : t("Todo lo que hay que conectar está conectado. Sin multímetro no sabes si algo está mal… hasta que conectes la batería.")}</p>`);
+      `<p class="ok">${t("✓ Todo conectado.")}</p>${tieneMulti ? "" : `<p style="font-size:13px">${t("Sin multímetro no sabes si hay un corto o un puente de estaño… hasta que conectes la batería.")}</p>`}`);
     if (!tieneMulti) h(der, `<p style="font-size:13px">${t("Con un <b>multímetro</b> ($8 en la tienda, herramientas) el banco te marca los cables malos y las soldaduras frías antes de conectar la batería.")}</p>`);
     boton(der, "🔥 " + t("Ir a soldar"), "main", () => ctx.mesa.abrir("soldar"), !armado);
     boton(der, "📄 " + t("Guía de conexión"), "ghost", () => abrirGuia());
-    if (rev.ok || e.pasos.find((x) => x.k === "cablear").ok) boton(der, t("Siguiente: prueba de humo →"), "ghost", () => { BK.paso = "humo"; render(); });
+    if (e.pasos.find((x) => x.k === "cablear").ok) boton(der, t("Siguiente: prueba de humo →"), "ghost", () => { BK.paso = "humo"; render(); });
   }
 
   /** La guía de conexión: el diagrama de qué va con qué (y lo que ya soldaste). Es de solo mirar: se suelda en la mesa. */

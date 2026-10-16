@@ -30,7 +30,7 @@ export const REIMPRIMIR = 0.3;
 // ---------------- crear y migrar ----------------
 export function nuevaPartida() {
   const p = { v: 3, plata: PLATA_INICIAL, rep: 0, inventario: [], sig: 1, drones: [], activo: null, hechos: {}, vuelos: 0,
-    creada: Date.now(), herramientas: [], empresa: "Garaje Films" };
+    creada: Date.now(), herramientas: [], empresa: "Garaje Films", insumos: {} };
   // lo que venía con el garaje: un ESC viejo y tornillos (la radio ESP-NOW viene en el ESP32: es gratis)
   for (const id of ["esc20", "mt_tornillos"]) agregarUnidad(p, id);
   return p;
@@ -43,7 +43,8 @@ export function nuevaPartida() {
 export function nuevaPartidaDev(cat, drones, extras = {}) {
   const p = nuevaPartida();
   Object.assign(p, { modo: "dev", plata: 99999, rep: REP_ETAPA.at(-1), empresa: t("Estudio de IA"),
-    herramientas: (cat.herramientas || []).map((h) => h.id) });
+    herramientas: [...(cat.herramientas || []).map((h) => h.id), "estacion", "extractor"],
+    insumos: { estano: 200, flux: 50, cable: 40, malla: 10 } });
   for (const [nombre, piezas] of Object.entries(drones)) {
     const d = nuevoDron(p, nombre, t("Pruebas de IA"));
     d.estilo = { ...ESTILO };
@@ -94,7 +95,7 @@ export function cargar() {
     if (!s) return null;
     const p = JSON.parse(s);
     if (p && p.v < 3) localStorage.setItem(`${CLAVE}_v${p.v}`, s);     // respaldo de la partida de antes de migrar
-    return p && [1, 2, 3].includes(p.v) ? migrar(p) : null;
+    return p && [1, 2, 3].includes(p.v) ? asegurarTaller(migrar(p)) : null;
   } catch { return null; }
 }
 
@@ -140,11 +141,35 @@ export function precioDe(p, pz) {
   return pz.imprimible && tieneHerramienta(p, "impresora") ? Math.round(pz.precio * 0.6) : pz.precio;
 }
 
+// ---------------- el taller: herramientas de soldar e insumos que se gastan (estaño, flux, cable, malla) ----------------
+/** Una herramienta (se compra una vez) o una pieza. */
+export const esHerramienta = (ranura, pz) => ranura === "herramientas" || !!pz?.herramienta;
+/** Partidas de antes de los insumos: el garaje ya tenía un cautín viejo y un poco de todo. */
+export function asegurarTaller(p) {
+  if (p.insumos) return p;
+  p.insumos = { estano: 10, flux: 5, cable: 2, malla: 0 };
+  p.herramientas = p.herramientas || [];
+  if (!["cautin_lapiz", "estacion", "estacion_t12"].some((h) => p.herramientas.includes(h))) p.herramientas.push("cautin_lapiz");
+  return p;
+}
+export const insumo = (p, k) => +(p.insumos?.[k] || 0);
+/** Gastar un insumo: si no alcanza, no gasta nada y devuelve false. */
+export function gastar(p, k, n) {
+  if (insumo(p, k) + 1e-9 < n) return false;
+  p.insumos[k] = Math.max(0, +(insumo(p, k) - n).toFixed(3));
+  return true;
+}
+/** El mejor cautín que tienes (o null): sus datos de piezas.json soldadura[].cautin. */
+export function cautinDe(p, cat) {
+  for (const id of ["estacion_t12", "estacion", "cautin_lapiz"]) if (tieneHerramienta(p, id)) { const pz = (cat.soldadura || []).find((x) => x.id === id); if (pz) return { id, nombre: pz.nombre, ...pz.cautin }; }
+  return null;
+}
+
 /** ¿Se puede comprar? Devuelve un texto de error o null. */
 export function puedeComprar(p, cat, ranura, id) {
   const pz = pieza(cat, ranura, id);
   if (!pz) return t("Esa pieza no existe.");
-  if (ranura === "herramientas" && tieneHerramienta(p, id)) return t("Ya la tienes.");
+  if (esHerramienta(ranura, pz) && tieneHerramienta(p, id)) return t("Ya la tienes.");
   if (pz.etapa > etapa(p)) return t("Se desbloquea con {rep} de reputación.", { rep: REP_ETAPA[pz.etapa] });
   if (pz.impresora && !tieneHerramienta(p, "impresora")) return t("Necesitas la impresora 3D para imprimirlo.");
   return null;
@@ -167,7 +192,8 @@ export function comprar(p, cat, ranura, id, n = 1, { envio = false } = {}) {
   if (p.plata < total) return t("Te faltan ${n}.", { n: total - p.plata });
   p.plata -= total;
   anotar(p, -total, n > 1 ? `${pz.nombre} × ${n}` : pz.nombre);
-  if (ranura === "herramientas") p.herramientas = [...(p.herramientas || []), id];
+  if (esHerramienta(ranura, pz)) p.herramientas = [...(p.herramientas || []), id];
+  else if (pz.insumo) { p.insumos = p.insumos || {}; p.insumos[pz.insumo.k] = +(insumo(p, pz.insumo.k) + pz.insumo.n * n).toFixed(3); }
   else for (let i = 0; i < n; i++) {
     const u = agregarUnidad(p, id);
     if (envio) { u.caja = true; const dd = diasEnvio(pz); if (dd) u.llega = hoy(p) + dd; }
