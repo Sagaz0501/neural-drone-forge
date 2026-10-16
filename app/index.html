@@ -346,7 +346,10 @@
   #mesa-lista li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 9px; font-size: 13.5px; }
   #mesa-lista li b { flex: 1; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #mesa-lista li small { color: var(--muted); font-size: 12px; }
-  #mesa-lista li.montada { opacity: .55; } #mesa-lista li.camino { opacity: .6; }
+  #mesa-lista li.montada { opacity: .55; }
+  #mesa-lista li.proc { border-bottom: 1px solid var(--line); border-radius: 0; margin-bottom: 4px; } #mesa-lista li.proc b { font-weight: 700; }
+  #mesa-lista li.ahora { background: rgba(60,203,255,.14); outline: 1px solid rgba(60,203,255,.45); }
+  #mesa-lista li.ahora b, #mesa-lista li.proc b, #mesa-lista li.ahora + li b { white-space: normal; } #mesa-lista li.camino { opacity: .6; }
   #mesa-lista li.cab { cursor: pointer; } #mesa-lista li.cab:hover { background: rgba(234,242,239,.07); }
   #mesa-lista li.mano { background: rgba(71,240,138,.16); outline: 1px solid rgba(71,240,138,.5); }
   #mesa-lista li.puesto b { color: var(--muted); }

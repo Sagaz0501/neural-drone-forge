@@ -113,7 +113,7 @@ export function buildDrone(build, cat) {
     }
     if (!stlCh) {
       box(g, 0.11, f.h, 0.075, f.plate, 0, f.h / 2, 0);
-      box(g, 0.1, f.h * 0.6, 0.07, f.plate, 0, 0.042, 0);
+      box(g, 0.1, f.h * 0.6, 0.07, f.plate, 0, 0.042, 0).userData.tapa = true;       // la placa de arriba (tapa el stack; la batería va encima)
     }
     if (ch.id === "cinewhoop3") {                      // los ductos alrededor de cada hélice
       const L = 0.0254 * 3;
@@ -124,7 +124,8 @@ export function buildDrone(build, cat) {
         g.add(duct);
       }
     }
-    for (const sx of [-0.04, 0.04]) for (const sz of [-0.028, 0.028]) cyl(g, 0.003, 0.034, m("std", { color: 0x9a9a9a, metalness: 0.8, roughness: 0.3 }), sx, 0.025, sz, 6);
+    // los separadores del stack (standoffs de bronce): pasan por las esquinas del ESC y de la controladora
+    for (const sx of [-0.016, 0.016]) for (const sz of [-0.016, 0.016]) cyl(g, 0.0021, 0.028, m("separador", { color: 0xc9a14a, metalness: 0.85, roughness: 0.3 }), sx, 0.0215, sz, 6).userData.separador = true;
     if (ch.id === "madera") {                           // tornillos y cinta: hecho en casa
       for (const c of corners) cyl(g, 0.004, f.h + 0.004, m("screw", { color: 0x6b6b6b, metalness: 0.8 }), c.x * 0.55, f.h / 2, c.z * 0.55, 6);
       box(g, 0.02, f.h + 0.002, f.w + 0.004, m("tape", { color: 0x2b2b2b, roughness: 0.9 }), corners[0].x * 0.3, f.h / 2, corners[0].z * 0.3, corners[0].a);

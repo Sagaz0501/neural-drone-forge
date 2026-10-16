@@ -172,3 +172,53 @@ export function efectivos(B, comps) {
   }
   return out;
 }
+
+// ---------------- montar cada pieza: su procedimiento y el orden (lo de abajo primero; lo de arriba tapa) ----------------
+/**
+ * Los pasos para montar cada pieza (siempre los mismos). Cada paso: [tipo, detalle]:
+ *   colocar        llevar la pieza a su lugar (arrastrar); {girar: true} = hay que girarla (R) hasta que la flecha mire adelante
+ *   colocar_cada   lo mismo con varias piezas iguales (los 4 motores, cada uno a su brazo)
+ *   voltear        dar vuelta al dron (true = boca abajo, para los tornillos de abajo; false = enderezarlo)
+ *   tornillos      atornillar en unos puntos (mantener hasta el clic): motores_abajo, separadores, tuercas, montaje, camara_lados
+ *   clics          poner piezas chiquitas tocando cada punto: gomas, correa_pasar
+ *   mantener       mantener apretado sobre la pieza: cinta_pelar, cinta_presionar, correa_apretar
+ */
+export const PROCEDIMIENTO = {
+  chasis: [["colocar"]],
+  motores: [["colocar_cada"], ["voltear", true], ["tornillos", "motores_abajo"], ["voltear", false]],
+  esc: [["tornillos", "separadores"], ["colocar", { girar: true }], ["clics", "gomas"]],
+  controladora: [["colocar", { girar: true }], ["tornillos", "tuercas"]],
+  radio: [["mantener", "cinta_pelar"], ["colocar"], ["mantener", "cinta_presionar"]],
+  montaje: [["colocar"], ["tornillos", "montaje"]],
+  camara: [["colocar", { girar: true }], ["tornillos", "camara_lados"]],
+  bateria: [["clics", "correa_pasar"], ["colocar"], ["mantener", "correa_apretar"]],
+  extras: [["colocar"]],
+};
+/** Qué tiene que estar montado antes (lo que va debajo) y qué la tapa si ya está puesto (lo que va encima). */
+export const MONTAJE = {
+  chasis: { antes: [], encima: ["motores", "esc", "controladora", "radio", "montaje", "camara", "bateria", "extras"] },
+  motores: { antes: ["chasis"], encima: ["extras"] },
+  esc: { antes: ["chasis"], encima: ["controladora", "bateria"] },
+  controladora: { antes: ["esc"], encima: ["bateria"] },
+  radio: { antes: ["chasis"], encima: [] },
+  montaje: { antes: ["chasis"], encima: ["camara"] },
+  camara: { antes: ["montaje"], encima: [] },
+  bateria: { antes: ["controladora", "esc"], encima: [] },
+  extras: { antes: ["motores"], encima: [] },
+};
+/**
+ * ¿Se puede montar? montadas = las ranuras ya montadas; hay = las que este dron lleva. Devuelve null o
+ * { falta: ranura que va antes } / { tapa: ranura que ya está encima y no deja }.
+ */
+export function puedeMontar(slot, montadas, hay) {
+  const M = MONTAJE[slot] || { antes: [], encima: [] };
+  const falta = M.antes.find((s) => hay.has(s) && !montadas.has(s));
+  if (falta) return { falta };
+  const tapa = M.encima.find((s) => montadas.has(s));
+  return tapa ? { tapa } : null;
+}
+/** ¿Se puede desmontar? Devuelve null o { tapa: lo que está encima y hay que quitar primero }. */
+export function puedeDesmontar(slot, montadas) {
+  const tapa = (MONTAJE[slot]?.encima || []).find((s) => montadas.has(s));
+  return tapa ? { tapa } : null;
+}

@@ -24,8 +24,8 @@ import { t, num } from "./i18n.js";
 const COLOR_PIN = { "vbat+": "#e02020", "5v+": "#ff8a1a", "3v3+": "#ffd23f", vbat_in: "#e02020", "5v_in": "#ff8a1a", "3v3_in": "#ffd23f", gnd: "#1d1f22",
   tx: "#3ccbff", rx: "#3c8bff", sda: "#c07bff", scl: "#9a5bff", led_out: "#47f08a", led_in: "#47f08a", m_out: "#2ad8b0", m_in: "#2ad8b0",
   esc_conn: "#eaf2ef", fc_conn: "#eaf2ef", ufl: "#d4af37", ant: "#d4af37" };
-/** Las piezas del armado, en orden: [ranura del dron, ranura 3D de dron3d.js, cómo se fija]. */
-const ORDEN = [["chasis", "chasis", "colocar"], ["motores", "motores", "tornillos"], ["esc", "esc", "tornillos"], ["controladora", "controladora", "tornillos"],
+/** Las piezas del armado, en orden: [ranura del dron, ranura 3D de dron3d.js]. Cómo se monta cada una: taller.js PROCEDIMIENTO. */
+const ORDEN = [["chasis", "chasis"], ["motores", "motores"], ["esc", "esc"], ["controladora", "controladora"],
   ["radio", "radio", "cinta"], ["montaje", "camara", "tornillos"], ["camara", "camara", "tornillos"], ["bateria", "bateria", "correa"], ["extras", "extras", "colocar"]];
 const NOMBRE = () => ({ chasis: t("Chasis"), motores: t("Motores"), esc: t("ESC 4 en 1"), controladora: t("Controladora"), radio: t("Radio"),
   montaje: t("Montaje de la cámara"), camara: t("Cámara"), bateria: t("Batería"), extras: t("Extras") });
@@ -126,6 +126,7 @@ export function initMesa(ctx) {
     cv.addEventListener("pointermove", mover);
     addEventListener("pointerup", arriba);
     cv.addEventListener("contextmenu", (e) => e.preventDefault());
+    cv.addEventListener("wheel", (e) => { if (M.arrastre) { e.preventDefault(); girarPieza(e.deltaY > 0 ? 1 : -1); } }, { passive: false });
     addEventListener("keydown", tecla);
     addEventListener("keyup", (e) => { if (e.code === "Space") M.espacio = false; if (e.key === "m" || e.key === "M") M.malla = false; });
   }
@@ -205,7 +206,7 @@ export function initMesa(ctx) {
   }
   $("mesa-salir").onclick = cerrar;
   $("mesa-guia").onclick = () => ctx.abrirGuia?.();
-  document.querySelectorAll("#mesa-modos button").forEach((b) => (b.onclick = async () => { if (M.hold) return; M.modo = b.dataset.m; M.enMano = null; if (M.modo === "soldar") await cargarESP32(); construir(); }));
+  document.querySelectorAll("#mesa-modos button").forEach((b) => (b.onclick = async () => { if (M.hold || M.arrastre) return; M.proc = null; M.modo = b.dataset.m; M.enMano = null; if (M.modo === "soldar") await cargarESP32(); construir(); }));
 
   async function cargarESP32() {
     if (glb.esp32 || glb.cargando === false) return;
@@ -232,87 +233,338 @@ export function initMesa(ctx) {
   const pickable = (obj, accion) => { obj.traverse((o) => { if (o.isMesh) { o.userData.accion = accion; M.pick.push(o); } }); };
 
   // ============================== ARMAR ==============================
+  // Cada pieza se monta con su PROCEDIMIENTO (taller.js): siempre los mismos pasos, cada uno con su vista. El orden
+  // importa (taller.js MONTAJE): lo de abajo primero, y lo que ya está encima tapa (hay que desmontarlo).
   /** Las piezas del dron y en qué va cada una: montada, suelta, en su caja o en camino. */
   function items() {
     const d = D(), B = d.banco, p = P(), out = [];
-    for (const [slot, s3, como] of ORDEN) {
+    for (const [slot, s3] of ORDEN) {
       if (slot === "extras") {
         if (!d.extras.length) continue;
         const ok = d.extras.length === (B.instalado.extras || []).length && d.extras.every((x) => B.instalado.extras.includes(x));
         const us = d.extras.map(U);
-        out.push({ slot, s3, como, uid: null, us, estado: ok ? "montada" : us.some((u) => TA.enCamino(p, u)) ? "camino" : us.some((u) => TA.enCaja(p, u)) ? "caja" : "suelta" });
+        out.push({ slot, s3, uid: null, us, estado: ok ? "montada" : us.some((u) => TA.enCamino(p, u)) ? "camino" : us.some((u) => TA.enCaja(p, u)) ? "caja" : "suelta" });
         continue;
       }
       const uid = d.slots[slot];
       if (!uid) continue;
       const u = U(uid);
-      out.push({ slot, s3, como, uid, us: [u], estado: B.instalado[slot] === uid ? "montada" : TA.enCamino(p, u) ? "camino" : TA.enCaja(p, u) ? "caja" : "suelta" });
+      out.push({ slot, s3, uid, us: [u], estado: B.instalado[slot] === uid ? "montada" : TA.enCamino(p, u) ? "camino" : TA.enCaja(p, u) ? "caja" : "suelta" });
     }
     return out;
   }
   const PUESTOS = [[-0.3, -0.16], [-0.3, -0.04], [-0.3, 0.08], [-0.3, 0.2], [0.3, -0.16], [0.3, -0.04], [0.3, 0.08], [0.3, 0.2], [-0.15, 0.24], [0.15, 0.24]];
+  const FANT = new THREE.MeshBasicMaterial({ color: 0x47f08a, transparent: true, opacity: 0.22, depthWrite: false });
+  const montadas = () => new Set((M.items || []).filter((x) => x.estado === "montada").map((x) => x.slot));
+  /** La flecha que dice dónde es adelante (en las piezas que hay que girar). */
+  function flecha(color, y) {
+    const f = new THREE.Mesh(new THREE.ConeGeometry(0.0045, 0.012, 3), new THREE.MeshBasicMaterial({ color, depthTest: false, transparent: true }));
+    f.rotation.z = -Math.PI / 2; f.position.y = y; f.renderOrder = 7;
+    return f;
+  }
+  /** El borde de abajo-centro de un grupo (en coordenadas del dron, que está en el origen). */
+  const base = (o) => { const bb = new THREE.Box3().setFromObject(o); return bb.getCenter(new THREE.Vector3()).setY(bb.min.y); };
+
   function armar() {
     const d = D(), its = items();
     const build = { ...ctx.dronVista(d), sinHelices: true, cables: false, fantasma: [] };
     const dron = buildDrone(build, cat);
     dron.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-    mundo.add(dron);
-    M.dron = dron;
-    const S = dron.userData.slots;
+    M.giro = new THREE.Group(); M.giro.add(dron); mundo.add(M.giro);
+    M.dron = dron; M.proc = null; M.arrastre = null;
+    const S = dron.userData.slots, body = dron.userData.body;
     if (CHIP[build.controladora] === "esp32" && glb.esp32 && S.controladora) {        // la ESP32 de verdad (Blender)
       const e = glb.esp32.clone(true); e.scale.setScalar(0.7); e.position.y = 0.029;
       S.controladora.clear(); S.controladora.add(e);
     }
+    M.items = its;
+    // lo que es de la radio ESP-NOW (va en la placa) no tiene nada que montar
+    for (const it of its) if (!S[it.s3] && it.slot !== "montaje" && it.estado !== "camino" && it.estado !== "montada") {
+      for (const u of it.us) if (u) delete u.caja;
+      if (it.slot === "extras") d.banco.instalado.extras = [...d.extras]; else d.banco.instalado[it.slot] = it.uid;
+      it.estado = "montada"; guardar();
+    }
+    const mo = montadas();
+    // los separadores aparecen cuando se enroscan (con el ESC) y la placa de arriba con la controladora
+    S.chasis?.traverse((o) => { if (o.userData.separador) o.visible = mo.has("esc"); if (o.userData.tapa) o.visible = mo.has("controladora"); });
+    for (const o of body.children) if (o.isMesh) o.visible = mo.has("chasis");      // las luces de los brazos van con el chasis
     let k = 0;
-    const chasisPuesto = its.find((x) => x.slot === "chasis")?.estado === "montada";
     for (const it of its) {
       const g = S[it.s3];
-      if (!g && it.slot !== "montaje" && it.estado !== "camino" && it.estado !== "montada") {   // sin pieza que ver (la radio del ESP32 va en la placa)
-        for (const u of it.us) if (u) delete u.caja;
-        if (it.slot === "extras") d.banco.instalado.extras = [...d.extras]; else d.banco.instalado[it.slot] = it.uid;
-        it.estado = "montada"; guardar();
+      if (it.estado === "montada") { herrajes(it); continue; }
+      if (it.slot === "camara" && its.find((x) => x.slot === "montaje" && x.estado !== "montada") && g) { /* la cámara espera su soporte */ }
+      // la pieza (o las piezas: los 4 motores) salen del dron y van a su puesto en la mesa
+      it.piezas = [];
+      if (it.slot === "motores" && g) {
+        const co = dron.userData.corners, kids = [...g.children];
+        co.forEach((c, i) => {
+          const mg = new THREE.Group(); kids.slice(i * 3, i * 3 + 3).forEach((m) => mg.add(m));
+          const centro = base(mg); it.piezas.push({ g: mg, centro, destino: null });
+        });
+      } else if (it.slot === "montaje") {
+        const sop = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.004, 0.026), MAT.goma); sop.castShadow = true; sop.position.y = 0.002;
+        const g2 = new THREE.Group(); g2.add(sop);
+        it.piezas.push({ g: g2, centro: soporteEn(), ext: true });
+      } else if (g) {
+        const centro = base(g); g.parent.remove(g);
+        it.piezas.push({ g, centro });
       }
-      if (it.estado === "montada") {
-        if (it.como === "tornillos" && g) for (const v of puntosDe(it)) { const tm = tornilloMesh(); tm.position.copy(v).add(new THREE.Vector3(0, 0.0007, 0)); tm.rotation.y = v.x * 300; mundo.add(tm); }
-        continue;
-      }
-      if (it.slot === "montaje") {                     // el soporte de la cámara: una piecita negra
-        const sop = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.004, 0.026), MAT.goma); sop.castShadow = true;
-        it.obj = sop;
-      }
-      if (g && it.slot !== "montaje") {
-        // la pieza se saca del dron y se pone en su puesto (más chica, centrada)
-        const piv = new THREE.Group(), bb = new THREE.Box3().setFromObject(g), c = bb.getCenter(new THREE.Vector3());
-        g.parent.remove(g); piv.add(g); g.position.sub(c.clone().setY(bb.min.y));
-        it.obj = piv; it.centro = c.clone().setY(bb.min.y);
-      }
-      if (!it.obj) continue;
-      const [x, z] = it.slot === "chasis" ? [0, 0] : PUESTOS[k++ % PUESTOS.length];
-      const esc_ = it.slot === "chasis" ? 0.9 : it.slot === "motores" ? 0.55 : 1;
-      it.obj.position.set(x, 0, z); it.obj.scale.setScalar(esc_); it.puesto = [x, z, esc_];
-      if (it.slot === "chasis" && !chasisPuesto) it.obj.position.set(0, 0, 0.27), it.puesto = [0, 0.27, 0.5], it.obj.scale.setScalar(0.5);
-      mundo.add(it.obj);
-      if (it.estado === "camino") { it.obj.visible = false; continue; }
-      if (it.estado === "caja") { it.obj.visible = false; caja(it); continue; }
-      pickable(it.obj, { tipo: "montar", it });
+      if (!it.piezas.length) continue;
+      const [x, z] = it.slot === "chasis" ? [0, 0.27] : PUESTOS[k++ % PUESTOS.length];
+      const esc_ = it.slot === "chasis" ? 0.5 : 1;
+      const girar = TA.PROCEDIMIENTO[it.slot]?.some(([tp, o]) => tp === "colocar" && o?.girar);
+      it.piezas.forEach((pz, i) => {
+        const piv = new THREE.Group();
+        if (pz.g.parent) pz.g.parent.remove(pz.g);
+        piv.add(pz.g); pz.g.position.sub(pz.centro);
+        const off = it.piezas.length > 1 ? [(i % 2 ? 1 : -1) * 0.028, (i < 2 ? -1 : 1) * 0.028] : [0, 0];
+        piv.position.set(x + off[0], 0, z + off[1]); piv.scale.setScalar(esc_);
+        if (girar) { piv.add(flecha(0xffd23f, new THREE.Box3().setFromObject(pz.g).max.y + 0.003)); piv.rotation.y = [Math.PI / 2, Math.PI, -Math.PI / 2][(i + it.slot.length) % 3]; }
+        pz.piv = piv; pz.puesto = piv.position.clone(); pz.girar = girar;
+        mundo.add(piv);
+        if (it.estado !== "suelta") piv.visible = false;
+      });
+      if (it.estado === "caja") caja(it);
     }
-    M.items = its;
-    for (const o of dron.userData.body.children) if (o.isMesh) o.visible = chasisPuesto;     // las luces de los brazos van con el chasis
-    controls.minDistance = 0.08; controls.maxDistance = 1.4;
+    recogibles();
+    controls.minDistance = 0.06; controls.maxDistance = 1.4;
     if (M.vista !== "armar") { M.vista = "armar"; cam.position.set(0, 0.6, 0.56); controls.target.set(0, 0, 0.05); controls.update(); }
   }
-  /** Mover la cámara suave hacia un punto (para ver de cerca los tornillos). */
+  /** Dónde va el soporte de la cámara (adelante, debajo de la cámara). */
+  function soporteEn() { const cp = M.dron.userData.camPos; return new THREE.Vector3(cp.x - 0.012, Math.max(0.008, cp.y - 0.016), 0); }
+
+  /** Lo que se puede tocar ahora: sin procedimiento, las cajas, las piezas sueltas y las montadas (para desmontar). */
+  function recogibles() {
+    M.pick = [];
+    const P_ = M.proc, paso = P_?.pasos[P_.i];
+    if (!P_) {
+      for (const it of M.items) {
+        if (it.estado === "caja" && it.caja) pickable(it.caja.g, { tipo: "caja", it });
+        if (it.estado === "suelta") it.piezas?.forEach((pz, i) => pickable(pz.piv, { tipo: "pieza", it, i }));
+        if (it.estado === "montada") { const g = it.slot === "montaje" ? M.soporteMontado : M.dron.userData.slots[it.s3]; if (g) pickable(g, { tipo: "desmontar", it }); }
+      }
+      return;
+    }
+    const [tipo] = paso;
+    if (tipo === "colocar" || tipo === "colocar_cada") P_.it.piezas.forEach((pz, i) => { if (!pz.lista) pickable(pz.piv, { tipo: "pieza", it: P_.it, i }); });
+    else if (tipo === "voltear") pickable(M.dron, { tipo: "voltear" });
+    else if (tipo === "mantener") { const o = P_.it.piezas.find((x) => !x.lista)?.piv || (P_.it.slot === "montaje" ? M.soporteMontado : M.dron.userData.slots[P_.it.s3]); if (o) pickable(o, { tipo: "mantener" }); }
+    else for (const [i, q] of (P_.pts || []).entries()) if (!q.listo) { M.pick.push(q.hit); q.hit.userData.accion = { tipo: "punto", i }; }
+  }
+
+  // ---------------- los tornillos, separadores, tuercas y gomas: dónde van y cómo se ven ----------------
+  /** La altura de arriba del chasis (sin los separadores ni la placa de arriba). */
+  function techoChasis() {
+    let y = 0.008;
+    M.dron.userData.slots.chasis?.traverse((o) => { if (o.isMesh && !o.userData.separador && !o.userData.tapa) { const b = new THREE.Box3().setFromObject(o); if (b.max.y < 0.03) y = Math.max(y, b.max.y); } });
+    return y;
+  }
+  /** Los puntos de un paso (en coordenadas del dron): v = dónde, n = hacia dónde mira la cabeza, pieza, cuánto apretar. */
+  function puntos(detalle) {
+    const S = M.dron.userData.slots, co = M.dron.userData.corners, esq = [[1, 1], [1, -1], [-1, 1], [-1, -1]], Y = new THREE.Vector3(0, 1, 0);
+    const P_ = (v, n, pieza, dur = 0.85) => ({ v, n, pieza, dur });
+    switch (detalle) {
+      case "motores_abajo": return co.flatMap((c) => {
+        const L = Math.hypot(c.x, c.z), px = -c.z / L, pz = c.x / L;
+        return [-1, 1].map((s) => P_(new THREE.Vector3(c.x + px * 0.0065 * s, 0, c.z + pz * 0.0065 * s), new THREE.Vector3(0, -1, 0), "tornillo"));
+      });
+      case "separadores": { const y = techoChasis(); return esq.map(([a, b]) => P_(new THREE.Vector3(a * 0.016, y, b * 0.016), Y.clone(), "separador", 1)); }
+      case "tuercas": return esq.map(([a, b]) => P_(new THREE.Vector3(a * 0.016, 0.0335, b * 0.016), Y.clone(), "tuerca", 0.75));
+      case "gomas": return esq.map(([a, b]) => P_(new THREE.Vector3(a * 0.016, 0.0225, b * 0.016), Y.clone(), "goma"));
+      case "montaje": { const s = soporteEn(); return [-1, 1].map((k) => P_(new THREE.Vector3(s.x - 0.008, s.y + 0.004, k * 0.009), Y.clone(), "tornillo")); }
+      case "camara_lados": { const b = new THREE.Box3().setFromObject(S.camara), c = b.getCenter(new THREE.Vector3()); return [P_(new THREE.Vector3(c.x, c.y, b.min.z - 0.0008), new THREE.Vector3(0, 0, -1), "tornillo"), P_(new THREE.Vector3(c.x, c.y, b.max.z + 0.0008), new THREE.Vector3(0, 0, 1), "tornillo")]; }
+      case "correa_pasar": { const b = new THREE.Box3().setFromObject(S.bateria || S.chasis), c = b.getCenter(new THREE.Vector3()); return [P_(new THREE.Vector3(c.x, 0.004, 0), Y.clone(), "correa")]; }
+      default: return [];
+    }
+  }
+  /** La pieza chiquita de cada punto (el eje +y es hacia donde mira la cabeza). */
+  function herraje(pieza) {
+    if (pieza === "tornillo") return tornilloMesh();
+    const g = new THREE.Group();
+    if (pieza === "separador") { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.0021, 0.0021, 0.028, 6), new THREE.MeshStandardMaterial({ color: 0xc9a14a, metalness: 0.85, roughness: 0.3 })); m.position.y = 0.014; m.castShadow = true; g.add(m); }
+    else if (pieza === "tuerca") { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.0026, 0.0026, 0.0022, 6), new THREE.MeshStandardMaterial({ color: 0xf2f0ea, roughness: 0.5 })); m.position.y = 0.0011; g.add(m); }
+    else if (pieza === "goma") { const m = new THREE.Mesh(new THREE.TorusGeometry(0.0024, 0.0011, 8, 18), MAT.goma); m.rotation.x = Math.PI / 2; m.position.y = 0.001; g.add(m); }
+    else if (pieza === "correa") { const m = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.0016, 0.07), new THREE.MeshStandardMaterial({ color: 0xd93a2a, roughness: 0.8 })); m.position.y = 0.001; g.add(m); }
+    return g;
+  }
+  /** Pone un herraje en su punto (dentro del dron: si el dron se voltea, se voltea con él). */
+  function ponerHerraje(q, sube = 0) {
+    const h = herraje(q.pieza);
+    h.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), q.n);
+    h.position.copy(q.v).addScaledVector(q.n, sube);
+    M.dron.userData.body.add(h);
+    return h;
+  }
+  /** Los herrajes de una pieza ya montada (los tornillos de abajo de los motores, los separadores, las tuercas…). */
+  function herrajes(it) {
+    if (it.slot === "montaje") { const sop = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.004, 0.026), MAT.goma); sop.position.copy(soporteEn()).add(new THREE.Vector3(0, 0.002, 0)); M.dron.userData.body.add(sop); M.soporteMontado = sop; }
+    for (const [tipo, det] of TA.PROCEDIMIENTO[it.slot] || []) {
+      if (tipo !== "tornillos" && tipo !== "clics") continue;
+      if (det === "separadores") continue;                    // ya son parte del chasis (se ven con el ESC)
+      if (det === "correa_pasar") continue;                   // la correa ya viene en la batería
+      for (const q of puntos(det)) { const h = ponerHerraje(q); h.rotateY(q.v.x * 300); }
+    }
+  }
+  function tornilloMesh() {
+    const g = new THREE.Group();
+    const cab = new THREE.Mesh(new THREE.CylinderGeometry(0.0026, 0.0026, 0.0014, 16), MAT.tornillo); cab.castShadow = true; g.add(cab);
+    for (const r of [0, Math.PI / 2]) { const ra = new THREE.Mesh(new THREE.BoxGeometry(0.0034, 0.0006, 0.0006), MAT.goma); ra.position.y = 0.0006; ra.rotation.y = r; g.add(ra); }
+    const cu = new THREE.Mesh(new THREE.CylinderGeometry(0.0012, 0.0012, 0.006, 10), MAT.tornillo); cu.position.y = -0.0035; g.add(cu);
+    return g;
+  }
+
+  // ---------------- el procedimiento ----------------
+  /** Empezar a montar una pieza: revisa el orden y arranca su primer paso. */
+  function empezar(it) {
+    const hay = new Set(M.items.map((x) => x.slot)), no = TA.puedeMontar(it.slot, montadas(), hay);
+    if (no?.falta) return aviso(t("Primero {pieza}: va debajo.", { pieza: NOMBRE()[no.falta] })), false;
+    if (no?.tapa) return aviso(t("{pieza} está encima y no deja: desmóntala primero (mantén apretado sobre ella).", { pieza: NOMBRE()[no.tapa] })), false;
+    M.proc = { it, pasos: TA.PROCEDIMIENTO[it.slot] || [["colocar"]], i: -1 };
+    siguientePaso();
+    return true;
+  }
+  function siguientePaso() {
+    const P_ = M.proc, body = M.dron.userData.body;
+    for (const f of P_.fantasmas || []) f.parent?.remove(f);
+    P_.fantasmas = []; P_.pts = null;
+    P_.i++;
+    if (P_.i >= P_.pasos.length) return terminarMontaje(P_.it);
+    const [tipo, det] = P_.pasos[P_.i];
+    if (tipo === "colocar" || tipo === "colocar_cada") {
+      // dónde va: la pieza en fantasma verde (y la flecha verde si hay que girarla)
+      for (const pz of P_.it.piezas) {
+        pz.g.traverse((o) => { delete o.userData.accion; });          // (clone copia userData; recogibles() lo vuelve a poner)
+        const f = pz.g.clone(true);
+        f.traverse((o) => { if (o.isMesh) { o.material = FANT; o.castShadow = false; } });
+        if (pz.ext) f.position.copy(pz.centro); else f.position.set(0, 0, 0);
+        body.add(f); P_.fantasmas.push(f); pz.fantasma = f;
+        if (pz.girar) {
+          const alto = new THREE.Box3().setFromObject(pz.g).getSize(new THREE.Vector3()).y / pz.piv.scale.x;
+          const fl = flecha(0x47f08a, 0); fl.position.set(pz.centro.x, pz.centro.y + alto + 0.004, pz.centro.z);
+          body.add(fl); P_.fantasmas.push(fl);
+        }
+      }
+      enfocar(...VISTA_ARMAR());
+    } else if (tipo === "voltear") {
+      enfocar(new THREE.Vector3(0, 0.02, 0), new THREE.Vector3(0, 0.36, 0.34));
+    } else if (tipo === "tornillos" || tipo === "clics") {
+      P_.pts = puntos(det).map((q) => ({ ...q, T: TA.tornillo0(), listo: false }));
+      for (const q of P_.pts) {
+        const a = new THREE.Mesh(new THREE.TorusGeometry(q.pieza === "correa" ? 0.009 : 0.0034, 0.0007, 8, 24), MAT.anillo.clone());
+        a.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), q.n); a.position.copy(q.v).addScaledVector(q.n, 0.0012);
+        const hit = new THREE.Mesh(new THREE.SphereGeometry(q.pieza === "correa" ? 0.014 : 0.0055, 8, 6), new THREE.MeshBasicMaterial({ visible: false }));
+        hit.position.copy(a.position);
+        M.dron.userData.body.add(a, hit); q.anillo = a; q.hit = hit;
+        P_.fantasmas.push(a, hit);
+      }
+      mirarPunto();
+    } else if (tipo === "mantener") {
+      const o = P_.it.piezas.find((x) => !x.lista)?.piv || M.dron.userData.slots[P_.it.s3];
+      if (o) { const c = new THREE.Box3().setFromObject(o).getCenter(new THREE.Vector3()); enfocar(c, c.clone().add(new THREE.Vector3(0, 0.12, 0.11))); }
+    }
+    recogibles(); hud();
+  }
+  /** La cámara mira el próximo punto (de frente a hacia donde mira su cabeza: desde abajo, de lado o desde arriba). */
+  function mirarPunto() {
+    const q = M.proc?.pts?.find((x) => !x.listo);
+    if (!q) return;
+    M.dron.updateMatrixWorld(true);
+    const w = M.dron.userData.body.localToWorld(q.v.clone()), nw = q.n.clone().transformDirection(M.dron.userData.body.matrixWorld);
+    const L = q.pieza === "correa" ? 0.2 : 0.085;
+    // de frente a la cabeza: desde arriba (o desde abajo con el dron volteado), o de lado casi a la altura del tornillo
+    const desde = nw.y > 0.5 ? new THREE.Vector3(0, L * 0.85, L * 0.55) : nw.clone().multiplyScalar(L * 1.1).add(new THREE.Vector3(0.012, L * 0.12, 0));
+    enfocar(w, w.clone().add(desde));
+  }
+  /** Un punto listo: el siguiente; si eran todos, el paso siguiente. */
+  function puntoListo(q) {
+    q.listo = true; q.anillo.material = MAT.anilloOk;
+    sfx("click");
+    if (M.proc.pts.every((x) => x.listo)) { M.hold = null; setTimeout(() => { if (M.proc) siguientePaso(); }, 350); }
+    else { mirarPunto(); recogibles(); }
+    hud();
+  }
+  /** Soltar una pieza que arrastrabas: si está cerca de su lugar (y bien girada), encaja. */
+  function soltarPieza() {
+    const A = M.arrastre; M.arrastre = null; controls.enableZoom = true;
+    const it = A.it, pz = it.piezas[A.i], piv = pz.piv;
+    const libres = it.piezas.filter((x) => x.lista === undefined || !x.lista).map((x) => x);
+    // a qué lugar: el suyo (o, con los motores, el lugar libre más cercano)
+    const lugares = it.slot === "motores" ? it.piezas.filter((x) => !x.ocupado).map((x) => x.centro) : [pz.centro];
+    const cerca = lugares.map((c) => [c, Math.hypot(piv.position.x - c.x, piv.position.z - c.z)]).sort((a, b) => a[1] - b[1])[0];
+    const rot = pz.meta ?? piv.rotation.y, ang = ((rot % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI), derecho = !pz.girar || ang < 0.1 || ang > 2 * Math.PI - 0.1;
+    if (!cerca || cerca[1] > 0.03) { piv.position.y = 0; return aviso(t("Así no encaja: llévala hasta su lugar (el fantasma verde).")); }
+    if (!derecho) { piv.position.y = 0.01; return aviso(t("Gírala con R hasta que la flecha amarilla mire hacia adelante, como la verde.")); }
+    const destino = cerca[0], dueno = it.piezas.find((x) => x.centro === destino);
+    dueno.ocupado = true; pz.lista = true;
+    const p0 = piv.position.clone(), r0 = piv.rotation.y, r1 = Math.round(rot / (2 * Math.PI)) * 2 * Math.PI;
+    sfx("click");
+    tween(0.3, (k) => { piv.position.lerpVectors(p0, destino, suave(k)); piv.rotation.y = lerp(r0, r1, suave(k)); }, () => {
+      // la pieza vuelve al dron (así se voltea con él)
+      const S = M.dron.userData.slots, body = M.dron.userData.body;
+      for (const f of piv.children.filter((c) => c.geometry?.type === "ConeGeometry")) piv.remove(f);
+      piv.remove(pz.g); mundo.remove(piv);
+      if (it.slot === "motores") { S.motores.add(pz.g); pz.g.position.set(destino.x - pz.centro.x, 0, destino.z - pz.centro.z); }
+      else if (it.slot === "montaje") { body.add(pz.g); pz.g.position.copy(destino); M.soporteMontado = pz.g; }
+      else { body.add(pz.g); pz.g.position.set(0, 0, 0); S[it.s3] = pz.g; }
+      if (dueno.fantasma) dueno.fantasma.visible = false;
+      if (it.piezas.every((x) => x.lista)) siguientePaso(); else { recogibles(); hud(); }
+    });
+  }
+  /** Voltear el dron (para los tornillos de abajo) o enderezarlo. */
+  function voltear(abajo) {
+    const G2 = M.giro, bb = new THREE.Box3().setFromObject(M.dron), alto = bb.max.y + 0.001, r0 = G2.rotation.x, r1 = abajo ? Math.PI : 0, y0 = G2.position.y, y1 = abajo ? alto : 0;
+    sfx("caja");
+    tween(0.9, (k) => { const e = suave(k); G2.rotation.x = lerp(r0, r1, e); G2.position.y = lerp(y0, y1, e) + Math.sin(k * Math.PI) * 0.07; }, () => siguientePaso());
+  }
+  function terminarMontaje(it) {
+    const d = D(), B = d.banco;
+    if (it.slot === "extras") B.instalado.extras = [...d.extras];
+    else B.instalado[it.slot] = it.uid;
+    if (it.slot === "esc" || it.slot === "motores") { B.helices = false; B.instalado.helices = null; }
+    guardar(); ctx.verDron?.();
+    sfx("listo");
+    aviso("✓ " + t("{pieza} montada.", { pieza: NOMBRE()[it.slot] }), true);
+    M.proc = null;
+    setTimeout(() => { if (M.abierta && M.modo === "armar") { construir(); enfocar(...VISTA_ARMAR()); } }, 450);
+  }
+  /** Desmontar una pieza (si no tiene nada encima): vuelve a la mesa. */
+  function desmontar(it) {
+    const no = TA.puedeDesmontar(it.slot, montadas());
+    if (no) return aviso(t("{pieza} está encima: desmóntala primero.", { pieza: NOMBRE()[no.tapa] }));
+    const B = D().banco;
+    if (it.slot === "extras") B.instalado.extras = []; else B.instalado[it.slot] = null;
+    guardar(); ctx.verDron?.(); sfx("trinquete");
+    aviso(t("Desmontaste: {pieza}.", { pieza: NOMBRE()[it.slot] }));
+    construir();
+  }
+  function cancelarProc() {
+    if (!M.proc) return;
+    M.proc = null; M.arrastre = null;
+    aviso(t("Lo dejaste a medias: la pieza vuelve a la mesa."));
+    construir(); enfocar(...VISTA_ARMAR());
+  }
+  /** Mover la cámara suave hacia un punto. */
   function enfocar(target, pos) {
     const t0 = controls.target.clone(), p0 = cam.position.clone();
     tween(0.6, (k) => { const e = suave(k); controls.target.lerpVectors(t0, target, e); cam.position.lerpVectors(p0, pos, e); }, null, false);
   }
   const VISTA_ARMAR = () => [new THREE.Vector3(0, 0, 0.05), new THREE.Vector3(0, 0.6, 0.56)];
+  /** El texto de cada paso (para la lista del procedimiento). */
+  function textoPaso([tipo, det], it) {
+    const nom = NOMBRE()[it.slot];
+    if (tipo === "colocar") return det?.girar ? t("Coloca {pieza} (gírala con R: la flecha hacia adelante)", { pieza: nom }) : t("Coloca {pieza} en su lugar", { pieza: nom });
+    if (tipo === "colocar_cada") return t("Pon cada motor en la punta de su brazo");
+    if (tipo === "voltear") return det ? t("Voltea el dron (los tornillos van por abajo)") : t("Endereza el dron");
+    return { motores_abajo: t("Atornilla cada motor por abajo (2 por motor)"), separadores: t("Enrosca los 4 separadores al chasis"), tuercas: t("Aprieta las 4 tuercas de nylon"),
+      montaje: t("Atornilla el soporte (2)"), camara_lados: t("Atornilla la cámara por los lados (2)"), gomas: t("Pon las 4 gomas antivibración"), correa_pasar: t("Pasa la correa por debajo"),
+      cinta_pelar: t("Pela la cinta doble faz"), cinta_presionar: t("Presiona la radio para que pegue"), correa_apretar: t("Aprieta la correa") }[det] || det;
+  }
 
   /** Una caja de cartón con su cinta y una etiqueta con el nombre. */
   function caja(it) {
-    const [x, z] = it.puesto, grande = it.slot === "chasis", w = grande ? 0.2 : 0.11, h = grande ? 0.045 : 0.065, dd = grande ? 0.16 : 0.09;
+    const [x, , z] = it.piezas[0].puesto.toArray(), grande = it.slot === "chasis", w = grande ? 0.2 : 0.11, h = grande ? 0.045 : 0.065, dd = grande ? 0.16 : 0.09;
     const g = new THREE.Group(); g.position.set(x, 0, z);
-    const base = new THREE.Mesh(new THREE.BoxGeometry(w, h, dd), MAT.carton); base.position.y = h / 2; base.castShadow = base.receiveShadow = true; g.add(base);
+    const base_ = new THREE.Mesh(new THREE.BoxGeometry(w, h, dd), MAT.carton); base_.position.y = h / 2; base_.castShadow = base_.receiveShadow = true; g.add(base_);
     const solapa = (lado) => {
       const piv = new THREE.Group(); piv.position.set(0, h, (lado * dd) / 2);
       const s = new THREE.Mesh(new THREE.BoxGeometry(w, 0.002, dd / 2), MAT.carton); s.position.z = (-lado * dd) / 4; s.castShadow = true; piv.add(s);
@@ -320,7 +572,6 @@ export function initMesa(ctx) {
     };
     const s1 = solapa(1), s2 = solapa(-1);
     const cinta = new THREE.Mesh(new THREE.BoxGeometry(w + 0.004, 0.0025, 0.018), MAT.cinta); cinta.position.y = h + 0.0015; g.add(cinta);
-    // la etiqueta (el nombre de la pieza)
     const c = document.createElement("canvas"); c.width = 256; c.height = 128;
     const gx = c.getContext("2d"); gx.fillStyle = "#f4efe4"; gx.fillRect(0, 0, 256, 128); gx.fillStyle = "#222"; gx.font = "bold 26px sans-serif";
     const nom = it.slot === "extras" ? t("Extras") : PT.buscarPieza(cat, it.us[0]?.id)?.nombre || NOMBRE()[it.slot];
@@ -332,94 +583,20 @@ export function initMesa(ctx) {
     et.position.set(0, h / 2, dd / 2 + 0.0008); g.add(et);
     mundo.add(g);
     it.caja = { g, s1, s2, cinta, w, h };
-    pickable(g, { tipo: "caja", it });
-  }
-
-  /** Los puntos donde van los tornillos (en coordenadas del dron) y cuánto hay que mantener apretado. */
-  function puntosDe(it) {
-    const S = M.dron.userData.slots, co = M.dron.userData.corners;
-    const bb = (k) => new THREE.Box3().setFromObject(S[k]);
-    if (it.como === "colocar") return [];
-    if (it.slot === "motores") return co.flatMap((c) => {
-      const L = Math.hypot(c.x, c.z), ux = c.x / L, uz = c.z / L, px = -uz, pz = ux;
-      return [-1, 1].map((s) => new THREE.Vector3(c.x - ux * 0.03 + px * 0.005 * s, 0.016, c.z - uz * 0.03 + pz * 0.005 * s));
-    });
-    if (it.slot === "esc") return [[1, 1], [1, -1], [-1, 1], [-1, -1]].map(([a, b]) => new THREE.Vector3(a * 0.016, 0.0225, b * 0.016));
-    if (it.slot === "controladora") return [[1, 1], [1, -1], [-1, 1], [-1, -1]].map(([a, b]) => new THREE.Vector3(a * 0.016, 0.034, b * 0.016));
-    const b = bb(it.s3), c = b.getCenter(new THREE.Vector3());
-    if (it.slot === "montaje") { const cp = M.dron.userData.camPos; return [-1, 1].map((s) => new THREE.Vector3(cp.x - 0.022, Math.max(0.012, cp.y - 0.012), s * 0.011)); }
-    if (it.slot === "camara") return [new THREE.Vector3(c.x, c.y, b.min.z - 0.002), new THREE.Vector3(c.x, c.y, b.max.z + 0.002)];
-    return [new THREE.Vector3(c.x, b.max.y + 0.002, c.z)];
-  }
-  const DUR = { tornillos: 0.85, correa: 1.3, cinta: 0.6 };
-
-  /** Montar: la pieza vuela a su lugar y después aparecen sus tornillos. */
-  function montar(it) {
-    const its = M.items, est = (s) => its.find((x) => x.slot === s)?.estado;
-    if (it.slot !== "chasis" && est("chasis") && est("chasis") !== "montada") return aviso(t("Primero el chasis: es la base de todo."));
-    if (it.slot === "controladora" && est("esc") && est("esc") !== "montada") return aviso(t("Primero el ESC: la controladora va encima (el \"stack\")."));
-    if (it.slot === "camara" && est("montaje") && est("montaje") !== "montada") return aviso(t("Primero el montaje de la cámara."));
-    if (M.tornillos) return aviso(t("Termina los tornillos de la pieza que estás montando."));
-    const o = it.obj, [x0, z0, s0] = [o.position.x, o.position.z, o.scale.x];
-    const cp = M.dron.userData.camPos, destino = it.slot === "montaje" ? new THREE.Vector3(cp.x - 0.022, Math.max(0.01, cp.y - 0.014), 0) : it.centro || new THREE.Vector3();
-    M.pick = M.pick.filter((m) => m.userData.accion?.it !== it);
-    sfx("click");
-    tween(0.8, (k) => {
-      const e = suave(k);
-      o.position.set(lerp(x0, destino.x, e), Math.sin(k * Math.PI) * 0.08 + lerp(0, destino.y, e), lerp(z0, destino.z, e));
-      o.scale.setScalar(lerp(s0, 1, e));
-    }, () => {
-      const pts = puntosDe(it);
-      if (!pts.length) return terminarMontaje(it);
-      M.tornillos = { it, pts: pts.map((v) => ({ v, T: TA.tornillo0(), anillo: null, tornillo: null })), dur: DUR[it.como] };
-      const cen = pts.reduce((a, v) => a.add(v), new THREE.Vector3()).multiplyScalar(1 / pts.length), lejos = it.slot === "motores" ? 0.34 : 0.16;
-      enfocar(cen, cen.clone().add(new THREE.Vector3(0, lejos * 0.8, lejos * 0.75)));
-      for (const [i, q] of M.tornillos.pts.entries()) {
-        const a = new THREE.Mesh(new THREE.TorusGeometry(0.0034, 0.0007, 8, 24), MAT.anillo.clone());
-        a.rotation.x = Math.PI / 2; a.position.copy(q.v).add(new THREE.Vector3(0, 0.0012, 0));
-        if (it.como !== "tornillos") { a.geometry = new THREE.TorusGeometry(0.008, 0.0012, 8, 30); }
-        mundo.add(a); q.anillo = a;
-        a.userData.accion = { tipo: "tornillo", i }; M.pick.push(a);
-        const hit = new THREE.Mesh(new THREE.SphereGeometry(it.como === "tornillos" ? 0.006 : 0.012, 8, 6), new THREE.MeshBasicMaterial({ visible: false }));
-        hit.position.copy(a.position); hit.userData.accion = { tipo: "tornillo", i }; mundo.add(hit); M.pick.push(hit);
-      }
-      hud();
-    });
-  }
-  function tornilloMesh() {
-    const g = new THREE.Group();
-    const cab = new THREE.Mesh(new THREE.CylinderGeometry(0.0026, 0.0026, 0.0014, 16), MAT.tornillo); cab.castShadow = true; g.add(cab);
-    for (const r of [0, Math.PI / 2]) { const ra = new THREE.Mesh(new THREE.BoxGeometry(0.0034, 0.0006, 0.0006), MAT.goma); ra.position.y = 0.0006; ra.rotation.y = r; g.add(ra); }
-    const cu = new THREE.Mesh(new THREE.CylinderGeometry(0.0012, 0.0012, 0.006, 10), MAT.tornillo); cu.position.y = -0.0035; g.add(cu);
-    return g;
-  }
-  function terminarMontaje(it) {
-    const d = D(), B = d.banco;
-    if (it.slot === "extras") B.instalado.extras = [...d.extras];
-    else B.instalado[it.slot] = it.uid;
-    if (it.slot === "esc" || it.slot === "motores") { B.helices = false; B.instalado.helices = null; }
-    guardar(); ctx.verDron?.();
-    sfx("listo");
-    aviso("✓ " + t("{pieza} montada.", { pieza: NOMBRE()[it.slot] }), true);
-    M.tornillos = null;
-    setTimeout(() => { if (M.abierta && M.modo === "armar") { construir(); enfocar(...VISTA_ARMAR()); } }, 450);
   }
   /** Abrir una caja: la cinta ya está cortada; las solapas se abren y la pieza sube. */
   function abrirCaja(it) {
-    const C = it.caja, p = P();
+    const C = it.caja;
     sfx("caja");
     for (const u of it.us) if (u) delete u.caja;
     guardar();
-    M.pick = M.pick.filter((m) => m.userData.accion?.it !== it);
     C.cinta.visible = false;
     tween(0.5, (k) => { C.s1.rotation.x = -2.2 * suave(k); C.s2.rotation.x = 2.2 * suave(k); });
-    it.obj.visible = true;
-    const y0 = 0.0, [x, z, s] = it.puesto;
-    it.obj.position.set(x, 0.02, z); it.obj.scale.setScalar(s * 0.9);
-    tween(0.9, (k) => { it.obj.position.y = 0.02 + Math.sin(k * Math.PI) * 0.09 + y0; }, () => {
-      tween(0.35, (k) => { C.g.scale.setScalar(1 - k); }, () => { mundo.remove(C.g); it.estado = "suelta"; pickable(it.obj, { tipo: "montar", it }); hud(); });
+    for (const pz of it.piezas) { pz.piv.visible = true; pz.piv.position.y = 0.02; }
+    tween(0.9, (k) => { for (const pz of it.piezas) pz.piv.position.y = 0.02 + Math.sin(k * Math.PI) * 0.09; }, () => {
+      tween(0.35, (k) => { C.g.scale.setScalar(1 - k); }, () => { mundo.remove(C.g); it.caja = null; it.estado = "suelta"; for (const pz of it.piezas) pz.piv.position.y = 0; recogibles(); hud(); });
     });
-    p && aviso(t("📦 Abriste: {pieza}. Tócala para montarla.", { pieza: NOMBRE()[it.slot] }), true);
+    aviso(t("📦 Abriste: {pieza}. Tócala para montarla.", { pieza: NOMBRE()[it.slot] }), true);
   }
 
   // ============================== SOLDAR ==============================
@@ -760,14 +937,28 @@ export function initMesa(ctx) {
     const hit = apuntar(ev), a = hit?.object.userData.accion;
     if (M.modo === "armar") {
       if (!a) return;
+      const P_ = M.proc, paso = P_?.pasos[P_.i];
       if (a.tipo === "caja") { M.hold = { tipo: "cortar", it: a.it, p: 0, ruido: 0 }; H.cuter.visible = true; }
-      else if (a.tipo === "montar") montar(a.it);
-      else if (a.tipo === "tornillo" && M.tornillos) {
-        const q = M.tornillos.pts[a.i];
-        if (q.T.estado === "apretado") return;
-        if (!q.tornillo && M.tornillos.it.como === "tornillos") { q.tornillo = tornilloMesh(); q.tornillo.position.copy(q.v).add(new THREE.Vector3(0, 0.0048, 0)); mundo.add(q.tornillo); sfx("click"); }
-        M.hold = { tipo: "tornillo", i: a.i, ruido: 0 };
+      else if (a.tipo === "pieza") {
+        if (!P_) { if (!empezar(a.it)) return; }
+        else if (P_.it !== a.it) return aviso(t("Termina primero de montar {pieza} (Esc para dejarla).", { pieza: NOMBRE()[P_.it.slot] }));
+        const [tp] = M.proc.pasos[M.proc.i], pz = a.it.piezas[a.i];
+        if (tp === "colocar" || tp === "colocar_cada") {
+          M.arrastre = { it: a.it, i: a.i }; M.ultima = pz; controls.enableZoom = false;
+          const s0 = pz.piv.scale.x; tween(0.15, (k) => pz.piv.scale.setScalar(lerp(s0, 1, k)), null, false);
+          sfx("click");
+        } else if (tp === "mantener") M.hold = { tipo: "mantener", p: 0 };
       }
+      else if (a.tipo === "voltear" && paso?.[0] === "voltear") { M.pick = []; voltear(paso[1]); }
+      else if (a.tipo === "punto" && P_?.pts) {
+        const q = P_.pts[a.i];
+        if (q.listo) return;
+        if (paso[0] === "clics") { q.tornillo = ponerHerraje(q); puntoListo(q); return; }
+        if (!q.tornillo) { q.tornillo = ponerHerraje(q, 0.005); sfx("click"); }
+        M.hold = { tipo: "tornillo", i: a.i, ruido: 0, giro: 0 };
+      }
+      else if (a.tipo === "mantener") M.hold = { tipo: "mantener", p: 0 };
+      else if (a.tipo === "desmontar") M.hold = { tipo: "desmontar", it: a.it, p: 0 };
       return;
     }
     // soldar
@@ -782,6 +973,12 @@ export function initMesa(ctx) {
   function mover(ev) {
     const hit = apuntar(ev);
     M.hover = hit?.object.userData.accion || null;
+    if (M.modo === "armar" && M.arrastre) {           // la pieza sigue al ratón, un poco en el aire
+      const pz = M.arrastre.it.piezas[M.arrastre.i], v = new THREE.Vector3();
+      if (ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -(pz.centro.y + 0.02)), v)) pz.piv.position.set(v.x, pz.centro.y + 0.02, v.z);
+      $("mesa-c").style.cursor = "grabbing";
+      return;
+    }
     if (M.modo === "soldar") {
       // la punta del cautín sigue al ratón sobre la placa (apoyada si estás soldando)
       const pl = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.002), v = new THREE.Vector3();
@@ -791,13 +988,16 @@ export function initMesa(ctx) {
     $("mesa-c").style.cursor = M.hover ? "pointer" : M.modo === "soldar" ? "none" : "default";
   }
   function arriba() {
+    if (M.arrastre) { soltarPieza(); hud(); return; }
     if (!M.hold) return;
     if (M.hold.tipo === "soldar") { M.tocando = false; terminarJunta(); return; }
     if (M.hold.tipo === "cortar") H.cuter.visible = false;
     if (M.hold.tipo === "tornillo") {
       H.destornillador.visible = false;
-      if (M.tornillos?.pts.every((x) => x.T.estado === "apretado")) { const it = M.tornillos.it; M.hold = null; anillo(null); terminarMontaje(it); return; }
+      const q = M.proc?.pts?.[M.hold.i];
+      if (q && q.T.estado === "apretado" && !q.listo) { M.hold = null; anillo(null); puntoListo(q); return; }
     }
+    if ((M.hold.tipo === "mantener" || M.hold.tipo === "desmontar") && M.hold.p < 1) anillo(null);
     if (M.hold.tipo === "enchufar" && M.hold.p < 1) { const B = D().banco; B.cables = B.cables.filter((x) => x !== M.hold.c); delete B.juntas[TA.claveCable(M.hold.c)]; aviso(t("Se salió: mantén apretado hasta el clic.")); dibujarCables(); }
     M.hold = null;
     hud();
@@ -810,7 +1010,18 @@ export function initMesa(ctx) {
     else if (e.key === "x" || e.key === "X") bomba();
     else if (e.key === "m" || e.key === "M") M.malla = true;
     else if (e.key === "t" || e.key === "T") multimetro();
-    else if (e.key === "Escape") { if (M.enMano) { M.enMano = null; hud(); } else cerrar(); }
+    else if ((e.key === "r" || e.key === "R") && M.modo === "armar") girarPieza(1);
+    else if (e.key === "Escape") { if (M.enMano) { M.enMano = null; hud(); } else if (M.proc) cancelarProc(); else cerrar(); }
+  }
+  /** Girar la pieza que llevas (o la última que tocaste) un cuarto de vuelta. */
+  function girarPieza(dir) {
+    const pz = M.arrastre ? M.arrastre.it.piezas[M.arrastre.i] : M.ultima;
+    if (!pz || !pz.girar || pz.lista) return;
+    const r0 = pz.piv.rotation.y;
+    pz.meta = (pz.meta ?? Math.round(r0 / (Math.PI / 2)) * (Math.PI / 2)) + (dir * Math.PI) / 2;     // a dónde va (aunque aprietes R rápido)
+    const r1 = pz.meta;
+    tween(0.15, (k) => { pz.piv.rotation.y = lerp(r0, r1, k); }, null, false);
+    sfx("click");
   }
   function toggleFlux() {
     if (M.modo !== "soldar") return;
@@ -865,10 +1076,9 @@ export function initMesa(ctx) {
     renderer.render(scene, cam);
   }
   function pasoArmar(dt) {
-    const h = M.hold;
-    // los anillos de los tornillos laten
-    if (M.tornillos) for (const q of M.tornillos.pts) if (q.T.estado !== "apretado") q.anillo.material.opacity = 0.45 + 0.4 * Math.sin(M.t * 6);
-    if (!h) { anillo(null); return; }
+    const h = M.hold, P_ = M.proc;
+    if (P_?.pts) for (const q of P_.pts) if (!q.listo && q.T.estado !== "apretado") q.anillo.material.opacity = 0.45 + 0.4 * Math.sin(M.t * 6);
+    if (!h) { if (!M.arrastre) anillo(null); return; }
     if (h.tipo === "cortar") {
       const C = h.it.caja;
       h.p = Math.min(1, h.p + dt / 1.3);
@@ -877,21 +1087,32 @@ export function initMesa(ctx) {
       h.ruido += dt; if (h.ruido > 0.22) { h.ruido = 0; sfx("rasgar"); }
       anillo(h.p, t("Cortando la cinta…"));
       if (h.p >= 1) { M.hold = null; H.cuter.visible = false; anillo(null); abrirCaja(h.it); }
-    } else if (h.tipo === "tornillo" && M.tornillos) {
-      const q = M.tornillos.pts[h.i], esTor = M.tornillos.it.como === "tornillos";
-      const ev = TA.tickTornillo(q.T, dt, true, M.tornillos.dur);
-      if (esTor) {
-        q.tornillo.position.y = q.v.y + 0.0048 * (1 - q.T.p) + 0.0007;
-        q.tornillo.rotation.y += dt * (q.T.estado === "apretado" ? 4 : 22);
-        H.destornillador.visible = true;
-        H.destornillador.position.copy(q.tornillo.position).add(new THREE.Vector3(0, 0.0007, 0));
-        H.destornillador.rotation.y = q.tornillo.rotation.y;
-        h.ruido += dt; if (h.ruido > 0.16 && q.T.estado === "girando") { h.ruido = 0; sfx("trinquete"); }
-      }
-      anillo(q.T.estado === "apretado" ? 1 : q.T.p, q.T.estado === "apretado" ? (esTor ? t("¡Clic! Suelta ya") : t("Listo")) : { tornillos: t("Atornillando…"), correa: t("Apretando la correa…"), cinta: t("Pegando con cinta doble faz…") }[M.tornillos.it.como], q.T.estado === "apretado");
-      if (ev === "clic") { sfx("click"); q.anillo.material = MAT.anilloOk; if (!esTor) { M.hold = null; anillo(null); } }
+    } else if (h.tipo === "tornillo" && P_?.pts) {
+      const q = P_.pts[h.i], ev = TA.tickTornillo(q.T, dt, true, q.dur);
+      // el herraje baja girando sobre su eje (la cabeza mira hacia q.n: arriba, abajo o de lado)
+      q.tornillo.position.copy(q.v).addScaledVector(q.n, 0.005 * (1 - q.T.p));
+      h.giro += dt * (q.T.estado === "apretado" ? 4 : 22);
+      q.tornillo.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), q.n); q.tornillo.rotateY(h.giro);
+      // el destornillador, apoyado en la cabeza y alineado con ella
+      const body = M.dron.userData.body; M.dron.updateMatrixWorld(true);
+      const alto = q.pieza === "separador" ? 0.028 : q.pieza === "tuerca" ? 0.0022 : 0.0007;
+      const cabeza = body.localToWorld(q.tornillo.position.clone().addScaledVector(q.n, alto)), nw = q.n.clone().transformDirection(body.matrixWorld);
+      H.destornillador.visible = true; H.destornillador.position.copy(cabeza);
+      H.destornillador.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), nw); H.destornillador.rotateY(h.giro);
+      h.ruido += dt; if (h.ruido > 0.16 && q.T.estado === "girando") { h.ruido = 0; sfx("trinquete"); }
+      const txt = { separador: t("Enroscando el separador…"), tuerca: t("Apretando la tuerca…") }[q.pieza] || t("Atornillando…");
+      anillo(q.T.estado === "apretado" ? 1 : q.T.p, q.T.estado === "apretado" ? t("¡Clic! Suelta ya") : txt, q.T.estado === "apretado");
+      if (ev === "clic") { sfx("click"); q.anillo.material = MAT.anilloOk; }
       if (ev === "barrido") { sfx("error"); aviso(t("¡Te pasaste! La rosca se barrió. Suelta apenas suene el clic.")); q.anillo.material = MAT.anillo.clone(); }
-      if (!esTor && q.T.estado === "apretado" && M.tornillos.pts.every((x) => x.T.estado === "apretado")) terminarMontaje(M.tornillos.it);
+    } else if (h.tipo === "mantener" && P_) {
+      const det = P_.pasos[P_.i][1];
+      h.p = Math.min(1, h.p + dt / (det === "correa_apretar" ? 1.2 : 0.8));
+      anillo(h.p, { cinta_pelar: t("Pelando la cinta…"), cinta_presionar: t("Presionando…"), correa_apretar: t("Apretando la correa…") }[det] || "…");
+      if (h.p >= 1) { M.hold = null; anillo(null); sfx("click"); siguientePaso(); }
+    } else if (h.tipo === "desmontar") {
+      h.p = Math.min(1, h.p + dt / 0.9);
+      anillo(h.p, t("Desmontando…"));
+      if (h.p >= 1) { M.hold = null; anillo(null); desmontar(h.it); }
     }
   }
   function pasoSoldar(dt) {
@@ -992,7 +1213,19 @@ export function initMesa(ctx) {
     const lista = $("mesa-lista"), pista = $("mesa-pista");
     if (M.modo === "soldar" && !M.comps) { lista.innerHTML = ""; return; }
     lista.innerHTML = "";
-    if (M.modo === "armar") {
+    if (M.modo === "armar" && M.proc) {                 // el procedimiento de la pieza que estás montando
+      const P_ = M.proc;
+      lista.insertAdjacentHTML("beforeend", `<li class="proc"><b>🔧 ${esc(NOMBRE()[P_.it.slot])}</b><small>Esc ✕</small></li>`);
+      P_.pasos.forEach((ps, i) => {
+        const li = document.createElement("li");
+        li.className = i < P_.i ? "montada" : i === P_.i ? "ahora" : "";
+        li.innerHTML = `<span>${i < P_.i ? "✅" : i === P_.i ? "▶" : "○"}</span><b>${esc(textoPaso(ps, P_.it))}</b>`;
+        lista.appendChild(li);
+      });
+      const [tp] = P_.pasos[P_.i] || [];
+      pista.textContent = { colocar: t("Arrastra la pieza hasta el fantasma verde · R gira"), colocar_cada: t("Arrastra cada motor hasta su brazo"), voltear: t("Toca el dron para darle la vuelta"),
+        tornillos: t("Toca el anillo y mantén apretado hasta el clic"), clics: t("Toca cada anillo"), mantener: t("Mantén apretado sobre la pieza") }[tp] || "";
+    } else if (M.modo === "armar") {
       const ic = { montada: "✅", suelta: "🔩", caja: "📦", camino: "🚚" };
       for (const it of M.items || []) {
         const li = document.createElement("li");
@@ -1002,8 +1235,8 @@ export function initMesa(ctx) {
         lista.appendChild(li);
       }
       const falta = (M.items || []).filter((x) => x.estado !== "montada");
-      pista.textContent = M.tornillos ? ({ tornillos: t("Toca cada tornillo y mantén apretado hasta el clic"), correa: t("Mantén apretado para ajustar la correa"), cinta: t("Mantén apretado para pegar la radio") }[M.tornillos.it.como])
-        : !falta.length ? t("✓ Todo montado. Sigue con 🔥 Soldar.") : falta.some((x) => x.estado === "caja") ? t("Mantén apretado sobre una caja para cortar la cinta") : falta.some((x) => x.estado === "suelta") ? t("Toca una pieza para llevarla a su lugar") : t("Lo que falta viene en camino 🚚");
+      pista.textContent = !falta.length ? t("✓ Todo montado. Sigue con 🔥 Soldar.") : falta.some((x) => x.estado === "caja") ? t("Mantén apretado sobre una caja para cortar la cinta")
+        : falta.some((x) => x.estado === "suelta") ? t("Toca una pieza para montarla · mantén sobre una montada para desmontarla") : t("Lo que falta viene en camino 🚚");
     } else {
       const B = D().banco, J = B.juntas || {};
       for (const f of fuentes()) {

@@ -155,5 +155,18 @@ ok(TA.peor(["buena", "fria", "buena"]) === "fria" && TA.peor(["buena", "buena", 
   ok(!r.faltan.length && r.danos.length, "con un puente: no falta nada (cablear ✓) pero algo se va a quemar");
 }
 
+// 9) el orden de montar: lo de abajo primero; lo de arriba tapa
+{
+  const hay = new Set(["chasis", "motores", "esc", "controladora", "bateria", "montaje", "camara"]);
+  ok(TA.puedeMontar("esc", new Set(), hay)?.falta === "chasis", "sin chasis no se monta el ESC");
+  ok(TA.puedeMontar("controladora", new Set(["chasis"]), hay)?.falta === "esc", "la controladora va encima del ESC");
+  ok(TA.puedeMontar("esc", new Set(["chasis", "bateria"]), hay)?.tapa === "bateria", "con la batería puesta no se llega al ESC");
+  ok(TA.puedeMontar("bateria", new Set(["chasis", "esc"]), hay)?.falta === "controladora", "la batería va al final del stack");
+  ok(TA.puedeMontar("camara", new Set(["chasis"]), hay)?.falta === "montaje", "la cámara va en su soporte");
+  ok(TA.puedeMontar("controladora", new Set(["chasis", "esc"]), hay) === null, "con el ESC puesto, la controladora sí");
+  ok(TA.puedeDesmontar("esc", new Set(["chasis", "esc", "controladora"]))?.tapa === "controladora" && TA.puedeDesmontar("bateria", new Set(["bateria"])) === null, "para quitar el ESC hay que quitar la controladora");
+  ok(TA.PROCEDIMIENTO.motores.some(([k, v]) => k === "voltear" && v) && TA.PROCEDIMIENTO.motores.some(([k, v]) => k === "tornillos" && v === "motores_abajo"), "los motores se atornillan por abajo (volteando el dron)");
+}
+
 console.log(fallas ? `\n${fallas} pruebas fallaron.` : "\nTodas las pruebas pasan.");
 process.exit(fallas ? 1 : 0);

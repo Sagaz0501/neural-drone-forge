@@ -68,7 +68,9 @@ app/               EL JUEGO (Dron Maker): usa los módulos de game/
                    u.llega), tornillos (mantener hasta el clic; si sigues, se barre la rosca), soldar (estación que calienta,
                    punta que se ensucia, flux, estaño que solo moja si el pad está caliente) -> junta buena/fría/puente/
                    levantado en d.banco.juntas; efectivos() = el cableado que conduce. test: node app/test_taller.mjs
-  mesa.js          LA MESA DE TRABAJO (3D, su propio canvas): abrir cajas, montar, atornillar, soldar con el cautín (ratón)
+  mesa.js          LA MESA DE TRABAJO (3D, su propio canvas): abrir cajas; montar cada pieza con su PROCEDIMIENTO (taller.js:
+                   arrastrar al fantasma y girar con R, voltear el dron, tornillos por abajo/de lado, separadores, tuercas,
+                   gomas, correa; el orden = taller.js MONTAJE, lo de arriba tapa; desmontar); soldar con el cautín (ratón)
                    y el estaño (Espacio) a la vez, enchufar el arnés, desoldar (bomba X, malla M), multímetro (T); NO avisa
                    si una junta salió mal. Gasta p.insumos (estaño, flux, cable, malla: PT.gastar); el cautín = PT.cautinDe
   miniaturas.js    las fotos de la tienda: cada pieza dibujada una vez en 3D (dron3d.js, los GLB de Blender), en cola
