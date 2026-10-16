@@ -71,6 +71,8 @@ Lo que queda abierto de la Fase 1:
 
 ## ⏭️ Lo siguiente · PBDMM 2: entrenar con más claridad y programas "de verdad" *(Santiago, 15-10-2026)*
 
+> Plan detallado (nombres de funciones, ruta del programador por dron, orden de trabajo): [`PBDMM2_PLAN.md`](PBDMM2_PLAN.md).
+
 El modo desarrollador es el corazón del juego, así que PBDMM crece:
 
 1. **Más claro en el entrenamiento:** qué hace cada parámetro de entrenamiento, qué cambió entre generaciones, por
@@ -90,6 +92,17 @@ El modo desarrollador es el corazón del juego, así que PBDMM crece:
    Se apoya en los requisitos de cada pedido que ya existen (alcance de la radio, empuje/peso con viento,
    protectores, cámara) y crece con la Fase 1b.
 4. Después: lo que la Fase 1b agregue (premios y castigos nuevos) llega también a PBDMM.
+
+## ⏭️ También · El negocio: los clientes te escriben 📝 *(Santiago, 15-10-2026)*
+
+> Diseño completo en [`NEGOCIO.md`](NEGOCIO.md).
+
+El juego pasa de "lista de misiones" a **un negocio**: los clientes escriben al celular (una app de chat del juego), con
+trabajos **repetibles** de 4 dificultades (★–★★★★) que piden más piezas cuanto más difíciles. Tipos: 📷 foto (el
+tutorial, el más fácil), 🎬 video, 🔎 inspección, 🛠️ encargos de armado, 🧪 pruebas de drones (QA), 🎮 a mano y
+📦 entregas. Reutilizas y gastas drones, la relación con cada cliente crece y **lo repetitivo se lo das a la IA**
+(flota). La campaña sigue: sus pedidos pasan a ser los **pedidos especiales ⭐**.
+Primero: `requisitos.js` (compartido con PBDMM 2), el trabajo 📷 foto y el celular con el tutorial del día 1.
 
 ## Fase 1b · Premios, castigos y misiones que exigen al dron 📝 *(Santiago, 15-10-2026)*
 

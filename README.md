@@ -129,7 +129,9 @@ def cada_generacion(e):              # el juego la llama mientras entrena
 - **Autocompletado** que conoce el juego: `dron(` te ofrece tus drones; `desde=` tus modelos entrenados.
 - Errores en español con la línea y sugerencias (*¿quisiste decir "chocar"?*).
 - Terminal: `correr`, `estado`, `modelos éxito`, `info`, `volar <modelo>`, `blender`…
-- Referencia completa: **[docs/PBDMM.md](docs/PBDMM.md)**.
+- **Documentación del lenguaje: [docs/pbdmm/](docs/pbdmm/README.md)**: [tutorial](docs/pbdmm/tutorial.md),
+  [referencia](docs/pbdmm/referencia.md), [gramática](docs/pbdmm/gramatica.md), [biblioteca](docs/pbdmm/biblioteca.md),
+  [API de entrenamiento](docs/PBDMM.md) y [errores](docs/pbdmm/errores.md).
 
 ## Ver el entrenamiento en Blender
 
@@ -164,7 +166,8 @@ que solo la IA puede cumplir, video con varios drones…) está en el **[Roadmap
 | | |
 |---|---|
 | [Guía del jugador](docs/GUIA.md) | Los dos modos, el banco paso a paso, los pedidos, entrenar, controles, problemas comunes |
-| [Referencia de PBDMM](docs/PBDMM.md) | Funciones, premios y castigos, `e`, terminal, ejemplos, lecciones |
+| [El lenguaje PBDMM](docs/pbdmm/README.md) | Tutorial, referencia, gramática, biblioteca, errores · [API de entrenamiento](docs/PBDMM.md) |
+| [El negocio](docs/NEGOCIO.md) | Hacia dónde va el juego: los clientes te escriben, trabajos repetibles con dificultad, la IA trabaja por ti |
 | [Roadmap](docs/ROADMAP.md) | Qué mejorar, paso a paso, para que la demo sea un juego completo |
 | [Arquitectura](docs/ARQUITECTURA.md) | Cómo se conectan el navegador, el servidor, el entrenador y Blender |
 | [Plan del juego](docs/PLAN_JUEGO.md) · [Campaña](docs/HISTORIA.md) | La idea original y los capítulos |

@@ -120,8 +120,8 @@ def cada_generacion(e):              # the game calls it while training
 Variables, lists, dicts, `if/for/def`, comprehensions, f-strings… **no `import`, no `while`**: the browser interprets
 it, so a program someone sends you can't touch your computer. Autocomplete knows your drones and models; errors point
 at the line with suggestions. Terminal: `correr` (run), `estado`, `modelos`, `info`, `cargar <model> <drone>` (upload
-the latest generation to a drone), `simular`, `avance`, `blender`. Full reference (Spanish for now):
-[docs/PBDMM.md](docs/PBDMM.md).
+the latest generation to a drone), `simular`, `avance`, `blender`. Language docs (Spanish for now):
+[docs/pbdmm/](docs/pbdmm/README.md): tutorial, reference, grammar, library, errors and the [training API](docs/PBDMM.md).
 
 ## Watch it train in Blender
 

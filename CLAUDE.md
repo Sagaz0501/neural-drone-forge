@@ -10,7 +10,8 @@ Claude Code lee este archivo solo al abrir una sesión en esta carpeta. Es el re
 | **la campaña**: capítulos, misiones, qué piezas y qué entrenamiento pide cada una | [`docs/HISTORIA.md`](docs/HISTORIA.md) |
 | **cómo funciona la base que ya existe** (modelo, Blender, juego web) | [`docs/PROYECTO.md`](docs/PROYECTO.md) |
 | la historia día a día del proyecto base (bitácora, experimentos) | [`docs/README_drone-rl.md`](docs/README_drone-rl.md) |
-| **el lenguaje PBDMM** del modo desarrollador (se genera desde `app/data/pbdmm.json`) | [`docs/PBDMM.md`](docs/PBDMM.md) |
+| **el lenguaje PBDMM** del modo desarrollador: la API (se genera desde `app/data/pbdmm.json`) · la documentación completa (tutorial, referencia, gramática, biblioteca, errores; a mano: si cambias `pbdmm.js`, actualízala) · el plan de PBDMM 2 | [`docs/PBDMM.md`](docs/PBDMM.md) · [`docs/pbdmm/`](docs/pbdmm/README.md) · [`docs/PBDMM2_PLAN.md`](docs/PBDMM2_PLAN.md) |
+| **el negocio**: clientes que escriben al celular, trabajos repetibles ★–★★★★, tipos de trabajo, tutorial del día 1 | [`docs/NEGOCIO.md`](docs/NEGOCIO.md) |
 
 ## La idea
 
