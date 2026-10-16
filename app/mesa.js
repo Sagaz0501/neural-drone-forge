@@ -256,7 +256,8 @@ export function initMesa(ctx) {
   // dónde quedan las piezas sueltas: primero a la derecha, después adelante y atrás (la izquierda la tapa la lista)
   const PUESTOS = [[0.29, -0.16], [0.29, -0.04], [0.29, 0.08], [0.29, 0.2], [-0.17, 0.25], [0.15, 0.25], [-0.15, -0.24], [0.15, -0.24], [0, -0.26], [-0.24, 0.12]];
   const FANT = new THREE.MeshBasicMaterial({ color: 0x47f08a, transparent: true, opacity: 0.22, depthWrite: false });
-  const montadas = () => new Set((M.items || []).filter((x) => x.estado === "montada").map((x) => x.slot));
+  /** Lo montado que cuenta para el orden (lo que no tiene pieza, como la radio ESP-NOW del ESP32, no tapa nada). */
+  const montadas = () => new Set((M.items || []).filter((x) => x.estado === "montada" && !x.virtual).map((x) => x.slot));
   /** La flecha que dice dónde es adelante (en las piezas que hay que girar). */
   function flecha(color, y) {
     const f = new THREE.Mesh(new THREE.ConeGeometry(0.0045, 0.012, 3), new THREE.MeshBasicMaterial({ color, depthTest: false, transparent: true }));
@@ -284,7 +285,9 @@ export function initMesa(ctx) {
     }
     M.items = its;
     // lo que es de la radio ESP-NOW (va en la placa) no tiene nada que montar
-    for (const it of its) if (!S[it.s3] && it.slot !== "montaje" && it.estado !== "camino" && it.estado !== "montada") {
+    for (const it of its) if (!S[it.s3] && it.slot !== "montaje" && it.estado !== "camino") {
+      it.virtual = true;                               // no tapa nada: no hay nada encima del chasis (antes bloqueaba el chasis)
+      if (it.estado === "montada") continue;
       for (const u of it.us) if (u) delete u.caja;
       if (it.slot === "extras") d.banco.instalado.extras = [...d.extras]; else d.banco.instalado[it.slot] = it.uid;
       it.estado = "montada"; guardar();
@@ -1377,5 +1380,5 @@ export function initMesa(ctx) {
     }
   }
 
-  return { abrir, cerrar, estadoTuto, get abierta() { return M.abierta; }, _prueba: { M, cam: () => cam, mundo: () => mundo } };   // _prueba: para las pruebas en el navegador
+  return { abrir, cerrar, estadoTuto, get abierta() { return M.abierta; }, _prueba: { M, cam: () => cam, mundo: () => mundo, empezar: (it) => empezar(it) } };   // _prueba: para las pruebas en el navegador
 }

@@ -94,6 +94,33 @@ const dv = partida({ modo: "dev", rep: 0 });
 NG.asegurar(dv, D);
 ok(NG.pasoTutorial(dv, {})?.paso === 1 && dv.negocio.pedidos.length === 1, "modo desarrollador: con tutorial, como el normal");
 
+// el tutorial obligatorio: regalo -> nombre -> armar -> computador -> modelo (80 %) -> el primer cliente
+{
+  const q = partida({ rep: 0 });
+  TU.pasarA(q, "armar");
+  NG.asegurar(q, D);
+  ok(q.negocio.espera && !q.negocio.pedidos.length && !q.negocio.contactos.length, "tutorial: mientras armas, nadie te escribe");
+  NG.nuevoDia(q, D);
+  ok(!q.negocio.pedidos.length, "tutorial: terminar el día no trae pedidos mientras esperas");
+  ok(TU.pcCerrado(q) && TU.activo(q), "tutorial: el computador está cerrado mientras armas");
+  ok(/hangar/.test(TU.notas(q, { pantalla: "taller", izq: "hangar", dron: "Chispa" })[0].html) && !TU.notas(q, { pantalla: "taller" })[0].saltable, "tutorial: armar primero, y no se puede saltar");
+  TU.pasarA(q, "pc"); q.tuto.tour = 0;
+  ok(!TU.pcCerrado(q) && TU.notas(q, { pantalla: "taller" })[0].resaltar === "#b-computador", "tutorial: ya vuela -> el botón del computador brilla");
+  const tour = TU.notas(q, { pantalla: "estudio" })[0];
+  ok(tour.boton?.accion === "tour" && /mensajes/.test(tour.resaltar), "tutorial: el tour muestra una app a la vez con Siguiente");
+  TU.pasarA(q, "modelo");
+  const mods = [{ slug: "base", gen: 900, recientes: { 13: [[899, 0.95], [900, 0.95], [898, 0.9]] } },
+    { slug: "chispa", base_de: "base", gen: 905, recientes: { 13: [[899, 0.95], [900, 0.95], [903, 0.7], [904, 0.9], [905, 0.9]] } }];
+  const ex = TU.exitoFoto(mods, { base: 900 });
+  ok(ex.slug === "chispa" && ex.filas === 3 && Math.abs(ex.exito - 0.8333) < 0.01, "tutorial: el 80 % cuenta solo lo entrenado después (no lo copiado del base)");
+  ok(TU.exitoFoto([{ slug: "x", recientes: { 13: [[1, 1], [2, 1]] } }]).exito < TU.META_EXITO, "tutorial: con menos de 3 generaciones todavía no cuenta");
+  ok(/Simuladores/.test(TU.notas(q, { pantalla: "estudio" })[0].html), "tutorial: en el computador, a entrenar en Simuladores");
+  TU.pasarA(q, "cliente");
+  NG.primerCliente(q, D);
+  ok(!q.negocio.espera && q.negocio.pedidos.length === 1 && q.negocio.pedidos[0].tutorial, "tutorial: al 80 % llega el primer mensaje (Doña Marta)");
+  ok(TU.notas(q, { pantalla: "taller" })[0].saltable, "tutorial: con el cliente ya se puede saltar");
+}
+
 // el tutorial del primer dron (tutorial.js): las notas de arriba a la derecha
 {
   const notas = (s) => TU.notas(dv, { hayDron: true, dron: "Madera", ...s });

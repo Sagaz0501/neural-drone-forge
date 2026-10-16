@@ -47,12 +47,9 @@ export function asegurar(p, D) {
   if (p.negocio) return p.negocio;
   const N = (p.negocio = nuevoNegocio());
   const nueva = !Object.keys(p.hechos || {}).length && !p.vuelos;
-  if (nueva) {
-    const T = D.trabajos.tutorial;
-    contacto(p, T.cliente);
-    const pe = crearPedido(p, D, T.cliente, T.trabajo, 1, rngDe(N.semilla), { az: T.az, n: 1, pago: T.pago, plazo: T.plazo, tutorial: true });
-    escribir(p, T.cliente, "ella", rellenar(cliente(D, T.cliente).msgs.hola[0], vars(D, pe)), { pedido: pe.id });
-  } else {
+  if (nueva && p.tuto?.etapa && p.tuto.etapa !== "cliente") N.espera = true;      // el tutorial: el cliente escribe cuando tu IA sepa tomar la foto
+  else if (nueva) primerCliente(p, D);
+  else {
     N.tutorial = 99;
     nuevoDia(p, D, { primero: true });
   }
@@ -159,6 +156,17 @@ function clientesActivos(p, D) {
   return D.clientes.clientes.filter((c) => N.contactos.includes(c.id) || p.rep >= c.rep_min || (c.recomendado_por && (N.relacion[c.recomendado_por] || 0) >= R.recomienda));
 }
 
+/** El primer mensaje: Doña Marta pide la foto de su casa (el tutorial del negocio). */
+export function primerCliente(p, D) {
+  const N = p.negocio;
+  delete N.espera;
+  const T = D.trabajos.tutorial;
+  contacto(p, T.cliente);
+  const pe = crearPedido(p, D, T.cliente, T.trabajo, 1, rngDe(N.semilla), { az: T.az, n: 1, pago: T.pago, plazo: T.plazo, tutorial: true });
+  escribir(p, T.cliente, "ella", rellenar(cliente(D, T.cliente).msgs.hola[0], vars(D, pe)), { pedido: pe.id });
+  return pe;
+}
+
 /**
  * Termina el día y empieza el siguiente: vencen los pedidos sin hacer, se cobra el arriendo si toca, llegan los
  * pedidos especiales de la campaña que ya se abrieron y los pedidos nuevos. Devuelve lo que pasó (para mostrarlo).
@@ -189,6 +197,7 @@ export function nuevoDia(p, D, { primero = false } = {}) {
       N.sistema = [...(N.sistema || []), { dia: N.dia, txt: rellenar(D.clientes.sistema.arriendo, { monto: A.monto }) }].slice(-20);
     }
   }
+  if (N.espera) return out;                                   // el tutorial: todavía no te conoce nadie
   out.especiales = especiales(p, D);
   const rng = rngDe(N.semilla * 31 + N.dia * 7919);
   const cuantos = tabla(D.trabajos.pedidos_por_dia, p.rep), difMax = tabla(D.trabajos.dificultad_por_rep, p.rep);

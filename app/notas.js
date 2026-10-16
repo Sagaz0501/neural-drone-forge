@@ -1,18 +1,24 @@
 // =====================================================================
 // LAS NOTAS de arriba a la derecha (el tutorial: tutorial.js dice cuáles). Encima de todo (garaje, banco, mesa,
-// computador). La fija se puede achicar (−); las demás se cierran con "Entendido" y no vuelven.
+// computador). La fija se puede achicar (−) y puede traer un botón (el tour: "Siguiente →") y hacer brillar lo que hay
+// que tocar (resaltar = selector); las demás se cierran con "Entendido" y no vuelven.
 // =====================================================================
 import { t } from "./i18n.js";
 import * as TU from "./tutorial.js";
 
-export function initNotas({ P, guardar }) {
+export function initNotas({ P, guardar, alAccion, alSaltar }) {
   const box = document.createElement("div");
   box.id = "notas";
   box.setAttribute("aria-live", "polite");
   document.body.appendChild(box);
   let ultimo = "", min = false;
 
+  function resaltar(sel) {
+    document.querySelectorAll(".tuto-resalta").forEach((el) => { if (!sel || !el.matches(sel)) el.classList.remove("tuto-resalta"); });
+    if (sel) document.querySelectorAll(sel).forEach((el) => el.classList.add("tuto-resalta"));
+  }
   function poner(lista) {
+    resaltar(lista.find((n) => n.fija)?.resaltar || null);         // cada vez: lo resaltado puede haberse redibujado
     const firma = JSON.stringify(lista) + min;
     if (firma === ultimo) return;
     ultimo = firma;
@@ -26,7 +32,8 @@ export function initNotas({ P, guardar }) {
       const pie = el.querySelector(".nota-pie"), boton = (txt, cls, fn) => { const b = document.createElement("button"); b.className = "btn small " + cls; b.textContent = txt; b.onclick = fn; pie.appendChild(b); };
       if (n.fija) {
         el.querySelector("header button").onclick = () => { min = !min; ultimo = ""; poner(lista); };
-        boton(t("Saltar el tutorial"), "ghost", () => { TU.saltar(P()); guardar(); poner([]); });
+        if (n.saltable) boton(t("Saltar el tutorial"), "ghost", () => { TU.saltar(P()); guardar(); poner([]); alSaltar?.(); });
+        if (n.boton) boton(n.boton.txt, "main", () => alAccion?.(n.boton.accion));
       } else boton(t("Entendido"), "main", () => { TU.visto(P(), n.id); guardar(); poner(lista.filter((x) => x.id !== n.id)); });
       box.appendChild(el);
     }

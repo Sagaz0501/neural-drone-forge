@@ -69,7 +69,10 @@ app/               EL JUEGO (Dron Maker): usa los módulos de game/
                    u.llega), tornillos (mantener hasta el clic; si sigues, se barre la rosca), soldar (estación que calienta,
                    punta que se ensucia, flux, estaño que solo moja si el pad está caliente) -> junta buena/fría/puente/
                    levantado en d.banco.juntas; efectivos() = el cableado que conduce. test: node app/test_taller.mjs
-  tutorial.js      EL TUTORIAL del primer dron (el regalo de mamá, los dos modos): notas(p, contexto) = la nota del paso + consejos
+  tutorial.js      EL TUTORIAL del primer dron (los dos modos, obligatorio): p.tuto.etapa = regalo -> nombre -> armar (computador
+                   cerrado, negocio.espera: nadie escribe) -> pc (tour de apps) -> modelo (nivel 13 ≥ 80 %: exitoFoto con
+                   /api/modelos "recientes", sin contar lo copiado del base) -> cliente (NG.primerCliente: Doña Marta).
+                   notas(p, contexto) = la nota del paso + consejos
   notas.js         las notas de arriba a la derecha (main.js notasTutorial cada 0,5 s); la mesa señala el pad con un aro amarillo
   dialogo.js       confirmar() / pedirTexto(): los diálogos del juego (NO usar confirm/prompt/alert del navegador)
   escenarios.js    LOS SIMULADORES (lógica): comprar en orden, qué misiones/funciones abren (disponibles), iaPuede

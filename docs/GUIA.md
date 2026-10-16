@@ -48,7 +48,10 @@ Laboratorio.
 **Los dos empiezan igual:** le pediste a tu mamá un dron profesional y te regaló un **dron de madera** para armar
 (llega en cajas a la mesa, con un cautín, estaño y flux). Un tutorial con **notas arriba a la derecha** te lleva paso a
 paso: abrir las cajas, montar, soldar (un aro amarillo te señala el pad de cada cable), programar y la primera foto de
-Doña Marta. Los consejos se cierran con *Entendido*; *Saltar el tutorial* lo apaga.
+Doña Marta. El orden es obligatorio: aceptas el regalo, le pones nombre y lo armas (el computador sigue apagado y nadie
+te escribe); cuando vuela, prendes el computador y te muestra cada app; después entrenas tu primer modelo en el
+simulador *Foto fija* y, cuando llega a **80 % de éxito**, te escribe tu primer cliente. Los consejos se cierran con
+*Entendido*; *Saltar el tutorial* aparece cuando ya llegó el cliente.
 
 > **Tip:** si ya tienes una campaña y quieres probar el modo desarrollador sin tocarla, ábrelo en una ventana de
 > incógnito o en otro navegador: cada uno guarda su propia partida.

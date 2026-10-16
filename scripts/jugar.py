@@ -395,6 +395,15 @@ def red_vivo(slug):
     return red
 
 
+def recientes_por_nivel(historia, n=10):
+    """Las últimas n generaciones de cada nivel: {"13": [[gen, éxito], …]} (el tutorial mide el 80 % en la foto)."""
+    out = {}
+    for h in historia:
+        if len(h) > 4 and h[4] is not None:
+            out.setdefault(str(int(h[4])), []).append([h[0], h[2]])
+    return {k: v[-n:] for k, v in out.items()}
+
+
 def list_models():
     st = lab_state(fondo=False)
     fondo = fondo_procs()
@@ -419,6 +428,7 @@ def list_models():
                     "avance": (d / "avance.json").exists(),
                     "ultimo": (m.get("historia") or [None])[-1],      # [gen, pasos, éxito, choque, nivel, calidad]
                     "mejor_exito": max((h[2] for h in m.get("historia") or [] if len(h) > 2), default=None),
+                    "recientes": recientes_por_nivel(m.get("historia") or []),
                     "web": ("/models/modelo_web.json" if slug == "base" else f"/models/drones/{slug}/modelo_web.json")})
     return out
 
@@ -753,8 +763,11 @@ def open_blender():
     if not os.path.isfile(BLENDER):
         return False, f"No encuentro Blender en {BLENDER}"
     env = dict(os.environ, DRONMAKER_ROOT=str(ROOT))
-    subprocess.Popen([BLENDER, str(ROOT / "blender" / "laboratorio.blend"), "--python", str(ROOT / "blender" / "drone_lab.py")],
-                     cwd=str(ROOT), env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    # desligado del servidor (un sh que lo lanza y se va: el padre de Blender pasa a ser el sistema): si el servidor se
+    # cierra o se reinicia, Blender y su entrenamiento siguen
+    subprocess.Popen(["/bin/sh", "-c", '"$@" >/dev/null 2>&1 &', "sh", BLENDER, str(ROOT / "blender" / "laboratorio.blend"),
+                      "--python", str(ROOT / "blender" / "drone_lab.py")],
+                     cwd=str(ROOT), env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True).wait()
     return True, "Abriendo Blender…"
 
 

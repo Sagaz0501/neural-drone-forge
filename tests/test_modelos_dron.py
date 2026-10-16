@@ -236,3 +236,12 @@ def test_api_simular_y_avance(root, monkeypatch):
     rep, msg = jugar.simular_prueba("halcon")
     assert rep and rep["modelo"] == "halcon" and rep["cuadros"]["pos"], msg
     assert jugar.simular_prueba("nadie")[0] is None
+
+
+def test_recientes_por_nivel():
+    """El tutorial mide el éxito de la foto (nivel 13) con las últimas generaciones de ese nivel."""
+    hist = [[g, 100, 0.1 * (g % 10), 0, 13 if g > 5 else 11, 0] for g in range(1, 30)]
+    r = jugar.recientes_por_nivel(hist, n=4)
+    assert set(r) == {"11", "13"}
+    assert [x[0] for x in r["13"]] == [26, 27, 28, 29] and len(r["11"]) == 4
+    assert jugar.recientes_por_nivel([[1, 2, 0.5]]) == {}

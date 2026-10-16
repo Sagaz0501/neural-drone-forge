@@ -12,7 +12,7 @@ import { calcular, pieza, rangoModelo, paramsFisica, DRONES_EJEMPLO } from "./pa
 import * as PT from "./partida.js";
 import * as ESC from "./escenarios.js";
 import * as BA from "./banco.js";
-import { Garaje } from "./garaje.js";
+import { Garaje, sfx } from "./garaje.js";
 import { Vuelo, TOMA_OK } from "./vuelo.js";
 import { mundoLugar, alcanceNecesario } from "./lugares.js";
 import { cargarSTL } from "./stl.js";
@@ -28,7 +28,7 @@ import { initCelular } from "./celular.js";
 import * as RUTA from "./ruta.js";
 import * as TU from "./tutorial.js";
 import { initNotas } from "./notas.js";
-import { confirmar } from "./dialogo.js";
+import { confirmar, pedirTexto } from "./dialogo.js";
 import { t, idioma, hayIdioma, setIdioma, cargarIdioma, traducirHTML, datos, num, IDIOMAS } from "./i18n.js";
 
 await cargarIdioma();                                  // el diccionario del idioma elegido (español: nada)
@@ -173,15 +173,20 @@ async function empezar(dev) {
   if (G.partida && !(await confirmar(dev ? t("¿Empezar de cero en modo desarrollador? Se borra la partida guardada (tus IA entrenadas no se borran).") : t("¿Empezar de cero? Se borra la partida guardada (tus IA entrenadas no se borran)."), { si: t("Empezar de cero"), peligro: true }))) return;
   modoNuevo(false);
   G.partida = dev ? PT.nuevaPartidaDesarrollador() : PT.nuevaPartida();
+  TU.pasarA(G.partida, "regalo");                  // el tutorial obligatorio: regalo -> nombre -> armar -> computador -> modelo
   guardar();
   irTaller();
   historia(t("El regalo"), t("Llevabas meses pidiéndole a tu mamá un <b>dron profesional</b>, de esos con cámara 4K y GPS.<br><br>Hoy llega con una caja de cartón y una sonrisa: «Mijo, no me alcanzó para el que querías… pero este se arma. Dicen que el que lo arma aprende más».<br><br>Adentro: un <b>dron de madera</b> en piezas, unos motores sencillos, una placa ESP32, una cámara de juguete… y un cautín."),
-    { boton: t("Aceptar el regalo ❤️"), alCerrar: () => {
-      regaloMama();
+    { boton: t("Aceptar el regalo ❤️"), alCerrar: async () => {
+      const d = regaloMama(), p = P();
+      TU.pasarA(p, "nombre"); guardar();
+      const n = ((await pedirTexto(t("Es tuyo. ¿Cómo se va a llamar tu dron?"), d?.nombre || t("Madera"), { titulo: t("Tu primer dron"), si: t("Ponerle ese nombre"), no: t("Dejarle «{n}»", { n: d?.nombre || t("Madera") }) })) || "").trim().slice(0, 30);
+      if (d && n) d.nombre = n;
+      TU.pasarA(p, "armar"); guardar(); renderTaller();
       const c1 = mis.capitulos[0];
       historia(dev ? t("Modo desarrollador") : t("Capítulo {n} · {titulo}", { n: 1, titulo: c1.titulo }),
         (dev ? t("Aquí <b>programas la IA</b> con PBDMM, pero se juega igual que el modo normal: empiezas con el dron de mamá y cada simulador (💻 → 🎮 Simuladores) se compra y abre misiones y funciones nuevas del lenguaje. El primero, <b>Foto fija</b>, es gratis.") : `${c1.historia}`) +
-        "<br><br>" + t("Primero, a armar el dron: las notas de <b>arriba a la derecha</b> te van diciendo qué hacer. Tienes <b class=\"money\">${plata}</b>, un garaje… y parece que ya te escribió el primer cliente.", { plata: PT.PLATA_INICIAL }));
+        "<br><br>" + t("Primero, a armar «{d}»: las notas de <b>arriba a la derecha</b> te van diciendo qué hacer. Cuando vuele, prendemos el computador.", { d: esc(d?.nombre || "") }));
     } });
 }
 $("b-modo-dev").onclick = () => empezar(true);
@@ -414,12 +419,13 @@ function renderEditor() {
   const e = estadoDe(d);
   btn(e.listo ? t("Banco de armado ✓") : t("Banco de armado"), "main", () => abrirBanco());
   btn(t("Vuelo de prueba"), "ghost small", () => startVuelo(null, "yo"));
-  btn(p.modo === "dev" ? t("Entrenar en el Estudio") : t("Entrenar su IA"), "ai small", () => { LAB.drone = d.id; abrirLab(); });
+  const armando = TU.pcCerrado(p);                 // el tutorial: mientras armas el regalo, solo el banco y el vuelo de prueba
+  if (!armando) btn(p.modo === "dev" ? t("Entrenar en el Estudio") : t("Entrenar su IA"), "ai small", () => { LAB.drone = d.id; abrirLab(); });
   // los tres botones de la IA: cómo va (mejor y peor intento), una prueba ahora (sin pedido), y los pedidos
   const alDron = () => { show("taller"); G.izq = "dron"; verDron(); renderTaller(); };   // al cerrar, de vuelta a este dron
-  btn(t("Avance del modelo"), "ghost small", () => sim.abrirAvance(d.modelo || null, alDron, { preguntar: true })).title = t("El mejor y el peor intento que ha tenido entrenando");
-  btn(t("Simular prueba"), "ghost small", () => sim.abrirSimular(d.modelo || null, alDron, { preguntar: true })).title = t("Una prueba al azar como las del entrenamiento, con la última generación (no da plata ni daña el dron)");
-  btn(t("Pedidos"), "main small", () => { P().activo = d.id; guardar(); estudio.abrir("campana"); });
+  if (!armando) btn(t("Avance del modelo"), "ghost small", () => sim.abrirAvance(d.modelo || null, alDron, { preguntar: true })).title = t("El mejor y el peor intento que ha tenido entrenando");
+  if (!armando) btn(t("Simular prueba"), "ghost small", () => sim.abrirSimular(d.modelo || null, alDron, { preguntar: true })).title = t("Una prueba al azar como las del entrenamiento, con la última generación (no da plata ni daña el dron)");
+  if (!armando) btn(t("Pedidos"), "main small", () => { P().activo = d.id; guardar(); abrirPC("campana"); });
   const rep = PT.costoReparar(p, cat, d);
   if (rep > 0) btn(rep > p.plata && PT.rotas(p, d).length ? t("Arreglo casero (gratis)") : t("Reparar (${n})", { n: rep }), "ghost small", () => repararDron(d));
   btn(t("Desarmar"), "ghost small", async () => {
@@ -522,14 +528,54 @@ const ctx = { escenarios: escen, G, cat, PT, BA, $, fmt, esc, toast, descr, api,
   renderTaller, irTaller, infoModelo, loadModelos, abrirLab: () => abrirLab(), canvas };
 const banco = initBanco(ctx);
 ctx.tutorial = () => TU.activo(P());        // la mesa señala dónde va cada cable mientras dura el tutorial
-const notas = initNotas({ P: () => P(), guardar: () => guardar() });
+const notas = initNotas({ P: () => P(), guardar: () => guardar(), alAccion: (a) => accionTutorial(a), alSaltar: () => { const N = P()?.negocio; if (N?.espera) { NG.primerCliente(P(), ND); guardar(); } } });
+/** Mientras armas el regalo, el computador (y todo lo que se abre desde él) está cerrado. */
+function pcCerrado() {
+  if (!TU.pcCerrado(P())) return false;
+  toast(t("🔧 Primero arma tu dron: el computador se prende cuando vuele (mira las notas de arriba a la derecha)."), 3500);
+  return true;
+}
+function abrirPC(app) { if (!pcCerrado()) estudio.abrir(app); }
+ctx.abrirPC = abrirPC;
+/** El botón de la nota del tutorial (el tour del computador). */
+async function accionTutorial(a) {
+  const p = P();
+  if (a !== "tour" || TU.etapa(p) !== "pc") return;
+  p.tuto.tour = (p.tuto.tour || 0) + 1;
+  if (p.tuto.tour >= TU.TOUR(p.modo === "dev").length) {
+    await loadModelos();
+    p.tuto.antes = Object.fromEntries(G.modelos.map((m) => [m.slug, m.gen || 0]));   // lo entrenado antes no cuenta
+    TU.pasarA(p, "modelo");
+  }
+  guardar(); sfx("click"); notasTutorial();
+}
+/** El tutorial avanza solo: el dron ya vuela -> el computador; el modelo llega a 80 % -> el primer cliente. */
+let tutoModelosT = 0, tutoModelo = null;
+function avanzarTutorial(p) {
+  const E = TU.etapa(p);
+  if (E === "armar" && p.drones.some((x) => !puedeVolar(x))) {
+    TU.pasarA(p, "pc"); p.tuto.tour = 0; guardar(); sfx("listo");
+    toast(t("🎉 ¡Tu dron vuela! Ahora sí: prende el 💻 Computador."), 4500);
+  }
+  if (E !== "modelo") { tutoModelo = null; return; }
+  if (Date.now() - tutoModelosT > 8000) { tutoModelosT = Date.now(); loadModelos().then(() => { tutoModelo = TU.exitoFoto(G.modelos, p.tuto.antes); }); }
+  if (tutoModelo && tutoModelo.exito >= TU.META_EXITO) {
+    const m = tutoModelo;                              // renderTaller vuelve a pasar por aquí y lo limpia
+    TU.pasarA(p, "cliente");
+    if (p.negocio?.espera) NG.primerCliente(p, ND);
+    guardar(); sfx("listo"); renderTaller();
+    historia(t("¡Tu IA ya toma fotos!"), t("«{m}» llegó a {x} % de éxito en la foto fija. Justo en ese momento vibra el teléfono… <b>te escribió tu primer cliente</b>. Míralo en 💻 Computador → Mensajes.", { m: esc(m.slug), x: Math.round(m.exito * 100) }));
+  }
+}
 /** Las notas del tutorial según dónde estás (cada medio segundo; notas.js solo redibuja si cambian). */
 function notasTutorial() {
   const p = P();
-  if (!p || G.screen === "inicio" || !TU.activo(p) || !$("historia").classList.contains("hidden")) { notas.poner([]); return; }
+  if (p) $("b-computador").classList.toggle("bloq", TU.pcCerrado(p));
+  if (!p || G.screen === "inicio" || !TU.activo(p) || !$("historia").classList.contains("hidden") || $("dialogo")) { notas.poner([]); return; }
+  avanzarTutorial(p);
   const d = D(), e = d && estadoDe(d), m = ctx.mesa?.abierta ? ctx.mesa.estadoTuto() : null;
   notas.poner(TU.notas(p, {
-    pantalla: m ? "mesa" : G.screen, izq: G.izq, hayDron: p.drones.length > 0, dronListo: p.drones.some((x) => !puedeVolar(x)), dron: d?.nombre,
+    pantalla: m ? "mesa" : !$("lab").classList.contains("hidden") ? "lab" : G.screen, izq: G.izq, modelo: tutoModelo, hayDron: p.drones.length > 0, dronListo: p.drones.some((x) => !puedeVolar(x)), dron: d?.nombre,
     banco: e && { falta: e.pasos.find((x) => !x.ok)?.k || null, cablearOk: !!e.pasos.find((x) => x.k === "cablear")?.ok },
     mesa: m, estante: !$("estante").classList.contains("hidden"),
   }));
@@ -544,15 +590,15 @@ ctx.renderer = renderer; ctx.urlModelo = urlModelo;
 const sim = initSim(ctx);
 ctx.abrirAvance = (slug, volver) => sim.abrirAvance(slug, volver);
 ctx.abrirSimular = (slug, volver) => sim.abrirSimular(slug, volver);
-$("b-estudio").onclick = () => estudio.abrir();
-$("b-computador").onclick = () => estudio.abrir();
+$("b-estudio").onclick = () => abrirPC();
+$("b-computador").onclick = () => abrirPC();
 $("b-estante").onclick = () => tienda.abrirEstante();
 // tocar el portátil de la mesa del garaje también abre el computador
 canvas.addEventListener("click", (ev) => {
   if (G.screen !== "taller" || !garaje.portatil) return;
   const r = canvas.getBoundingClientRect(), rc = new THREE.Raycaster();
   rc.setFromCamera(new THREE.Vector2(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1), garaje.camera);
-  if (rc.intersectObject(garaje.portatil, true).length) estudio.abrir();
+  if (rc.intersectObject(garaje.portatil, true).length) abrirPC();
 });
 ctx.ND = ND;
 ctx.abrirTablero = () => { renderTablero(); modal("tablero"); };
@@ -563,7 +609,7 @@ ctx.kit = { faltan: () => kitFaltan(), costo: () => kitCosto(), comprar: () => a
 /** El Laboratorio con una misión elegida (desde 🎮 Simuladores). */
 ctx.labMision = (id) => { const m = ent.misiones.find((x) => x.id === id); if (m) { LAB.mision = m.id; LAB.premios = { ...m.premios }; LAB.viento = m.viento; saveLab(); } };
 const celular = initCelular({ ...ctx, ND, P: () => P(), openBrief: (pe) => openBrief(pe), misPedido: (id) => mis.pedidos.find((x) => x.id === id), fotos: G.fotos, iaDe, friasDe: (d) => friasDe(d) });
-$("b-celular").onclick = () => celular.abrir();
+$("b-celular").onclick = () => { if (pcCerrado()) return; celular.abrir(); };
 ctx.celular = celular;                     // el Estudio lo abre como la app Mensajes
 ctx.esDev = () => P()?.modo === "dev";
 const tienda = initTienda(ctx);
@@ -776,6 +822,7 @@ function trainerDe(slug) {
 }
 
 async function abrirLab() {
+  if (pcCerrado()) return;
   // cada modo con su herramienta: el desarrollador entrena con código (Estudio PBDMM), el normal con el Laboratorio
   if (P()?.modo === "dev") { estudio.abrir(); return; }
   LAB.drone = LAB.drone || P().activo; await loadModelos(); renderLab(); modal("lab"); labPoll(true);
