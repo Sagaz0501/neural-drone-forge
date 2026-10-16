@@ -53,7 +53,7 @@ mejor intento. [Ver la demo completa (MP4, 4½ min)](docs/media/demo_estudio.mp4
 
 | **Modo normal: la campaña** | **Modo desarrollador: crea la IA con código** |
 |---|---|
-| Garaje → tienda → banco de armado → pedidos. Ganas plata y reputación, desbloqueas piezas y entrenas la IA de cada dron en el **Laboratorio** (premios y castigos de 0 a 10, en segundo plano o en Blender). | Todo desbloqueado y dos drones listos. Escribes **cómo** se entrena cada modelo en **PBDMM**, un lenguaje con cara de Python, en un IDE con terminal, autocompletado, ayuda, lecciones y la **red neuronal en vivo** de cualquiera de los drones que entrenan. |
+| Garaje → tienda → banco de armado → pedidos. Ganas plata y reputación, desbloqueas piezas y entrenas la IA de cada dron en el **Laboratorio** (premios y castigos de 0 a 10, en segundo plano o en Blender). | Empieza igual que el normal (el regalo de mamá) y suma las herramientas de programar. Escribes **cómo** se entrena cada modelo en **PBDMM**, un lenguaje con cara de Python, en un IDE con terminal, autocompletado, ayuda, lecciones y la **red neuronal en vivo** de cualquiera de los drones que entrenan. |
 
 Cada modo tiene su herramienta: en el normal no aparece el IDE y en el desarrollador no aparece el Laboratorio.
 
@@ -146,7 +146,7 @@ de éxito. El juego le manda los pedidos y Blender los toma solo. Sin Blender se
 
 ## Estado
 
-**Versión 1.0** ([releases](https://github.com/Sagaz0501/neural-drone-forge/releases)). Lo que hay hoy:
+**Versión 2.0** ([releases](https://github.com/Sagaz0501/neural-drone-forge/releases)); la 2.1 (freestyle) está en camino. Lo que hay hoy:
 
 - ✅ Garaje 3D, tienda con piezas reales, inventario y hangar con varios drones.
 - ✅ Banco de armado: impresión 3D (formas o tu STL), cableado con pines reales y fallas, prueba de humo,
@@ -165,8 +165,13 @@ de éxito. El juego le manda los pedidos y Blender los toma solo. Sin Blender se
 - ✅ **Fotos para la IA:** misiones *Foto* y *Set de fotos*, y premios nuevos (encuadre, llegar quieto, altura, paneo,
   velocidad, gas), agrupados en el Laboratorio.
 
-Lo que viene (soldar con cautín, más fallas en el banco, mando de PS5, mapas de freestyle y FPV, misiones
-que solo la IA puede cumplir, video con varios drones…) está en el **[Roadmap](docs/ROADMAP.md)**.
+- ✅ **El taller de verdad (v2.0):** el regalo de mamá y el tutorial, la mesa 3D (montar, atornillar, **soldar**), el
+  computador como centro, simuladores que abren misiones, PBDMM 3 (el plan de vuelo).
+- ✅ **Freestyle (v2.1):** 3 mapas con tu control (PS5/Xbox), FPV y acro; carrera contra una IA entrenada,
+  contrarreloj con fantasma y persecución. Niveles nuevos para la IA: carrera, entrega y persecución.
+
+Hacia dónde va (la historia en 5 actos, la liga, la tormenta, la app de escritorio y Steam): el
+**[Plan maestro](docs/PLAN_MAESTRO.md)**; el paso a paso, en el **[Roadmap](docs/ROADMAP.md)**.
 
 ## Documentación
 
@@ -175,6 +180,7 @@ que solo la IA puede cumplir, video con varios drones…) está en el **[Roadmap
 | [Guía del jugador](docs/GUIA.md) | Los dos modos, el banco paso a paso, los pedidos, entrenar, controles, problemas comunes |
 | [El lenguaje PBDMM](docs/pbdmm/README.md) | Tutorial, referencia, gramática, biblioteca, errores · [API de entrenamiento](docs/PBDMM.md) |
 | [El negocio](docs/NEGOCIO.md) | Hacia dónde va el juego: los clientes te escriben, trabajos repetibles con dificultad, la IA trabaja por ti |
+| [Plan maestro](docs/PLAN_MAESTRO.md) | En qué fase vamos, la historia completa, misiones y recompensas, gráficos, la app |
 | [Roadmap](docs/ROADMAP.md) | Qué mejorar, paso a paso, para que la demo sea un juego completo |
 | [Arquitectura](docs/ARQUITECTURA.md) | Cómo se conectan el navegador, el servidor, el entrenador y Blender |
 | [Plan del juego](docs/PLAN_JUEGO.md) · [Campaña](docs/HISTORIA.md) | La idea original y los capítulos |
@@ -187,7 +193,7 @@ que solo la IA puede cumplir, video con varios drones…) está en el **[Roadmap
 ```bash
 python -m pytest -q                                     # simulador + servidor
 python game/make_fixture.py && node game/test_sim.mjs   # el simulador de JS == el de Python
-node app/test_parts.mjs && node app/test_banco.mjs && node app/test_pbdmm.mjs && node app/test_modulos.mjs && node app/test_i18n.mjs
+node app/test_parts.mjs && node app/test_banco.mjs && node app/test_pbdmm.mjs && node app/test_modulos.mjs && node app/test_i18n.mjs && node app/test_freestyle.mjs
 ```
 
 Corren solas en cada push ([GitHub Actions](.github/workflows/pruebas.yml)).

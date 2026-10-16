@@ -1,5 +1,36 @@
 # Cambios
 
+## v2.1 · Freestyle *(en curso)*
+
+- **Freestyle** (🏁 en el inicio): 3 mapas (la fábrica abandonada, el cañón, el estadio de noche con neón), control
+  PS5/Xbox o teclado, cámara FPV, vuelo **Estable** (la física de la IA) o **Acro** (rate mode con flips, solo aquí).
+  Modos: libre, **carrera contra la IA** (1-3 rivales con un modelo entrenado), **contrarreloj** (con el fantasma de tu
+  mejor vuelta) y **persecución** (drones con IA te persiguen: 60 s, 3 vidas). Tus drones del hangar también vuelan.
+  El control vibra al chocar. Bloom de verdad en el estadio (`game/vendor/postprocessing`, three.js r169).
+- **Tres pruebas nuevas para la IA:** nivel **16 Carrera** (portales lejos, rápido), **17 Entrega** (plataforma lejos
+  entre edificios, quedarse 1 s encima) y **18 Persecución** (alcanzar a la liebre). En el juego: simuladores 📦 🏁 🐇
+  después de *Entre postes*, con su misión en el Laboratorio y en PBDMM.
+- **Modelos nuevos** entrenados con esas pruebas: *corredor* (el rival: 95 % de las pistas a 10 m/s, el doble de
+  rápido que la IA base) y *cazador* (alcanza a la liebre a 10 m/s el 95 % de las veces).
+- **Plan maestro** ([`docs/PLAN_MAESTRO.md`](docs/PLAN_MAESTRO.md)): fases hasta Steam, la historia completa en 5 actos,
+  misiones y recompensas, gráficos y la app de escritorio. Prototipo de la app en `desktop/` (Electron).
+- **Arreglado:** PBDMM dejaba pedir `foto(calidad=0.9)`, que ni un piloto automático perfecto alcanza (saca ~0,56): la
+  IA nunca tenía un éxito y no aprendía. Ahora va de 0,3 a 0,7.
+
+## v2.0 · El taller de verdad (16-10-2026)
+
+- **El regalo de mamá** y un **tutorial obligatorio** (los dos modos): ponerle nombre al dron, armarlo con el
+  computador apagado, el tour del computador y la primera IA; al 80 % en la foto escribe Doña Marta.
+- **La mesa de trabajo 3D:** cajas que llegan, montar cada pieza con su procedimiento, atornillar hasta el clic,
+  **soldar** con estación, cautín, estaño y flux (juntas frías, puentes, pads levantados que la mesa no avisa).
+- **El computador es el centro del juego**, con apps en ventanas; **simuladores** que se compran en orden y abren
+  misiones de la IA; **PBDMM 3** (el plan de vuelo); **la flota**; niveles **13 Foto** y **14 Set de fotos**.
+- Diálogos del juego en vez de los del navegador.
+
+## v1.0 · El negocio (16-10-2026)
+
+- Los clientes escriben al 📱 celular; trabajos repetibles ★-★★★★; relación y recomendaciones; arriendo; PBDMM 2.0.
+
 ## v0.3 · English
 
 - **PBDMM bilingüe:** todo nombre se escribe en español o en inglés, siempre (`model("x", start_from="zero")`,

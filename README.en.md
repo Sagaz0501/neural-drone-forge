@@ -15,7 +15,7 @@ trying at once while the neural network lights up as it learns.
 *25 drones learning at once in Blender's Drone Lab: each camera cone turns from red to green when the shot is good.
 [Watch the full minute (MP4)](docs/media/blender_entrenamiento.mp4).*
 
-*Version 1.0 · Spanish and English · 100% local (your computer trains, nothing goes online) · MIT*
+*Version 2.0 (2.1 with freestyle on the way) · Spanish and English · 100% local (your computer trains, nothing goes online) · MIT*
 
 </div>
 
@@ -50,7 +50,7 @@ attempt. [Watch the full demo (MP4, 4½ min)](docs/media/demo_estudio.mp4).*
 
 | **Normal mode: the campaign** | **Developer mode: build the AI with code** |
 |---|---|
-| Garage → shop → workbench → jobs. Earn money and reputation, unlock parts and train each drone's AI in the **AI Lab** (rewards and penalties from 0 to 10, in the background or in Blender). | Everything unlocked and two drones ready. You write **how** each model is trained in **PBDMM**, a Python-looking language, in an IDE with a terminal, autocomplete, help, lessons and the **live neural network** of any of the training drones. |
+| Garage → shop → workbench → jobs. Earn money and reputation, unlock parts and train each drone's AI in the **AI Lab** (rewards and penalties from 0 to 10, in the background or in Blender). | Starts like the normal mode (mom's gift) and adds the programming tools. You write **how** each model is trained in **PBDMM**, a Python-looking language, in an IDE with a terminal, autocomplete, help, lessons and the **live neural network** of any of the training drones. |
 
 Every model can be checked anytime with **Model progress** (its first, worst, best and latest attempts) and
 **Simulate a test** (a fresh random test like the ones it trains on, flown by its latest generation): the route, the
@@ -135,7 +135,7 @@ Blender, models train **in the background** (up to 2 at once).
 ```bash
 python -m pytest -q
 python game/make_fixture.py && node game/test_sim.mjs   # JS simulator == Python simulator
-node app/test_parts.mjs && node app/test_banco.mjs && node app/test_pbdmm.mjs && node app/test_modulos.mjs && node app/test_i18n.mjs
+node app/test_parts.mjs && node app/test_banco.mjs && node app/test_pbdmm.mjs && node app/test_modulos.mjs && node app/test_i18n.mjs && node app/test_freestyle.mjs
 ```
 
 They run on every push ([GitHub Actions](.github/workflows/pruebas.yml)).
