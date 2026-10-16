@@ -11,6 +11,7 @@ import { compilar, pedidoDe, estadoE, ErrorPB, repr, nivelDe, recomendados, trad
 import { contexto, opciones, delPrograma } from "./autocompletar.js";
 import { dibujarRed as pintarRed } from "./redviz.js";
 import { t, datos, idioma, num } from "./i18n.js";
+import { confirmar, pedirTexto } from "./dialogo.js";
 import { pieza } from "./parts.js";
 import { mundoLugar, alcanceNecesario } from "./lugares.js";
 import * as RUTA from "./ruta.js";
@@ -302,9 +303,9 @@ export function initEstudio(ctx) {
     return n;
   }
   /** Elimina un programa de este navegador (pregunta antes; el modelo que haya entrenado no se toca). */
-  function borrarArchivo(n) {
+  async function borrarArchivo(n) {
     if (!n || ES.archivos[n] === undefined) return linea(n ? t("No hay {n}.pbd (archivos para verlos)", { n }) : t("No hay ese archivo (archivos para verlos)"), "bad");
-    if (!confirm(t("¿Eliminar {n}.pbd? Se borra de este navegador (los modelos que entrenó no se tocan). Si lo quieres guardar, primero dale Descargar.", { n }))) return linea(t("No se eliminó."), "muted");
+    if (!(await confirmar(t("¿Eliminar {n}.pbd? Se borra de este navegador (los modelos que entrenó no se tocan). Si lo quieres guardar, primero dale Descargar.", { n }), { si: t("Eliminar"), peligro: true }))) return linea(t("No se eliminó."), "muted");
     delete ES.archivos[n];
     if (ES.abierto === n) ES.abierto = Object.keys(ES.archivos).sort()[0] || null;
     guardarArchivos(); renderArchivos(); cargarEditor();
@@ -401,7 +402,7 @@ export function initEstudio(ctx) {
         }
         case "borrar": {
           if (!a0) return linea(t("borrar <modelo>"), "bad");
-          if (!confirm(t('¿Mandar el modelo "{m}" a la papelera (models/drones/_papelera)?', { m: a0 }))) return linea(t("No se borró."), "muted");
+          if (!(await confirmar(t('¿Mandar el modelo "{m}" a la papelera (models/drones/_papelera)?', { m: a0 }), { si: t("A la papelera"), peligro: true }))) return linea(t("No se borró."), "muted");
           const r = await api("/api/modelo", { accion: "borrar", slug: a0 });
           return linea(r.msg || (r.ok ? t("a la papelera") : t("no se pudo")), r.ok ? "ok" : "bad");
         }
@@ -1286,7 +1287,7 @@ export function initEstudio(ctx) {
   $("es-bajar").onclick = () => { menuArchivos(false); descargar(); };
   $("es-armar").onclick = () => { cerrar(); ctx.abrirBanco?.(); };     // el banco de armado es la mesa 3D del garaje
   $("es-limpiar").onclick = () => { $("es-out").innerHTML = ""; };
-  $("es-nuevo").onclick = () => { menuArchivos(false); const n = prompt(t("Nombre del programa:"), "mi_modelo"); if (n) comando("nuevo " + n); };
+  $("es-nuevo").onclick = async () => { menuArchivos(false); const n = await pedirTexto(t("Nombre del programa:"), "mi_modelo", { si: t("Crear") }); if (n) comando("nuevo " + n); };
   $("es-blender").onclick = () => comando("blender");
   $("es-volver").onclick = cerrar;
 

@@ -69,6 +69,9 @@ app/               EL JUEGO (Dron Maker): usa los módulos de game/
                    u.llega), tornillos (mantener hasta el clic; si sigues, se barre la rosca), soldar (estación que calienta,
                    punta que se ensucia, flux, estaño que solo moja si el pad está caliente) -> junta buena/fría/puente/
                    levantado en d.banco.juntas; efectivos() = el cableado que conduce. test: node app/test_taller.mjs
+  tutorial.js      EL TUTORIAL del primer dron (el regalo de mamá, los dos modos): notas(p, contexto) = la nota del paso + consejos
+  notas.js         las notas de arriba a la derecha (main.js notasTutorial cada 0,5 s); la mesa señala el pad con un aro amarillo
+  dialogo.js       confirmar() / pedirTexto(): los diálogos del juego (NO usar confirm/prompt/alert del navegador)
   escenarios.js    LOS SIMULADORES (lógica): comprar en orden, qué misiones/funciones abren (disponibles), iaPuede
   mesa.js          LA MESA DE TRABAJO (3D, su propio canvas): abrir cajas; montar cada pieza con su PROCEDIMIENTO (taller.js:
                    arrastrar al fantasma y girar con R, voltear el dron, tornillos por abajo/de lado, separadores, tuercas,
@@ -273,7 +276,8 @@ Node v22 está en `/opt/homebrew/bin/node`. Blender 5.2 en `/Applications/Blende
   tutorial, misiones solo con la IA; Fase 2 📝: soldar, multímetro, piezas dañadas; Fase 3 📝: mando de PS5,
   freestyle / FPV / vuelo libre).
 - **Modo desarrollador + PBDMM (15-10-2026):** al empezar partida se elige normal (la campaña) o desarrollador
-  (todo abierto, $99999, 2 drones armados: "Madera (dev)" y "Cine (dev)"; `PT.nuevaPartidaDev`). El desarrollador
+  (desde el 16-10-2026 empieza IGUAL que el normal: el regalo de mamá, $150, simuladores por comprar; `PT.nuevaPartidaDesarrollador`;
+  `PT.nuevaPartidaDev` = la partida con todo abierto, solo para las pruebas). El desarrollador
   crea modelos con el **Estudio PBDMM**: `modelo(…, desde=)`, `red(capas=)`, `mision/nivel`, `dron`, `drones`,
   `entrenar_en("fondo"|"blender")`, `premios(grabar=…)` y `castigos(chocar=…)` (separados: cada uno solo
   acepta los suyos, según "tipo" en entrenamiento.json; al entrenador le llegan juntos). En el juego (PBDMM y el

@@ -40,13 +40,13 @@ export const pedido = (p, id) => p.negocio?.pedidos.find((x) => x.id === id) || 
 const nombreTipo = (tipo, n) => ({ foto: n === 1 ? t("1 foto") : t("{n} fotos", { n }), inspeccion: n === 1 ? t("1 foto") : t("{n} fotos", { n }), video: t("un video") })[tipo];
 
 /**
- * Pone el negocio en la partida si no lo tiene. Partida nueva del modo normal: el tutorial (Doña Marta escribe
- * pidiendo una foto). Partida vieja o modo desarrollador: el primer día con pedidos normales.
+ * Pone el negocio en la partida si no lo tiene. Partida nueva (los dos modos): el tutorial (Doña Marta escribe
+ * pidiendo una foto). Partida vieja: el primer día con pedidos normales.
  */
 export function asegurar(p, D) {
   if (p.negocio) return p.negocio;
   const N = (p.negocio = nuevoNegocio());
-  const nueva = p.modo !== "dev" && !Object.keys(p.hechos || {}).length && !p.vuelos;
+  const nueva = !Object.keys(p.hechos || {}).length && !p.vuelos;
   if (nueva) {
     const T = D.trabajos.tutorial;
     contacto(p, T.cliente);
@@ -214,7 +214,7 @@ export function especiales(p, D) {
   for (const pe of D.misiones.pedidos) {
     const cid = D.clientes.especiales[pe.id];
     if (!cid || N.ofrecidos.includes(pe.id) || !pe.lugar || !pe.tomas || p.rep < (pe.rep_min || 0) || p.hechos?.[pe.id] !== undefined) continue;
-    if (pe.id === "casa_venta" && N.tutorial < 2 && p.modo !== "dev") continue;      // llega después de la primera foto
+    if (pe.id === "casa_venta" && N.tutorial < 2) continue;      // llega después de la primera foto
     N.ofrecidos.push(pe.id);
     const primero = N.tutorial >= 99 && D.clientes.especial_msg_primero?.[pe.id];        // sin tutorial: no hubo una foto antes
     escribir(p, cid, "ella", rellenar(primero || D.clientes.especial_msg[pe.id] || "⭐ {titulo}", { pago: pe.pago, titulo: pe.titulo }), { especial: pe.id });
@@ -346,7 +346,7 @@ export function pendientes(p) {
  */
 export function pasoTutorial(p, s) {
   const N = p.negocio;
-  if (!N || N.tutorial >= 2 || p.modo === "dev") return null;
+  if (!N || N.tutorial >= 2) return null;
   if (N.tutorial === 0) return { paso: 1, txt: t("💬 Te escribieron. Abre el <b>💻 Computador</b> (a la izquierda) → <b>Mensajes</b> y lee el mensaje de Doña Marta.") };
   if (!s.hayDron) return { paso: 2, txt: t("🛒 Necesitas un dron: en el <b>💻 Computador → Tienda → 🎁 Kits</b> compra el <b>Kit del garaje</b>: llegan las piezas de tu primer dron.") };
   if (!s.dronListo) return { paso: 3, txt: t("🔧 Ahora ármalo en el <b>banco de armado</b>: abre tu dron y sigue los pasos (imprimir, armar, cablear, programar, probar).") };

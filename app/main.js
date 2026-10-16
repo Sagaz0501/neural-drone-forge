@@ -8,7 +8,7 @@
 import * as THREE from "three";
 import { Policy } from "../game/sim.js";
 import { DEFAULT_CTL, readGamepad } from "../game/pilot.js";
-import { calcular, pieza, rangoModelo, paramsFisica, DRONES_EJEMPLO, EXTRAS_EJEMPLO } from "./parts.js";
+import { calcular, pieza, rangoModelo, paramsFisica, DRONES_EJEMPLO } from "./parts.js";
 import * as PT from "./partida.js";
 import * as ESC from "./escenarios.js";
 import * as BA from "./banco.js";
@@ -26,6 +26,9 @@ import * as REQ from "./requisitos.js";
 import * as NG from "./negocio.js";
 import { initCelular } from "./celular.js";
 import * as RUTA from "./ruta.js";
+import * as TU from "./tutorial.js";
+import { initNotas } from "./notas.js";
+import { confirmar } from "./dialogo.js";
 import { t, idioma, hayIdioma, setIdioma, cargarIdioma, traducirHTML, datos, num, IDIOMAS } from "./i18n.js";
 
 await cargarIdioma();                                  // el diccionario del idioma elegido (español: nada)
@@ -162,34 +165,38 @@ $("b-continuar").onclick = () => irTaller();
 const modoNuevo = (on) => { $("modo-nuevo").classList.toggle("hidden", !on); document.querySelector("#inicio .col").classList.toggle("hidden", on); };
 $("b-nueva").onclick = () => modoNuevo(true);
 $("b-modo-volver").onclick = () => modoNuevo(false);
-$("b-modo-dev").onclick = () => {
-  if (G.partida && !confirm(t("¿Empezar de cero en modo desarrollador? Se borra la partida guardada (tus IA entrenadas no se borran)."))) return;
+/**
+ * Empezar una partida (los dos modos empiezan igual: el regalo de mamá, $150 y todo por desbloquear; el modo
+ * desarrollador suma las herramientas de programar en el computador).
+ */
+async function empezar(dev) {
+  if (G.partida && !(await confirmar(dev ? t("¿Empezar de cero en modo desarrollador? Se borra la partida guardada (tus IA entrenadas no se borran).") : t("¿Empezar de cero? Se borra la partida guardada (tus IA entrenadas no se borran)."), { si: t("Empezar de cero"), peligro: true }))) return;
   modoNuevo(false);
-  G.partida = PT.nuevaPartidaDev(cat, { "Madera (dev)": DRONES_EJEMPLO.madera, "Cine (dev)": DRONES_EJEMPLO.cine }, { "Cine (dev)": EXTRAS_EJEMPLO.cine });
+  G.partida = dev ? PT.nuevaPartidaDesarrollador() : PT.nuevaPartida();
   guardar();
   irTaller();
-  historia(t("Modo desarrollador"), t("Aquí no se trata de juntar plata: <b>creas la IA</b>. Tienes todo desbloqueado y dos drones listos en el hangar.<br><br>") +
-    t("Abre el <b>Estudio PBDMM</b> (arriba): escribes con un lenguaje con cara de Python <i>cómo</i> se entrena un modelo —qué misión, qué premios, qué tan grande es su cerebro y qué hacer mientras aprende— y lo corres. ") +
-    t("Entrena en segundo plano o en <b>Blender</b>, y después lo pruebas en un pedido con <code>volar &lt;modelo&gt;</code>.<br><br>Empieza por la pestaña <b>Aprende</b> y el ejemplo <b>hover</b>."));
-};
-$("b-modo-normal").onclick = () => {
-  if (G.partida && !confirm(t("¿Empezar de cero? Se borra la partida guardada (tus IA entrenadas no se borran)."))) return;
-  modoNuevo(false);
-  G.partida = PT.nuevaPartida();
-  guardar();
-  irTaller();
-  const c1 = mis.capitulos[0];
-  historia(t("Capítulo {n} · {titulo}", { n: 1, titulo: c1.titulo }), `${c1.historia}<br><br>` + t("Tienes <b class=\"money\">${plata}</b> y un garaje. Tu negocio: tomar fotos y videos con drones. Los clientes te escriben al <b>💻 Computador</b>… y parece que ya llegó el primer mensaje.", { plata: PT.PLATA_INICIAL }));
-};
+  historia(t("El regalo"), t("Llevabas meses pidiéndole a tu mamá un <b>dron profesional</b>, de esos con cámara 4K y GPS.<br><br>Hoy llega con una caja de cartón y una sonrisa: «Mijo, no me alcanzó para el que querías… pero este se arma. Dicen que el que lo arma aprende más».<br><br>Adentro: un <b>dron de madera</b> en piezas, unos motores sencillos, una placa ESP32, una cámara de juguete… y un cautín."),
+    { boton: t("Aceptar el regalo ❤️"), alCerrar: () => {
+      regaloMama();
+      const c1 = mis.capitulos[0];
+      historia(dev ? t("Modo desarrollador") : t("Capítulo {n} · {titulo}", { n: 1, titulo: c1.titulo }),
+        (dev ? t("Aquí <b>programas la IA</b> con PBDMM, pero se juega igual que el modo normal: empiezas con el dron de mamá y cada simulador (💻 → 🎮 Simuladores) se compra y abre misiones y funciones nuevas del lenguaje. El primero, <b>Foto fija</b>, es gratis.") : `${c1.historia}`) +
+        "<br><br>" + t("Primero, a armar el dron: las notas de <b>arriba a la derecha</b> te van diciendo qué hacer. Tienes <b class=\"money\">${plata}</b>, un garaje… y parece que ya te escribió el primer cliente.", { plata: PT.PLATA_INICIAL }));
+    } });
+}
+$("b-modo-dev").onclick = () => empezar(true);
+$("b-modo-normal").onclick = () => empezar(false);
 function irTaller() { show("taller"); G.izq = "hangar"; verDron(); renderTaller(); }
 
-/** Una pantalla de historia (inicio de capítulo). */
-function historia(titulo, html) {
+/** Una pantalla de historia (inicio de capítulo). opts: { boton, alCerrar } */
+function historia(titulo, html, opts = {}) {
   $("hist-h").textContent = titulo;
   $("hist-p").innerHTML = html;
+  $("b-hist").textContent = opts.boton || t("¡Vamos!");
+  historia.alCerrar = opts.alCerrar || null;
   modal("historia");
 }
-$("b-hist").onclick = () => modal("historia", false);
+$("b-hist").onclick = () => { modal("historia", false); const f = historia.alCerrar; historia.alCerrar = null; f?.(); };
 document.querySelectorAll("#quality button").forEach((b) => (b.onclick = () => {
   G.quality = b.dataset.q;
   store.set("quality", G.quality);
@@ -237,14 +244,8 @@ function renderTaller() {
   renderGuia();
 }
 
-/** El tutorial del día 1 (negocio.js pasoTutorial): una línea abajo con lo que toca hacer ahora. */
-function renderGuia() {
-  const p = P(), el = $("guia");
-  const paso = p?.negocio && (G.screen === "taller" || G.screen === "banco")
-    ? NG.pasoTutorial(p, { hayDron: p.drones.length > 0, dronListo: p.drones.some((d) => !puedeVolar(d)) }) : null;
-  el.classList.toggle("hidden", !paso);
-  if (paso) el.innerHTML = paso.txt;
-}
+/** El tutorial ahora son las notas de arriba a la derecha (tutorial.js + notas.js); la línea de abajo ya no sale. */
+function renderGuia() { $("guia").classList.add("hidden"); notasTutorial(); }
 
 /** Chips de estado de un dron: listo / qué le falta en el banco / su IA. */
 function chipsDron(d) {
@@ -309,11 +310,13 @@ function kitFaltan(p = P()) {
   return out;
 }
 const kitCosto = () => kitFaltan().reduce((s, x) => s + (pieza(cat, x.ranura, x.id)?.precio || 0) * x.n, 0);
-function armarKit() {
+/** El regalo de mamá: el kit del garaje gratis (llega en cajas a la mesa) en un dron nuevo. */
+const regaloMama = () => armarKit({ regalo: true });
+function armarKit({ regalo = false } = {}) {
   const p = P(), faltan = kitFaltan(p);
-  const err = PT.comprarCarrito(p, cat, faltan, { envio: true });
+  const err = PT.comprarCarrito(p, cat, faltan, { envio: true, regalo });
   if (err) { toast(err); return; }
-  const d = PT.nuevoDron(p, t("Madera"), t("El primer dron: videos de casas"));
+  const d = PT.nuevoDron(p, t("Madera"), regalo ? t("El regalo de mamá") : t("El primer dron: videos de casas"));
   avisoRutaDron(d);
   d.estilo = { ...PT.ESTILO };
   for (const [slot, id] of Object.entries(DRONES_EJEMPLO.madera)) PT.instalar(p, d, slot, id);
@@ -323,7 +326,6 @@ function armarKit() {
   renderTaller();
   if (faltan.length) garaje.paquete();
   return d;
-  toast(t("Llegó el kit: un dron de madera con motores reciclados. Ahora ármalo en el <b>banco</b>."), 4500);
 }
 
 function renderEditor() {
@@ -420,8 +422,8 @@ function renderEditor() {
   btn(t("Pedidos"), "main small", () => { P().activo = d.id; guardar(); estudio.abrir("campana"); });
   const rep = PT.costoReparar(p, cat, d);
   if (rep > 0) btn(rep > p.plata && PT.rotas(p, d).length ? t("Arreglo casero (gratis)") : t("Reparar (${n})", { n: rep }), "ghost small", () => repararDron(d));
-  btn(t("Desarmar"), "ghost small", () => {
-    if (!confirm(t("¿Desarmar \"{nombre}\"? Sus piezas vuelven al estante (su IA no se borra).", { nombre: d.nombre }))) return;
+  btn(t("Desarmar"), "ghost small", async () => {
+    if (!(await confirmar(t("¿Desarmar \"{nombre}\"? Sus piezas vuelven al estante (su IA no se borra).", { nombre: d.nombre }), { si: t("Desarmar"), peligro: true }))) return;
     PT.borrarDron(p, d.id); guardar(); G.izq = "hangar"; verDron(); renderTaller();
   });
 }
@@ -519,6 +521,20 @@ async function iaDe(d) {
 const ctx = { escenarios: escen, G, cat, PT, BA, $, fmt, esc, toast, descr, api, guardar, modal, show, D, U, estadoDe, dronVista, verDron, get garaje() { return garaje; },
   renderTaller, irTaller, infoModelo, loadModelos, abrirLab: () => abrirLab(), canvas };
 const banco = initBanco(ctx);
+ctx.tutorial = () => TU.activo(P());        // la mesa señala dónde va cada cable mientras dura el tutorial
+const notas = initNotas({ P: () => P(), guardar: () => guardar() });
+/** Las notas del tutorial según dónde estás (cada medio segundo; notas.js solo redibuja si cambian). */
+function notasTutorial() {
+  const p = P();
+  if (!p || G.screen === "inicio" || !TU.activo(p) || !$("historia").classList.contains("hidden")) { notas.poner([]); return; }
+  const d = D(), e = d && estadoDe(d), m = ctx.mesa?.abierta ? ctx.mesa.estadoTuto() : null;
+  notas.poner(TU.notas(p, {
+    pantalla: m ? "mesa" : G.screen, izq: G.izq, hayDron: p.drones.length > 0, dronListo: p.drones.some((x) => !puedeVolar(x)), dron: d?.nombre,
+    banco: e && { falta: e.pasos.find((x) => !x.ok)?.k || null, cablearOk: !!e.pasos.find((x) => x.k === "cablear")?.ok },
+    mesa: m, estante: !$("estante").classList.contains("hidden"),
+  }));
+}
+setInterval(notasTutorial, 500);
 ctx.ent = ent; ctx.mis = mis; ctx.P = () => P(); ctx.dronParaEntrenar = (d) => dronParaEntrenar(d);
 ctx.mesa = initMesa(ctx);                   // la mesa de trabajo: abrir cajas, montar, atornillar, soldar
 ctx.abrirGuia = () => banco.abrirGuia();

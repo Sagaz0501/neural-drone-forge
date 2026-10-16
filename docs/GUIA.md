@@ -38,12 +38,17 @@ una partida nueva).
 | | Modo normal | Modo desarrollador |
 |---|---|---|
 | Para | jugar la campaña | crear y experimentar con IAs |
-| Plata | $150 al empezar | todo desbloqueado |
-| Drones | los armas tú | dos listos ("Madera" y "Cine") |
+| Plata | $150 al empezar | $150 al empezar (lo mismo: se desbloquea jugando) |
+| Drones | el regalo de mamá: lo armas tú | el regalo de mamá: lo armas tú |
 | Cómo se entrena | **Laboratorio** (controles y deslizadores) | **Estudio PBDMM** (código, terminal, gráficas) |
 
 Cada modo tiene solo su herramienta: en el normal no aparece el Estudio y en el desarrollador no aparece el
 Laboratorio.
+
+**Los dos empiezan igual:** le pediste a tu mamá un dron profesional y te regaló un **dron de madera** para armar
+(llega en cajas a la mesa, con un cautín, estaño y flux). Un tutorial con **notas arriba a la derecha** te lleva paso a
+paso: abrir las cajas, montar, soldar (un aro amarillo te señala el pad de cada cable), programar y la primera foto de
+Doña Marta. Los consejos se cierran con *Entendido*; *Saltar el tutorial* lo apaga.
 
 > **Tip:** si ya tienes una campaña y quieres probar el modo desarrollador sin tocarla, ábrelo en una ventana de
 > incógnito o en otro navegador: cada uno guarda su propia partida.

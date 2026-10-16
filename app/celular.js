@@ -10,6 +10,7 @@ import * as REQ from "./requisitos.js";
 import { mundoLugar, alcanceNecesario } from "./lugares.js";
 import { volarFlota, porQueNo } from "./flota.js";
 import { t } from "./i18n.js";
+import { confirmar } from "./dialogo.js";
 
 const ICONO = { foto: "📷", inspeccion: "🔎", video: "🎬" };
 const TIPO = { foto: () => t("Foto"), inspeccion: () => t("Inspección"), video: () => t("Video") };
@@ -202,7 +203,7 @@ export function initCelular(ctx) {
   async function terminarDia() {
     const p = ctx.P(), pend = NG.pendientes(p).filter((x) => x.limite <= p.negocio.dia && !x.flota);
     if (C.reporte?.volando) return;
-    if (pend.length && !confirm(t("Hay {n} pedidos que vencen hoy. ¿Terminar el día igual?", { n: pend.length }))) return;
+    if (pend.length && !(await confirmar(t("Hay {n} pedidos que vencen hoy. ¿Terminar el día igual?", { n: pend.length }), { si: t("Terminar el día") }))) return;
     // primero sale la flota (con los pedidos de hoy), después empieza el día siguiente
     let filas = [];
     const antes = { plata: p.plata, rep: p.rep };

@@ -640,5 +640,5 @@ export function initBanco(ctx) {
   addEventListener("pointermove", (ev) => { if (drag !== null && G.screen === "banco") { ctx.garaje.yaw += (ev.clientX - drag) * 0.012; drag = ev.clientX; } });
   ctx.canvas.addEventListener("wheel", (ev) => { if (G.screen === "banco") { ctx.garaje.zoom = Math.min(1.8, Math.max(0.45, ctx.garaje.zoom * (ev.deltaY > 0 ? 1.1 : 0.9))); ev.preventDefault(); } }, { passive: false });
 
-  return { abrir, render, abrirGuia };
+  return { abrir, render, abrirGuia, get paso() { return BK.paso; }, get tab() { return BK.tab; } };
 }

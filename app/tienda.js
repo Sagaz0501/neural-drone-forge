@@ -4,6 +4,7 @@
 // =====================================================================
 import { leerSTL, analizar, cargarSTL, STL_CACHE } from "./stl.js";
 import { t, num } from "./i18n.js";
+import { confirmar } from "./dialogo.js";
 import { miniatura } from "./miniaturas.js";
 import * as TA from "./taller.js";
 const { diasEnvio } = TA;
@@ -326,7 +327,7 @@ export function initTienda(ctx) {
       }
       if (s.tipo === "chasis" || s.tipo === "canopy") acts.insertAdjacentHTML("beforeend", `<span class='muted' style='font-size:12.5px;align-self:center'>${t("Se imprime en el banco (paso Imprimir).")}</span>`);
       btn(t("Borrar"), async () => {
-        if (!confirm(t("¿Borrar \"{nombre}\"? (va a la papelera: stl/_papelera/)", { nombre: s.nombre }))) return;
+        if (!(await confirmar(t("¿Borrar \"{nombre}\"? (va a la papelera: stl/_papelera/)", { nombre: s.nombre }), { si: t("Borrar"), peligro: true }))) return;
         const r = await ctx.api("/api/stl_borrar", { id: s.id });
         if (!r.ok) { toast(r.msg); return; }
         G.stl = G.stl.filter((x) => x.id !== s.id);
@@ -346,7 +347,7 @@ export function initTienda(ctx) {
     let meta;
     try { meta = analizar(leerSTL(buf)); } catch (err) { toast(String(err.message || err)); return; }
     const tipo = $("stl-tipo").value, nombre = f.name.replace(/\.stl$/i, "");
-    if (tipo === "chasis" && Math.max(...meta.tam_mm) < 60) { if (!confirm(t("Mide {tam} mm: muy chico para un chasis. ¿Está en centímetros? Se importa igual.", { tam: meta.tam_mm.join(" × ") }))) return; }
+    if (tipo === "chasis" && Math.max(...meta.tam_mm) < 60) { if (!(await confirmar(t("Mide {tam} mm: muy chico para un chasis. ¿Está en centímetros? Se importa igual.", { tam: meta.tam_mm.join(" × ") }), { si: t("Importar igual") }))) return; }
     const r = await fetch(`/api/stl?nombre=${encodeURIComponent(nombre)}&tipo=${tipo}`, { method: "POST", body: buf }).then((x) => x.json()).catch(() => ({ ok: false, msg: t("No hay servidor.") }));
     if (!r.ok) { toast(r.msg || t("No pude guardar el STL.")); return; }
     const item = { id: r.id, nombre, tipo, bytes: buf.byteLength, url: r.url };

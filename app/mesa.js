@@ -18,7 +18,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { buildDrone } from "./dron3d.js";
 import { sfx } from "./garaje.js";
 import * as TA from "./taller.js";
-import { CHIP } from "./banco.js";
+import { CHIP, manual } from "./banco.js";
 import { t, num } from "./i18n.js";
 
 const COLOR_PIN = { "vbat+": "#e02020", "5v+": "#ff8a1a", "3v3+": "#ffd23f", vbat_in: "#e02020", "5v_in": "#ff8a1a", "3v3_in": "#ffd23f", gnd: "#1d1f22",
@@ -885,7 +885,7 @@ export function initMesa(ctx) {
     return out;
   }
   /** El nombre corto de cada pieza en la lista de cables. */
-  const nombreCorto = (c) => ({ xt60: "XT60", esc: "ESC", rx: t("Receptor"), gps: "GPS", cam: t("Cámara"), tof: "ToF", led: "LED", ant: t("Antena") })[c.k] || c.nombre;
+  const nombreCorto = (c) => ({ xt60: "XT60", esc: "ESC", fc: t("Controladora"), rx: t("Receptor"), gps: "GPS", cam: t("Cámara"), tof: "ToF", led: "LED", ant: t("Antena") })[c.k] || c.nombre;
   function tomarCable(f) {
     if (f.cable) return quitarCable(f.cable);
     M.enMano = f.ref;
@@ -1130,10 +1130,62 @@ export function initMesa(ctx) {
     last = now; M.t += dt;
     for (const tw of [...M.tweens]) { tw.t += dt; const k = Math.min(1, tw.t / tw.dur); tw.fn(k); if (k >= 1) { M.tweens.splice(M.tweens.indexOf(tw), 1); tw.fin?.(); } }
     if (M.modo === "armar") pasoArmar(dt); else pasoSoldar(dt);
+    senalar();
     for (const s of [...M.humo]) { s.userData.v += dt; s.position.y += dt * 0.012; s.scale.multiplyScalar(1 + dt * 1.2); s.material.opacity = 0.35 * (1 - s.userData.v / 1.6); if (s.userData.v > 1.6) { scene.remove(s); M.humo.splice(M.humo.indexOf(s), 1); } }
     controls.update();
     renderer.render(scene, cam);
   }
+  // ---------------- el tutorial: señalar dónde va cada cable ----------------
+  /** El otro extremo del cable que sale de ref, según el manual (la guía de conexión). */
+  const destinoDe = (ref) => { const par = M.comps && manual(M.comps).find((c) => c.includes(ref)); return par ? (par[0] === ref ? par[1] : par[0]) : null; };
+  const pinDeRef = (ref) => { const [k, id] = ref.split("."), c = M.comps?.find((x) => x.k === k); return c && { c, pin: c.pines.find((p) => p.id === id) }; };
+  const nomRef = (ref) => { const x = pinDeRef(ref); return x?.pin ? `${nombreCorto(x.c)} · ${x.pin.nombre}` : ref; };
+  /** Lo que el tutorial señala ahora: el pad donde va el cable en la mano, o una junta que falta soldar. */
+  function objetivo() {
+    if (M.modo !== "soldar" || !M.comps || !M.pads) return null;
+    if (M.enMano) { const a = destinoDe(M.enMano); return a && { ref: a, tipo: "poner" }; }
+    const J = D().banco.juntas || {};
+    for (const f of fuentes()) if (f.cable && !TA.esEnchufe(f.pin) && (J[TA.claveCable(f.cable)]?.q || "sin") === "sin") return { ref: TA.placaDe(f.cable, M.comps), tipo: "soldar" };
+    return null;
+  }
+  function senalar() {
+    if (!M.senal) {
+      M.senal = new THREE.Mesh(new THREE.TorusGeometry(0.0042, 0.00055, 8, 40), new THREE.MeshBasicMaterial({ color: 0xffd23f, transparent: true, depthTest: false }));
+      M.senal.rotation.x = Math.PI / 2; M.senal.renderOrder = 10; scene.add(M.senal);
+    }
+    const o = ctx.tutorial?.() ? objetivo() : null, pd = o && (M.pads.get(`${o.ref}#1`) || M.pads.get(`${o.ref}#0`));
+    M.senal.visible = !!pd;
+    if (!pd) return;
+    M.senal.position.copy(pd.pos).add(new THREE.Vector3(0, 0.0012, 0));
+    const k = 1 + 0.25 * Math.sin(M.t * 6);
+    M.senal.scale.set(k, k, k);
+    M.senal.material.opacity = 0.6 + 0.35 * Math.sin(M.t * 6);
+  }
+  /** Para las notas del tutorial (main.js): en qué va la mesa. */
+  function estadoTuto() {
+    if (!M.abierta) return null;
+    const o = { modo: M.modo, placa: M.placa, cautin: !!M.cautin, on: M.E.on, temp: Math.round(M.E.temp), flux: M.flux };
+    if (M.modo === "armar") {
+      o.proc = M.proc ? { pieza: NOMBRE()[M.proc.it.slot], paso: M.proc.pasos[M.proc.i]?.[0] || null } : null;
+      o.items = {};
+      for (const it of M.items || []) o.items[it.estado] = (o.items[it.estado] || 0) + 1;
+      return o;
+    }
+    if (!M.comps) return o;
+    const fs = fuentes(), J = D().banco.juntas || {};
+    if (M.enMano) {
+      const a = destinoDe(M.enMano), placaA = a && ["esc", "fc"].includes(a.split(".")[0]) ? a.split(".")[0] : null;
+      o.mano = { de: nomRef(M.enMano), a: a ? nomRef(a) : null, otraPlaca: placaA && placaA !== M.placa ? placaA : null };
+    }
+    const sinSoldar = fs.find((f) => f.cable && !TA.esEnchufe(f.pin) && (J[TA.claveCable(f.cable)]?.q || "sin") === "sin");
+    if (sinSoldar) o.soldar = nomRef(TA.placaDe(sinSoldar.cable, M.comps));
+    const sig = fs.find((f) => !f.cable);
+    if (sig) o.siguiente = nomRef(sig.ref);
+    o.faltan = fs.filter((f) => !f.cable).length;
+    o.otras = placas().filter((c) => c.k !== M.placa).map((c) => c.k);
+    return o;
+  }
+
   function pasoArmar(dt) {
     const h = M.hold, P_ = M.proc;
     if (P_?.pts) for (const q of P_.pts) if (!q.listo && q.T.estado !== "apretado") q.anillo.material.opacity = 0.45 + 0.4 * Math.sin(M.t * 6);
@@ -1301,7 +1353,7 @@ export function initMesa(ctx) {
       for (const f of fuentes()) {
         const li = document.createElement("li"), j = f.cable ? J[TA.claveCable(f.cable)] : null;
         const q = !f.cable ? "" : j ? j.q : "buena", icq = { "": "", sin: "○", buena: "🔘", enchufado: "🔌", fria: "🔘", puente: "🔘", levantado: "🔘" }[q];   // la lista no dice si salió bien
-        li.className = "cab" + (M.enMano === f.ref ? " mano" : "") + (f.cable ? " puesto" : "");
+        li.className = "cab" + (M.enMano === f.ref ? " mano" : "") + (f.cable ? " puesto" : "") + (ctx.tutorial?.() && !M.enMano && !f.cable && !lista.querySelector(".sig") ? " sig" : "");
         li.innerHTML = `<i style="background:${COLOR_PIN[f.pin.tipo] || "#ccc"}"></i><b>${esc(nombreCorto(f.comp))} · ${esc(f.pin.nombre)}</b><small>${icq}</small>`;
         li.title = f.cable ? t("Toca para quitarlo") : t("Toca para tomarlo");
         li.onclick = () => tomarCable(f);
@@ -1325,5 +1377,5 @@ export function initMesa(ctx) {
     }
   }
 
-  return { abrir, cerrar, get abierta() { return M.abierta; }, _prueba: { M, cam: () => cam, mundo: () => mundo } };   // _prueba: para las pruebas en el navegador
+  return { abrir, cerrar, estadoTuto, get abierta() { return M.abierta; }, _prueba: { M, cam: () => cam, mundo: () => mundo } };   // _prueba: para las pruebas en el navegador
 }

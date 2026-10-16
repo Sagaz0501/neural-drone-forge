@@ -37,8 +37,16 @@ export function nuevaPartida() {
 }
 
 /**
- * Modo desarrollador: lo importante es crear y entrenar modelos (el estudio PBDMM), no juntar plata. Todo abierto,
- * plata de sobra, todas las herramientas y dos drones ya armados y probados en el banco. drones = {nombre: {slot: id}}.
+ * Modo desarrollador: la misma partida que el modo normal (el regalo de mamá, $150, todo se desbloquea jugando y
+ * comprando simuladores), pero con las herramientas de programar (IDE, documentación, simuladores en el computador).
+ */
+export function nuevaPartidaDesarrollador() {
+  return Object.assign(nuevaPartida(), { modo: "dev", empresa: t("Estudio de IA") });
+}
+
+/**
+ * PARA LAS PRUEBAS (test_banco, test_flota): una partida de desarrollador con todo abierto, plata de sobra, todas las
+ * herramientas y drones ya armados y probados en el banco. drones = {nombre: {slot: id}}. El juego ya no la usa.
  */
 export function nuevaPartidaDev(cat, drones, extras = {}) {
   const p = nuevaPartida();
@@ -186,13 +194,13 @@ export function anotar(p, monto, txt) {
  * Comprar n unidades (o una herramienta). Devuelve un texto de error o null.
  * envio: llega en caja (u.caja) y, si no es del barrio, otro día (u.llega = el día que llega; taller.js diasEnvio).
  */
-export function comprar(p, cat, ranura, id, n = 1, { envio = false } = {}) {
+export function comprar(p, cat, ranura, id, n = 1, { envio = false, regalo = false } = {}) {
   const err = puedeComprar(p, cat, ranura, id);
   if (err) return err;
-  const pz = pieza(cat, ranura, id), total = precioDe(p, pz) * n;
+  const pz = pieza(cat, ranura, id), total = regalo ? 0 : precioDe(p, pz) * n;
   if (p.plata < total) return t("Te faltan ${n}.", { n: total - p.plata });
   p.plata -= total;
-  anotar(p, -total, n > 1 ? `${pz.nombre} × ${n}` : pz.nombre);
+  if (total) anotar(p, -total, n > 1 ? `${pz.nombre} × ${n}` : pz.nombre);
   if (esHerramienta(ranura, pz)) p.herramientas = [...(p.herramientas || []), id];
   else if (pz.insumo) { p.insumos = p.insumos || {}; p.insumos[pz.insumo.k] = +(insumo(p, pz.insumo.k) + pz.insumo.n * n).toFixed(3); }
   else for (let i = 0; i < n; i++) {

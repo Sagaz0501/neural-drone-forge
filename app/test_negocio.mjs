@@ -1,6 +1,7 @@
 // Pruebas del negocio (app/negocio.js) y de los requisitos (app/requisitos.js): node app/test_negocio.mjs
 import { readFileSync } from "fs";
 import * as NG from "./negocio.js";
+import * as TU from "./tutorial.js";
 import * as REQ from "./requisitos.js";
 
 const leer = (f) => JSON.parse(readFileSync(new URL(`./data/${f}.json`, import.meta.url)));
@@ -88,10 +89,31 @@ NG.asegurar(ar, D);
 const plata0 = ar.plata;
 for (let k = 0; k < 7; k++) NG.nuevoDia(ar, D);
 ok(ar.plata === plata0 - D.trabajos.arriendo.monto, "cada 7 días se cobra el arriendo (con reputación ≥ 6)");
-// modo desarrollador: sin tutorial
-const dv = partida({ modo: "dev", rep: 30 });
+// modo desarrollador: empieza igual que el normal (el regalo de mamá y el tutorial)
+const dv = partida({ modo: "dev", rep: 0 });
 NG.asegurar(dv, D);
-ok(NG.pasoTutorial(dv, {}) === null && dv.negocio.pedidos.length >= 1, "modo desarrollador: sin tutorial, con pedidos");
+ok(NG.pasoTutorial(dv, {})?.paso === 1 && dv.negocio.pedidos.length === 1, "modo desarrollador: con tutorial, como el normal");
+
+// el tutorial del primer dron (tutorial.js): las notas de arriba a la derecha
+{
+  const notas = (s) => TU.notas(dv, { hayDron: true, dron: "Madera", ...s });
+  ok(TU.activo(dv) && notas({ pantalla: "taller" })[0].fija, "tutorial: la nota fija del paso va primero");
+  ok(/Mensajes/.test(notas({ pantalla: "taller" })[0].html), "tutorial: sin leer el mensaje, la nota manda al computador");
+  dv.negocio.tutorial = 1;
+  ok(/hangar/.test(notas({ pantalla: "taller", izq: "hangar" })[0].html), "tutorial: después, tocar el dron en el hangar");
+  ok(/mesa de trabajo/.test(notas({ pantalla: "banco", banco: { falta: "armar" } })[0].html), "tutorial: en el banco, el paso que falta");
+  ok(/caja/.test(notas({ pantalla: "mesa", mesa: { modo: "armar", items: { caja: 3 } } })[0].html), "tutorial: en la mesa, abrir las cajas");
+  const sol = notas({ pantalla: "mesa", mesa: { modo: "soldar", cautin: true, mano: { de: "XT60 · +", a: "ESC · BAT+", otraPlaca: null } } })[0].html;
+  ok(/ESC · BAT\+/.test(sol) && /aro amarillo/.test(sol), "tutorial: con un cable en la mano, dice a qué pad va y lo señala");
+  ok(/⏻/.test(notas({ pantalla: "mesa", mesa: { modo: "soldar", cautin: true, soldar: "ESC · BAT+", on: false } })[0].html), "tutorial: para soldar, primero prender la estación");
+  const n1 = notas({ pantalla: "mesa", mesa: { modo: "soldar", cautin: true } }).length;
+  TU.visto(dv, "soldar_como");
+  ok(notas({ pantalla: "mesa", mesa: { modo: "soldar", cautin: true } }).length === n1 - 1, "tutorial: un consejo con Entendido no vuelve");
+  TU.saltar(dv);
+  ok(!TU.activo(dv) && !notas({ pantalla: "taller" }).length, "tutorial: Saltar el tutorial lo apaga");
+  dv.tuto = null; dv.negocio.tutorial = 2;
+  ok(!notas({ pantalla: "taller" }).length, "tutorial: termina con la primera foto");
+}
 
 // 3b) la flota: un pedido por dron, el tutorial no, al fallar el pedido sigue abierto, al vencer suelta al dron
 const fl = partida({ modo: "dev", rep: 30, drones: [{ id: "d1", nombre: "Uno" }, { id: "d2", nombre: "Dos" }] });
