@@ -1,5 +1,9 @@
 # Dron Maker — la historia (campaña)
 
+> **Ojo (16-10-2026):** la historia completa en 5 actos (con la tormenta como clímax y la película en el epílogo) está
+> en [`PLAN_MAESTRO.md`](PLAN_MAESTRO.md), sección 5, y **manda sobre este documento** donde choquen. Aquí queda el
+> detalle de los capítulos que ya existen en `misiones.json`.
+>
 > Plan de la campaña completa: de un garaje con un dron de madera a un estudio de cine aéreo con una flota
 > de drones con IA. Cada misión pide **piezas distintas** (algo que el dron de antes no puede hacer) y un
 > **entrenamiento distinto** de la IA. Los números son una primera versión: se balancean editando
@@ -7,7 +11,8 @@
 
 ## La historia en una frase
 
-Arrancas con **$150**, un ESP32 y unos motores reciclados de un dron de juguete. Tu primera clienta es Doña
+Le pediste a tu mamá un dron profesional y te regaló uno **de madera para armar** (llega en cajas, con cautín, estaño
+y flux), más **$150**. Lo sueldas, le enseñas a tomar fotos a su IA y llega tu primera clienta, es Doña
 Marta, que necesita fotos de una casa para venderla. Cada video bien hecho trae clientes más exigentes
 (viento, gente, obstáculos, cosas que se mueven, de noche), y para cumplirles tienes que **mejorar el dron** y
 **enseñarle a tu IA** a volar como tú. El final: **"La película"**, una persecución filmada por cuatro drones
@@ -81,7 +86,7 @@ cliente no acepta sin eso) y **cómo entrenar a la IA** para que la haga sola.
 
 **8. Marca outdoor en el bosque** — una modelo caminando entre árboles · $650 · *plan*
 - ✱ **cinewhoop de 3" con ductos** (protección), ✱ ToF. Tomas bajas entre troncos.
-- IA: nivel **14 · Seguir en el bosque** (la caza en el bosque, con encuadre).
+- IA: nivel **15 · Seguir** en el bosque (la caza en el bosque, con encuadre).
 
 ### Capítulo 5 · El gran final
 
@@ -134,8 +139,10 @@ no salgan en la cámara). La forma es estética: no cambia la física.
 | 11 · Grabar (tomas con ruta) | casa, concesionario | fija, órbita, revelar; llegar al inicio esquivando la casa |
 | 11 + viento 2,5 m/s | finca | compensar ráfagas sin salirse de la ruta |
 | 12 · Grabar entre postes | restaurante | lo mismo con postes cerca de la ruta: usar los ToF |
-| 13 · Seguir *(falta)* | ciclista, fútbol, matrimonio | el sujeto se mueve: ir con él adelantándose (como la caza) |
-| 14 · Seguir en el bosque *(falta)* | marca outdoor, película | seguir + esquivar troncos |
+| 13 · Foto · 14 · Set de fotos | Doña Marta, la agencia, inspecciones | llegar, frenar y quedarse quieto con la casa (o el techo) al centro |
+| 15 · Seguir *(falta)* | ciclista, fútbol, matrimonio | el sujeto se mueve: ir con él adelantándose (como la caza) |
+| 15 en el bosque *(falta)* | marca outdoor, película | seguir + esquivar troncos |
+| 16 · Carrera · 17 · Entrega · 18 · Persecución | la liga, las entregas, el freestyle | portales rápido; llevar un paquete y quedarse quieto encima; alcanzar a la liebre |
 | formación *(falta)* | matrimonio, festival, película | varios drones sin chocarse |
 
 Siempre con **Tu dron** (o "al azar" si cambias mucho de piezas), y repasando de vez en cuando los niveles

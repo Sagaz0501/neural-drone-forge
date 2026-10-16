@@ -70,8 +70,8 @@ propósito. Así nace la pregunta *"¿y si lo hace mi dron solo?"*.
 
 - **Foto** es nueva y es la puerta de entrada: una sola toma fija y un disparo. Se califica el encuadre en ese
   instante con `film_quality` de una toma fija, así que la IA ya la sabe hacer (nivel 11 con toma fija).
-- **Inspección** reutiliza lo que la IA ya sabe (nivel 4, *varias metas*) más quedarse quieto en cada punto: por
-  ahora no necesita un nivel nuevo del Drone Lab.
+- **Inspección** se entrena con el nivel 13 · Foto (el 30 % de los intentos encuadra el techo) y el 14 para varias
+  fotos seguidas.
 - **Encargo de armado** y **Prueba de dron** no se vuelan: son trabajos de banco. Le dan sentido al banco de armado y
   al multímetro, y tienen mucho del trabajo real de Santiago (QA y embedded).
 

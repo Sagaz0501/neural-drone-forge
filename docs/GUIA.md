@@ -260,6 +260,32 @@ Las ayudas dependen de la controladora del dron: con **barómetro**, al soltar E
 **GPS**, al soltar WASD frena solo. Sin ellas, el gas y el freno son tuyos. Sensibilidad y suavizado en
 **Controles**.
 
+## Freestyle: volar por gusto
+
+En el inicio, **🏁 Freestyle** abre una pantalla aparte (no toca tu partida). Eliges:
+
+- **El mapa:** 🏭 la fábrica abandonada (entrar por el portón, subir por el techo roto, pasar bajo el puente), 🏜️ el
+  cañón (rectas largas, arcos de roca: para ir rápido) o 🏟️ el estadio de noche (torre de picada, túnel, escalera de
+  portales, neón).
+- **El modo:** **Libre** (sin reloj), **Carrera contra la IA** (1-3 rivales con un modelo entrenado; por defecto
+  *corredor*, entrenado en el nivel 16), **Contrarreloj** (tu mejor vuelta queda como un dron fantasma) o
+  **Persecución** (1-3 drones con IA te persiguen —el modelo *cazador*, nivel 18—: aguanta 60 s, tienes 3 vidas).
+- **El dron:** el racer de la liga (el mismo de los rivales) o uno de tu hangar (su física sale de sus piezas).
+- **Cómo vuela:** **Estable** (como la IA: la palanca pide un ángulo y al soltar se nivela) o **Acro** (la palanca pide
+  una velocidad de giro: al soltar se queda inclinado; con esto se hacen flips. Gas al centro = flotar, o lineal como
+  un radio de verdad).
+
+| | Teclado | Control (PS5 / Xbox, modo 2) |
+|---|---|---|
+| Gas / subir y bajar | Espacio / Shift | stick izquierdo ↑↓ |
+| Moverse (estable) o girar el dron (acro) | W A S D | stick derecho |
+| Girar la nariz | ← → | stick izquierdo ←→ |
+| Cámara (FPV, detrás, lejos) | C | ○ / B |
+| Volver al último portal | T | △ / Y |
+| Reiniciar · pausa | R · Esc | ✕ / A (en la pausa) · Options |
+
+El control vibra al chocar. Los récords (mejor vuelta, velocidad máxima, carreras ganadas) quedan por mapa.
+
 ## Problemas comunes
 
 | Problema | Solución |

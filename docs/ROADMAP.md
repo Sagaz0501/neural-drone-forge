@@ -49,8 +49,9 @@ Ya hecho en esta fase:
   desarrollador (GIF del visor de simulaciones + MP4 de 4½ min), en `docs/media/`.
 
 Decisiones (Santiago, 15-10-2026):
-- ✅ **El tutorial es el modo desarrollador.** El juego se enfoca en crear la IA (PBDMM + Blender); el modo normal
-  queda como la opción fácil. La demo grabada (`docs/media/demo_estudio.mp4`) es el tutorial de referencia.
+- ✅ ~~El tutorial es el modo desarrollador.~~ Cambió el 16-10-2026: los dos modos empiezan igual y el tutorial
+  (el regalo de mamá → armar → el computador → la primera IA) es obligatorio en los dos. La demo grabada
+  (`docs/media/demo_estudio.mp4`) sigue siendo la referencia del modo desarrollador.
 - ♻️ **Imágenes y videos: se agregan con el tiempo,** cada vez que algo mejora (por ejemplo, cuando el banco de
   armado tenga soldadura y multímetro de verdad: fotos de los componentes, de las quemaduras, del multímetro).
 - ♻️ **Rendimiento: se mejora sobre la marcha,** en cada fase.
@@ -229,8 +230,9 @@ Entrenar toma minutos u horas. Que ese tiempo también sea juego.
    - **Paso 1 · Escritorio** (Windows / macOS / Linux, instalador de un clic): **Electron** (trae su Chromium: WebGL y
      el video `.webm` funcionan igual en todos lados; pesa ~150 MB) o **Tauri** (usa el navegador del sistema, pesa
      ~10 MB, pero Safari/WebKit en macOS graba video distinto). El servidor y el entrenador van adentro como un
-     programa aparte ("sidecar": Python + PyTorch empaquetado con PyInstaller, ~300 MB por PyTorch). Recomendado:
-     Electron primero, porque el juego ya está probado en Chromium. Con esto se puede publicar en itch.io y Steam.
+     programa aparte ("sidecar": Python empaquetado con PyInstaller). **Decidido (PLAN_MAESTRO §8): Electron, y la
+     instalación base va sin PyTorch** (el juego ya corre la red en JS); el Laboratorio de IA se baja aparte la
+     primera vez que entrenas. Con esto se puede publicar en itch.io y Steam.
    - **Paso 2 · Celular** (iOS / Android, con **Capacitor**: el mismo juego web adentro de una app). Jugar sí:
      garaje, celular, vuelos (falta controles táctiles y bajar la calidad 3D). Entrenar en el teléfono no (PyTorch no
      corre ahí): el teléfono se conecta al PC de la casa por la red local para entrenar, o se hace un entrenador más
