@@ -1,0 +1,15 @@
+{
+  "name": "neural-drone-forge",
+  "productName": "Neural Drone Forge",
+  "version": "2.1.0",
+  "description": "Arma el dron. Entrena su cerebro. Míralo aprender a volar.",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "prueba": "electron . --captura=captura.png"
+  },
+  "devDependencies": {
+    "electron": "44.4.5"
+  }
+}

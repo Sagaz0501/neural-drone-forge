@@ -350,7 +350,7 @@ Ordenado por prioridad. Tamaño: **S** = días, **M** = 1-2 semanas, **L** = un 
 
 | Fase | Qué | Versión |
 |---|---|---|
-| **E1** | Envoltorio: Electron arranca el servidor y abre la ventana | v3.0 |
+| **E1** | Envoltorio: Electron arranca el servidor y abre la ventana. **Prototipo hecho (16-10-2026):** `desktop/` (`npm install && npm start`; usa el `.venv` del proyecto, puerto libre desde 8770, cierra el servidor al salir) | v3.0 |
 | **E2** | Instaladores: `.dmg` firmado y notarizado (Mac), `.exe` (Windows) | v3.0 |
 | **E3** | Auto-update, partidas en archivos (+ importar), reportes de fallos | v3.0 / v3.1 |
 | **E4** | Steam: página, logros (6.5), guardado en la nube, soporte de mando | v3.x |

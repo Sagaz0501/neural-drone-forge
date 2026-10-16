@@ -378,7 +378,7 @@ class DroneEnv(gym.Env):
             self.shot.step(self.dt, self.state.pos, self.state.vel)
             started = before == "ir" and self.shot.phase == "grabando"
         if self.liebre is not None:                    # la liebre corre
-            self.liebre.step(self.dt, self.np_random)
+            self.liebre.step(self.dt, self.np_random, self.state.pos)
         if self.flock is not None:                     # los pájaros se mueven (y eligen huir) a la vez que el dron
             self.flock.speed = self.bird_speed
             self.flock.step(self.dt, self.np_random.normal(size=(self.flock.n, 3)), self.state.pos)
