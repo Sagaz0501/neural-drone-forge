@@ -12,6 +12,7 @@ Claude Code lee este archivo solo al abrir una sesión en esta carpeta. Es el re
 | la historia día a día del proyecto base (bitácora, experimentos) | [`docs/README_drone-rl.md`](docs/README_drone-rl.md) |
 | **el lenguaje PBDMM** del modo desarrollador: la API (se genera desde `app/data/pbdmm.json`) · la documentación completa (tutorial, referencia, gramática, biblioteca, errores; a mano: si cambias `pbdmm.js`, actualízala) · el plan de PBDMM 2 | [`docs/PBDMM.md`](docs/PBDMM.md) · [`docs/pbdmm/`](docs/pbdmm/README.md) · [`docs/PBDMM2_PLAN.md`](docs/PBDMM2_PLAN.md) |
 | **el negocio**: clientes que escriben al celular, trabajos repetibles ★–★★★★, tipos de trabajo, tutorial del día 1 | [`docs/NEGOCIO.md`](docs/NEGOCIO.md) |
+| **la carrera del taller**: todo desde el computador, personas, pedidos chicos y misiones grandes, entregas, retos, ventas, calendario, misiones manuales; modelos reales | [`docs/PLAN_CARRERA.md`](docs/PLAN_CARRERA.md) |
 | **el armado de verdad** (Fase 2): la mesa, soldar con la estación, atornillar, la guía aparte, la batería; las piezas 3D hechas por script en Blender (`blender/piezas/` → `app/modelos/*.glb`) | [`docs/ARMADO_PLAN.md`](docs/ARMADO_PLAN.md) |
 
 ## La idea
@@ -238,6 +239,9 @@ Node v22 está en `/opt/homebrew/bin/node`. Blender 5.2 en `/Applications/Blende
   la mesa no avisa (cablear queda ✓ si todo está conectado): se descubre con el multímetro o en la prueba de humo.
   Soldar gasta insumos (piezas.json "soldadura": cautines con potencia, extractor, estaño, flux, cable, malla).
   El diagrama viejo quedó como la 📄 Guía de conexión (solo mirar). Falta: la batería y el multímetro en la mesa.
+- **El computador es el centro del juego (16-10-2026, los dos modos):** afuera solo el hangar (+ 💻 Computador o tocar el
+  portátil); dentro, las apps (Mensajes, Calendario, Campaña, Laboratorio, Tienda, Inventario, Finanzas, Videos, Ajustes;
+  + IDE, Documentación y Simuladores en el modo dev). estudio.js `abrir(app)`; el escritorio se guarda por modo.
 - **El Estudio como computador (16-10-2026):** íconos de apps (IDE, Documentación, Mensajes, Tienda, Inventario,
   Simuladores, Finanzas, Banco de armado), ventanas que se mueven y una barra de tareas. Toda plata que entra o sale se
   anota con `PT.anotar(p, monto, texto)` (`p.movimientos`). Plan "perder plata" en el ROADMAP (negocio parte 2).

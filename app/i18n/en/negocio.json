@@ -148,5 +148,7 @@
  "Arriendo del garaje": "Garage rent",
  "{cliente}: {trabajo}": "{cliente}: {trabajo}",
  "📦 llegó 1 pieza": "📦 1 part arrived",
- "📦 llegaron {n} piezas": "📦 {n} parts arrived"
+ "📦 llegaron {n} piezas": "📦 {n} parts arrived",
+ "💬 Te escribieron. Abre el <b>💻 Computador</b> (a la izquierda) → <b>Mensajes</b> y lee el mensaje de Doña Marta.": "💬 Someone wrote to you. Open the <b>💻 Computer</b> (on the left) → <b>Messages</b> and read Doña Marta's message.",
+ "🚁 ¡Listo! En el <b>💻 Computador → Mensajes</b>, abre el pedido de Doña Marta y vuela: llega al aro y quédate quieto para la foto.": "🚁 Ready! In <b>💻 Computer → Messages</b>, open Doña Marta's order and fly: reach the ring and hold still for the photo."
 }

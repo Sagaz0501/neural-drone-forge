@@ -244,5 +244,17 @@
  "Reparación: {dron}": "Repair: {dron}",
  "Filamento para reimprimir": "Filament to reprint",
  "IDE": "IDE",
- "Finanzas": "Finances"
+ "Finanzas": "Finances",
+ "Calendario": "Calendar",
+ "Campaña": "Campaign",
+ "Laboratorio": "Lab",
+ "Videos": "Videos",
+ "Ajustes": "Settings",
+ "Mi taller": "My workshop",
+ "Todavía no hay negocio: empieza la campaña.": "No business yet: start the campaign.",
+ "llega: {pieza}": "arrives: {pieza}",
+ "{n} pedidos abiertos": "{n} open orders",
+ "Lo que viene": "Coming up",
+ "en {n} días": "in {n} days",
+ "Nada por ahora.": "Nothing for now."
 }

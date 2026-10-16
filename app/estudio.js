@@ -80,10 +80,16 @@ export function initEstudio(ctx) {
   }
 
   // ---------------- abrir / cerrar ----------------
-  async function abrir() {
-    if (ctx.P()?.modo !== "dev") { toast(t("El Estudio PBDMM es del modo desarrollador. En el modo normal la IA se entrena en el Laboratorio.")); return; }
+  /** Abrir el computador (y, si dices cuál, una app: "mensajes", "campana", "tienda"…). */
+  async function abrir(app = null) {
     await cargarData();
+    cargarVentanas();
     ctx.show("estudio");
+    const p = ctx.P();
+    $("es-logo").textContent = esDev() ? "PBDMM" : p?.empresa || t("Mi taller");
+    $("es-blender").style.display = esDev() ? "" : "none";          // (.btn ignora el atributo hidden)
+    if (app && permitida(app)) setTimeout(() => ventana(app, true), 50);
+    else if (!esDev() && p?.negocio && NG.noLeidos(p) && !Object.keys(ES.win).some((w) => ES.win[w].open)) setTimeout(() => ventana("mensajes", true), 50);
     renderArchivos();
     cargarEditor();
     colocar();
@@ -792,44 +798,58 @@ export function initEstudio(ctx) {
   }
 
   // ---------------- el escritorio: íconos de apps, ventanas que se mueven y se agrandan, la barra de tareas ----------------
+  // EL COMPUTADOR (los dos modos): todo el juego se maneja desde aquí; afuera solo queda el hangar con los drones.
+  // El modo desarrollador tiene además el IDE, la documentación y los simuladores; el normal, el Laboratorio de IA.
   const VENT = "dronmaker.pbdmm.escritorio";
   const LAYOUT0 = { ide: { x: 0.075, y: 0, w: 0.555, h: 1, open: true }, sim: { x: 0.63, y: 0, w: 0.37, h: 1, open: true },
     docs: { x: 0.33, y: 0.04, w: 0.4, h: 0.86, open: false }, mensajes: { x: 0.18, y: 0.03, w: 0.6, h: 0.92, open: false },
     tienda: { x: 0.14, y: 0.02, w: 0.7, h: 0.94, open: false }, inventario: { x: 0.2, y: 0.05, w: 0.6, h: 0.86, open: false },
-    banco: { x: 0.38, y: 0.06, w: 0.3, h: 0.8, open: false } };
+    banco: { x: 0.38, y: 0.06, w: 0.3, h: 0.8, open: false }, calendario: { x: 0.36, y: 0.04, w: 0.42, h: 0.86, open: false },
+    campana: { x: 0.16, y: 0.03, w: 0.66, h: 0.92, open: false }, lab: { x: 0.13, y: 0.02, w: 0.74, h: 0.95, open: false },
+    videos: { x: 0.2, y: 0.05, w: 0.6, h: 0.86, open: false }, ajustes: { x: 0.3, y: 0.08, w: 0.42, h: 0.8, open: false } };
   /** Las apps: ícono y nombre (función: t() corre después de cargar el idioma). */
   const APPS = () => ({ ide: ["💻", "IDE"], docs: ["📖", t("Documentación")], mensajes: ["💬", t("Mensajes")], tienda: ["🛒", t("Tienda")],
-    inventario: ["📦", t("Inventario")], sim: ["📈", t("Simuladores")], banco: ["🏦", t("Finanzas")] });
-  /** Las apps que son pantallas del juego (el celular, la tienda, el inventario): se meten en una ventana. */
-  const HOST = { mensajes: ["celular", () => ctx.celular?.abrir()], tienda: ["tienda", () => ctx.tienda?.abrirTienda()], inventario: ["inventario", () => ctx.tienda?.abrirInventario()] };
+    inventario: ["📦", t("Inventario")], sim: ["📈", t("Simuladores")], banco: ["🏦", t("Finanzas")], calendario: ["📅", t("Calendario")],
+    campana: ["⭐", t("Campaña")], lab: ["🧠", t("Laboratorio")], videos: ["🎬", t("Videos")], ajustes: ["⚙️", t("Ajustes")] });
+  const SOLO_DEV = new Set(["ide", "docs", "sim"]), SOLO_NORMAL = new Set(["lab"]);
+  const esDev = () => ctx.P()?.modo === "dev";
+  const permitida = (w) => (esDev() ? !SOLO_NORMAL.has(w) : !SOLO_DEV.has(w));
+  /** Las apps que son pantallas del juego (el celular, la tienda, el laboratorio…): se meten en una ventana. */
+  const HOST = { mensajes: ["celular", () => ctx.celular?.abrir()], tienda: ["tienda", () => ctx.tienda?.abrirTienda()], inventario: ["inventario", () => ctx.tienda?.abrirInventario()],
+    campana: ["tablero", () => ctx.abrirTablero?.()], lab: ["lab", () => ctx.abrirLab?.()], videos: ["videos", () => ctx.abrirVideos?.()], ajustes: ["controles", () => ctx.abrirControles?.()] };
   const copia0 = () => JSON.parse(JSON.stringify(LAYOUT0));
-  ES.win = { ...copia0(), ...leerLS(VENT, {}) };
-  for (const w of Object.keys(HOST)) ES.win[w].open = false;    // las del juego se abren cuando las pides
+  /** Cada modo recuerda su propio escritorio. */
+  const claveVent = () => VENT + (esDev() ? "" : ".normal");
+  function cargarVentanas() {
+    ES.win = { ...copia0(), ...leerLS(claveVent(), {}) };
+    for (const w of Object.keys(ES.win)) if (HOST[w] || !permitida(w) || !LAYOUT0[w]) ES.win[w].open = false;    // las del juego se abren cuando las pides
+  }
+  ES.win = copia0();
   ES.orden = Object.keys(LAYOUT0);                    // de atrás hacia adelante
   ES.doc = "manual";
   const winEl = (w) => document.querySelector(`.es-win[data-w="${w}"]`);
   const abierta = (w) => !!ES.win[w]?.open;
   const angosto = () => matchMedia("(max-width: 980px)").matches;
-  const guardarVent = () => ponerLS(VENT, ES.win);
+  const guardarVent = () => ponerLS(claveVent(), ES.win);
   function colocar() {
     const box = $("es-escritorio"), W = box.clientWidth, H = box.clientHeight, g = 6;
     for (const [w, L] of Object.entries(ES.win)) {
       const el = winEl(w);
       if (!el) continue;
-      el.hidden = !L.open;
+      el.hidden = !L.open || !permitida(w);
       el.style.left = Math.round(L.x * W + g) + "px"; el.style.top = Math.round(L.y * H + g) + "px";
       el.style.width = Math.round(L.w * W - 2 * g) + "px"; el.style.height = Math.round(L.h * H - 2 * g) + "px";
       el.style.zIndex = 1 + ES.orden.indexOf(w);
       el.classList.toggle("arriba", ES.orden.at(-1) === w);
     }
-    document.querySelectorAll(".es-icono[data-w]").forEach((b) => b.classList.toggle("abierta", abierta(b.dataset.w)));
+    document.querySelectorAll(".es-icono[data-w]").forEach((b) => { b.classList.toggle("abierta", abierta(b.dataset.w)); b.hidden = !permitida(b.dataset.w); });
     barra();
   }
   /** La barra de tareas: una pestaña por app abierta (tocarla la trae al frente) y abajo a la derecha la plata y el día. */
   function barra() {
     const A = APPS(), box = $("es-tareas"), arriba = ES.orden.filter(abierta).at(-1);
     box.innerHTML = "";
-    for (const w of Object.keys(LAYOUT0).filter(abierta)) {
+    for (const w of Object.keys(LAYOUT0).filter((x) => abierta(x) && permitida(x))) {
       const b = document.createElement("button");
       b.textContent = `${A[w][0]} ${A[w][1]}`;
       b.setAttribute("aria-pressed", String(w === arriba));
@@ -842,6 +862,7 @@ export function initEstudio(ctx) {
     const p = ctx.P();
     if (!p) return;
     $("es-reloj").innerHTML = `<b>$${p.plata.toLocaleString(idioma())}</b> · ⭐ ${p.rep}${p.negocio ? ` · ${t("Día {n}", { n: p.negocio.dia })}` : ""}`;
+    if (p.negocio && ES.diaCal !== p.negocio.dia) { ES.diaCal = p.negocio.dia; if (abierta("calendario")) renderCalendario(); }
     const n = p.negocio ? NG.noLeidos(p) : 0;
     $("es-badge").hidden = !n; $("es-badge").textContent = n;
   }
@@ -857,6 +878,7 @@ export function initEstudio(ctx) {
     if (w === "docs" && quiere && !$("es-pop-c").childElementCount) ({ manual, ruta, aprende: () => aprende(0) })[ES.doc]();
     if (w === "sim") { redSondear(quiere); if (quiere) dibujarGrafica(); }
     if (w === "banco" && quiere) renderBanco();
+    if (w === "calendario" && quiere) renderCalendario();
     if (w === "ide" && quiere) $("es-src").focus();
   }
   /** Mete la pantalla del juego (el celular, la tienda…) en su ventana; si el juego la cierra, la ventana se cierra. */
@@ -908,7 +930,7 @@ export function initEstudio(ctx) {
   document.querySelectorAll(".es-icono[data-w]").forEach((b) => (b.onclick = () => (abierta(b.dataset.w) ? alFrente(b.dataset.w) : ventana(b.dataset.w, true))));
   $("es-ordenar").onclick = () => {
     for (const w of Object.keys(HOST)) if (abierta(w)) ventana(w, false);
-    ES.win = copia0(); ES.orden = Object.keys(LAYOUT0); guardarVent(); colocar(); redibujar(); redSondear(true);
+    cargarVentanas(); ES.win = copia0(); for (const w of Object.keys(ES.win)) if (!permitida(w)) ES.win[w].open = false; ES.orden = Object.keys(LAYOUT0); guardarVent(); colocar(); redibujar(); redSondear(true);
   };
   function redibujar() { if (abierta("sim")) { dibujarGrafica(); dibujarRed(); } }
   new ResizeObserver(() => { if (ctx.G.screen === "estudio") { colocar(); redibujar(); } }).observe($("es-escritorio"));
@@ -1026,6 +1048,33 @@ export function initEstudio(ctx) {
       sig.onclick = () => aprende(i + 1);
     });
   }
+
+  // ---------------- la app Calendario: los días del negocio, los vencimientos, lo que llega y el arriendo ----------------
+  function renderCalendario() {
+    const p = ctx.P(), N = p?.negocio, box = $("es-cal"), D = ctx.ND;
+    if (!N || !D) { box.innerHTML = `<p class="muted">${t("Todavía no hay negocio: empieza la campaña.")}</p>`; return; }
+    const hoy = N.dia, ini = hoy - ((hoy - 1) % 7), n = 28, ev = {};
+    const add = (dia, e) => { if (dia >= ini && dia < ini + n) (ev[dia] = ev[dia] || []).push(e); };
+    for (const pe of N.pedidos) if (pe.estado === "nuevo" || pe.estado === "aceptado") {
+      const C = pe.cliente ? NG.cliente(D, pe.cliente) : null;
+      add(pe.limite, { ic: C?.avatar || "⭐", txt: pe.titulo, cls: pe.limite <= hoy ? "urge" : pe.estado === "aceptado" ? "acept" : "", cid: pe.cliente });
+    }
+    for (const u of p.inventario) if (u.llega > hoy) add(u.llega, { ic: "🚚", txt: t("llega: {pieza}", { pieza: PT_nombre(u.id) }), cls: "envio" });
+    const A = D.trabajos?.arriendo;
+    if (A && p.modo !== "dev" && p.rep >= A.desde_rep) for (let d = ini; d < ini + n; d++) if (d > hoy && d % A.cada === 0) add(d, { ic: "💸", txt: t("arriendo −${n}", { n: A.monto }), cls: "gasto" });
+    let html = `<div class="cal-top"><b>${t("Día {n}", { n: hoy })}</b><span class="muted">${t("{n} pedidos abiertos", { n: N.pedidos.filter((x) => x.estado === "nuevo" || x.estado === "aceptado").length })}</span></div><div class="cal">`;
+    for (let d = ini; d < ini + n; d++) {
+      const es = ev[d] || [];
+      html += `<div class="cal-d${d === hoy ? " hoy" : ""}${d < hoy ? " pasado" : ""}"><span class="cal-n">${d}</span>` +
+        es.slice(0, 3).map((e, i) => `<button class="cal-e ${e.cls}" data-d="${d}" data-i="${i}" title="${esc(e.txt)}">${e.ic}</button>`).join("") + (es.length > 3 ? `<small>+${es.length - 3}</small>` : "") + `</div>`;
+    }
+    html += `</div>`;
+    const prox = Object.entries(ev).filter(([d]) => +d >= hoy).sort((a, b) => a[0] - b[0]).flatMap(([d, es]) => es.map((e) => [+d, e])).slice(0, 8);
+    html += `<h4>${t("Lo que viene")}</h4>` + (prox.length ? `<ul class="cal-l">${prox.map(([d, e]) => `<li class="${e.cls}"><span>${e.ic}</span><b>${esc(e.txt)}</b><small>${d === hoy ? t("hoy") : t("en {n} días", { n: d - hoy })}</small></li>`).join("")}</ul>` : `<p class="muted">${t("Nada por ahora.")}</p>`);
+    box.innerHTML = html;
+    box.querySelectorAll(".cal-e").forEach((b) => (b.onclick = () => { const e = ev[b.dataset.d][b.dataset.i]; if (e.cid) { ventana("mensajes", true); setTimeout(() => ctx.celular?.abrir(e.cid), 80); } }));
+  }
+  const PT_nombre = (id) => { for (const k of Object.keys(ctx.cat)) { const x = Array.isArray(ctx.cat[k]) && ctx.cat[k].find((z) => z.id === id); if (x) return x.nombre; } return id; };
 
   // ---------------- la app Finanzas: la plata, lo que entra y lo que sale ----------------
   function renderBanco() {
@@ -1167,6 +1216,7 @@ export function initEstudio(ctx) {
   $("es-blender").onclick = () => comando("blender");
   $("es-volver").onclick = cerrar;
 
+  $("es-menu").onclick = () => { cerrar(); ctx.irMenu?.(); };
   return { abrir, comando, get estado() { return ES; } };
 }
 

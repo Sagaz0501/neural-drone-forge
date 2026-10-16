@@ -129,7 +129,7 @@ const tiposDe = (pe, shots) => (pe?.tipo === "foto" || pe?.tipo === "inspeccion"
 const sabeGrabar = (ia, tipos = ["fija", "orbita", "revelar"]) => !!(ia?.policy && ia.policy.layers[0].nin >= 38 && tipos.every((tp) => (ia.meta?.tomas || []).includes(tp)));
 
 // ---------------- pantallas ----------------
-const PANELS = { inicio: ["inicio"], taller: ["taller-izq", "taller-der", "taller-top"], banco: ["banco-izq", "banco-der"], vuelo: ["hud"], estudio: ["estudio"], sim: ["sim"], mesa: ["mesa"] };
+const PANELS = { inicio: ["inicio"], taller: ["taller-izq", "taller-der"], banco: ["banco-izq", "banco-der"], vuelo: ["hud"], estudio: ["estudio"], sim: ["sim"], mesa: ["mesa"] };
 const MODALES = ["celular", "idioma", "sim-elegir", "aviso-ia", "tablero", "brief", "videos", "controles", "pausa", "resultado", "lab", "historia", "tienda", "inventario", "nuevo-dron", "cableado"];
 function show(screen) {
   G.screen = screen;
@@ -178,7 +178,7 @@ $("b-modo-normal").onclick = () => {
   guardar();
   irTaller();
   const c1 = mis.capitulos[0];
-  historia(t("Capítulo {n} · {titulo}", { n: 1, titulo: c1.titulo }), `${c1.historia}<br><br>` + t("Tienes <b class=\"money\">${plata}</b> y un garaje. Tu negocio: tomar fotos y videos con drones. Los clientes te escriben al <b>📱 Celular</b>… y parece que ya llegó el primer mensaje.", { plata: PT.PLATA_INICIAL }));
+  historia(t("Capítulo {n} · {titulo}", { n: 1, titulo: c1.titulo }), `${c1.historia}<br><br>` + t("Tienes <b class=\"money\">${plata}</b> y un garaje. Tu negocio: tomar fotos y videos con drones. Los clientes te escriben al <b>💻 Computador</b>… y parece que ya llegó el primer mensaje.", { plata: PT.PLATA_INICIAL }));
 };
 function irTaller() { show("taller"); G.izq = "hangar"; verDron(); renderTaller(); }
 
@@ -223,6 +223,8 @@ function renderTaller() {
   const nl = NG.noLeidos(p);
   $("cel-badge").textContent = nl;
   $("cel-badge").classList.toggle("hidden", !nl);
+  $("pc-badge").textContent = nl;
+  $("pc-badge").classList.toggle("hidden", !nl);
   $("empresa").textContent = p.empresa || t("El garaje");
   $("plata").textContent = `$${p.plata}`;
   $("rep").textContent = p.rep;
@@ -420,7 +422,7 @@ function renderEditor() {
   const alDron = () => { show("taller"); G.izq = "dron"; verDron(); renderTaller(); };   // al cerrar, de vuelta a este dron
   btn(t("Avance del modelo"), "ghost small", () => sim.abrirAvance(d.modelo || null, alDron, { preguntar: true })).title = t("El mejor y el peor intento que ha tenido entrenando");
   btn(t("Simular prueba"), "ghost small", () => sim.abrirSimular(d.modelo || null, alDron, { preguntar: true })).title = t("Una prueba al azar como las del entrenamiento, con la última generación (no da plata ni daña el dron)");
-  btn(t("Pedidos"), "main small", () => { P().activo = d.id; guardar(); $("b-pedidos").click(); });
+  btn(t("Pedidos"), "main small", () => { P().activo = d.id; guardar(); estudio.abrir("campana"); });
   const rep = PT.costoReparar(p, cat, d);
   if (rep > 0) btn(rep > p.plata && PT.rotas(p, d).length ? t("Arreglo casero (gratis)") : t("Reparar (${n})", { n: rep }), "ghost small", () => repararDron(d));
   btn(t("Desarmar"), "ghost small", () => {
@@ -532,6 +534,19 @@ const sim = initSim(ctx);
 ctx.abrirAvance = (slug, volver) => sim.abrirAvance(slug, volver);
 ctx.abrirSimular = (slug, volver) => sim.abrirSimular(slug, volver);
 $("b-estudio").onclick = () => estudio.abrir();
+$("b-computador").onclick = () => estudio.abrir();
+// tocar el portátil de la mesa del garaje también abre el computador
+canvas.addEventListener("click", (ev) => {
+  if (G.screen !== "taller" || !garaje.portatil) return;
+  const r = canvas.getBoundingClientRect(), rc = new THREE.Raycaster();
+  rc.setFromCamera(new THREE.Vector2(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1), garaje.camera);
+  if (rc.intersectObject(garaje.portatil, true).length) estudio.abrir();
+});
+ctx.ND = ND;
+ctx.abrirTablero = () => { renderTablero(); modal("tablero"); };
+ctx.abrirVideos = () => { renderVideos(); modal("videos"); };
+ctx.abrirControles = () => { syncControls(); modal("controles"); };
+ctx.irMenu = () => { show("inicio"); renderInicio(); };
 const celular = initCelular({ ...ctx, ND, P: () => P(), openBrief: (pe) => openBrief(pe), misPedido: (id) => mis.pedidos.find((x) => x.id === id), fotos: G.fotos, iaDe, friasDe: (d) => friasDe(d) });
 $("b-celular").onclick = () => celular.abrir();
 ctx.celular = celular;                     // el Estudio lo abre como la app Mensajes

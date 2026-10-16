@@ -347,8 +347,8 @@ export function pendientes(p) {
 export function pasoTutorial(p, s) {
   const N = p.negocio;
   if (!N || N.tutorial >= 2 || p.modo === "dev") return null;
-  if (N.tutorial === 0) return { paso: 1, txt: t("📱 Te escribieron. Abre el <b>Celular</b> y lee el mensaje de Doña Marta.") };
+  if (N.tutorial === 0) return { paso: 1, txt: t("💬 Te escribieron. Abre el <b>💻 Computador</b> (a la izquierda) → <b>Mensajes</b> y lee el mensaje de Doña Marta.") };
   if (!s.hayDron) return { paso: 2, txt: t("🛒 Necesitas un dron: en tu hangar (a la izquierda) pulsa <b>Kit del garaje</b>: llegan las piezas de tu primer dron.") };
   if (!s.dronListo) return { paso: 3, txt: t("🔧 Ahora ármalo en el <b>banco de armado</b>: abre tu dron y sigue los pasos (imprimir, armar, cablear, programar, probar).") };
-  return { paso: 4, txt: t("🚁 ¡Listo! En el <b>Celular</b>, abre el pedido de Doña Marta y vuela: llega al aro y quédate quieto para la foto.") };
+  return { paso: 4, txt: t("🚁 ¡Listo! En el <b>💻 Computador → Mensajes</b>, abre el pedido de Doña Marta y vuela: llega al aro y quédate quieto para la foto.") };
 }

@@ -289,5 +289,6 @@
  "calidad ahora": "quality now",
  "R para grabar": "R to record",
  "Cámara del dron · {nombre}": "Drone camera · {nombre}",
- "📘 Ruta del programador: se abrió el capítulo {n} con \"{d}\" (Estudio PBDMM → Ruta).": "📘 Programmer's path: chapter {n} opened with \"{d}\" (PBDMM Studio → Path)."
+ "📘 Ruta del programador: se abrió el capítulo {n} con \"{d}\" (Estudio PBDMM → Ruta).": "📘 Programmer's path: chapter {n} opened with \"{d}\" (PBDMM Studio → Path).",
+ "Tienes <b class=\"money\">${plata}</b> y un garaje. Tu negocio: tomar fotos y videos con drones. Los clientes te escriben al <b>💻 Computador</b>… y parece que ya llegó el primer mensaje.": "You have <b class=\"money\">${plata}</b> and a garage. Your business: taking photos and videos with drones. Clients write to your <b>💻 Computer</b>… and it looks like the first message already arrived."
 }

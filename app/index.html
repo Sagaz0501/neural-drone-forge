@@ -81,7 +81,9 @@
   .chip { font-size: 12.5px; padding: 3px 8px; border-radius: 20px; border: 1px solid var(--line); color: var(--muted); }
   .chip.on { color: var(--gate); border-color: rgba(71,240,138,.45); }
   #errores { color: var(--crash); font-size: 14px; line-height: 1.4; margin-top: 8px; }
-  #taller-top { position: fixed; right: 18px; top: 18px; display: flex; gap: 8px; }
+  #taller-top { display: none !important; }        /* todo se maneja desde el computador (estudio.js) */
+  #b-computador { margin: 10px 14px 0; width: calc(100% - 28px); font-size: 16px; position: relative; }
+  #pc-badge { position: absolute; top: -6px; right: -6px; }
 
   /* ---------------- modales ---------------- */
   .modal { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(620px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow-y: auto; border-radius: 18px; padding: 22px 24px; z-index: 5; }
@@ -453,7 +455,21 @@
   #es-tareas button[aria-pressed="true"] { border-color: rgba(60,203,255,.45); background: rgba(60,203,255,.12); }
   #es-reloj { font-size: 13px; white-space: nowrap; padding-left: 6px; }
   #es-reloj b { color: var(--gate); font-weight: 600; }
-  #es-iconos { position: absolute; left: 10px; top: 10px; display: flex; flex-direction: column; gap: 6px; z-index: 0; }
+  #es-iconos { position: absolute; left: 10px; top: 10px; bottom: 10px; display: flex; flex-direction: column; flex-wrap: wrap; align-content: flex-start; gap: 4px 6px; z-index: 0; }
+  .es-icono[hidden] { display: none; }
+  #es-cal { overflow-y: auto; padding: 12px 14px; font-size: 14px; }
+  .cal-top { display: flex; gap: 12px; align-items: baseline; margin-bottom: 8px; } .cal-top b { font-size: 20px; }
+  .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .cal-d { min-height: 58px; border: 1px solid var(--line); border-radius: 9px; padding: 4px; display: flex; flex-wrap: wrap; gap: 2px; align-content: flex-start; background: rgba(234,242,239,.03); }
+  .cal-d.hoy { border-color: var(--prop); background: rgba(255,122,26,.1); } .cal-d.pasado { opacity: .4; }
+  .cal-n { width: 100%; font-size: 11.5px; color: var(--muted); }
+  .cal-e { border: 0; background: rgba(234,242,239,.08); border-radius: 6px; font-size: 15px; padding: 1px 3px; cursor: pointer; }
+  .cal-e.urge { outline: 2px solid var(--crash); } .cal-e.acept { outline: 1px solid var(--gate); } .cal-e.gasto { cursor: default; } .cal-e.envio { cursor: default; }
+  .cal-d small { font-size: 11px; color: var(--muted); }
+  #es-cal h4 { margin: 14px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); }
+  .cal-l { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+  .cal-l li { display: grid; grid-template-columns: 26px 1fr auto; gap: 8px; align-items: center; } .cal-l li b { font-weight: 500; } .cal-l li small { color: var(--muted); }
+  .cal-l li.urge small { color: var(--crash); }
   .es-icono { position: relative; width: 84px; display: flex; flex-direction: column; align-items: center; gap: 3px; background: none; border: 1px solid transparent; border-radius: 12px; padding: 7px 4px; color: var(--text); cursor: pointer; font: 12.5px var(--font); text-shadow: 0 1px 3px #000; }
   .es-icono i { font-style: normal; font-size: 30px; line-height: 1.1; }
   .es-icono:hover, .es-icono:focus-visible { background: rgba(234,242,239,.08); border-color: var(--line); }
@@ -631,6 +647,7 @@
 <!-- ============ TALLER ============ -->
 <aside id="taller-izq" class="panel hidden" aria-label="Taller">
   <header><h2 id="empresa">El garaje</h2><div class="wallet"><span>Plata <b class="money" id="plata">$0</b></span><span>Reputación <b id="rep">0</b></span><span class="muted" id="etapa">Etapa 1</span></div></header>
+  <button class="btn main" id="b-computador">💻 Computador<span class="badge hidden" id="pc-badge"></span></button>
   <div id="ranuras"></div>
   <footer id="taller-pie"></footer>
 </aside>
@@ -641,14 +658,19 @@
 <section id="estudio" class="hidden" aria-label="Estudio PBDMM">
   <div id="es-escritorio">
     <nav id="es-iconos" aria-label="Apps">
+      <button class="es-icono" data-w="mensajes"><i>💬</i><span>Mensajes</span><b class="es-badge" id="es-badge" hidden></b></button>
+      <button class="es-icono" data-w="calendario"><i>📅</i><span>Calendario</span></button>
+      <button class="es-icono" data-w="campana"><i>⭐</i><span>Campaña</span></button>
       <button class="es-icono" data-w="ide"><i>💻</i><span>IDE</span></button>
       <button class="es-icono" data-w="docs"><i>📖</i><span>Documentación</span></button>
-      <button class="es-icono" data-w="mensajes"><i>💬</i><span>Mensajes</span><b class="es-badge" id="es-badge" hidden></b></button>
+      <button class="es-icono" data-w="lab"><i>🧠</i><span>Laboratorio</span></button>
       <button class="es-icono" data-w="tienda"><i>🛒</i><span>Tienda</span></button>
       <button class="es-icono" data-w="inventario"><i>📦</i><span>Inventario</span></button>
       <button class="es-icono" data-w="sim"><i>📈</i><span>Simuladores</span></button>
       <button class="es-icono" data-w="banco"><i>🏦</i><span>Finanzas</span></button>
       <button class="es-icono" id="es-armar"><i>🔧</i><span>Banco de armado</span></button>
+      <button class="es-icono" data-w="videos"><i>🎬</i><span>Videos</span></button>
+      <button class="es-icono" data-w="ajustes"><i>⚙️</i><span>Ajustes</span></button>
     </nav>
     <div id="es-archivo-m" class="es-pop-menu" hidden>
       <h4>Tus programas</h4><div id="es-archivos"></div>
@@ -671,16 +693,23 @@
         <div class="es-tbar"><span>🧠 Red neuronal</span><span class="es-wsub" id="es-red-t"></span></div>
         <div class="es-lienzo"><canvas id="es-redc" aria-label="La red neuronal del dron, en vivo"></canvas><div class="es-vacio" id="es-red-v">La red se ve en vivo mientras entrena</div></div>
         <div class="es-pie"><button class="btn ghost small" id="es-red-ant" aria-label="Dron anterior">◀</button><label>Dron <input type="number" id="es-red-i" min="1" value="1"></label><span id="es-red-n"></span><button class="btn ghost small" id="es-red-sig" aria-label="Dron siguiente">▶</button><button class="btn ghost small" id="es-red-azar">Al azar</button><span class="es-sp"></span><span id="es-red-top" title="Lo que más siente ahora"></span></div></div><div class="es-wtam"></div></div>
+    <div class="es-win" data-w="calendario" aria-label="Calendario"><div class="es-wbar"><span>📅 Calendario</span><span class="es-wsub"></span><button class="es-wx" data-x="calendario" aria-label="Cerrar">×</button></div>
+      <div class="es-wbody"><div id="es-cal"></div></div><div class="es-wtam"></div></div>
+    <div class="es-win es-host" data-w="campana" aria-label="Campaña"><div class="es-wbar"><span>⭐ Campaña</span><span class="es-wsub"></span><button class="es-wx" data-x="campana" aria-label="Cerrar">×</button></div><div class="es-wbody"></div><div class="es-wtam"></div></div>
+    <div class="es-win es-host" data-w="lab" aria-label="Laboratorio"><div class="es-wbar"><span>🧠 Laboratorio de IA</span><span class="es-wsub"></span><button class="es-wx" data-x="lab" aria-label="Cerrar">×</button></div><div class="es-wbody"></div><div class="es-wtam"></div></div>
+    <div class="es-win es-host" data-w="videos" aria-label="Videos"><div class="es-wbar"><span>🎬 Videos</span><span class="es-wsub"></span><button class="es-wx" data-x="videos" aria-label="Cerrar">×</button></div><div class="es-wbody"></div><div class="es-wtam"></div></div>
+    <div class="es-win es-host" data-w="ajustes" aria-label="Ajustes"><div class="es-wbar"><span>⚙️ Ajustes</span><span class="es-wsub"></span><button class="es-wx" data-x="ajustes" aria-label="Cerrar">×</button></div><div class="es-wbody"></div><div class="es-wtam"></div></div>
     <div class="es-win" data-w="banco" aria-label="Finanzas"><div class="es-wbar"><span>🏦 Finanzas</span><span class="es-wsub"></span><button class="es-wx" data-x="banco" aria-label="Cerrar">×</button></div>
       <div class="es-wbody"><div id="es-banco"></div></div><div class="es-wtam"></div></div>
   </div>
   <footer id="es-barra">
-    <b class="es-logo">PBDMM</b>
+    <b class="es-logo" id="es-logo">PBDMM</b>
     <div id="es-tareas" aria-label="Apps abiertas"></div>
     <span class="es-sp"></span>
     <button class="btn ghost small" id="es-ordenar" title="Ordenar las ventanas" aria-label="Ordenar las ventanas">⊞</button>
     <button class="btn ai small" id="es-blender">Blender</button>
-    <button class="btn ghost small" id="es-volver">Garaje</button>
+    <button class="btn ghost small" id="es-volver" title="Volver al hangar">🛠️ Hangar</button>
+    <button class="btn ghost small" id="es-menu" title="Menú principal" aria-label="Menú principal">⏻</button>
     <span id="es-reloj" class="muted"></span>
   </footer>
 </section>

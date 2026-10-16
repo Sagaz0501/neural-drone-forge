@@ -200,7 +200,7 @@ export function initBanco(ctx) {
       ul.insertAdjacentHTML("beforeend", `<li><span>${ok ? "✅" : "🔩"} ${t("Extras")}</span><small class="muted"></small></li>`);
     }
     if (sinImprimir) h(der, `<p class="warn">${t("El chasis es de {mat} y tienes la impresora: imprímelo primero (paso \"Imprimir\").", { mat: chP.id.toUpperCase() })}</p>`);
-    if (camino) h(der, `<p style="font-size:13px">${t("🚚 Lo que viene en camino llega al empezar ese día (📱 Celular → Terminar el día).")}</p>`);
+    if (camino) h(der, `<p style="font-size:13px">${t("🚚 Lo que viene en camino llega al empezar ese día (💻 Computador → Mensajes → Terminar el día).")}</p>`);
     boton(der, "🔧 " + t("Ir a la mesa de trabajo"), "main", () => ctx.mesa.abrir("armar"), sinImprimir);
     if (e.pasos.find((x) => x.k === "armar").ok) boton(der, t("Siguiente: cablear →"), "ghost", () => { BK.paso = "cablear"; render(); });
   }

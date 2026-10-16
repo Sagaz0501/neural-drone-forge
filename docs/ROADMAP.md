@@ -95,6 +95,10 @@ tutorial, el más fácil), 🎬 video, 🔎 inspección, 🛠️ encargos de arm
 
 ## ⏭️ Lo siguiente · El negocio, parte 2
 
+**El plan grande está en [`PLAN_CARRERA.md`](PLAN_CARRERA.md)** (16-10-2026): todo desde el computador (✅), más
+personas, pedidos chicos y misiones grandes, entregar/recoger/atrapar, retos (carrera, armado, IA), vender drones,
+calendario (✅) y misiones manuales raras.
+
 - ✅ **Flota** *(16-10-2026)*: 🤖 en la tarjeta del pedido, un trabajo por dron; al terminar el día cada IA vuela su
   trabajo de verdad sin pantalla (`mision_sim.js`) y sale el reporte en el celular. Lo que no entrega sigue abierto.
 - 🔜 Lo que sigue para la flota: la **Fase 1b** (premios para fotos, altura, velocidad, encuadre) para que las IA
