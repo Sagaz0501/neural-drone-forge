@@ -550,7 +550,7 @@ def test_new_stages_race_delivery_chase():
     assert ok == 5
     env = DroneEnv(stage=17)
     env.reset(seed=1)
-    assert env.hold_steps == 50 and len(env.level.goals) == 1 and len(env.level.box_min) >= 5
+    assert env.hold_steps == 50 and len(env.level.goals) == 1 and len(env.level.box_min) >= 3
     env = DroneEnv(stage=18, bird_speed=6.0)
     obs, _ = env.reset(seed=2)
     g0 = env._goal().copy()

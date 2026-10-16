@@ -459,7 +459,7 @@ def off_line_pillars(rng, spawn, goals, n=(6, 12), keep_line=2.5, area=50.0) -> 
     return np.array(mins).reshape(-1, 3), np.array(maxs).reshape(-1, 3)
 
 
-def delivery_level(rng, spawn, dist=(14.0, 32.0), n=(5, 11)):
+def delivery_level(rng, spawn, dist=(14.0, 32.0), n=(3, 8)):
     """Entrega (nivel 17): una plataforma lejos (14-32 m) y edificios (cajas anchas y altas) en el camino.
     La meta es quedarse 1 s a 0,6 m sobre la plataforma (después aterriza el piloto automático, como en el juego).
     Devuelve (meta, box_min, box_max)."""
@@ -480,7 +480,7 @@ def delivery_level(rng, spawn, dist=(14.0, 32.0), n=(5, 11)):
         if len(mins) >= target:
             break
         u = rng.uniform(0.15, 0.85)
-        c = sp[:2] + (pad[:2] - sp[:2]) * u + rng.normal(0, 3.0, 2)
+        c = sp[:2] + (pad[:2] - sp[:2]) * u + rng.normal(0, 4.5, 2)
         half = rng.uniform(0.6, 2.2, 2)
         bmin = np.array([c[0] - half[0], c[1] - half[1], 0.0])
         bmax = np.array([c[0] + half[0], c[1] + half[1], rng.uniform(3.0, 10.0)])
