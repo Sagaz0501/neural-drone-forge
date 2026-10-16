@@ -168,5 +168,17 @@ ok(TA.peor(["buena", "fria", "buena"]) === "fria" && TA.peor(["buena", "buena", 
   ok(TA.PROCEDIMIENTO.motores.some(([k, v]) => k === "voltear" && v) && TA.PROCEDIMIENTO.motores.some(([k, v]) => k === "tornillos" && v === "motores_abajo"), "los motores se atornillan por abajo (volteando el dron)");
 }
 
+// 10) ESP32: la cámara con gimbal (VIN de batería) va a los pads de batería del ESC; tiene dos UART (GPIO17/16 y 27/26)
+{
+  const b = { chasis: "carbono5", motores: "m2207", esc: "esc45", controladora: "fc_baro", bateria: "b4s2200", radio: "rx_elrs24", camara: "cam_gimbal2" };
+  const d = { slots: {}, extras: [], banco: { cables: [], instalado: {} } };
+  const comps = BA.componentes(cat, b, d), cab = BA.manual(comps);
+  ok(cab.some(([a, c]) => a === "cam.vin" && c === "esc.bat+"), "ESP32 + gimbal: el VIN de la cámara al BAT+ del ESC");
+  const r = BA.cableado(comps, { cables: cab }).rev;
+  ok(r.ok, `y el banco lo acepta (la cámara recibe batería)${r.ok ? "" : ": " + [...r.faltan, ...r.fallas, ...r.danos].map((x) => x.msg).join(" · ")}`);
+  const fc = comps.find((c) => c.k === "fc");
+  ok(fc.pines.some((p) => p.id === "tx1" && p.bus === "UART1") && fc.pines.some((p) => p.id === "rx2" && p.bus === "UART2"), "el ESP32 tiene UART1 (GPIO27/26) y UART2 (GPIO17/16)");
+}
+
 console.log(fallas ? `\n${fallas} pruebas fallaron.` : "\nTodas las pruebas pasan.");
 process.exit(fallas ? 1 : 0);

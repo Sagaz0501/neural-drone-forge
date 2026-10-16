@@ -412,7 +412,7 @@ export function initBanco(ctx) {
 
   function tConfig(der, d, e, fcU) {
     if (!e.pasos.find((x) => x.k === "firmware").ok) { h(der, `<p class="warn">${t("Primero flashea un firmware que arranque.")}</p>`); return; }
-    const esp = BA.CHIP[fcU.id] === "esp32", uarts = esp ? ["UART2"] : ["UART1", "UART2"];
+    const esp = BA.CHIP[fcU.id] === "esp32", uarts = ["UART1", "UART2"];
     h(der, `<p><b>${t("Acelerómetro:")}</b> ${fcU.cal ? `<span class='ok'>${t("calibrado ✓")}</span>` : t("sin calibrar (el dron cree que está inclinado y se iría de lado)")}.</p>`);
     boton(der, fcU.cal ? t("Calibrar otra vez") : t("Calibrar (con el dron nivelado)"), fcU.cal ? "ghost small" : "main", () => ocupado(async () => {
       await correrLog([t("Pon el dron sobre una superficie plana…"), t("Midiendo la gravedad (2 s)…"), t("Ángulos: roll 0.0° · pitch 0.0°"), t("✓ Acelerómetro calibrado")], 2.2);
@@ -423,7 +423,7 @@ export function initBanco(ctx) {
       const actual = Object.entries(fcU.puertos || {}).find(([, v]) => v === u)?.[0] || "";
       const row = document.createElement("div");
       row.className = "row";
-      row.innerHTML = `<span>${u} <span class="muted" style="font-size:12.5px">(${esp ? "GPIO17/16" : u === "UART1" ? "TX1/RX1" : "TX2/RX2"})</span></span><select style="background:var(--moss-solid);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:4px 6px;font:inherit;font-size:13.5px">` +
+      row.innerHTML = `<span>${u} <span class="muted" style="font-size:12.5px">(${esp ? (u === "UART1" ? "GPIO27/26" : "GPIO17/16") : u === "UART1" ? "TX1/RX1" : "TX2/RX2"})</span></span><select style="background:var(--moss-solid);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:4px 6px;font:inherit;font-size:13.5px">` +
         `<option value="">${t("nada")}</option><option value="rx" ${actual === "rx" ? "selected" : ""}>${t("Receptor (Serial RX)")}</option>${esp ? "" : `<option value="gps" ${actual === "gps" ? "selected" : ""}>GPS</option>`}</select>`;
       row.querySelector("select").onchange = (ev) => {
         const pu = { ...(fcU.puertos || {}) };

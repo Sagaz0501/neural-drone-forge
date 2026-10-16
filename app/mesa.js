@@ -30,7 +30,7 @@ const ORDEN = [["chasis", "chasis"], ["motores", "motores"], ["esc", "esc"], ["c
 const NOMBRE = () => ({ chasis: t("Chasis"), motores: t("Motores"), esc: t("ESC 4 en 1"), controladora: t("Controladora"), radio: t("Radio"),
   montaje: t("Montaje de la cámara"), camara: t("Cámara"), bateria: t("Batería"), extras: t("Extras") });
 /** Dónde van los pads de la ESP32 DevKitC (el GLB de blender/piezas) para cada pin de banco.js. */
-const PAD_ESP32 = { "5v": "pad_5V", "3v3": "pad_3V3", gnd1: "pad_GND_1", gnd2: "pad_GND_2", tx2: "pad_GPIO17", rx2: "pad_GPIO16", sda: "pad_GPIO21", scl: "pad_GPIO22", led: "pad_GPIO4" };
+const PAD_ESP32 = { "5v": "pad_5V", "3v3": "pad_3V3", gnd1: "pad_GND_1", gnd2: "pad_GND_2", tx2: "pad_GPIO17", rx2: "pad_GPIO16", tx1: "pad_GPIO27", rx1: "pad_GPIO26", sda: "pad_GPIO21", scl: "pad_GPIO22", led: "pad_GPIO4" };
 const MAT = {
   carton: new THREE.MeshStandardMaterial({ color: 0xb08a5a, roughness: 0.95 }),
   cinta: new THREE.MeshStandardMaterial({ color: 0xc9a36a, roughness: 0.4, transparent: true, opacity: 0.92 }),
@@ -253,7 +253,8 @@ export function initMesa(ctx) {
     }
     return out;
   }
-  const PUESTOS = [[-0.3, -0.16], [-0.3, -0.04], [-0.3, 0.08], [-0.3, 0.2], [0.3, -0.16], [0.3, -0.04], [0.3, 0.08], [0.3, 0.2], [-0.15, 0.24], [0.15, 0.24]];
+  // dónde quedan las piezas sueltas: primero a la derecha, después adelante y atrás (la izquierda la tapa la lista)
+  const PUESTOS = [[0.29, -0.16], [0.29, -0.04], [0.29, 0.08], [0.29, 0.2], [-0.17, 0.25], [0.15, 0.25], [-0.15, -0.24], [0.15, -0.24], [0, -0.26], [-0.24, 0.12]];
   const FANT = new THREE.MeshBasicMaterial({ color: 0x47f08a, transparent: true, opacity: 0.22, depthWrite: false });
   const montadas = () => new Set((M.items || []).filter((x) => x.estado === "montada").map((x) => x.slot));
   /** La flecha que dice dónde es adelante (en las piezas que hay que girar). */
@@ -264,6 +265,10 @@ export function initMesa(ctx) {
   }
   /** El borde de abajo-centro de un grupo (en coordenadas del dron, que está en el origen). */
   const base = (o) => { const bb = new THREE.Box3().setFromObject(o); return bb.getCenter(new THREE.Vector3()).setY(bb.min.y); };
+  /** La caja de un objeto en coordenadas del dron (con el dron derecho; el dron puede estar levantado M.base). */
+  const cajaLocal = (o) => { const b = new THREE.Box3().setFromObject(o), g = M.giro?.position || new THREE.Vector3(); b.min.sub(g); b.max.sub(g); return b; };
+  /** Un punto del dron en el mundo (con el dron derecho). */
+  const aMundo = (v) => v.clone().add(M.giro?.position || new THREE.Vector3());
 
   function armar() {
     const d = D(), its = items();
@@ -302,9 +307,7 @@ export function initMesa(ctx) {
           const centro = base(mg); it.piezas.push({ g: mg, centro, destino: null });
         });
       } else if (it.slot === "montaje") {
-        const sop = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.004, 0.026), MAT.goma); sop.castShadow = true; sop.position.y = 0.002;
-        const g2 = new THREE.Group(); g2.add(sop);
-        it.piezas.push({ g: g2, centro: soporteEn(), ext: true });
+        it.piezas.push({ g: soporteMesh(), centro: soporteEn(), ext: true });
       } else if (g) {
         const centro = base(g); g.parent.remove(g);
         it.piezas.push({ g, centro });
@@ -316,7 +319,7 @@ export function initMesa(ctx) {
       it.piezas.forEach((pz, i) => {
         const piv = new THREE.Group();
         if (pz.g.parent) pz.g.parent.remove(pz.g);
-        piv.add(pz.g); pz.g.position.sub(pz.centro);
+        piv.add(pz.g); if (!pz.ext) pz.g.position.sub(pz.centro);      // (el soporte se arma en su propio origen)
         const off = it.piezas.length > 1 ? [(i % 2 ? 1 : -1) * 0.028, (i < 2 ? -1 : 1) * 0.028] : [0, 0];
         piv.position.set(x + off[0], 0, z + off[1]); piv.scale.setScalar(esc_);
         if (girar) { piv.add(flecha(0xffd23f, new THREE.Box3().setFromObject(pz.g).max.y + 0.003)); piv.rotation.y = [Math.PI / 2, Math.PI, -Math.PI / 2][(i + it.slot.length) % 3]; }
@@ -326,9 +329,26 @@ export function initMesa(ctx) {
       });
       if (it.estado === "caja") caja(it);
     }
+    // si algo cuelga (la cámara con gimbal), el dron se apoya más alto (como sobre patas): nada atraviesa la mesa
+    M.base = Math.max(0, -new THREE.Box3().setFromObject(dron).min.y + 0.0008);
+    M.giro.position.y = M.base;
     recogibles();
     controls.minDistance = 0.06; controls.maxDistance = 1.4;
     if (M.vista !== "armar") { M.vista = "armar"; cam.position.set(0, 0.6, 0.56); controls.target.set(0, 0, 0.05); controls.update(); }
+  }
+  /**
+   * El soporte de la cámara: una U (base + dos paredes, la cámara va entre ellas y se atornilla por los lados).
+   * Atornillado = aluminio; con gomas = negro con 4 gomitas; impreso en TPU = del color de los detalles.
+   */
+  function soporteMesh() {
+    const d = D(), id = U(d.slots.montaje)?.id || "mt_tornillos", g = new THREE.Group();
+    const mat = id === "mt_tpu" ? new THREE.MeshStandardMaterial({ color: d.estilo?.acento || "#ff7a1a", roughness: 0.6 })
+      : id === "mt_gomas" ? new THREE.MeshStandardMaterial({ color: 0x2a2c30, roughness: 0.6 }) : new THREE.MeshStandardMaterial({ color: 0xb8bec6, metalness: 0.85, roughness: 0.3 });
+    const caja_ = (w, h, dd, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, dd), mat); m.position.set(x, y, z); m.castShadow = true; g.add(m); };
+    caja_(0.03, 0.003, 0.05, 0, 0.0015, 0);
+    for (const z of [-0.0235, 0.0235]) caja_(0.026, 0.022, 0.003, 0, 0.011, z);
+    if (id === "mt_gomas") for (const [x, z] of [[-0.01, -0.012], [0.01, -0.012], [-0.01, 0.012], [0.01, 0.012]]) { const r = new THREE.Mesh(new THREE.TorusGeometry(0.0022, 0.001, 8, 16), MAT.goma); r.rotation.x = Math.PI / 2; r.position.set(x, 0.0035, z); g.add(r); }
+    return g;
   }
   /** Dónde va el soporte de la cámara (adelante, debajo de la cámara). */
   function soporteEn() { const cp = M.dron.userData.camPos; return new THREE.Vector3(cp.x - 0.012, Math.max(0.008, cp.y - 0.016), 0); }
@@ -356,7 +376,7 @@ export function initMesa(ctx) {
   /** La altura de arriba del chasis (sin los separadores ni la placa de arriba). */
   function techoChasis() {
     let y = 0.008;
-    M.dron.userData.slots.chasis?.traverse((o) => { if (o.isMesh && !o.userData.separador && !o.userData.tapa) { const b = new THREE.Box3().setFromObject(o); if (b.max.y < 0.03) y = Math.max(y, b.max.y); } });
+    M.dron.userData.slots.chasis?.traverse((o) => { if (o.isMesh && !o.userData.separador && !o.userData.tapa) { const b = cajaLocal(o); if (b.max.y < 0.03) y = Math.max(y, b.max.y); } });
     return y;
   }
   /** Los puntos de un paso (en coordenadas del dron): v = dónde, n = hacia dónde mira la cabeza, pieza, cuánto apretar. */
@@ -371,9 +391,16 @@ export function initMesa(ctx) {
       case "separadores": { const y = techoChasis(); return esq.map(([a, b]) => P_(new THREE.Vector3(a * 0.016, y, b * 0.016), Y.clone(), "separador", 1)); }
       case "tuercas": return esq.map(([a, b]) => P_(new THREE.Vector3(a * 0.016, 0.0335, b * 0.016), Y.clone(), "tuerca", 0.75));
       case "gomas": return esq.map(([a, b]) => P_(new THREE.Vector3(a * 0.016, 0.0225, b * 0.016), Y.clone(), "goma"));
-      case "montaje": { const s = soporteEn(); return [-1, 1].map((k) => P_(new THREE.Vector3(s.x - 0.008, s.y + 0.004, k * 0.009), Y.clone(), "tornillo")); }
-      case "camara_lados": { const b = new THREE.Box3().setFromObject(S.camara), c = b.getCenter(new THREE.Vector3()); return [P_(new THREE.Vector3(c.x, c.y, b.min.z - 0.0008), new THREE.Vector3(0, 0, -1), "tornillo"), P_(new THREE.Vector3(c.x, c.y, b.max.z + 0.0008), new THREE.Vector3(0, 0, 1), "tornillo")]; }
-      case "correa_pasar": { const b = new THREE.Box3().setFromObject(S.bateria || S.chasis), c = b.getCenter(new THREE.Vector3()); return [P_(new THREE.Vector3(c.x, 0.004, 0), Y.clone(), "correa")]; }
+      case "montaje": { const s = soporteEn(); return [-1, 1].map((k) => P_(new THREE.Vector3(s.x - 0.008, s.y + 0.003, k * 0.012), Y.clone(), "tornillo")); }
+      case "camara_lados": {                              // por fuera de las paredes del soporte
+        // el cuerpo de la cámara = la pieza más grande del grupo (no los brazos del gimbal ni el lente)
+        let cuerpo = S.camara, vol = 0;
+        S.camara.traverse((o) => { if (o.isMesh) { const sz = cajaLocal(o).getSize(new THREE.Vector3()), v = sz.x * sz.y * sz.z; if (v > vol) { vol = v; cuerpo = o; } } });
+        const b = cajaLocal(cuerpo), c = b.getCenter(new THREE.Vector3()), z = Math.max(-b.min.z, b.max.z, 0.025) + 0.0008;
+        const y = M.soporteMontado && c.y > 0.01 ? Math.min(c.y, soporteEn().y + 0.016) : c.y;
+        return [P_(new THREE.Vector3(c.x, y, -z), new THREE.Vector3(0, 0, -1), "tornillo"), P_(new THREE.Vector3(c.x, y, z), new THREE.Vector3(0, 0, 1), "tornillo")];
+      }
+      case "correa_pasar": { const b = cajaLocal(S.bateria || S.chasis), c = b.getCenter(new THREE.Vector3()); return [P_(new THREE.Vector3(c.x, 0.004, 0), Y.clone(), "correa")]; }
       default: return [];
     }
   }
@@ -397,7 +424,7 @@ export function initMesa(ctx) {
   }
   /** Los herrajes de una pieza ya montada (los tornillos de abajo de los motores, los separadores, las tuercas…). */
   function herrajes(it) {
-    if (it.slot === "montaje") { const sop = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.004, 0.026), MAT.goma); sop.position.copy(soporteEn()).add(new THREE.Vector3(0, 0.002, 0)); M.dron.userData.body.add(sop); M.soporteMontado = sop; }
+    if (it.slot === "montaje") { const sop = soporteMesh(); sop.position.copy(soporteEn()); M.dron.userData.body.add(sop); M.soporteMontado = sop; }
     for (const [tipo, det] of TA.PROCEDIMIENTO[it.slot] || []) {
       if (tipo !== "tornillos" && tipo !== "clics") continue;
       if (det === "separadores") continue;                    // ya son parte del chasis (se ven con el ESC)
@@ -496,9 +523,9 @@ export function initMesa(ctx) {
     if (!derecho) { piv.position.y = 0.01; return aviso(t("Gírala con R hasta que la flecha amarilla mire hacia adelante, como la verde.")); }
     const destino = cerca[0], dueno = it.piezas.find((x) => x.centro === destino);
     dueno.ocupado = true; pz.lista = true;
-    const p0 = piv.position.clone(), r0 = piv.rotation.y, r1 = Math.round(rot / (2 * Math.PI)) * 2 * Math.PI;
+    const p0 = piv.position.clone(), r0 = piv.rotation.y, r1 = Math.round(rot / (2 * Math.PI)) * 2 * Math.PI, destinoW = aMundo(destino);
     sfx("click");
-    tween(0.3, (k) => { piv.position.lerpVectors(p0, destino, suave(k)); piv.rotation.y = lerp(r0, r1, suave(k)); }, () => {
+    tween(0.3, (k) => { piv.position.lerpVectors(p0, destinoW, suave(k)); piv.rotation.y = lerp(r0, r1, suave(k)); }, () => {
       // la pieza vuelve al dron (así se voltea con él)
       const S = M.dron.userData.slots, body = M.dron.userData.body;
       for (const f of piv.children.filter((c) => c.geometry?.type === "ConeGeometry")) piv.remove(f);
@@ -512,7 +539,7 @@ export function initMesa(ctx) {
   }
   /** Voltear el dron (para los tornillos de abajo) o enderezarlo. */
   function voltear(abajo) {
-    const G2 = M.giro, bb = new THREE.Box3().setFromObject(M.dron), alto = bb.max.y + 0.001, r0 = G2.rotation.x, r1 = abajo ? Math.PI : 0, y0 = G2.position.y, y1 = abajo ? alto : 0;
+    const G2 = M.giro, bb = new THREE.Box3().setFromObject(M.dron), alto = bb.max.y - G2.position.y + 0.001, r0 = G2.rotation.x, r1 = abajo ? Math.PI : 0, y0 = G2.position.y, y1 = abajo ? alto : M.base || 0;
     sfx("caja");
     tween(0.9, (k) => { const e = suave(k); G2.rotation.x = lerp(r0, r1, e); G2.position.y = lerp(y0, y1, e) + Math.sin(k * Math.PI) * 0.07; }, () => siguientePaso());
   }
@@ -617,7 +644,8 @@ export function initMesa(ctx) {
     M.borde = { x: Math.max(Math.abs(bb.min.x), Math.abs(bb.max.x)), z: Math.max(Math.abs(bb.min.z), Math.abs(bb.max.z)) };
     dibujarCables();
     H.cautin.visible = true; H.estano.visible = true;
-    if (M.vista !== "soldar" + M.placa) { M.vista = "soldar" + M.placa; cam.position.set(0, 0.085, 0.07); controls.target.set(0, 0, 0.004); controls.update(); }
+    // desde arriba (casi derecho), para ver todos los pines y sus nombres
+    if (M.vista !== "soldar" + M.placa) { M.vista = "soldar" + M.placa; cam.position.set(0, 0.112, 0.022); controls.target.set(0, 0, 0.001); controls.update(); }
     controls.minDistance = 0.04; controls.maxDistance = 0.3;
     pestanasPlaca(ps);
   }
@@ -651,13 +679,38 @@ export function initMesa(ctx) {
     e.updateMatrixWorld(true);
     for (const pin of comp.pines) {
       const nombre = PAD_ESP32[pin.id];
-      if (nombre) { const m = e.getObjectByName(nombre); if (m) { const mm = m.isMesh ? m : m.getObjectByProperty("isMesh", true); pad(mm, comp, pin); } }
+      if (!nombre) continue;
+      const m = e.getObjectByName(nombre);
+      if (!m) continue;
+      const info = pad(m.isMesh ? m : m.getObjectByProperty("isMesh", true), comp, pin);
+      etiquetaPin(g, info);
     }
     // los enchufes: el arnés del ESC (JST de 8) en una punta y el u.FL de la antena junto al módulo
     const jst = enchufe(g, new THREE.Vector3(-0.0335, 0.0014, 0.0085), 0.0035, 0.0085);     // la punta del arnés, junto a la placa
     pad(jst, comp, comp.pines.find((p) => p.id === "conn"));
     const ufl = enchufe(g, new THREE.Vector3(0.026, 0.0035, -0.008), 0.003, 0.003, MAT.oro);
     const pa = comp.pines.find((p) => p.id === "ant"); if (pa) pad(ufl, comp, pa);
+  }
+  /**
+   * El nombre de un pin del dron, plano sobre la mesa junto a su pad (afuera de la placa), del color de su tipo,
+   * y un aro del mismo color en el pad: así se ve qué pines usa el dron (los demás GPIO no se tocan).
+   */
+  function etiquetaPin(g, info) {
+    const pin = info.pin, m = /GPIO(\d+)\s*·\s*(\S+)/.exec(pin.nombre), txt = m ? `${m[2]} · ${m[1]}` : pin.nombre;
+    const color = COLOR_PIN[pin.tipo] === "#1d1f22" ? "#9aa0a6" : COLOR_PIN[pin.tipo] || "#ccc";
+    const c = document.createElement("canvas"); c.width = 256; c.height = 56;
+    const gx = c.getContext("2d");
+    gx.fillStyle = "rgba(10,16,14,.85)"; gx.beginPath(); gx.roundRect(2, 2, 252, 52, 14); gx.fill();
+    gx.fillStyle = color; gx.beginPath(); gx.arc(28, 28, 11, 0, 7); gx.fill();
+    gx.fillStyle = "#fff"; gx.font = "bold 32px sans-serif"; gx.textBaseline = "middle"; gx.fillText(txt, 50, 30);
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+    const W = 0.0108, H = 0.0024, lado = Math.sign(info.pos.z) || 1;
+    const et = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }));
+    et.rotation.x = -Math.PI / 2; et.rotation.z = lado > 0 ? -Math.PI / 2 : Math.PI / 2;     // el texto corre hacia afuera de la placa
+    et.position.set(info.pos.x, 0.0006, info.pos.z + lado * (0.0032 + W / 2) + lado * (Math.abs(info.pos.z) < 0.014 ? 0.014 - Math.abs(info.pos.z) : 0));
+    et.renderOrder = 4; g.add(et);
+    const aro = new THREE.Mesh(new THREE.RingGeometry(0.0011, 0.0015, 24), new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity: 0.9, depthWrite: false }));
+    aro.rotation.x = -Math.PI / 2; aro.position.copy(info.pos).add(new THREE.Vector3(0, 0.0008, 0)); aro.renderOrder = 4; g.add(aro);
   }
   function enchufe(g, pos, w, d, mat = MAT.jst) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.0028, d), mat);
@@ -813,12 +866,15 @@ export function initMesa(ctx) {
   /** Lo que se puede conectar a esta placa (los cables de las otras piezas) y lo que ya está puesto. */
   function fuentes() {
     const B = D().banco, out = [];
-    const alEsc = (k) => k === "xt60" || /^m(FL|FR|RL|RR)$/.test(k);         // al ESC van la batería y los motores; lo demás a la controladora
+    // al ESC van la batería, los motores y lo que va directo a la batería si la controladora no tiene VBAT (la cámara
+    // con gimbal en un ESP32); lo demás a la controladora
+    const fcVbat = M.comps.find((c) => c.k === "fc")?.pines.some((p) => p.id === "vbat");
+    const alEsc = (c, pin) => c.k === "xt60" || /^m(FL|FR|RL|RR)$/.test(c.k) || (pin.tipo === "vbat_in" && !fcVbat);
     for (const c of M.comps) {
       if (c.k === M.placa || c.k === "fc" || (c.k === "esc" && M.placa !== "fc")) continue;
-      if (c.k !== "esc" && alEsc(c.k) !== (M.placa === "esc")) continue;
       for (const pin of c.pines) {
         if (c.k === "esc" && pin.id !== "conn") continue;
+        if (c.k !== "esc" && alEsc(c, pin) !== (M.placa === "esc")) continue;
         const ref = `${c.k}.${pin.id}`;
         const puestos = B.cables.filter((x) => x.includes(ref));
         const aqui = puestos.find((x) => TA.placaDe(x, M.comps).split(".")[0] === M.placa);
@@ -828,6 +884,8 @@ export function initMesa(ctx) {
     }
     return out;
   }
+  /** El nombre corto de cada pieza en la lista de cables. */
+  const nombreCorto = (c) => ({ xt60: "XT60", esc: "ESC", rx: t("Receptor"), gps: "GPS", cam: t("Cámara"), tof: "ToF", led: "LED", ant: t("Antena") })[c.k] || c.nombre;
   function tomarCable(f) {
     if (f.cable) return quitarCable(f.cable);
     M.enMano = f.ref;
@@ -975,7 +1033,8 @@ export function initMesa(ctx) {
     M.hover = hit?.object.userData.accion || null;
     if (M.modo === "armar" && M.arrastre) {           // la pieza sigue al ratón, un poco en el aire
       const pz = M.arrastre.it.piezas[M.arrastre.i], v = new THREE.Vector3();
-      if (ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -(pz.centro.y + 0.02)), v)) pz.piv.position.set(v.x, pz.centro.y + 0.02, v.z);
+      const yy = pz.centro.y + (M.base || 0) + 0.02;
+      if (ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -yy), v)) pz.piv.position.set(v.x, yy, v.z);
       $("mesa-c").style.cursor = "grabbing";
       return;
     }
@@ -1243,7 +1302,7 @@ export function initMesa(ctx) {
         const li = document.createElement("li"), j = f.cable ? J[TA.claveCable(f.cable)] : null;
         const q = !f.cable ? "" : j ? j.q : "buena", icq = { "": "", sin: "○", buena: "🔘", enchufado: "🔌", fria: "🔘", puente: "🔘", levantado: "🔘" }[q];   // la lista no dice si salió bien
         li.className = "cab" + (M.enMano === f.ref ? " mano" : "") + (f.cable ? " puesto" : "");
-        li.innerHTML = `<i style="background:${COLOR_PIN[f.pin.tipo] || "#ccc"}"></i><b>${esc(f.comp.k === "xt60" ? "XT60" : f.comp.k === "esc" ? "ESC" : f.comp.k.startsWith("m") ? f.comp.nombre : f.comp.nombre.split(" ").slice(0, 2).join(" "))} · ${esc(f.pin.nombre)}</b><small>${icq}</small>`;
+        li.innerHTML = `<i style="background:${COLOR_PIN[f.pin.tipo] || "#ccc"}"></i><b>${esc(nombreCorto(f.comp))} · ${esc(f.pin.nombre)}</b><small>${icq}</small>`;
         li.title = f.cable ? t("Toca para quitarlo") : t("Toca para tomarlo");
         li.onclick = () => tomarCable(f);
         lista.appendChild(li);

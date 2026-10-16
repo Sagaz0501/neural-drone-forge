@@ -56,6 +56,7 @@ function pinesFC(id) {
   if (CHIP[id] === "esp32") {
     return [PT("conn", "ESC (8 pines)", "fc_conn", "l"), P("5v", "5V", "5v+", "r"), P("3v3", "3V3", "3v3+", "r"), P("gnd1", "GND", "gnd", "r"),
       P("gnd2", "GND", "gnd", "r"), P("tx2", "GPIO17 · TX2", "tx", "r", "UART2"), P("rx2", "GPIO16 · RX2", "rx", "r", "UART2"),
+      P("tx1", "GPIO27 · TX1", "tx", "r", "UART1"), P("rx1", "GPIO26 · RX1", "rx", "r", "UART1"),     // el UART1 del ESP32 se puede mover a cualquier GPIO
       P("sda", "GPIO21 · SDA", "sda", "r"), P("scl", "GPIO22 · SCL", "scl", "r"), P("led", "GPIO4 · LED", "led_out", "r"),
       PT("ant", "Antena u.FL", "ufl", "r")];
   }
@@ -124,9 +125,9 @@ export function manual(comps) {
   if (!fc) return out;
   if (has("rx")) out.push(["rx.5v", "fc.5v"], ["rx.gnd", gnd()], ["rx.tx", esp ? "fc.rx2" : "fc.rx1"], ["rx.rx", esp ? "fc.tx2" : "fc.tx1"]);
   if (has("ant") && esp) out.push(["ant.ufl", "fc.ant"]);
-  if (has("gps")) out.push(["gps.5v", "fc.5v"], ["gps.gnd", gnd()], ["gps.tx", "fc.rx2"], ["gps.rx", "fc.tx2"]);
+  if (has("gps")) { const u = esp && has("rx") ? "1" : "2"; out.push(["gps.5v", "fc.5v"], ["gps.gnd", gnd()], ["gps.tx", `fc.rx${u}`], ["gps.rx", `fc.tx${u}`]); }   // con radio y GPS, el ESP32 usa sus dos UART
   const cam = comps.find((c) => c.k === "cam");
-  if (cam) out.push(cam.pines[0].tipo === "vbat_in" ? ["cam.vin", esp ? "xt60.pos" : "fc.vbat"] : ["cam.5v", "fc.5v"], ["cam.gnd", gnd()]);
+  if (cam) out.push(cam.pines[0].tipo === "vbat_in" ? ["cam.vin", esp ? (has("esc") ? "esc.bat+" : "xt60.pos") : "fc.vbat"] : ["cam.5v", "fc.5v"], ["cam.gnd", gnd()]);   // el ESP32 no tiene VBAT: a los pads de batería del ESC
   if (has("tof")) out.push(["tof.3v3", "fc.3v3"], ["tof.gnd", gnd()], ["tof.sda", "fc.sda"], ["tof.scl", "fc.scl"]);
   if (has("led")) out.push(["led.5v", "fc.5v"], ["led.gnd", gnd()], ["led.din", "fc.led"]);
   return out;
@@ -329,7 +330,11 @@ const estadoFirma = (d, comps, cables) => `${firma(comps, cables)}|${d.slots.hel
  */
 export function cableado(comps, B) {
   const ef = efectivos(B, comps), idx = new Map((B.cables || []).map((c, i) => [claveCable(c), i]));
-  const rev = revisar(comps, [...ef.cables, ...ef.puentes]);
+  // los pads de batería del ESC son la batería (si el XT60 está soldado ahí): lo que se suelda en ellos va a la batería
+  const pega = (a, b) => ef.cables.some((c) => c.includes(a) && c.includes(b));
+  const red = { "esc.bat+": pega("xt60.pos", "esc.bat+") ? "xt60.pos" : null, "esc.bat-": pega("xt60.neg", "esc.bat-") ? "xt60.neg" : null };
+  const comoBateria = (c) => (c.some((r) => r.startsWith("xt60.")) ? c : c.map((r) => red[r] || r));
+  const rev = revisar(comps, [...ef.cables.map(comoBateria), ...ef.puentes]);
   const pm = pinMap(comps), nom = (ref) => { const q = pm.get(ref); return q ? `${q.c.nombre} · ${q.nombre}` : ref; };
   const malos = new Set();
   [...ef.cables, ...ef.puentes].forEach((c, i) => { if (rev.malos.has(i)) malos.add(i < ef.cables.length ? idx.get(claveCable(c)) : -1); });
