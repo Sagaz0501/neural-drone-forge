@@ -225,6 +225,31 @@ def simular(carpeta: Path, web_path: Path, modelo: str, entrenando: dict | None 
                    red.capas())
 
 
+def evaluar(carpeta: Path, web_path: Path, entrenando: dict | None = None, nivel: int | None = None, n: int = 20) -> dict:
+    """La nota de verdad de un modelo: n intentos FIJOS (las mismas semillas siempre) del nivel, volados con la red
+    tal cual (sin el ruido de exploración del entrenamiento: el éxito que muestra el entrenador sale más bajo).
+    Lo usa el tutorial (llegar al 80 % en la foto). -> {gen, nivel, n, exito, choque, calidad}"""
+    red = RedWeb.cargar(web_path)
+    cfg = config_prueba(carpeta, entrenando)
+    if nivel is not None:
+        cfg["stage"] = int(nivel)
+    env = env_prueba(cfg)
+    ok = choque = 0
+    qs = []
+    for i in range(n):
+        obs, _ = env.reset(seed=7000 + i)
+        info = {}
+        for _ in range(env.max_steps + 5):
+            obs, _r, term, trunc, info = env.step(red.act(obs)[0])
+            if term or trunc:
+                break
+        ok += bool(info.get("success")); choque += bool(info.get("crashed"))
+        if "film_q" in info:
+            qs.append(float(info["film_q"]))
+    return {"gen": int(red.meta.get("generaciones") or 0), "nivel": cfg["stage"], "n": n, "exito": ok / n, "choque": choque / n,
+            "calidad": float(np.mean(qs)) if qs else None}
+
+
 # ---------------------------------------------------------------- el mejor y el peor (live_train.py)
 CADA_ULTIMO = 60.0       # el "último intento" se renueva como mucho una vez por minuto
 

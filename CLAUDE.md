@@ -71,8 +71,8 @@ app/               EL JUEGO (Dron Maker): usa los módulos de game/
                    punta que se ensucia, flux, estaño que solo moja si el pad está caliente) -> junta buena/fría/puente/
                    levantado en d.banco.juntas; efectivos() = el cableado que conduce. test: node app/test_taller.mjs
   tutorial.js      EL TUTORIAL del primer dron (los dos modos, obligatorio): p.tuto.etapa = regalo -> nombre -> armar (computador
-                   cerrado, negocio.espera: nadie escribe) -> pc (tour de apps) -> modelo (nivel 13 ≥ 80 %: exitoFoto con
-                   /api/modelos "recientes", sin contar lo copiado del base) -> cliente (NG.primerCliente: Doña Marta).
+                   cerrado, negocio.espera: nadie escribe) -> pc (tour de apps) -> modelo (nivel 13 ≥ 80 % SIN ruido: candidatosFoto
+                   + GET /api/evaluar = 20 intentos fijos con la red tal cual; si no hay servidor, exitoFoto con "recientes") -> cliente (NG.primerCliente: Doña Marta).
                    notas(p, contexto) = la nota del paso + consejos
   notas.js         las notas de arriba a la derecha (main.js notasTutorial cada 0,5 s); la mesa señala el pad con un aro amarillo
   freestyle.html   EL FREESTYLE (página aparte, botón en el inicio): freestyle.js = modos (libre, carrera contra la IA,

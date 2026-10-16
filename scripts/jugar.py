@@ -39,6 +39,8 @@ y entrenando.log si entrena en el fondo). slug = [a-z0-9_-], 1-40, sin "_" al in
   POST /api/simular {"modelo"}  una prueba al azar del nivel que entrena, volada con su última generación (no toca nada)
                      -> la grabación (formato en scripts/simulacion.py)
   GET  /api/avance?modelo=<slug>  {"niveles": {"11": {"mejor": grabación, "peor": grabación}}} (lo guarda live_train)
+  GET  /api/evaluar?modelo=<slug>&nivel=13&n=20  la nota SIN ruido: n intentos fijos con la red tal cual -> {gen, exito,
+                     choque, calidad} (el tutorial la usa; se recalcula cuando el modelo guarda otra generación)
   GET  /api/red?modelo=<slug>  la red del dron que mira su entrenamiento (activaciones "in"/"h"/"mu"/"act", "capas",
                      "w" = conexiones más fuertes por capa [origen, destino, peso], "i" = qué dron, "n" = cuántos);
                      {"ok": false} si no entrena. "watch": i en POST /api/lab (iniciar/ajustar) cambia el dron que mira
@@ -351,6 +353,29 @@ def training_where(slug, state=None):
         return "fondo"
     b, corriendo = blender_model(state)
     return "blender" if corriendo and b == slug else None
+
+
+_evals = {}
+
+
+def evaluar_modelo(slug, nivel=None, n=20):
+    """GET /api/evaluar: la nota sin ruido (simulacion.evaluar), guardada hasta que el modelo guarde otra generación."""
+    d = model_dir(slug)
+    try:
+        fresh_web_model(folder=d if slug != "base" else None)
+    except Exception as e:                       # sin PyTorch: el modelo_web.json que haya
+        print("No pude exportar el modelo:", e, flush=True)
+    web = (d if slug != "base" else ROOT / "models") / "modelo_web.json"
+    if not web.exists():
+        return None, f"{slug} todavía no tiene un modelo guardado"
+    clave = (slug, nivel, n, web.stat().st_mtime)
+    if clave not in _evals:
+        import simulacion
+        try:
+            _evals[clave] = simulacion.evaluar(d, web, None, nivel, n)
+        except Exception as e:
+            return None, f"no pude evaluar: {e}"
+    return dict(_evals[clave], modelo=slug), "ok"
 
 
 def simular_prueba(slug):
@@ -842,6 +867,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             av = read_json(d / "avance.json")
             return self.send_json({"ok": True, "niveles": av} if av else
                                   {"ok": False, "msg": "todavía no hay intentos guardados: entrénalo un rato (el mejor y el peor se guardan solos)"})
+        if path == "/api/evaluar":
+            q = parse_qs(urlparse(self.path).query)
+            try:
+                slug = check_slug((q.get("modelo") or ["base"])[0])
+                nivel = int(q["nivel"][0]) if q.get("nivel") else None
+                n = max(1, min(60, int((q.get("n") or ["20"])[0])))
+            except ValueError as e:
+                return self.send_json({"ok": False, "msg": str(e)}, 400)
+            r, msg = evaluar_modelo(slug, nivel, n)
+            return self.send_json(dict(r, ok=True) if r else {"ok": False, "msg": msg})
         if path == "/api/red":
             q = parse_qs(urlparse(self.path).query)
             try:

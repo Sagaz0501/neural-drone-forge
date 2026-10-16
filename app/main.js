@@ -558,7 +558,19 @@ function avanzarTutorial(p) {
     toast(t("🎉 ¡Tu dron vuela! Ahora sí: prende el 💻 Computador."), 4500);
   }
   if (E !== "modelo") { tutoModelo = null; return; }
-  if (Date.now() - tutoModelosT > 8000) { tutoModelosT = Date.now(); loadModelos().then(() => { tutoModelo = TU.exitoFoto(G.modelos, p.tuto.antes); }); }
+  if (Date.now() - tutoModelosT > 8000) {
+    tutoModelosT = Date.now();
+    loadModelos().then(async () => {
+      let mejor = TU.exitoFoto(G.modelos, p.tuto.antes);        // lo del entrenamiento (si el servidor no evalúa)
+      for (const c of TU.candidatosFoto(G.modelos, p.tuto.antes)) {   // la nota de verdad: sin ruido, 20 intentos fijos
+        try {
+          const r = await (await fetch(`/api/evaluar?modelo=${c.slug}&nivel=13&n=20`)).json();
+          if (r.ok && (!mejor || mejor.slug === c.slug || r.exito > mejor.exito)) mejor = { slug: c.slug, exito: r.exito, filas: c.filas };
+        } catch { /* sin servidor: queda lo del entrenamiento */ }
+      }
+      tutoModelo = mejor;
+    });
+  }
   if (tutoModelo && tutoModelo.exito >= TU.META_EXITO) {
     const m = tutoModelo;                              // renderTaller vuelve a pasar por aquí y lo limpia
     TU.pasarA(p, "cliente");

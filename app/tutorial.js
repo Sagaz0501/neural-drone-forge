@@ -63,6 +63,15 @@ export function exitoFoto(modelos, antes = {}) {
   }
   return mejor;
 }
+/** Los modelos que cuentan para el tutorial: entrenaron el nivel 13 DESPUÉS del tour (3 filas o más). El juego les
+ *  pide la nota sin ruido al servidor (/api/evaluar): el éxito del entrenamiento lleva el ruido de exploración y sale
+ *  mucho más bajo (un modelo que acierta 80 % sin ruido marca ~30 % entrenando). */
+export function candidatosFoto(modelos, antes = {}) {
+  return (modelos || []).filter((m) => m.slug !== "base").map((m) => {
+    const desde = antes[m.slug] ?? antes[m.base_de || ""] ?? 0;
+    return { slug: m.slug, filas: (m.recientes?.["13"] || []).filter(([g]) => g > desde).length };
+  }).filter((c) => c.filas >= 3);
+}
 export const visto = (p, id) => { p.tuto = { ...(p.tuto || {}), vistas: [...new Set([...(p.tuto?.vistas || []), id])] }; };
 
 const PASO_BANCO = () => ({

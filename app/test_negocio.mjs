@@ -114,6 +114,7 @@ ok(NG.pasoTutorial(dv, {})?.paso === 1 && dv.negocio.pedidos.length === 1, "modo
   const ex = TU.exitoFoto(mods, { base: 900 });
   ok(ex.slug === "chispa" && ex.filas === 3 && Math.abs(ex.exito - 0.8333) < 0.01, "tutorial: el 80 % cuenta solo lo entrenado después (no lo copiado del base)");
   ok(TU.exitoFoto([{ slug: "x", recientes: { 13: [[1, 1], [2, 1]] } }]).exito < TU.META_EXITO, "tutorial: con menos de 3 generaciones todavía no cuenta");
+  ok(JSON.stringify(TU.candidatosFoto(mods, { base: 900 })) === '[{"slug":"chispa","filas":3}]', "tutorial: se evalúa sin ruido solo el modelo entrenado después del tour");
   ok(/Simuladores/.test(TU.notas(q, { pantalla: "estudio" })[0].html), "tutorial: en el computador, a entrenar en Simuladores");
   TU.pasarA(q, "cliente");
   NG.primerCliente(q, D);
