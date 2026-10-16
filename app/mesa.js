@@ -161,7 +161,7 @@ export function initMesa(ctx) {
     for (let i = 0; i < 8; i++) { const r = new THREE.Mesh(new THREE.TorusGeometry(0.0062, 0.0007, 6, 24), MAT.goma); r.rotation.x = Math.PI / 2; r.position.y = 0.047 + i * 0.0045; eje.add(r); }
     c2(0.0068, 0.0064, 0.05, MAT.mangoAzul, 0.108, 24);
     grip.castShadow = true;
-    eje.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0.78, 0.55, 0.3).normalize());   // el mango sale a la derecha
+    eje.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0.7, 0.62, -0.36).normalize());   // el mango sale a la derecha y hacia atrás (no tapa la placa)
     ca.add(eje); ca.visible = false; scene.add(ca); H.cautin = ca;
     // el alambre de estaño (un cilindro entre dos puntos) y el cable que llevas en la mano
     H.estano = new THREE.Mesh(new THREE.CylinderGeometry(0.00045, 0.00045, 1, 8), MAT.estanoOk);
@@ -434,6 +434,8 @@ export function initMesa(ctx) {
     if (comp.k === "fc" && comp.chip === "esp32" && glb.esp32) placaESP32(g, comp);
     else placaGenerica(g, comp);
     M.placaG = g;
+    const bb = new THREE.Box3().setFromObject(g);
+    M.borde = { x: Math.max(Math.abs(bb.min.x), Math.abs(bb.max.x)), z: Math.max(Math.abs(bb.min.z), Math.abs(bb.max.z)) };
     dibujarCables();
     H.cautin.visible = true; H.estano.visible = true;
     if (M.vista !== "soldar" + M.placa) { M.vista = "soldar" + M.placa; cam.position.set(0, 0.085, 0.07); controls.target.set(0, 0, 0.004); controls.update(); }
@@ -473,7 +475,7 @@ export function initMesa(ctx) {
       if (nombre) { const m = e.getObjectByName(nombre); if (m) { const mm = m.isMesh ? m : m.getObjectByProperty("isMesh", true); pad(mm, comp, pin); } }
     }
     // los enchufes: el arnés del ESC (JST de 8) en una punta y el u.FL de la antena junto al módulo
-    const jst = enchufe(g, new THREE.Vector3(-0.034, 0.002, 0), 0.0105, 0.003);
+    const jst = enchufe(g, new THREE.Vector3(-0.0335, 0.0014, 0.0085), 0.0035, 0.0085);     // la punta del arnés, junto a la placa
     pad(jst, comp, comp.pines.find((p) => p.id === "conn"));
     const ufl = enchufe(g, new THREE.Vector3(0.026, 0.0035, -0.008), 0.003, 0.003, MAT.oro);
     const pa = comp.pines.find((p) => p.id === "ant"); if (pa) pad(ufl, comp, pa);
@@ -496,19 +498,22 @@ export function initMesa(ctx) {
       if (txt) labels.push([x, z + (z > 0 ? -d / 2 - 0.0024 : d / 2 + 0.0024), txt]);
     };
     if (esEsc) {
+      // como un ESC 4 en 1 de verdad (vista de arriba, adelante = arriba en la pantalla): cada motor en su esquina
+      // (M1 atrás der., M2 adelante der., M3 atrás izq., M4 adelante izq. — el orden de Betaflight), la batería a la
+      // izquierda y el enchufe de la controladora a la derecha
       const pp = (id) => comp.pines.find((p) => p.id === id);
-      padMesh(-0.019, -0.0065, 0.009, 0.0062, pp("bat+"));
-      padMesh(-0.019, 0.0065, 0.009, 0.0062, pp("bat-"));
-      labels.push([-0.0105, -0.0065, "BAT+"], [-0.0105, 0.0065, "BAT−"]);
-      const esquinas = { m1: [0.016, 0.019], m2: [0.016, -0.019], m3: [-0.004, 0.019], m4: [-0.004, -0.019] };
+      padMesh(-0.0195, -0.0052, 0.008, 0.0062, pp("bat+"));
+      padMesh(-0.0195, 0.0052, 0.008, 0.0062, pp("bat-"));
+      labels.push([-0.0118, -0.0052, "BAT+"], [-0.0118, 0.0052, "BAT−"]);
+      const esquinas = { m1: [0.016, 0.0205], m2: [0.016, -0.0205], m3: [-0.016, 0.0205], m4: [-0.016, -0.0205] };
       for (const [id, [x, z]] of Object.entries(esquinas)) {
-        for (let s = 0; s < 3; s++) padMesh(x - 0.004 + s * 0.004, z, 0.0028, 0.0034, pp(id), s, s === 1 ? id.toUpperCase() : null);
+        for (let s2 = 0; s2 < 3; s2++) padMesh(x - 0.0042 + s2 * 0.0042, z, 0.0028, 0.0032, pp(id), s2);
+        labels.push([x, z - Math.sign(z) * 0.0046, id.toUpperCase()]);
       }
-      for (const [x, z] of [[0.006, 0.006], [0.006, -0.006], [-0.006, 0.006], [-0.006, -0.006]]) { const mo = new THREE.Mesh(new THREE.BoxGeometry(0.005, 0.0012, 0.006), MAT.chip); mo.position.set(x, 0.0022, z); g.add(mo); }
-      const capa = new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.003, 0.009, 16), new THREE.MeshStandardMaterial({ color: 0x2a3a6a, roughness: 0.4 }));
-      capa.rotation.x = Math.PI / 2; capa.position.set(0, 0.0046, 0); g.add(capa);
-      pad(enchufe(g, new THREE.Vector3(0.022, 0.0025, 0), 0.0035, 0.0105), comp, pp("conn"));
-      labels.push([0.0225, 0.0085, "FC"]);
+      for (const [x, z] of [[0.005, 0.006], [0.005, -0.006], [-0.005, 0.006], [-0.005, -0.006]]) { const mo = new THREE.Mesh(new THREE.BoxGeometry(0.005, 0.0011, 0.0045), MAT.chip); mo.position.set(x, 0.0021, z); mo.castShadow = true; g.add(mo); }
+      const mcu = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.0009, 0.004), MAT.chip); mcu.position.set(0.0125, 0.002, 0); mcu.rotation.y = Math.PI / 4; g.add(mcu);
+      pad(enchufe(g, new THREE.Vector3(0.0215, 0.0025, 0), 0.0035, 0.0105), comp, pp("conn"));
+      labels.push([0.0165, 0.0082, "FC"]);
     } else {
       const sol = comp.pines.filter((p) => !TA.esEnchufe(p)), mitad = Math.ceil(sol.length / 2);
       sol.forEach((pin, i) => {
@@ -522,21 +527,27 @@ export function initMesa(ctx) {
     const c = document.createElement("canvas"); c.width = c.height = 1024;
     const gx = c.getContext("2d"); gx.fillStyle = "#fff"; gx.font = "bold 34px sans-serif"; gx.textAlign = "center"; gx.textBaseline = "middle";
     for (const [x, z, tx] of labels) gx.fillText(tx, (x / W + 0.5) * 1024, (z / W + 0.5) * 1024);
-    gx.font = "bold 40px sans-serif"; gx.fillStyle = "rgba(255,255,255,.75)"; gx.fillText(esEsc ? "ESC 4in1 · BLHeli" : "STM32 FC", 512 + (esEsc ? 90 : 0), 512 + (esEsc ? 230 : 60));
+    gx.font = "bold 30px sans-serif"; gx.fillStyle = "rgba(255,255,255,.55)"; gx.fillText(esEsc ? "ESC 4in1 · BLHeli" : "STM32 FC", 512, esEsc ? 512 + 245 : 512 + 60);
+    if (esEsc) { gx.font = "26px sans-serif"; gx.fillText("▲ FRONT", 512, 140); }
     const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
     const ser = new THREE.Mesh(new THREE.PlaneGeometry(W, W), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }));
     ser.rotation.x = -Math.PI / 2; ser.position.y = 0.00165; g.add(ser);
   }
 
-  /** De dónde entra el cable de cada pieza a la placa (el borde por donde llega). */
-  function entrada(fuenteRef, padPos) {
-    const k = fuenteRef.split(".")[0];
-    if (k === "xt60") return new THREE.Vector3(-0.07, 0.006, padPos.z * 1.6);
-    if (/^m(FL|FR|RL|RR)$/.test(k)) { const fr = k[1] === "F", der = k[2] === "R"; return new THREE.Vector3(fr ? 0.06 : -0.06, 0.006, der ? 0.06 : -0.06); }
-    if (k === "esc") return new THREE.Vector3(-0.07, 0.008, 0.0);
-    if (k === "fc") return new THREE.Vector3(0.07, 0.008, 0.0);
-    return new THREE.Vector3(padPos.x * 1.3 + 0.01, 0.008, padPos.z > 0 ? 0.065 : -0.065);
+  /**
+   * Por dónde llega el cable de cada pieza (en el plano de la mesa): cada motor desde su esquina (adelante = arriba en
+   * la pantalla), la batería y el ESC desde la izquierda, lo demás desde el borde de la placa más cercano a su pad.
+   * Así los cables quedan ordenados; si pones un motor en la salida equivocada, su cable cruza la placa (y se nota).
+   */
+  function direccion(fuenteRef, pos) {
+    const k = fuenteRef.split(".")[0], m = /^m(F|R)(L|R)$/.exec(k);
+    if (m) return new THREE.Vector3(m[2] === "R" ? 1 : -1, 0, m[1] === "F" ? -1 : 1).normalize();
+    if (k === "xt60" || k === "esc") return new THREE.Vector3(-1, 0, 0);
+    const H = M.borde, dx = H.x - Math.abs(pos.x), dz = H.z - Math.abs(pos.z);
+    return dx < dz ? new THREE.Vector3(Math.sign(pos.x) || 1, 0, 0) : new THREE.Vector3(0, 0, Math.sign(pos.z) || 1);
   }
+  /** El grosor de cada cable (el de la batería es grueso; los de señal, finos). */
+  const grosor = (fuenteRef) => { const k = fuenteRef.split(".")[0]; return k === "xt60" ? 0.0009 : /^m/.test(k) ? 0.00052 : k === "esc" ? 0.0006 : 0.00042; };
   const COLOR_FASE = [0x111111, 0x2050d0, 0xd03030];
   const CABLES = [];
   /** Los cables puestos en esta placa: tubo desde el borde hasta el pad, con su gota de estaño. */
@@ -545,42 +556,65 @@ export function initMesa(ctx) {
     CABLES.length = 0;
     const B = D().banco, J = B.juntas || {};
     for (const c of B.cables) {
-      const placa = TA.placaDe(c, M.comps);
-      if (placa.split(".")[0] !== M.placa) continue;
-      const fuente = c[0] === placa ? c[1] : c[0], j = J[TA.claveCable(c)], n = TA.juntasDe(...c.map((r) => pinDe(r)));
+      // el lado del cable que está en esta placa (los enchufes, como el arnés ESC-controladora, se ven en las dos)
+      const aqui = c.find((r) => r.split(".")[0] === M.placa), placa = TA.placaDe(c, M.comps);
+      if (!aqui || (aqui !== placa && !TA.esEnchufe(pinDe(aqui)))) continue;
+      const placaAqui = aqui;
+      const fuente = c[0] === placaAqui ? c[1] : c[0], j = J[TA.claveCable(c)], n = TA.juntasDe(...c.map((r) => pinDe(r)));
       for (let s = 0; s < n; s++) {
-        const P_ = M.pads.get(`${placa}#${s}`) || M.pads.get(`${placa}#0`);
+        const P_ = M.pads.get(`${placaAqui}#${s}`) || M.pads.get(`${placaAqui}#0`);
         if (!P_) continue;
         const col = n === 3 ? COLOR_FASE[s] : new THREE.Color(COLOR_PIN[pinDe(fuente)?.tipo] || "#ccc");
-        const tubo = cable(entrada(fuente, P_.pos), P_.pos, col, P_.enchufe);
+        const tubo = cable(P_, direccion(fuente, P_.pos), col, grosor(fuente), P_.enchufe);
         M.placaG.add(tubo); CABLES.push(tubo);
         const sj = j ? j.s?.[s] : { q: "buena", estano: TA.PADS[P_.pad].ideal[1] * 0.8 };      // partida vieja: soldado bien
         if (!P_.enchufe && sj && sj.q !== "sin") {
           const gota = gotaMesh(sj.estano, sj.q, P_);
           M.placaG.add(gota); CABLES.push(gota);
+          if (sj.q === "puente") { const pu = puenteMesh(P_); if (pu) { M.placaG.add(pu); CABLES.push(pu); } }
         }
-        if (!P_.enchufe && sj?.flux) { /* el flux se ve mientras se suelda */ }
       }
     }
     hud();
   }
   const pinDe = (ref) => { const [k, id] = ref.split("."); return M.comps.find((c) => c.k === k)?.pines.find((p) => p.id === id); };
-  function cable(a, b, color, enchufe) {
-    const mid = a.clone().lerp(b, 0.5); mid.y += 0.012;
-    const fin = b.clone(); fin.y += enchufe ? 0.002 : 0.0012;
-    const curva = new THREE.CatmullRomCurve3([a, mid, b.clone().add(new THREE.Vector3(0, 0.004, 0)), fin]);
-    const m = new THREE.Mesh(new THREE.TubeGeometry(curva, 28, enchufe ? 0.0009 : 0.0007, 8), new THREE.MeshStandardMaterial({ color, roughness: 0.55 }));
-    m.castShadow = true;
-    return m;
+  /**
+   * Un cable: llega por la mesa desde su dirección, sube al borde de la placa, corre pegado a ella y termina pelado y
+   * estañado sobre el pad (o en el conector).
+   */
+  function cable(P_, dir, color, r, enchufe) {
+    const p = P_.pos, H = M.borde;
+    const tx = dir.x ? (Math.sign(dir.x) * H.x - p.x) / dir.x : Infinity, tz = dir.z ? (Math.sign(dir.z) * H.z - p.z) / dir.z : Infinity;
+    const kB = Math.max(0.003, Math.min(tx, tz)), piso = r + 0.0003, sobre = 0.0017 + r + 0.0004, fin = enchufe ? p.y + 0.0014 : sobre;
+    const en = (k, y) => new THREE.Vector3(p.x + dir.x * k, y, p.z + dir.z * k);
+    const g = new THREE.Group();
+    const curva = new THREE.CatmullRomCurve3([en(kB + 0.09, piso), en(kB + 0.03, piso), en(kB + 0.005, piso + 0.0004), en(kB - 0.0015, sobre + 0.0006), en(Math.max(0.0042, kB * 0.4), sobre), en(0.0024, fin)]);
+    const t1 = new THREE.Mesh(new THREE.TubeGeometry(curva, 48, r, 10), new THREE.MeshStandardMaterial({ color, roughness: 0.5 }));
+    t1.castShadow = true; g.add(t1);
+    // la punta pelada y estañada
+    const punta = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.75, r * 0.75, 1, 10), enchufe ? MAT.jst : MAT.estanoOk);
+    entre(punta, en(0.0026, fin), en(enchufe ? 0.0005 : 0.0002, fin - (enchufe ? 0 : 0.0003)));
+    g.add(punta);
+    return g;
   }
   /** La gota de estaño de una junta (brilla si salió buena; opaca y granulosa si salió fría). */
   function gotaMesh(estano, q, P_) {
     const pd = TA.PADS[P_.pad], k = Math.min(1.6, estano / pd.ideal[1]);
-    const r = (P_.pad === "grande" ? 0.0042 : P_.pad === "medio" ? 0.0019 : 0.0014) * (0.55 + 0.6 * k);
+    const r = (P_.pad === "grande" ? 0.0026 : P_.pad === "medio" ? 0.0013 : 0.001) * (0.6 + 0.5 * k);
     const m = new THREE.Mesh(new THREE.SphereGeometry(r, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), q === "fria" ? MAT.estanoFrio : q === "liquido" ? MAT.estanoLiq : MAT.estanoOk);
-    m.scale.y = 0.75; m.position.copy(P_.pos); m.position.y += 0.0003; m.castShadow = true;
-    if (q === "puente") { m.scale.x = 2.4; }
+    m.scale.y = 0.7; m.position.copy(P_.pos); m.position.y += 0.0003; m.castShadow = true;
     if (q === "levantado") { m.rotation.z = 0.5; m.position.y += 0.0012; }
+    return m;
+  }
+
+  /** El puente de estaño: una lengüeta que une el pad con el de al lado. */
+  function puenteMesh(P_) {
+    const v = P_.pad === "medio" ? M.pads.get(`${P_.ref}#${P_.sub < 2 ? P_.sub + 1 : P_.sub - 1}`)
+      : P_.pad === "grande" ? M.pads.get(P_.ref === "esc.bat+" ? "esc.bat-#0" : "esc.bat+#0") : M.pads.get(`${TA.vecino(M.comps, P_.ref)}#0`);
+    if (!v) return null;
+    const a = P_.pos.clone(), b = v.pos.clone(); a.y = b.y = Math.max(a.y, b.y) + 0.0004;
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.0006, 0.0006, 1, 10), MAT.estanoOk);
+    entre(m, a, b); m.scale.x = m.scale.z = 1.3; m.castShadow = true;
     return m;
   }
 
@@ -639,7 +673,7 @@ export function initMesa(ctx) {
   /** El cable que está en ese pad (el primero que falte por soldar). */
   function cableEn(info) {
     const B = D().banco, J = B.juntas || {};
-    const cs = B.cables.filter((c) => c.includes(info.ref) && TA.placaDe(c, M.comps) === info.ref);
+    const cs = B.cables.filter((c) => c.includes(info.ref) && (TA.placaDe(c, M.comps) === info.ref || info.enchufe));
     return cs.find((c) => (J[TA.claveCable(c)]?.s?.[info.sub]?.q || "sin") !== "buena") || cs[0] || null;
   }
   function empezarJunta(info) {
@@ -809,16 +843,17 @@ export function initMesa(ctx) {
     const calor = Math.max(0, Math.min(1, (M.E.temp - 150) / 300));
     H.punta.material.emissive.setRGB(calor * 0.9, calor * 0.25, 0);
     // el alambre de estaño: desde la mano izquierda (abajo a la derecha) hasta casi la punta; con Espacio, toca la junta
-    const fin = H.cautin.position.clone().add(new THREE.Vector3(M.espacio ? 0.0012 : 0.006, M.espacio ? 0.0005 : 0.003, M.espacio ? 0.0018 : 0.006));
-    entre(H.estano, fin.clone().add(new THREE.Vector3(0.06, 0.03, 0.05)), fin);
+    const fin = H.cautin.position.clone().add(new THREE.Vector3(M.espacio ? -0.0011 : -0.005, M.espacio ? 0.0005 : 0.003, M.espacio ? -0.0006 : -0.004));
+    entre(H.estano, fin.clone().add(new THREE.Vector3(-0.05, 0.035, -0.04)), fin);           // el estaño entra por la izquierda
     // el halo del pad que apuntas
     const hv = M.hover?.tipo === "pad" ? M.hover.info : null;
     H.halo.visible = !!hv && !tocando;
     if (hv) { H.halo.position.copy(hv.pos).add(new THREE.Vector3(0, 0.0012, 0)); H.halo.material.color.set(M.enMano ? 0x47f08a : hv.enchufe ? 0xd4af37 : 0x3ccbff); const s = hv.pad === "grande" ? 2.6 : hv.pad === "medio" ? 1.2 : 1; H.halo.scale.setScalar(s); }
     // el cable en la mano
     if (M.enMano) {
-      if (!M.cableMano) { M.cableMano = new THREE.Mesh(new THREE.CylinderGeometry(0.0007, 0.0007, 1, 8), new THREE.MeshStandardMaterial({ color: COLOR_PIN[pinDe(M.enMano)?.tipo] || "#ccc" })); scene.add(M.cableMano); }
-      entre(M.cableMano, entrada(M.enMano, M.tPunta), M.tPunta.clone().add(new THREE.Vector3(0, 0.003, 0)));
+      if (!M.cableMano) { M.cableMano = new THREE.Mesh(new THREE.CylinderGeometry(grosor(M.enMano), grosor(M.enMano), 1, 8), new THREE.MeshStandardMaterial({ color: COLOR_PIN[pinDe(M.enMano)?.tipo] || "#ccc" })); scene.add(M.cableMano); }
+      const dm = direccion(M.enMano, M.tPunta);
+      entre(M.cableMano, M.tPunta.clone().addScaledVector(dm, 0.07).setY(0.001), M.tPunta.clone().add(new THREE.Vector3(0, 0.003, 0)));
       M.cableMano.visible = true;
     } else if (M.cableMano) { scene.remove(M.cableMano); M.cableMano = null; }
     if (!h) { anillo(null); hudTemp(); return; }
