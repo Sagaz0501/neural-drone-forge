@@ -388,9 +388,8 @@ class DroneEnv(gym.Env):
         """Qué tan mal mira al aro: 0 con la nariz hacia el aro, -1/2 de lado, -1 de espaldas.
         Se apaga a menos de 0.3 m en horizontal (justo encima del aro la dirección no está definida).
         Grabar: lo que hay que mirar es el SUJETO (la cámara va en la nariz)."""
-        look = self.subject if self.subject is not None else self._goal()
-        if self.point_look is not None and self._goal_dist() > 2.0:
-            look = self._goal()                                  # 20: lejos, de frente al punto; cerca, hacia el sujeto
+        look = self.subject if self.subject is not None else self._goal()   # 20: siempre hacia el sujeto (sin saltos: con un
+        # cambio de "mirar al punto" a "mirar al sujeto" a 2 m, el premio caía de golpe y la IA aprendía a quedarse a 2,07 m)
         g = look[:2] - self.state.pos[:2]
         dh = float(np.hypot(g[0], g[1]))
         if dh < 1e-6:

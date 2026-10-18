@@ -561,7 +561,7 @@ def test_new_stages_race_delivery_chase():
 
 
 def run_pilot_mirando(stage, episodes=20):
-    """El PD + girar la nariz: hacia la meta lejos y hacia el sujeto cerca (lo que pide el nivel 20)."""
+    """El PD + girar la nariz hacia el sujeto todo el camino (lo que pide el nivel 20)."""
     env = DroneEnv(stage=stage)
     pilot = PDPilot(env.p)
     ok = 0
@@ -570,7 +570,7 @@ def run_pilot_mirando(stage, episodes=20):
         done = False
         while not done:
             a = pilot.act(env.state, env._goal())
-            look = env.subject if env.subject is not None and env._goal_dist() < 2.0 else env._goal()
+            look = env.subject if env.subject is not None else env._goal()
             d = look[:2] - env.state.pos[:2]
             if np.hypot(*d) > 0.3:
                 err = np.arctan2(np.sin(np.arctan2(d[1], d[0]) - env.state.yaw), np.cos(np.arctan2(d[1], d[0]) - env.state.yaw))
