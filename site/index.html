@@ -6,7 +6,8 @@
 <title>Neural Drone Forge · Arma el dron. Entrena su cerebro.</title>
 <meta name="description" content="Un juego donde armas un dron pieza por pieza, lo sueldas y le enseñas a volar con una IA que aprende en tu propia computadora. Gratis y de código abierto.">
 <meta name="theme-color" content="#0b0d10">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛸</text></svg>">
+<link rel="icon" href="img/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
 
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://sagaz0501.github.io/neural-drone-forge/">
@@ -59,7 +60,7 @@ nav{position:fixed;inset:0 0 auto;z-index:50;transition:background .3s,border-co
 nav.solid{background:rgba(11,13,16,.82);backdrop-filter:blur(14px);border-color:var(--line)}
 nav .wrap{display:flex;align-items:center;gap:24px;height:68px}
 .logo{display:flex;align-items:center;gap:10px;white-space:nowrap;font-family:var(--display);font-weight:800;font-size:19px}
-.logo i{width:30px;height:30px;border-radius:9px;background:conic-gradient(from 200deg,var(--orange),var(--orange2),var(--cyan),var(--orange));display:grid;place-items:center;font-style:normal;font-size:16px}
+.logo img{width:34px;height:34px}
 nav .links{display:flex;gap:26px;margin-left:auto;font-size:15px;color:var(--muted)}
 nav .links a:hover{color:var(--text)}
 .lang{white-space:nowrap;font-family:var(--mono);font-size:13px;border:1px solid var(--line);border-radius:999px;padding:6px 12px;background:none;color:var(--muted);cursor:pointer}
@@ -232,7 +233,7 @@ footer a:hover{color:var(--text)}
 
 <nav id="nav">
   <div class="wrap">
-    <a class="logo" href="#"><i>🛸</i>Neural Drone Forge</a>
+    <a class="logo" href="#"><img src="img/logo.svg" alt="" width="34" height="34">Neural Drone Forge</a>
     <div class="links">
       <a href="#ciclo" data-en="How it works">Cómo funciona</a>
       <a href="#aprende" data-en="Watch it learn">Míralo aprender</a>
@@ -497,13 +498,12 @@ pip install -r requirements.txt
 
 <footer>
   <div class="wrap">
-    <a class="logo" href="#"><i>🛸</i>Neural Drone Forge</a>
+    <a class="logo" href="#"><img src="img/logo.svg" alt="" width="34" height="34">Neural Drone Forge</a>
     <div class="fl">
       <a href="https://github.com/Sagaz0501/neural-drone-forge" target="_blank" rel="noopener">GitHub</a>
       <a href="https://github.com/Sagaz0501/neural-drone-forge/blob/main/docs/ROADMAP.md" target="_blank" rel="noopener">Roadmap</a>
       <a href="https://github.com/Sagaz0501/neural-drone-forge/blob/main/CHANGELOG.md" target="_blank" rel="noopener" data-en="Changelog">Cambios</a>
       <a href="https://www.instagram.com/neuraldroneforge/" target="_blank" rel="noopener">Instagram</a>
-      <a href="https://www.facebook.com/neuraldroneforge" target="_blank" rel="noopener">Facebook</a>
     </div>
     <span data-en="Made by Santiago Bernal · MIT">Hecho por Santiago Bernal · MIT</span>
   </div>

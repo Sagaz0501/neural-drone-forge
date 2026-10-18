@@ -49,7 +49,7 @@ async function abrir() {
   servidor.on("exit", (c) => { servidor = null; if (c && !app.isQuitting) console.log("El servidor se cerró:", c); });
   const url = `http://127.0.0.1:${puerto}/app/${process.argv.includes("--freestyle") ? "freestyle.html" : ""}`;   // --freestyle: directo al freestyle
   const win = new BrowserWindow({
-    width: 1440, height: 900, minWidth: 960, minHeight: 600, backgroundColor: "#0f1714", title: "Neural Drone Forge",
+    width: 1440, height: 900, minWidth: 960, minHeight: 600, backgroundColor: "#0f1714", title: "Neural Drone Forge", icon: path.join(__dirname, "icon.png"),
     show: !captura, paintWhenInitiallyHidden: true, webPreferences: { contextIsolation: true, sandbox: true },
   });
   win.webContents.setWindowOpenHandler(({ url: u }) => { shell.openExternal(u); return { action: "deny" }; });   // enlaces de afuera: el navegador
@@ -69,6 +69,6 @@ Menu.setApplicationMenu(Menu.buildFromTemplate([
   ...(process.platform === "darwin" ? [{ role: "appMenu" }] : []),
   { label: "Ver", submenu: [{ role: "reload", label: "Recargar" }, { role: "togglefullscreen", label: "Pantalla completa" }, { role: "toggleDevTools", label: "Herramientas" }] },
 ]));
-app.whenReady().then(abrir);
+app.whenReady().then(() => { if (app.dock) app.dock.setIcon(path.join(__dirname, "icon.png")); abrir(); });   // el logo en el dock de macOS
 app.on("window-all-closed", () => app.quit());
 app.on("before-quit", () => { app.isQuitting = true; if (servidor) servidor.kill("SIGTERM"); });
