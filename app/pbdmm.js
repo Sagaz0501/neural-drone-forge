@@ -777,7 +777,7 @@ export function compilar(src, data, host = {}) {
       accionVuelo("ir_a", n, { destino: texto(d, "ir_a", n) });
     },
     mantener: (a, k, n) => {
-      if (!enPlan("ir_a")) throw new ErrorPB(t("mantener() es quedarse quieto en un punto: primero ir_a(…)"), n);
+      if (!enPlan("despegar")) throw new ErrorPB(t("mantener() es quedarse quieto en el aire: primero despegar()"), n);
       const sg = k.segundos ?? a[0] ?? 3;
       accionVuelo("mantener", n, { s: rango(sg, 1, 8, "mantener(segundos=…)", n) });
     },
@@ -811,7 +811,7 @@ export function compilar(src, data, host = {}) {
       const slug = nombre.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40);
       if (!slug || slug === "base" || slug.startsWith("_")) throw new ErrorPB(t('"{nombre}" no sirve como nombre de modelo (usa letras y números; "base" es el de la campaña)', { nombre }), n);
       cfg.modelo = slug; cfg.nombre = nombre;
-      const desde = k.desde ?? "base";
+      const desde = k.desde ?? (data.sinBase ? "cero" : "base");      // una partida nueva no tiene la IA base
       texto(desde, "modelo(desde=…)", n);
       cfg.desde = desde === "base" || desde === "cero" ? desde : desde.toLowerCase();
     },
@@ -1081,6 +1081,9 @@ export function compilar(src, data, host = {}) {
   cfg.velocidad = cfg.velocidad || (cfg.donde === "blender" ? "real" : "rapido");
   if (cfg.viento === undefined && cfg.vientoMision !== undefined) cfg.viento = cfg.vientoMision;
   delete cfg.vientoMision;
+  // una partida nueva empieza sin modelos: sin la IA base y sin los nombres que ya usa otra partida (o el juego)
+  if (data.sinBase && cfg.desde === "base") throw new ErrorPB(t('no tienes la IA base: empieza desde="cero" o desde uno de tus modelos'), cfg.lineas.modelo);
+  if ((data.ocupados || []).includes(cfg.modelo)) throw new ErrorPB(t('el nombre "{m}" ya está usado en este computador: ponle otro (por ejemplo "{m}_2")', { m: cfg.modelo }), cfg.lineas.modelo);
   // desde="otro": tiene que existir (si no, el servidor arrancaría con una red al azar sin avisar)
   if (data.modelos && cfg.desde !== "base" && cfg.desde !== "cero") {
     const src = data.modelos.find((m) => m.slug === cfg.desde);
@@ -1114,6 +1117,8 @@ export function compilar(src, data, host = {}) {
     if (quieto.length) { const sg = quieto[0].s; cfg.tarea.foto_seg = [Math.max(0.5, sg - 0.4), sg + 0.4]; }
     if (fotos.length) cfg.tarea.foto_ok = Math.max(...fotos.map((x) => x.q));
     if (fotos.length > 1 && cfg.nivel === 14) cfg.tarea.fotos = fotos.length;
+    const rp = data.repaso?.(cfg.yaExiste ? cfg.modelo : cfg.desde, cfg.nivel);   // lo que ya aprobó: lo repasa (20 %)
+    if (rp?.length) cfg.tarea.repaso = rp;
     if (!Object.keys(cfg.tarea).length) delete cfg.tarea;
     // los premios que pide el plan (si el programa no los puso): quieto -> llegar quieto; foto -> encuadre; esquivar -> chocar
     const pon = (k, v) => { if (!(k in cfg.premios) && (data.premiosValidos || []).includes(k)) cfg.premios[k] = realDe(k, v, data.escala); };

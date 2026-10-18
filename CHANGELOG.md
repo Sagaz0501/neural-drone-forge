@@ -1,6 +1,28 @@
 # Cambios
 
-## v2.1 · Freestyle *(en curso)*
+## v3.0 · La app y el aprendizaje paso a paso (18-10-2026)
+
+- **App de escritorio** (`desktop/`, Electron): el juego en su propia ventana, sin navegador; arranca el servidor solo
+  y lo cierra al salir. `cd desktop && npm install && npm start`. Arreglado: la app se caía al esperar al servidor
+  (`AssertionError: assert(!this.paused)`).
+- **La partida empieza en cero:** sin la IA base ni programas; los modelos del juego (corredor, cazador…) quedan
+  reservados. Todo lo entrena el jugador.
+- **Escenarios E1-E12:** de lo básico a lo difícil. Nuevos: **E1 Despegar y quedarse** (nivel 19), **E2 Ir a un punto**
+  mirando al sujeto (nivel 20; también hace las fotos fáciles) y **E3 Seguir una línea** (nivel 21). Un piloto
+  automático los pasa al 100 % (pytest).
+- **Examen 🎓** por escenario (20 intentos sin ruido, ≥ 80 %), **⭐ modelo base** (aprueba E1-E4 + E6), cada escenario
+  parte del modelo que aprobó el anterior y **repasa** lo aprendido (el 20 % de los intentos: `tarea.repaso`).
+- **Tutorial nuevo:** el **nivel 0** (la foto de Doña Marta) se gana con la primera IA en dos pasos, E1 y E2. En el modo
+  desarrollador, paso a paso en el IDE: abrir el ejemplo, la línea que cambia (👉), ▶ Correr. La primera vez pregunta
+  si tienes Blender (recomendado). Los pedidos de la campaña ahora dicen su nivel.
+- **Prueba de motores en un botón:** cada motor ✓ o ✗ y el arreglo que toca (programar el orden, el sentido o volver a
+  soldar).
+- **La mesa:** los pads chicos (la ESP32) se tocan aunque no les atines exacto (el flux no entraba); fuera del tutorial
+  la placa ya no dice qué cable va en cada pin; tres máquinas caras de nivel avanzado: 🤖 auto-atornillador,
+  auto-conectores y auto-soldador.
+- README nuevo con capturas de la app.
+
+## v2.1 · Freestyle *(sale dentro de la v3.0)*
 
 - **Freestyle** (🏁 en el inicio): 3 mapas (la fábrica abandonada, el cañón, el estadio de noche con neón), control
   PS5/Xbox o teclado, cámara FPV, vuelo **Estable** (la física de la IA) o **Acro** (rate mode con flips, solo aquí).

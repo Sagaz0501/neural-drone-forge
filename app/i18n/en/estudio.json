@@ -277,5 +277,21 @@
  "🎮 Simulador «{e}» listo: ya puedes entrenarlo.": "🎮 Simulator «{e}» ready: you can train it now.",
  "Primero «{e}»": "First «{e}»",
  "Abrí {n}.pbd: el plan de vuelo de «{e}». Córrelo con ▶ (o cámbialo primero).": "Opened {n}.pbd: the flight plan for «{e}». Run it with ▶ (or change it first).",
- "Tu dron todavía no tiene IA propia: entrénala primero.": "Your drone doesn't have its own AI yet: train it first."
+ "Tu dron todavía no tiene IA propia: entrénala primero.": "Your drone doesn't have its own AI yet: train it first.",
+ "Todavía no tienes modelos: corre un programa (▶) y se crea el primero.": "You don't have any models yet: run a program (▶) and the first one is created.",
+ "¿Tienes <b>Blender</b>? Con Blender ves a tus drones aprender en 3D: es la mejor experiencia (recomendado). Sin Blender entrena en el fondo y lo miras en el Monitor.": "Do you have <b>Blender</b>? With Blender you watch your drones learn in 3D: it's the best experience (recommended). Without Blender it trains in the background and you watch it in the Monitor.",
+ "¿Dónde entrenar?": "Where to train?",
+ "Sí, con Blender": "Yes, with Blender",
+ "No, en el fondo": "No, in the background",
+ "Listo: entrena en Blender. Ábrelo (comando blender) y míralo aprender.": "Done: it trains in Blender. Open it (blender command) and watch it learn.",
+ "repasa lo que ya aprobó (20 % de los intentos): {lista}": "reviews what it already passed (20 % of the attempts): {lista}",
+ "Modelo para el examen": "Model for the exam",
+ "Examen": "Exam",
+ "Examen…": "Exam…",
+ "sin servidor": "no server",
+ "No se pudo tomar el examen: {msg}": "Couldn't take the exam: {msg}",
+ "«{m}» sacó {x} % en «{e}» (necesita {meta} %): sigue entrenando.": "«{m}» scored {x} % in «{e}» (needs {meta} %): keep training.",
+ "🎓 ¡«{m}» aprobó «{e}» con {x} %!": "🎓 «{m}» passed «{e}» with {x} %!",
+ "⭐ ¡Tienes un modelo base!": "⭐ You have a base model!",
+ "«{m}» ya despega, va a un punto, sigue una línea, toma fotos y graba. <b>Es tu modelo base</b>: úsalo como punto de partida (desde=\"{m}\") y tus próximos modelos van a aprender mucho más rápido que desde cero.": "«{m}» already takes off, goes to a point, follows a line, takes photos and films. <b>It's your base model</b>: use it as the starting point (start_from=\"{m}\") and your next models will learn much faster than from zero."
 }

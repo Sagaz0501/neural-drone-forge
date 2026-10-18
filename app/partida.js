@@ -30,7 +30,8 @@ export const REIMPRIMIR = 0.3;
 // ---------------- crear y migrar ----------------
 export function nuevaPartida() {
   const p = { v: 3, plata: PLATA_INICIAL, rep: 0, inventario: [], sig: 1, drones: [], activo: null, hechos: {}, vuelos: 0,
-    creada: Date.now(), herramientas: [], empresa: "Garaje Films", insumos: {}, escenarios: ["foto_fija"] };
+    creada: Date.now(), herramientas: [], empresa: "Garaje Films", insumos: {}, escenarios: ["despegar", "punto"], software: ["apps", "dronmarket"],   // software.js: lo demás se compra en 🛍️ Apps
+    modelos: [] };                                     // LOS MODELOS DE ESTA PARTIDA: empieza en cero (ver modelosVisibles)
   // lo que venía con el garaje: un ESC viejo y tornillos (la radio ESP-NOW viene en el ESP32: es gratis)
   for (const id of ["esc20", "mt_tornillos"]) agregarUnidad(p, id);
   return p;
@@ -53,6 +54,8 @@ export function nuevaPartidaDev(cat, drones, extras = {}) {
   Object.assign(p, { modo: "dev", plata: 99999, rep: REP_ETAPA.at(-1), empresa: t("Estudio de IA"),
     herramientas: [...(cat.herramientas || []).map((h) => h.id), "estacion", "extractor"],
     insumos: { estano: 200, flux: 50, cable: 40, malla: 10 } });
+  delete p.software;                                  // todos los programas
+  delete p.modelos;                                   // todos los modelos (la IA base vuela)
   for (const [nombre, piezas] of Object.entries(drones)) {
     const d = nuevoDron(p, nombre, t("Pruebas de IA"));
     d.estilo = { ...ESTILO };
@@ -64,6 +67,22 @@ export function nuevaPartidaDev(cat, drones, extras = {}) {
   }
   p.activo = p.drones[0]?.id ?? null;
   return p;
+}
+
+// ---------------- los modelos de IA de la partida ----------------
+// Una partida nueva no trae NINGÚN modelo: ni la IA base ni los del juego (los rivales del freestyle). Solo ve y usa
+// los que entrena ella (p.modelos = sus slugs; desde="cero"). Las partidas de antes (sin p.modelos) ven todos y vuelan
+// con la IA base si el dron no tiene la suya. Los reservados (jugar.py RESERVADOS) no se ven nunca.
+export const enCero = (p) => Array.isArray(p?.modelos);
+/** De la lista de /api/modelos, los que esta partida puede ver y usar. */
+export function modelosVisibles(p, lista) {
+  const ms = (lista || []).filter((m) => !m.reservado);
+  return enCero(p) ? ms.filter((m) => p.modelos.includes(m.slug)) : ms;
+}
+/** Este modelo ahora es de la partida (empezó a entrenar, se copió o se renombró). */
+export function anotarModelo(p, slug, antes = null) {
+  if (!enCero(p) || !slug) return;
+  p.modelos = [...new Set([...p.modelos.filter((x) => x !== antes), slug])];
 }
 
 /** v1/v2 -> v3: cada pieza que tenías = 1 unidad; tu dron = el primero del hangar, listo para volar. */

@@ -17,6 +17,7 @@ import { mundoLugar, alcanceNecesario } from "./lugares.js";
 import * as RUTA from "./ruta.js";
 import * as NG from "./negocio.js";
 import * as ESC from "./escenarios.js";
+import * as SW from "./software.js";
 import { sfx } from "./garaje.js";
 const numero = (x) => (Number.isInteger(x) ? String(x) : num(x, 1));       // 4,5 / 4.5 según el idioma
 
@@ -29,7 +30,7 @@ const chispa = (xs) => xs.map((x) => (typeof x === "number" ? "▁▂▃▄▅�
 export function initEstudio(ctx) {
   const { $, esc, api, toast } = ctx;
   const ES = { data: null, archivos: leerLS(ARCH, null), abierto: leerLS(ABIERTO, null), hist: [], hi: -1,
-    run: null, poll: 0, graf: null, grafSlug: null, modelos: [], errLinea: null, tema: null,
+    run: null, poll: 0, graf: null, grafSlug: null, modelos: [], todos: [], errLinea: null, marca: null, tema: null,
     ac: { items: [], sel: 0, cx: null, abierto: false }, red: null, redPoll: 0 };
 
   async function cargarData() {
@@ -37,15 +38,40 @@ export function initEstudio(ctx) {
     const r = await fetch("data/pbdmm.json");
     ES.data = await datos("pbdmm", await r.json());            // + la capa del idioma (data/en/pbdmm.json)
     RUTA.usarCapitulos(ES.data.ruta);
-    if (!ES.archivos) {
-      ES.archivos = { mi_primer_modelo: ES.data.ejemplos.hover };
-      ES.abierto = "mi_primer_modelo";
+    if (!ES.archivos) {                                       // una partida nueva empieza sin programas
+      ES.archivos = enCero() ? {} : { mi_primer_modelo: ES.data.ejemplos.hover };
+      ES.abierto = enCero() ? null : "mi_primer_modelo";
       guardarArchivos();
     }
     if (!ES.archivos[ES.abierto]) ES.abierto = Object.keys(ES.archivos)[0] || null;
     return ES.data;
   }
   const guardarArchivos = () => { ponerLS(ARCH, ES.archivos); ponerLS(ABIERTO, ES.abierto); };
+  const enCero = () => ctx.PT.enCero(ctx.P());
+  /** Partida nueva: sin programas (los de antes quedan de respaldo en localStorage "dronmaker.pbdmm.archivos_respaldo"). */
+  function vaciar() {
+    if (ES.archivos && Object.keys(ES.archivos).length) ponerLS(ARCH + "_respaldo", ES.archivos);
+    ES.archivos = {}; ES.abierto = null; ES.modelos = []; guardarArchivos();
+    if (ES.data) { renderArchivos(); cargarEditor(); }
+  }
+  /** Un ejemplo para esta partida: sin la IA base (desde="cero") y con un nombre de modelo que no use nadie más. */
+  function adaptarEjemplo(src) {
+    // desde="mi_piloto" (el ejemplo ir_a_punto): si no tienes ese modelo, el que aprobó el escenario anterior (o cero)
+    src = src.replace(/\b(desde|start_from)\s*=\s*"([^"]+)"/g, (x, k, m) => {
+      if (["cero", "zero", "base"].includes(m) || ES.modelos.some((y) => y.slug === m)) return x;
+      const mi = /^\s*(?:mision|mission)\s*\(\s*"([^"]*)"/m.exec(src), deEn = Object.fromEntries(Object.entries(ES.data?.alias_en?.misiones || {}).map(([es, en]) => [en, es]));
+      const e = mi && ESC.deMision(ctx.escenarios, deEn[mi[1]] || mi[1]);
+      const otro = (e && ESC.desdePara(ctx.P(), ctx.escenarios, e.id, (s) => ES.modelos.some((y) => y.slug === s))) || ctx.P()?.tuto?.e1;
+      return `${k}="${otro || (k === "desde" ? "cero" : "zero")}"`;
+    });
+    if (!enCero()) return src;
+    src = src.replace(/\b(desde|start_from)\s*=\s*"base"/g, (_, k) => `${k}="${k === "desde" ? "cero" : "zero"}"`);
+    return src.replace(/\b(modelo|model)\(\s*"([^"]+)"/, (x, f, m) => {
+      let n = m, k = 2;
+      while (ES.todos.some((y) => y.slug === n) && !ES.modelos.some((y) => y.slug === n)) n = `${m}_${k++}`;
+      return `${f}("${n}"`;
+    });
+  }
   /** Lo que el compilador necesita saber del juego. */
   const dataCompilar = () => ({
     ...ES.data, misiones: ctx.ent.misiones, drones: ctx.P().drones.map((d) => d.nombre),
@@ -53,14 +79,17 @@ export function initEstudio(ctx) {
     tiposPremio: { ...Object.fromEntries(ctx.ent.premios.map((p) => [p.k, p.tipo])), near: "premio" },
     premiosInfo: Object.fromEntries(ctx.ent.premios.map((p) => [p.k, p])),     // explicar("encuadre")
     escala: ctx.ent.escala_premios,
-    modelos: ES.modelos.length ? ES.modelos : null,     // para revisar desde="otro" (si no hay lista, no se revisa)
+    modelos: ES.modelos.length || enCero() ? ES.modelos : null,     // para revisar desde="otro" (si no hay lista, no se revisa)
+    sinBase: enCero(),                                  // partida nueva: sin la IA base (desde="cero" por defecto)
+    ocupados: enCero() ? ES.todos.filter((m) => m.slug !== "base" && !ES.modelos.some((y) => y.slug === m.slug)).map((m) => m.slug) : [],
     ...leerJuego(),                                     // PBDMM 2: hangar, misionInfo, inventario (dron_info, revisar, tabla…)
     ...simuladores(),                                   // PBDMM 3: solo las misiones y funciones de los simuladores que tienes
   });
   /** PBDMM 3: lo que abren tus simuladores (escenarios.js): misiones, niveles, funciones y el plan de vuelo de cada misión. */
   function simuladores() {
     const d = ESC.disponibles(ctx.P(), ctx.escenarios);
-    return { misionesDisponibles: d.misiones, nivelesDisponibles: d.niveles, bloqueadas: d.bloqueadas, planes: d.planes };
+    return { misionesDisponibles: d.misiones, nivelesDisponibles: d.niveles, bloqueadas: d.bloqueadas, planes: d.planes,
+      repaso: (slug, nivel) => ESC.repasoDe(ctx.P(), ctx.escenarios, slug, nivel) };
   }
   /** Lo que PBDMM 2 puede leer del juego: los drones del hangar (con su física), lo que pide cada misión y las piezas. */
   function leerJuego() {
@@ -98,6 +127,12 @@ export function initEstudio(ctx) {
     $("es-logo").textContent = esDev() ? "PBDMM" : p?.empresa || t("Mi taller");
     $("es-blender").style.display = esDev() ? "" : "none";          // (.btn ignora el atributo hidden)
     if (app && permitida(app)) setTimeout(() => ventana(app, true), 50);
+    else if (app && delModo(app)) {                    // no la tienes: la tienda de apps, con ese programa a la vista
+      const x = SW.deApp(ctx.software, p, app);
+      ES.appsFoco = x?.id || null;
+      if (x) toast(`${x.icono} ${t("Necesitas «{x}»: está en 🛍️ Apps.", { x: x.nombre })}`, 3500);
+      setTimeout(() => ventana("apps", true), 50);
+    }
     else if (!esDev() && p?.negocio && NG.noLeidos(p) && !Object.keys(ES.win).some((w) => ES.win[w].open)) setTimeout(() => ventana("mensajes", true), 50);
     renderArchivos();
     cargarEditor();
@@ -109,6 +144,7 @@ export function initEstudio(ctx) {
     }
     sondear(true);
     redSondear(true);
+    ponerFondo();
     if (abierta("ide")) $("es-src").focus();
   }
   function cerrar() { sondear(!!ES.run); redSondear(false); menuArchivos(false); for (const w of Object.keys(HOST)) ventana(w, false); ctx.irTaller(); }
@@ -136,7 +172,7 @@ export function initEstudio(ctx) {
     const src = $("es-src").value;
     $("es-hl").innerHTML = resaltar(src);
     const n = src.split("\n").length;
-    $("es-gut").innerHTML = Array.from({ length: n }, (_, i) => `<div class="${ES.errLinea === i + 1 ? "err" : ""}">${i + 1}</div>`).join("");
+    $("es-gut").innerHTML = Array.from({ length: n }, (_, i) => `<div class="${ES.errLinea === i + 1 ? "err" : ES.marca === i + 1 ? "tuto" : ""}">${ES.marca === i + 1 && ES.errLinea !== i + 1 ? "👉" : i + 1}</div>`).join("");
     sincScroll();
   }
   function sincScroll() { const ta = $("es-src"); $("es-hl").scrollTop = ta.scrollTop; $("es-hl").scrollLeft = ta.scrollLeft; $("es-gut").scrollTop = ta.scrollTop; }
@@ -286,6 +322,7 @@ export function initEstudio(ctx) {
     for (const n of Object.keys(ES.data.ejemplos)) {
       const b = document.createElement("button");
       b.className = "es-item muted";
+      b.dataset.ej = n;
       b.textContent = n;
       b.onclick = () => { menuArchivos(false); comando("ejemplo " + n); };
       ej.appendChild(b);
@@ -397,11 +434,14 @@ export function initEstudio(ctx) {
         case "guardar": return control(a0, "guardar");
         case "copiar": case "renombrar": {
           if (!a0 || !a1) return linea(t("{cmd} <modelo> <nuevo>", { cmd }), "bad");
+          if (!(await cargarModelos()).some((m) => m.slug === a0)) return linea("✗ " + t('No hay un modelo "{m}" (modelos para verlos)', { m: a0 }), "bad");
           const r = await api("/api/modelo", { accion: cmd === "copiar" ? "copiar" : "renombrar", slug: a0, nuevo: nombreArchivo(a1) });
+          if (r.ok) { ctx.PT.anotarModelo(ctx.P(), r.slug, cmd === "renombrar" ? a0 : null); ctx.guardar(); }
           return linea(r.msg || (r.ok ? t("listo") : t("no se pudo")), r.ok ? "ok" : "bad");
         }
         case "borrar": {
           if (!a0) return linea(t("borrar <modelo>"), "bad");
+          if (!(await cargarModelos()).some((m) => m.slug === a0)) return linea("✗ " + t('No hay un modelo "{m}" (modelos para verlos)', { m: a0 }), "bad");
           if (!(await confirmar(t('¿Mandar el modelo "{m}" a la papelera (models/drones/_papelera)?', { m: a0 }), { si: t("A la papelera"), peligro: true }))) return linea(t("No se borró."), "muted");
           const r = await api("/api/modelo", { accion: "borrar", slug: a0 });
           return linea(r.msg || (r.ok ? t("a la papelera") : t("no se pudo")), r.ok ? "ok" : "bad");
@@ -415,7 +455,7 @@ export function initEstudio(ctx) {
         }
         case "borrar_archivo": case "eliminar": return borrarArchivo(nombreArchivo(a0 || ES.abierto));
         case "ejemplo": {
-          const src = ES.data.ejemplos[a0];
+          const src = ES.data.ejemplos[a0] && adaptarEjemplo(ES.data.ejemplos[a0]);
           if (!src) return linea(t("Ejemplos: {lista}", { lista: Object.keys(ES.data.ejemplos).join(", ") }), "muted");
           const n = nuevoArchivo("ejemplo_" + a0, src);
           return linea(t("Abrí el ejemplo como {n}.pbd: léelo, cámbialo y córrelo.", { n }), "ok");
@@ -522,12 +562,13 @@ export function initEstudio(ctx) {
 
   async function cargarModelos() {
     const r = await api("/api/modelos");
-    if (r.modelos) { ES.modelos = r.modelos; ES.modelosT = Date.now(); }
+    if (r.modelos) { ES.todos = r.modelos; ES.modelos = ctx.PT.modelosVisibles(ctx.P(), r.modelos); ES.modelosT = Date.now(); }   // los de esta partida
     return ES.modelos;
   }
   async function modelos(orden = "exito") {
     const ms = await cargarModelos();
-    if (!ms.length) return linea(t("No encontré modelos (¿está corriendo python scripts/jugar.py?)"), "bad");
+    if (!ms.length) return ES.todos.length ? linea(t("Todavía no tienes modelos: corre un programa (▶) y se crea el primero."), "muted")
+      : linea(t("No encontré modelos (¿está corriendo python scripts/jugar.py?)"), "bad");
     const k = { exito: (m) => -(m.ultimo?.[2] ?? -1), "éxito": (m) => -(m.ultimo?.[2] ?? -1), gen: (m) => -(m.gen || 0), nombre: (m) => m.slug }[orden] || ((m) => -(m.ultimo?.[2] ?? -1));
     const ord = [...ms].sort((a, b) => (k(a) < k(b) ? -1 : k(a) > k(b) ? 1 : 0));
     const niv = ES.data.nombres_niveles;
@@ -608,6 +649,21 @@ export function initEstudio(ctx) {
       guardar: () => enviar("guardar"),
     };
   }
+  /** El tutorial (modo dev) pregunta una vez si tiene Blender: es lo recomendado. Si dice que sí, el programa pasa a
+   *  entrenar_en("blender") y hay que volver a correrlo (-> true). */
+  async function preguntarBlender(nombre, c) {
+    const p = ctx.P();
+    if (c.donde === "blender" || !ctx.tutorial?.() || p.modo !== "dev" || !p.tuto || p.tuto.blender !== undefined) return false;
+    const si = await confirmar(t("¿Tienes <b>Blender</b>? Con Blender ves a tus drones aprender en 3D: es la mejor experiencia (recomendado). Sin Blender entrena en el fondo y lo miras en el Monitor."),
+      { titulo: t("¿Dónde entrenar?"), si: t("Sí, con Blender"), no: t("No, en el fondo") });
+    p.tuto.blender = si; ctx.guardar();
+    if (!si) return false;
+    const n = nombre ? nombreArchivo(nombre) : ES.abierto;
+    ES.archivos[n] = (ES.archivos[n] || "").replace(/(entrenar_en|train_on)\(\s*"(fondo|background)"\s*\)/, '$1("blender")');
+    guardarArchivos(); if (n === ES.abierto) cargarEditor();
+    linea("  " + t("Listo: entrena en Blender. Ábrelo (comando blender) y míralo aprender."), "ok");
+    return true;
+  }
   async function correr(nombre, soloRevisar) {
     await cargarModelos();                         // la lista de modelos al día (desde="colibri" recién entrenado)
     let R = null;
@@ -627,6 +683,7 @@ export function initEstudio(ctx) {
       m: c.modelo, desde: c.desde === "cero" ? t("red nueva {capas}", { capas: c.capas ? c.capas.join("×") : "128×128" }) : c.desde === "base" ? t("desde la IA base") : t('desde "{m}"', { m: c.desde }),
       nivel: c.nivel, niv, dron: typeof c.dron === "object" ? t('tu dron "{d}"', { d: c.dron.hangar }) : c.dron === "AZAR" ? t("drones al azar") : t("dron estándar"),
       n: c.drones, donde: c.donde === "blender" ? "Blender" : t("el fondo"), vel: idioma() === "en" ? ES.data.alias_en?.valores?.[c.velocidad] || c.velocidad : c.velocidad }));
+    if (c.tarea?.repaso) linea("  " + t("repasa lo que ya aprobó (20 % de los intentos): {lista}", { lista: c.tarea.repaso.map((n) => ES.data.nombres_niveles[n] || n).join(", ") }), "muted");
     linea(`  ${valoresTxt(c.premiosFinal)}${c.viento ? " · " + t("viento {v} m/s", { v: c.viento }) : ""}${c.lr !== undefined ? ` · lr ${c.lr}` : ""}${c.ent !== undefined ? " · " + t("exploración {v}", { v: c.ent }) : ""}`, "muted");
     if (prog.revision) {                             // PBDMM 2: el dron de dron(…) contra lo que pide la misión
       linea("  " + t('revisión de "{d}" para {m}:', { d: c.dron.hangar, m: c.mision }), prog.revision.ok ? "ok" : "warn");
@@ -637,6 +694,7 @@ export function initEstudio(ctx) {
     RUTA.alCompilar(ctx.P(), ES.abierto, ES.archivos[ES.abierto] || "", prog, avisoRuta);
     linea("  " + t("funciones: {lista}", { lista: prog.hooks.length ? prog.hooks.map((h) => (idioma() === "en" ? ES.data.alias_en?.hooks?.[h] || h : h)).join(", ") : t("ninguna (solo entrena; párala con detener {m})", { m: c.modelo }) }), "muted");
     if (soloRevisar) return;
+    if (await preguntarBlender(nombre, c)) return correr(nombre);
     let dron = null;
     if (typeof c.dron === "object") {
       const d = ctx.P().drones.find((x) => x.nombre === c.dron.hangar);
@@ -651,6 +709,7 @@ export function initEstudio(ctx) {
     linea(c.donde === "blender" ? t("Enviando el pedido (a Blender)…") : t("Enviando el pedido (al fondo)…"));
     const r = await api("/api/lab", body);
     if (!r.ok) { linea("✗ " + (r.msg || t("el servidor no lo aceptó")), "bad"); return; }
+    ctx.PT.anotarModelo(ctx.P(), c.modelo); ctx.guardar();          // ahora es un modelo de esta partida
     linea(`✓ ${r.msg}${r.modelo_txt ? " · " + r.modelo_txt : ""}`, "ok");
     if (c.donde === "blender") {
       const s = await api("/api/lab");
@@ -816,15 +875,19 @@ export function initEstudio(ctx) {
     tienda: { x: 0.14, y: 0.02, w: 0.7, h: 0.94, open: false }, inventario: { x: 0.2, y: 0.05, w: 0.6, h: 0.86, open: false },
     banco: { x: 0.38, y: 0.06, w: 0.3, h: 0.8, open: false }, escenarios: { x: 0.2, y: 0.03, w: 0.58, h: 0.92, open: false }, calendario: { x: 0.36, y: 0.04, w: 0.42, h: 0.86, open: false },
     campana: { x: 0.16, y: 0.03, w: 0.66, h: 0.92, open: false }, lab: { x: 0.13, y: 0.02, w: 0.74, h: 0.95, open: false },
-    videos: { x: 0.2, y: 0.05, w: 0.6, h: 0.86, open: false }, ajustes: { x: 0.3, y: 0.08, w: 0.42, h: 0.8, open: false } };
+    videos: { x: 0.2, y: 0.05, w: 0.6, h: 0.86, open: false }, ajustes: { x: 0.3, y: 0.08, w: 0.42, h: 0.8, open: false },
+    apps: { x: 0.22, y: 0.04, w: 0.56, h: 0.9, open: false }, fondos: { x: 0.3, y: 0.1, w: 0.4, h: 0.62, open: false } };
   /** Las apps: ícono y nombre (función: t() corre después de cargar el idioma). */
   const APPS = () => ({ ide: ["💻", "IDE"], docs: ["📖", t("Documentación")], mensajes: ["💬", t("Mensajes")], tienda: ["🛒", t("Tienda")],
     inventario: ["📦", t("Inventario")], sim: ["📈", t("Monitor")], banco: ["🏦", t("Finanzas")], calendario: ["📅", t("Calendario")], escenarios: ["🎮", t("Simuladores")],
-    campana: ["⭐", t("Campaña")], lab: ["🧠", t("Laboratorio")], videos: ["🎬", t("Videos")], ajustes: ["⚙️", t("Ajustes")] });
+    campana: ["⭐", t("Campaña")], lab: ["🧠", t("Laboratorio")], videos: ["🎬", t("Videos")], ajustes: ["⚙️", t("Ajustes")],
+    apps: ["🛍️", t("Apps")], fondos: ["🖼️", t("Fondos")] });
   const SOLO_DEV = new Set(["ide", "docs", "sim"]), SOLO_NORMAL = new Set(["lab"]);
   const esDev = () => ctx.P()?.modo === "dev";
   const FUERA = new Set(["inventario"]);              // el inventario es el estante del garaje (main.js), no una app
-  const permitida = (w) => !FUERA.has(w) && (esDev() ? !SOLO_NORMAL.has(w) : !SOLO_DEV.has(w));
+  const delModo = (w) => !FUERA.has(w) && (esDev() ? !SOLO_NORMAL.has(w) : !SOLO_DEV.has(w));
+  /** Se ve y se abre: es de este modo y tienes el programa (🛍️ Apps, software.js). */
+  const permitida = (w) => delModo(w) && SW.tieneApp(ctx.P(), ctx.software, w);
   /** Las apps que son pantallas del juego (el celular, la tienda, el laboratorio…): se meten en una ventana. */
   const HOST = { mensajes: ["celular", () => ctx.celular?.abrir()], tienda: ["tienda", () => ctx.tienda?.abrirTienda()], inventario: ["inventario", () => ctx.tienda?.abrirInventario()],
     campana: ["tablero", () => ctx.abrirTablero?.()], lab: ["lab", () => ctx.abrirLab?.()], videos: ["videos", () => ctx.abrirVideos?.()], ajustes: ["controles", () => ctx.abrirControles?.()] };
@@ -874,8 +937,9 @@ export function initEstudio(ctx) {
     if (!p) return;
     $("es-reloj").innerHTML = `<b>$${p.plata.toLocaleString(idioma())}</b> · ⭐ ${p.rep}${p.negocio ? ` · ${t("Día {n}", { n: p.negocio.dia })}` : ""}`;
     if (p.negocio && ES.diaCal !== p.negocio.dia) { ES.diaCal = p.negocio.dia; if (abierta("calendario")) renderCalendario(); }
-    const n = p.negocio ? NG.noLeidos(p) : 0;
+    const n = p.negocio ? NG.noLeidos(p) : 0, sinMsj = !SW.tieneApp(p, ctx.software, "mensajes");
     $("es-badge").hidden = !n; $("es-badge").textContent = n;
+    $("es-apps-badge").hidden = !(n && sinMsj); $("es-apps-badge").textContent = n;     // te escribieron y no tienes Mensajes
   }
   function alFrente(w) { ES.orden = [...ES.orden.filter((x) => x !== w), w]; colocar(); }
   /** Abre o cierra una app (sin "on": la alterna). */
@@ -890,7 +954,9 @@ export function initEstudio(ctx) {
     if (w === "sim") { redSondear(quiere); if (quiere) dibujarGrafica(); }
     if (w === "banco" && quiere) renderBanco();
     if (w === "calendario" && quiere) renderCalendario();
-    if (w === "escenarios" && quiere) renderEscenarios();
+    if (w === "escenarios" && quiere) { renderEscenarios(); cargarModelos().then(() => renderEscenarios()); }   // el examen elige entre tus modelos
+    if (w === "apps" && quiere) renderApps();
+    if (w === "fondos" && quiere) renderFondos();
     if (w === "ide" && quiere) $("es-src").focus();
   }
   /** Mete la pantalla del juego (el celular, la tienda…) en su ventana; si el juego la cierra, la ventana se cierra. */
@@ -1073,7 +1139,8 @@ export function initEstudio(ctx) {
     let pasos = [];
     if (e.id === "set_fotos") pasos = ["despegar(altura=2)", "for i in range(3):", '    ir_a("punto")', "    mantener(segundos=2)", "    foto(calidad=0.55)"];
     else pasos = [...new Set(e.plan)].map((a) => plan[a]).concat(e.plan.includes("grabar") ? ["seguir_ruta()"] : []);
-    const src = `# ${nom}.pbd · ${t("simulador")}: ${e.nombre}\n# ${e.desc}\n\nmodelo("${nom}", desde="base")\nmision("${e.mision}")\ndron("${dron}")\nentrenar_en("fondo")\n\n# ${t("el plan de vuelo")}\n${pasos.join("\n")}\naterrizar()\n\ndef cada_generacion(e):\n    print(f"gen {e.generacion}: ${t("éxito")} {e.exito:.0%}")\n`;
+    const desde = ESC.desdePara(ctx.P(), ctx.escenarios, e.id, (s) => ES.modelos.some((m) => m.slug === s)) || (enCero() ? "cero" : "base");
+    const src = `# ${nom}.pbd · ${t("simulador")}: ${e.nombre}\n# ${e.desc}\n\nmodelo("${nom}", desde="${desde}")\nmision("${e.mision}")\ndron("${dron}")\nentrenar_en("fondo")\n\n# ${t("el plan de vuelo")}\n${pasos.join("\n")}\naterrizar()\n\ndef cada_generacion(e):\n    print(f"gen {e.generacion}: ${t("éxito")} {e.exito:.0%}")\n`;
     return idioma() === "en" ? traducirCodigo(src, "en", ES.data.alias_en) : src;
   }
   function renderEscenarios() {
@@ -1081,21 +1148,34 @@ export function initEstudio(ctx) {
     if (!p || !E) return;
     const lst = ESC.lista(E), tuyos = lst.filter((e) => ESC.tiene(p, e.id)).length;
     $("es-esc-sub").textContent = t("{n} de {m}", { n: tuyos, m: lst.length });
-    box.innerHTML = `<p class="muted" style="margin:0">${t("Cada simulador es un escenario donde se entrena tu IA (en el fondo o en Blender). Te deja entrenar esa misión, que la IA haga esos trabajos y abre funciones nuevas de PBDMM.")}</p>`;
+    box.innerHTML = `<p class="muted" style="margin:0">${t("Cada simulador le enseña una misión a tu IA.")}</p>`;
     for (const e of lst) {
       const est = ESC.estado(p, E, e.id), c = document.createElement("div");
       c.className = "esc-c " + est;
       const req = e.requiere ? ESC.escenario(E, e.requiere) : null;
-      c.innerHTML = `<span class="ic">${est === "bloqueado" ? "🔒" : e.icono}</span><div><h4>${esc(e.nombre)}</h4><p>${esc(e.desc)}</p>` +
+      const pasaron = ESC.aprobaron(p, e.id).filter((s) => ES.modelos.some((m) => m.slug === s));
+      c.innerHTML = `<span class="ic">${est === "bloqueado" ? "🔒" : e.icono}</span><div><h4>${e.num ? `<span class="muted">${e.num}</span> ` : ""}${esc(e.nombre)}</h4><p>${esc(e.desc)}</p>` +
         `<div class="esc-plan"><span class="muted">${t("plan")}:</span>${e.plan.map((a) => `<code>${esc(nombreFnDe(a))}()</code>`).join("→")}</div>` +
         (e.abre.length ? `<div class="esc-plan esc-fn"><span class="muted">${t("abre en PBDMM")}:</span>${e.abre.map((f) => `<code>${esc(nombreFnDe(f))}</code>`).join("")}</div>` : "") +
-        `<p style="font-size:12.5px">🧰 ${esc(e.trabajos)}</p></div><div class="esc-acc"></div>`;
+        `<p style="font-size:12.5px">🧰 ${esc(e.trabajos)}</p>` +
+        (pasaron.length ? `<p style="font-size:12.5px">🎓 ${pasaron.map((s) => `<b>${esc(s)}</b>${ESC.esBase(p, s) ? " ⭐" : ""}`).join(", ")}</p>` : "") + `</div><div class="esc-acc"></div>`;
       const acc = c.querySelector(".esc-acc");
       const btn = (txt, cls, fn, dis = false) => { const b = document.createElement("button"); b.className = "btn small " + cls; b.innerHTML = txt; b.disabled = dis; b.onclick = fn; acc.appendChild(b); };
       if (est === "tuyo") {
         acc.insertAdjacentHTML("afterbegin", `<span class="chip on" style="text-align:center">✓ ${t("tuyo")}</span>`);
-        btn("🎓 " + t("Entrenar"), "ai", () => entrenarEscenario(e));
+        btn("🧠 " + t("Entrenar"), "ai", () => entrenarEscenario(e));
         btn("▶ " + t("Probar"), "ghost", () => probarEscenario());
+        const mios = ES.modelos.filter((m) => m.tiene_modelo && m.slug !== "base");
+        if (mios.length) {                         // el examen: elige el modelo (el último que entrenaste, primero)
+          const sel = document.createElement("select");
+          sel.className = "esc-sel"; sel.setAttribute("aria-label", t("Modelo para el examen"));
+          sel.innerHTML = mios.map((m) => `<option value="${esc(m.slug)}">${esc(m.slug)}${ESC.aprobados(p, m.slug).includes(e.id) ? " 🎓" : ""}</option>`).join("");
+          const ult = ES.examenSel?.[e.id] || ctx.D?.()?.modelo;
+          if (mios.some((m) => m.slug === ult)) sel.value = ult;
+          sel.onchange = () => { ES.examenSel = { ...(ES.examenSel || {}), [e.id]: sel.value }; };
+          acc.appendChild(sel);
+          btn("🎓 " + t("Examen"), "ghost", (ev) => examen(e, sel.value, ev.currentTarget));
+        }
       } else if (est === "comprable") {
         btn(e.precio ? t("Comprar ${n}", { n: e.precio }) : t("Gratis"), "main", () => {
           const err = ESC.comprar(p, E, e.id);
@@ -1105,6 +1185,67 @@ export function initEstudio(ctx) {
         }, p.plata < e.precio);
       } else acc.insertAdjacentHTML("beforeend", `<small class="muted">${t("Primero «{e}»", { e: req?.nombre || "?" })}</small>`);
       box.appendChild(c);
+    }
+  }
+  /** El examen de un escenario: 20 intentos fijos sin ruido (GET /api/evaluar). ≥ 80 % = aprobado (p.examenes). */
+  async function examen(e, slug, b) {
+    if (b) { b.disabled = true; b.textContent = "⏳ " + t("Examen…"); }
+    let r = null;
+    try { r = await (await fetch(`/api/evaluar?modelo=${encodeURIComponent(slug)}&nivel=${e.nivel}&n=20`)).json(); }
+    catch { r = { ok: false, msg: t("sin servidor") }; }
+    renderEscenarios();
+    if (!r.ok) { sfx("error"); return toast(t("No se pudo tomar el examen: {msg}", { msg: r.msg || "?" }), 5000); }
+    const x = Math.round(r.exito * 100), meta = Math.round(ESC.APROBAR * 100);
+    if (r.exito < ESC.APROBAR) { sfx("error"); return toast(t("«{m}» sacó {x} % en «{e}» (necesita {meta} %): sigue entrenando.", { m: slug, x, e: e.nombre, meta }), 5000); }
+    const base = ESC.aprobar(ctx.P(), slug, e.id);
+    ctx.guardar(); sfx("listo"); renderEscenarios();
+    toast(t("🎓 ¡«{m}» aprobó «{e}» con {x} %!", { m: slug, e: e.nombre, x }), 5000);
+    if (base) ctx.historia?.(t("⭐ ¡Tienes un modelo base!"), t("«{m}» ya despega, va a un punto, sigue una línea, toma fotos y graba. <b>Es tu modelo base</b>: úsalo como punto de partida (desde=\"{m}\") y tus próximos modelos van a aprender mucho más rápido que desde cero.", { m: esc(slug) }));
+  }
+  // ---------------- 🛍️ Apps: la tienda de programas (software.js) ----------------
+  function renderApps() {
+    const p = ctx.P(), S = ctx.software, box = $("es-apps");
+    if (!p || !S) return;
+    box.innerHTML = "";
+    for (const x of SW.lista(S, p)) {
+      const tuyo = SW.instalado(p, x.id), c = document.createElement("div");
+      c.className = "sw-c" + (tuyo ? " tuyo" : "") + (ES.appsFoco === x.id ? " foco" : "");
+      c.innerHTML = `<span class="ic">${x.icono}</span><div><h4>${esc(x.nombre)}</h4><p>${esc(x.desc)}</p></div><div class="esc-acc"></div>`;
+      const acc = c.querySelector(".esc-acc"), b = document.createElement("button");
+      if (tuyo) {
+        b.className = "btn small ghost"; b.textContent = x.base ? "✓" : t("Abrir");
+        b.disabled = !!x.base && x.id === "apps";
+        b.onclick = () => { const w = x.apps.find(permitida); if (w) ventana(w, true); };
+      } else {
+        b.className = "btn small main sw-comprar"; b.dataset.sw = x.id;
+        b.textContent = x.precio ? t("Comprar ${n}", { n: x.precio }) : t("Gratis");
+        b.disabled = p.plata < x.precio;
+        b.onclick = () => {
+          const err = SW.comprar(p, S, x.id);
+          if (err) return toast(err);
+          ctx.guardar(); sfx("listo"); ES.appsFoco = null;
+          toast(`${x.icono} ${t("«{x}» instalado.", { x: x.nombre })}`, 3000);
+          renderApps(); colocar(); reloj();
+        };
+      }
+      acc.appendChild(b);
+      box.appendChild(c);
+    }
+    box.querySelector(".foco")?.scrollIntoView({ block: "nearest" });
+  }
+  // ---------------- 🖼️ Fondos de pantalla ----------------
+  const fondoDe = (id) => (ctx.software?.fondos || []).find((f) => f.id === id) || null;
+  function ponerFondo() { const f = fondoDe(ctx.P()?.fondo); $("estudio").style.background = f ? f.css : ""; }
+  function renderFondos() {
+    const p = ctx.P(), box = $("es-fondos");
+    box.innerHTML = "";
+    for (const f of ctx.software?.fondos || []) {
+      const b = document.createElement("button");
+      b.className = "fondo-b"; b.style.background = f.css;
+      b.setAttribute("aria-pressed", String((p.fondo || "taller") === f.id));
+      b.innerHTML = `<span>${esc(f.nombre)}</span>`;
+      b.onclick = () => { p.fondo = f.id; ctx.guardar(); ponerFondo(); renderFondos(); sfx("click"); };
+      box.appendChild(b);
     }
   }
   const nombreFnDe = (f) => (idioma() === "en" ? ES.data?.alias_en?.funciones?.[f] || f : f);
@@ -1286,13 +1427,25 @@ export function initEstudio(ctx) {
   $("es-parar").onclick = () => comando("parar");
   $("es-bajar").onclick = () => { menuArchivos(false); descargar(); };
   $("es-armar").onclick = () => { cerrar(); ctx.abrirBanco?.(); };     // el banco de armado es la mesa 3D del garaje
+  $("es-ajustes").onclick = () => (abierta("ajustes") ? alFrente("ajustes") : ventana("ajustes", true));   // del sistema: no es un programa
   $("es-limpiar").onclick = () => { $("es-out").innerHTML = ""; };
   $("es-nuevo").onclick = async () => { menuArchivos(false); const n = await pedirTexto(t("Nombre del programa:"), "mi_modelo", { si: t("Crear") }); if (n) comando("nuevo " + n); };
   $("es-blender").onclick = () => comando("blender");
   $("es-volver").onclick = cerrar;
 
   $("es-menu").onclick = () => { cerrar(); ctx.irMenu?.(); };
-  return { abrir, comando, get estado() { return ES; } };
+  /** Para el tutorial del modo desarrollador: ¿el IDE abierto? ¿el menú de programas? la línea dron(…) del programa abierto. */
+  function estadoTuto() {
+    const src = ES.abierto ? ES.archivos[ES.abierto] || "" : "", lineas = src.split("\n");
+    const i = lineas.findIndex((l) => /^\s*(dron|drone)\s*\(/.test(l));
+    const m = i >= 0 && /^\s*(?:dron|drone)\s*\(\s*["']([^"']*)["']/.exec(lineas[i]);
+    const mi = /^\s*(?:mision|mission)\s*\(\s*["']([^"']*)["']/m.exec(src), deEn = Object.fromEntries(Object.entries(ES.data?.alias_en?.misiones || {}).map(([es, en]) => [en, es]));
+    return { ide: abierta("ide"), menu: !$("es-archivo-m").hidden, archivo: ES.abierto, mision: mi ? deEn[mi[1]] || mi[1] : null,
+      dron: i >= 0 ? { linea: i + 1, valor: m ? m[1] : null } : null, corriendo: !!ES.run };
+  }
+  /** El tutorial marca una línea del editor (👉 en el margen); null = ninguna. */
+  function marcar(n) { if (ES.marca !== n) { ES.marca = n; if (ES.data) pintar(); } }
+  return { abrir, comando, vaciar, estadoTuto, marcar, get estado() { return ES; } };
 }
 
 export { repr };

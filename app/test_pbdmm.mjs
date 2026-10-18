@@ -350,23 +350,30 @@ ok(salida.join("|") === "0 a|1 b|[[1, 3], [2, 4]] True False [2, 1]", "enumerate
 {
   const ES3 = JSON.parse(readFileSync(new URL("./data/escenarios.json", import.meta.url)));
   const ESC = await import("./escenarios.js");
-  const p = { escenarios: ["foto_fija"] }, dis = ESC.disponibles(p, ES3);
+  const HASTA_FOTO = ["despegar", "punto", "linea", "foto_fija"];
+  const p = { escenarios: HASTA_FOTO }, dis = ESC.disponibles(p, ES3);
   const D3 = { ...D, misionesDisponibles: dis.misiones, nivelesDisponibles: dis.niveles, bloqueadas: dis.bloqueadas, planes: dis.planes };
   const P3 = compilar(data.ejemplos.foto_fija, D3, host);
   ok(P3.cfg.plan.map((x) => x.a).join(",") === "despegar,ir_a,mantener,foto,aterrizar", "el ejemplo foto_fija: despegar → ir_a → mantener → foto → aterrizar");
   const b = pedidoDe(P3.cfg, () => null);
-  ok(b.tarea && b.tarea.foto_ok === 0.6 && b.tarea.foto_seg[0] === 2.6 && b.tarea.foto_seg[1] === 3.4 && b.premios.settle > 0 && b.premios.framing > 0, `el plan es la tarea del entrenamiento: ${JSON.stringify(b.tarea)} + premios de quieto y encuadre`);
+  ok(b.tarea && b.tarea.foto_ok === 0.5 && b.tarea.foto_seg[0] === 2.6 && b.tarea.foto_seg[1] === 3.4 && b.premios.settle > 0 && b.premios.framing > 0, `el plan es la tarea del entrenamiento: ${JSON.stringify(b.tarea)} + premios de quieto y encuadre`);
   const err3 = (src) => falla(() => compilar(src, D3, host))?.message || "";
+  // una partida nueva: sin la IA base (desde="cero" por defecto) y sin nombres de otra partida
+  const D0 = { ...D3, sinBase: true, modelos: [], ocupados: ["fotografo"] };
+  ok(compilar(data.ejemplos.foto_fija, D0, host).cfg.desde === "cero", "partida nueva: el ejemplo foto_fija empieza desde cero");
+  ok(compilar('modelo("x")\nmision("foto")\ndespegar()\nir_a("punto")\nmantener(segundos=3)\nfoto()\naterrizar()', D0, host).cfg.desde === "cero", "partida nueva: sin desde= es cero");
+  ok(/IA base/.test(falla(() => compilar(data.ejemplos.foto_fija.replace('desde="cero"', 'desde="base"'), D0, host))?.message || ""), "partida nueva: desde=\"base\" es un error");
+  ok(/ya está usado/.test(falla(() => compilar(data.ejemplos.foto_fija.replace("mi_fotografo", "fotografo"), D0, host))?.message || ""), "partida nueva: un nombre de otra partida es un error");
   ok(/le falta: mantener\(\)/.test(err3('modelo("x")\nmision("foto")\ndespegar()\nir_a()\nmantener()\nfoto()'.replace("mantener()\nfoto()", "foto()"))) || /quieto/.test(err3('modelo("x")\nmision("foto")\ndespegar()\nir_a()\nfoto()')), "foto() sin mantener() antes: error");
   ok(/le falta: foto\(\)/.test(err3('modelo("x")\nmision("foto")\ndespegar()\nir_a()\nmantener(2)')), "un plan sin foto(): le falta foto()");
   ok(/primero despegar/.test(err3('modelo("x")\nmision("foto")\nir_a()')), "ir_a() sin despegar: error");
   ok(/simulador «Set de fotos»/.test(err3('modelo("x")\nmision("foto")\ndrones(10)')), "drones() se abre con el simulador Set de fotos");
   ok(/todavía no la tienes/.test(err3('modelo("x")\nmision("grabar")')), "una misión que no compraste: error");
-  const p2 = { escenarios: ["foto_fija", "set_fotos"] }, d2 = ESC.disponibles(p2, ES3);
+  const p2 = { escenarios: [...HASTA_FOTO, "set_fotos"] }, d2 = ESC.disponibles(p2, ES3);
   const P4 = compilar('modelo("x")\nmision("set_fotos")\ndespegar()\nfor i in range(3):\n    ir_a()\n    mantener(2)\n    foto()\ndrones(20)', { ...D, misionesDisponibles: d2.misiones, nivelesDisponibles: d2.niveles, bloqueadas: d2.bloqueadas, planes: d2.planes }, host);
   ok(P4.cfg.tarea.fotos === 3 && P4.cfg.drones === 20, "un for con 3 fotos = un set de 3 (y con el simulador, drones() ya se puede)");
   ok(pedidoDe(compilar(data.ejemplos.curriculum, D, host).cfg, () => null).tarea === undefined, "sin simuladores (programas de antes): nada cambia");
-  const pp = { plata: 100, escenarios: ["foto_fija"] };
+  const pp = { plata: 100, escenarios: HASTA_FOTO };
   ok(ESC.comprar(pp, ES3, "video_ruta") && ESC.comprar(pp, ES3, "set_fotos") === null && pp.plata === 20 && ESC.estado(pp, ES3, "video_ruta") === "comprable", "comprar en orden: Set de fotos ($80) abre Video con ruta");
   // las pruebas nuevas (niveles 16-18): con todos los simuladores, cada misión compila y entrena su nivel
   const todos = { escenarios: ES3.escenarios.map((e) => e.id) }, dT = ESC.disponibles(todos, ES3);
@@ -376,6 +383,30 @@ ok(salida.join("|") === "0 a|1 b|[[1, 3], [2, 4]] True False [2, 1]", "enumerate
     ok(Pm.cfg?.nivel === nv, `mision("${m}") entrena el nivel ${nv}${Pm.message ? ": " + Pm.message : ""}`);
   }
   ok(/todavía no la tienes|simulador/.test(err3('modelo("x")\nmision("carrera")\ndespegar()\nir_a()')), "la carrera sin su simulador: error");
+
+  // los escenarios básicos (E1-E2, gratis en una partida nueva): los ejemplos del tutorial compilan
+  const pn = { escenarios: ESC.INICIALES }, dn = ESC.disponibles(pn, ES3);
+  const DN = { ...D, misionesDisponibles: dn.misiones, nivelesDisponibles: dn.niveles, bloqueadas: dn.bloqueadas, planes: dn.planes, sinBase: true, modelos: [{ slug: "mi_piloto", tiene_modelo: true, gen: 40 }] };
+  const Pd = compilar(data.ejemplos.despegar, DN, host);
+  ok(Pd.cfg.nivel === 19 && Pd.cfg.desde === "cero" && Pd.cfg.plan.map((x) => x.a).join(",") === "despegar,mantener,aterrizar", "el ejemplo despegar: nivel 19, desde cero, despegar → mantener → aterrizar");
+  const Pp = compilar(data.ejemplos.ir_a_punto, DN, host);
+  ok(Pp.cfg.nivel === 20 && Pp.cfg.desde === "mi_piloto", "el ejemplo ir_a_punto: nivel 20, parte de mi_piloto");
+  ok(/todavía no la tienes|simulador/.test(falla(() => compilar(data.ejemplos.foto_fija, DN, host))?.message || ""), "partida nueva: la foto pide su simulador (E4)");
+  // el repaso: lo que aprobó el modelo del que parte
+  const DR = { ...DN, repaso: (slug, nivel) => (slug === "mi_piloto" ? [19, 20].filter((n) => n !== nivel) : []) };
+  ok(JSON.stringify(compilar(data.ejemplos.ir_a_punto, DR, host).cfg.tarea.repaso) === "[19]", "parte de un modelo que aprobó Despegar: lo repasa (tarea.repaso)");
+  ok(!compilar(data.ejemplos.despegar.replace('"mi_piloto"', '"otro"'), DR, host).cfg.tarea?.repaso, "desde cero: nada que repasar");
+  ok(JSON.stringify(compilar(data.ejemplos.despegar, DR, host).cfg.tarea.repaso) === "[20]", "un modelo que ya existe repasa lo que aprobó él (no desde=)");
+
+  // los exámenes y el modelo base
+  const px = { escenarios: ES3.escenarios.map((e) => e.id) };
+  ok(!ESC.aprobar(px, "a", "despegar") && ESC.desdePara(px, ES3, "punto") === "a" && ESC.desdePara(px, ES3, "linea") === "a" && ESC.desdePara(px, ES3, "despegar") === null, "desdePara: el que aprobó el escenario anterior (o uno antes)");
+  ESC.aprobar(px, "b", "despegar"); ESC.aprobar(px, "b", "punto");
+  ok(ESC.desdePara(px, ES3, "linea") === "b" && ESC.desdePara(px, ES3, "linea", (s) => s !== "b") === "a", "desdePara: el que aprobó más (y solo los que existen)");
+  ok(JSON.stringify(ESC.repasoDe(px, ES3, "b", 21)) === "[19,20]" && JSON.stringify(ESC.repasoDe(px, ES3, "b", 20)) === "[19]", "repasoDe: los niveles que aprobó, sin el que entrena");
+  ESC.aprobar(px, "b", "linea"); ESC.aprobar(px, "b", "foto_fija");
+  ok(!ESC.esBase(px, "b") && ESC.aprobar(px, "b", "video_ruta") === true && ESC.modeloBase(px) === "b" && ESC.desdePara(px, ES3, "carrera") === "b", "aprobar E1-E4 + E6 = ⭐ modelo base (y desde ahí se parte de él)");
+  ok(ESC.iaPuede(pn, ES3, "foto") && !ESC.puedeEntrenar(pn, ES3, "foto") && !ESC.iaPuede(pn, ES3, "grabar"), "con Ir a un punto la IA hace fotos fáciles (pero entrenar fotos pide el simulador Foto)");
 }
 
 console.log(fallas ? `\n${fallas} pruebas fallaron.` : "\nTodas las pruebas pasan.");

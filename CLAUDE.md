@@ -71,10 +71,16 @@ app/               EL JUEGO (Dron Maker): usa los módulos de game/
                    punta que se ensucia, flux, estaño que solo moja si el pad está caliente) -> junta buena/fría/puente/
                    levantado en d.banco.juntas; efectivos() = el cableado que conduce. test: node app/test_taller.mjs
   tutorial.js      EL TUTORIAL del primer dron (los dos modos, obligatorio): p.tuto.etapa = regalo -> nombre -> armar (computador
-                   cerrado, negocio.espera: nadie escribe) -> pc (tour de apps) -> modelo (nivel 13 ≥ 80 % SIN ruido: candidatosFoto
+                   cerrado, negocio.espera: nadie escribe) -> pc (comprar Mensajes + Simulador/IDE en 🛍️ Apps) -> modelo (nivel 13 ≥ 80 % SIN ruido: candidatosFoto
                    + GET /api/evaluar = 20 intentos fijos con la red tal cual; si no hay servidor, exitoFoto con "recientes") -> cliente (NG.primerCliente: Doña Marta).
                    notas(p, contexto) = la nota del paso + consejos
-  notas.js         las notas de arriba a la derecha (main.js notasTutorial cada 0,5 s); la mesa señala el pad con un aro amarillo
+  notas.js         el tutorial es un BOTÓN 🎯 «¿Qué sigo?» arriba a la derecha que se abre y se cierra (el paso nuevo se asoma 6 s
+                   y se guarda); lo que hay que tocar brilla siempre. POCO TEXTO: una línea que dice qué tocar (pedido de Santiago).
+                   main.js notasTutorial cada 0,5 s; la mesa señala el pad con un aro amarillo y la herramienta de la bandeja
+  software.js      EL SOFTWARE del computador (data/software.json): de fábrica solo 🛍️ Apps y 🛒 Tienda; se compran 💬 Mensajes,
+                   🧠 Simulador de IA (normal: Laboratorio + Simuladores) o 💻 IDE (dev: IDE, docs, monitor, simuladores),
+                   Calendario, Finanzas, Campaña, Videos, 🖼️ Fondos. p.software (sin él = partida vieja = todo). Ajustes y el
+                   banco van en la barra de tareas (del sistema). El tutorial "pc" = comprar Mensajes + Simulador/IDE
   freestyle.html   EL FREESTYLE (página aparte, botón en el inicio): freestyle.js = modos (libre, carrera contra la IA,
                    contrarreloj, persecución), tu dron Estable (sim.js) o Acro (rate mode con flips, SOLO aquí: la IA nunca lo ve),
                    los rivales con su red (sim.js step/buildObs/sensorRays + Policy; modelos corredor = nivel 16, cazador = 18),
@@ -85,8 +91,10 @@ app/               EL JUEGO (Dron Maker): usa los módulos de game/
   escenarios.js    LOS SIMULADORES (lógica): comprar en orden, qué misiones/funciones abren (disponibles), iaPuede
   mesa.js          LA MESA DE TRABAJO (3D, su propio canvas): abrir cajas; montar cada pieza con su PROCEDIMIENTO (taller.js:
                    arrastrar al fantasma y girar con R, voltear el dron, tornillos por abajo/de lado, separadores, tuercas,
-                   gomas, correa; el orden = taller.js MONTAJE, lo de arriba tapa; desmontar); soldar con el cautín (ratón)
-                   y el estaño (Espacio) a la vez, enchufar el arnés, desoldar (bomba X, malla M), multímetro (T); NO avisa
+                   gomas, correa; el orden = taller.js MONTAJE, lo de arriba tapa; desmontar); soldar: el cautín es el ratón y
+                   la OTRA MANO se toma de la BANDEJA 3D a la derecha de la placa (jeringa de flux: tocas el pad y queda la gota;
+                   estaño: Espacio; bomba: Espacio chupa; malla; esponja = limpiar; atajos F/E/X/M/C; M.mano2), enchufar el
+                   arnés, multímetro (T); NO avisa
                    si una junta salió mal. Gasta p.insumos (estaño, flux, cable, malla: PT.gastar); el cautín = PT.cautinDe
   miniaturas.js    las fotos de la tienda: cada pieza dibujada una vez en 3D (dron3d.js, los GLB de Blender), en cola
   banco.js         el banco de armado (lógica, sin pantalla): componentes y pines, cableado del manual, revisar()
@@ -157,6 +165,8 @@ blender/           drone_lab.py (laboratorio de IA), laboratorio.blend, bodega.b
 models/            modelo.zip (la IA "base"), modelo.json (su historia), modelo_web.json (pesos para el navegador)
                    publico/ = copia fija de la IA base que va en el repo (jugar.py la copia si falta models/modelo.zip)
                    drones/<slug>/ el modelo de cada dron del hangar (mismos archivos) · _papelera/
+                   RESERVADOS (jugar.py: corredor, cazador = rivales del freestyle; fotografo, repartidor = pruebas):
+                   el jugador no los ve, no los entrena ni parte de ellos (DRONMAKER_INTERNO=1 = Santiago sí)
 stl/               los STL que importa el jugador (index.json + <id>.stl), fuera de git
 tests/             pytest
 ```
@@ -267,6 +277,28 @@ Node v22 está en `/opt/homebrew/bin/node`. Blender 5.2 en `/Applications/Blende
 - **El Estudio como computador (16-10-2026):** íconos de apps (IDE, Documentación, Mensajes, Tienda, Inventario,
   Simuladores, Finanzas, Banco de armado), ventanas que se mueven y una barra de tareas. Toda plata que entra o sale se
   anota con `PT.anotar(p, monto, texto)` (`p.movimientos`). Plan "perder plata" en el ROADMAP (negocio parte 2).
+- **Menos texto y la tienda de apps (17-10-2026, pedido de Santiago tras probarlo con alguien sin experiencia):** el tutorial
+  es un botón que se abre/cierra con una línea por paso; el banco y la mesa con textos de una línea; la bandeja de
+  herramientas 3D en la mesa de soldar; el software del computador se compra (software.js).
+- **La partida empieza en cero (17-10-2026, pedido de Santiago):** una partida nueva no trae NINGÚN modelo (ni la IA base
+  ni los del juego) ni programas .pbd: `p.modelos` = los slugs que entrenó ella (`PT.modelosVisibles`, `PT.anotarModelo`;
+  sin `p.modelos` = partida de antes = ve todos menos los reservados y vuela con la base). Sin IA propia, la IA no vuela.
+  PBDMM: `desde=` es "cero" por defecto, `desde="base"` y los nombres de otra partida (`ocupados`) son error; los ejemplos
+  se adaptan solos (`adaptarEjemplo`). Tutorial dev (etapa modelo): abrir el IDE → menú → ejemplo foto_fija → 👉 la línea
+  dron(…) (estudio.marcar) → ▶ Correr. OJO: desde cero el nivel 13 aprende lento (sagaz_model_v1: 0 % a 20 M de pasos con
+  foto_ok 0,8; el ejemplo ahora pide 0,5): falta medir cuánto tarda en llegar al 80 % del tutorial.
+- **Escenarios E1-E12 y el nivel 0 (17-10-2026, pedido de Santiago tras grabar el tutorial):** NIVELES = los pedidos (0 = la
+  foto de Doña Marta, el del tutorial; la campaña 1, 2, 3… en orden de misiones.json) y ESCENARIOS = dónde se entrena, de lo
+  básico a lo difícil (escenarios.json "num"): E1 despegar y quedarse (nivel 19, gratis), E2 ir a un punto mirando al sujeto
+  (20, gratis; también hace las fotos fáciles: "tambien"), E3 seguir una línea (21), E4 foto (13)… E12 persecución (18). Los
+  números de Python NO se cambiaron (los modelos viejos siguen). Examen 🎓 por escenario en Simuladores (GET /api/evaluar,
+  ≥ 80 %: p.examenes); aprobar E1-E4 + E6 = ⭐ modelo base. Un escenario parte del modelo que aprobó el anterior
+  (ESC.desdePara) y REPASA lo que ese modelo aprobó (tarea.repaso -> env.py: el 20 % de los intentos; info["repaso"] no
+  cuenta en el éxito). El tutorial (etapa modelo) = 🛫 E1 (ejemplo despegar) y 📍 E2 (ejemplo ir_a_punto, desde= el de
+  E1; p.tuto.e1); la 1.ª vez que corre pregunta si tiene Blender (p.tuto.blender). También: la prueba de motores es un
+  botón (✓/✗ por motor + Programar el orden / el sentido / Volver a soldar), los pads chicos se tocan a 22 px (flux en la
+  ESP32), fuera del tutorial la placa no colorea los pines, y 3 máquinas caras (🤖 auto-atornillador, auto-conectores,
+  auto-soldador; piezas.json herramientas, etapa 4-5). Falta medir cuánto tarda E1 desde cero.
 - **Lo siguiente (docs/ROADMAP.md):** Fase 1b parte 2 (la física del dron en el entrenamiento), encargos de armado,
   pruebas de drones (QA), a mano, entregas. Decidido: el tutorial es el modo desarrollador (la demo grabada);
   imágenes y rendimiento se mejoran sobre la marcha.

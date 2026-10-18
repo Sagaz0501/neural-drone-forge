@@ -24,7 +24,14 @@ Currículum (de fácil a difícil), parámetro `stage`:
    12 film_posts   : GRABAR ENTRE POSTES: lo mismo, con postes / sombrillas a 1,5 m de la ruta (usar los sensores)
    13 photo        : FOTO: una toma fija corta (2,5-3,5 s): llegar, frenar y quedarse quieto con la casa al centro
    14 photo_set    : SET DE FOTOS: 2-4 fotos seguidas alrededor de la casa, en orden (todas buenas = éxito)
+   16-18           : carrera, entrega, persecución
+   Los ESCENARIOS del juego (app/data/escenarios.json, E1-E3) empiezan por lo básico, para aprender desde cero:
+   19 takeoff_hold : DESPEGAR Y QUEDARSE: subir a una altura al azar (1-4 m) y quedarse quieto 3 s
+   20 point_hold   : IR A UN PUNTO: un punto al azar (4-12 m) y llegar MIRANDO hacia donde se pide (el "sujeto",
+                    entradas 27-29) y quedarse 3 s: lo que pide una foto, sin la casa
+   21 line_follow  : SEGUIR UNA LÍNEA: una línea curva de puntos cada 1,5 m; pasar por todos sin alejarse más de 1,5 m
 Opciones para cualquier nivel: density (bosque más claro/denso) y wind (viento con ráfagas, m/s).
+REPASO: repaso=(19, 20) y repaso_p=0.2 = el 20 % de los intentos son de esos niveles (lo ya aprendido no se olvida).
 Física: params (un dron fijo, ej. QuadParams.load("drones/madera.json")) o phys_range (física al azar
 en cada intento, dentro de esos rangos: así la red aprende a volar drones distintos).
 O un nivel fijo hecho en Blender: DroneEnv(level_path="levels/mi_nivel.json")
@@ -40,7 +47,7 @@ from gymnasium import spaces
 
 from .birds import CATCH_R, Z_FOREST, Z_MAX, Z_MIN, Flock
 from .level import (Level, delivery_level, film_house_level, film_posts, forest_level, forest_shapes, hunt_pillars,
-                    off_line_pillars, race_track, random_forest, random_goal, random_pillars)
+                    off_line_pillars, race_track, random_forest, random_goal, random_line, random_pillars)
 from .liebre import CATCH_R as LIEBRE_R, Liebre
 from .physics import QuadParams, QuadState, Wind, step
 from .physics import yaw_frame
@@ -50,12 +57,17 @@ from .sensing import (N_OBS, OBS_SCALE, RAY_DIRS_LOCAL, RAY_LEN, build_obs, clea
 
 STAGES = {0: "hover", 1: "goal_fixed", 2: "goal_random", 3: "obstacles", 4: "multi_goal", 5: "circuit",
           6: "forest", 7: "forest_multi", 8: "hunt", 9: "hunt_columns", 10: "hunt_forest", 11: "film_fixed", 12: "film_posts",
-          13: "photo", 14: "photo_set", 16: "race", 17: "delivery", 18: "chase"}     # 15 = la toma "seguir" (planeada)
+          13: "photo", 14: "photo_set", 16: "race", 17: "delivery", 18: "chase",     # 15 = la toma "seguir" (planeada)
+          19: "takeoff_hold", 20: "point_hold", 21: "line_follow"}
 HUNT_STAGES = (8, 9, 10)
 FILM_STAGES = (11, 12, 13, 14)
 PHOTO_STAGES = (13, 14)       # fotos: tomas fijas cortas (una, o un set de 2-4 seguidas)
 RACE_STAGE, DELIVERY_STAGE, CHASE_STAGE = 16, 17, 18     # carrera (portales lejos, rápido), entrega (plataforma lejos
                                                          # entre edificios), persecución (alcanzar a la liebre)
+TAKEOFF_STAGE, POINT_STAGE, LINE_STAGE = 19, 20, 21       # los escenarios básicos (E1-E3 del juego)
+HOLD_SECONDS = 3.0            # 19-20: cuánto quieto en el punto
+FACING_COS = float(np.cos(np.radians(30)))   # 20: mirando al sujeto con menos de 30° de error
+LINE_OFF = 1.5                # 21: m que se puede alejar de la línea
 BIG_BOUNDS = 60.0             # m: las pruebas 16-18 usan un campo más grande que el de siempre (30 m)
 FILM_OK = 0.5            # grabar: calidad media de la toma para que cuente como lograda (sensing.film_quality)
 FILM_TOMAS = ("fija", "orbita", "revelar")
@@ -125,7 +137,7 @@ class DroneEnv(gym.Env):
                  start_anywhere: float = 0.0, spawn_jitter: float = 0.0, yaw_jitter: float = 0.0,
                  focus_blocked: float = 1.0, start_speed: float = 0.0, density: float = 1.0, wind: float = 0.0,
                  n_birds: int = 5, bird_speed: float = 1.5, phys_range: dict | None = None,
-                 tomas: tuple | None = None, tarea: dict | None = None):
+                 tomas: tuple | None = None, tarea: dict | None = None, repaso: tuple | None = None, repaso_p: float = 0.2):
         super().__init__()
         self.stage = stage
         self.n_birds, self.bird_speed = n_birds, bird_speed   # caza: cuántos pájaros y qué tan rápido (m/s, en vivo)
@@ -140,6 +152,7 @@ class DroneEnv(gym.Env):
         # "max_angle_deg": …, "yaw_rate_deg": …}; lo que no está queda como en p0
         self.phys_range = phys_range
         self.subject, self.band, self.toma = None, None, None     # grabar
+        self.point_look = None                                    # 20: hacia dónde mirar en el punto
         self.shot = None                                          # grabar: la toma con su ruta (tomas.Toma)
         self.shots, self.shot_q = [], []                          # fotos: el set de tomas y la calidad de cada una
         self.tomas = tuple(tomas) if tomas else FILM_TOMAS        # qué tomas se sortean
@@ -164,16 +177,35 @@ class DroneEnv(gym.Env):
                 blocked = any(self.fixed_level.collides(a + (b - a) * u, self.p.radius) for u in np.linspace(0, 1, 120))
                 w.append(focus_blocked if blocked else 1.0)
             self.start_weights = np.array(w) / np.sum(w)
-        mission = LEVEL_MISSION if level_path else MISSIONS[stage]
-        self.max_seconds = max_seconds or float(mission["tiempo"])
-        self.max_steps = int(self.max_seconds * control_hz)
-        self.hold_steps = int(1.0 * control_hz) if (stage in (0, DELIVERY_STAGE) and not level_path) else 0
-        if stage == RACE_STAGE and not level_path:
-            self.goal_radius = max(goal_radius, 1.0)      # carrera: el portal mide ~2 m (en el juego también)
+        self.level_path, self.max_seconds0, self.goal_radius0, self.control_hz = level_path, max_seconds, goal_radius, control_hz
+        self.stage0 = stage
+        # REPASO (para no olvidar): con probabilidad repaso_p, el intento es de uno de los niveles `repaso` (lo que el
+        # modelo ya aprobó) en vez del nivel que entrena. info["repaso"] lo marca (el entrenador no lo cuenta en el éxito).
+        repaso = repaso if repaso is not None else self.tarea.get("repaso")     # PBDMM / el juego: tarea["repaso"]
+        self.repaso, self.repaso_p = tuple(int(x) for x in (repaso or ()) if int(x) in STAGES and int(x) != stage), float(repaso_p)
+        self.es_repaso = False
+        self._aplicar_stage(stage)
         self.liebre = None
 
         self.action_space = spaces.Box(-1.0, 1.0, shape=(4,), dtype=np.float32)
         self.observation_space = spaces.Box(-3.0, 3.0, shape=(N_OBS,), dtype=np.float32)   # 38 (sensing.build_obs)
+
+    def _aplicar_stage(self, stage: int):
+        """Lo que depende del nivel: tiempo, cuánto quedarse quieto, el radio de la meta."""
+        self.stage = stage
+        lp, hz = self.level_path, self.control_hz
+        mission = LEVEL_MISSION if lp else MISSIONS[stage]
+        self.max_seconds = self.max_seconds0 or float(mission["tiempo"])
+        self.max_steps = int(self.max_seconds * hz)
+        self.hold_steps = int(1.0 * hz) if (stage in (0, DELIVERY_STAGE) and not lp) else 0
+        if stage in (TAKEOFF_STAGE, POINT_STAGE) and not lp:
+            fs = self.tarea.get("foto_seg") if stage == self.stage0 else None      # PBDMM: mantener(segundos=…)
+            self.hold_steps = int((sum(fs) / 2 if fs else HOLD_SECONDS) * hz)
+        self.goal_radius = self.goal_radius0
+        if stage == LINE_STAGE and not lp:
+            self.goal_radius = max(self.goal_radius0, 0.75)     # la línea: cada punto se pasa a menos de 0,75 m
+        if stage == RACE_STAGE and not lp:
+            self.goal_radius = max(self.goal_radius0, 1.0)      # carrera: el portal mide ~2 m (en el juego también)
 
     # ------------------------------------------------------------------
     def _make_level(self) -> Level:
@@ -216,6 +248,15 @@ class DroneEnv(gym.Env):
             goal, lv.box_min, lv.box_max = delivery_level(rng, sp)
             lv.goals = [goal]
             lv.bounds_xy = BIG_BOUNDS
+        elif self.stage == TAKEOFF_STAGE:
+            lv.goals = [sp + np.array([0.0, 0.0, rng.uniform(1.0, 4.0)])]
+        elif self.stage == POINT_STAGE:
+            g = random_goal(rng, sp, r_min=4.0, r_max=12.0)
+            a = rng.uniform(-np.pi, np.pi)                       # hacia dónde tiene que quedar mirando
+            lv.goals = [g]
+            self.point_look = g + np.array([6.0 * np.cos(a), 6.0 * np.sin(a), -rng.uniform(0.0, 1.0)])
+        elif self.stage == LINE_STAGE:
+            lv.goals = random_line(rng, sp)
         elif self.stage == CHASE_STAGE:
             lv.goals = []                      # la meta es la liebre (se crea en reset)
             lv.box_min, lv.box_max = hunt_pillars(rng, sp, n=(10, 18), area=32.0, gap=3.0)
@@ -252,11 +293,19 @@ class DroneEnv(gym.Env):
 
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
+        if self.repaso and self.fixed_level is None:
+            st = int(self.np_random.choice(self.repaso)) if self.np_random.random() < self.repaso_p else self.stage0
+            if st != self.stage:
+                self._aplicar_stage(st)
+            self.es_repaso = st != self.stage0
         if self.phys_range:
             self.p = self._random_params()
         self.subject, self.band, self.toma, self.shot = None, None, None, None
         self.shots, self.shot_q = [], []
+        self.point_look = None
         self.level = self._make_level()
+        if self.point_look is not None:
+            self.subject = self.point_look                       # 20: las entradas del sujeto dicen hacia dónde mirar
         self.state = QuadState(pos=self.level.spawn.copy())
         self.goal_idx = 0
         rng = self.np_random
@@ -340,6 +389,8 @@ class DroneEnv(gym.Env):
         Se apaga a menos de 0.3 m en horizontal (justo encima del aro la dirección no está definida).
         Grabar: lo que hay que mirar es el SUJETO (la cámara va en la nariz)."""
         look = self.subject if self.subject is not None else self._goal()
+        if self.point_look is not None and self._goal_dist() > 2.0:
+            look = self._goal()                                  # 20: lejos, de frente al punto; cerca, hacia el sujeto
         g = look[:2] - self.state.pos[:2]
         dh = float(np.hypot(g[0], g[1]))
         if dh < 1e-6:
@@ -477,7 +528,13 @@ class DroneEnv(gym.Env):
         if film:
             pass
         elif dist < (CATCH_R if self.flock is not None else LIEBRE_R if self.liebre is not None else self.goal_radius):
-            if self.hold_steps:
+            facing = True
+            if self.point_look is not None:                      # 20: quieto en el punto Y mirando hacia el sujeto
+                d = self.point_look[:2] - pos[:2]
+                facing = float(np.cos(np.arctan2(d[1], d[0]) - self.state.yaw)) > FACING_COS
+            if self.hold_steps and not facing:
+                self.hold = 0
+            elif self.hold_steps:
                 self.hold += 1
                 reward += 0.2 - 0.1 * float(np.linalg.norm(self.state.vel))   # quieto = mejor
                 if self.hold >= self.hold_steps:
@@ -500,6 +557,15 @@ class DroneEnv(gym.Env):
         else:
             self.hold = 0
 
+        off_line = False
+        if self.stage == LINE_STAGE and self.fixed_level is None and 0 < self.goal_idx < len(self.level.goals):
+            a, b = self.level.goals[self.goal_idx - 1], self.level.goals[self.goal_idx]   # el tramo que recorre
+            ab = b - a
+            u = float(np.clip(np.dot(pos - a, ab) / (np.dot(ab, ab) + 1e-9), 0.0, 1.0))
+            off_line = float(np.linalg.norm(pos - (a + u * ab))) > LINE_OFF
+            if off_line and not crashed:
+                reward -= rw["crash"] * 0.5                      # se salió de la línea: medio choque
+                terminated = True
         if crashed:
             reward -= rw["crash"]
             terminated = True
@@ -508,11 +574,12 @@ class DroneEnv(gym.Env):
         info = {
             "success": success,
             "crashed": crashed,
-            "crash_reason": "suelo" if ground_crash else "obstaculo" if hit_obstacle else "limites" if oob else None,
+            "crash_reason": "suelo" if ground_crash else "obstaculo" if hit_obstacle else "limites" if oob else "linea" if off_line else None,
             "goals_reached": (self.goal_idx if not self.hold_steps else int(success)) if not film
                              else sum(q >= self.foto_ok for q in self.shot_q) if self.stage in PHOTO_STAGES else int(success),
             "dist": dist,
             "pos": pos.copy(),          # para ver dónde chocó (el entorno se reinicia solo)
+            "repaso": self.es_repaso,   # un intento de repaso (no cuenta en el éxito del nivel que entrena)
             "timeout": truncated,       # se acabó el tiempo (si terminó sin éxito ni choque y no es esto: tomas flojas)
         }
         if terminated or truncated:     # cómo voló: para el HUD del laboratorio

@@ -47,14 +47,6 @@
     "falla": "chocar con el piso a más de 4 m/s, salir del área de 30 m, o que se acabe el tiempo",
     "premio": "+2 por metro hacia el aro que toca, +10 por cada pasada, -10 al chocar · + velocidad media x 'rapidez' por aro"
   },
-  "level": {
-    "nombre": "Nivel propio",
-    "tiempo": 25,
-    "objetivo": "Pasar por los aros del nivel EN ORDEN, esquivando los obstáculos.",
-    "exito": "Pasar por todos los aros en orden.",
-    "falla": "tocar un obstáculo, chocar con el piso a más de 4 m/s, salir del área de 30 m, o que se acabe el tiempo",
-    "premio": "+2 por metro hacia el aro que toca, +10 por cada aro, -10 al chocar · + velocidad media x 'rapidez' por aro"
-  },
   "6": {
     "nombre": "Bosque",
     "tiempo": 25,
@@ -150,5 +142,37 @@
     "exito": "Pasar a menos de 0,8 m de la liebre.",
     "falla": "tocar una columna, chocar con el piso a más de 4 m/s, salir del área de 60 m, o que se acabe el tiempo",
     "premio": "+ por metro que se acerca, + al alcanzarla, - al chocar"
+  },
+  "19": {
+    "nombre": "Despegar y quedarse",
+    "tiempo": 12,
+    "objetivo": "Despegar y subir al aro que está justo arriba, a una altura al azar (1-4 m), y quedarse QUIETO ahí.",
+    "exito": "Estar 3 segundos SEGUIDOS dentro del aro (radio 0.5 m). Si sale, el contador vuelve a 0.",
+    "falla": "chocar con el piso a más de 4 m/s, salir del área de 30 m, o que se acabe el tiempo",
+    "premio": "+ por acercarse, + continuo por estar cerca, + por estar quieto, +10 al completar los 3 s, -10 al chocar"
+  },
+  "20": {
+    "nombre": "Ir a un punto",
+    "tiempo": 20,
+    "objetivo": "Volar a un punto al azar del mapa (4-12 m, de 1 a 4 m de alto) y quedarse ahí MIRANDO hacia donde se pide (como para una foto).",
+    "exito": "Estar 3 segundos SEGUIDOS dentro del aro (radio 0.5 m) con la nariz hacia el sujeto (menos de 30° de error).",
+    "falla": "chocar con el piso a más de 4 m/s, salir del área de 30 m, o que se acabe el tiempo",
+    "premio": "+ por acercarse, + de frente al punto (lejos) y al sujeto (cerca), + quieto, +10 al completar los 3 s, -10 al chocar"
+  },
+  "21": {
+    "nombre": "Seguir una línea",
+    "tiempo": 35,
+    "objetivo": "Recorrer una línea curva de puntos (9-14, cada 1,5 m, de 1 a 4 m de alto) sin salirse de ella.",
+    "exito": "Pasar por todos los puntos en orden (a menos de 0,75 m de cada uno).",
+    "falla": "alejarse más de 1,5 m de la línea, chocar con el piso a más de 4 m/s, salir del área de 30 m, o que se acabe el tiempo",
+    "premio": "+2 por metro que se acerca, +10 por punto, - medio choque al salirse de la línea, -10 al chocar"
+  },
+  "level": {
+    "nombre": "Nivel propio",
+    "tiempo": 25,
+    "objetivo": "Pasar por los aros del nivel EN ORDEN, esquivando los obstáculos.",
+    "exito": "Pasar por todos los aros en orden.",
+    "falla": "tocar un obstáculo, chocar con el piso a más de 4 m/s, salir del área de 30 m, o que se acabe el tiempo",
+    "premio": "+2 por metro hacia el aro que toca, +10 por cada aro, -10 al chocar · + velocidad media x 'rapidez' por aro"
   }
 }

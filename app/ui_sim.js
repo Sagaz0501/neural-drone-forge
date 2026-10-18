@@ -8,6 +8,7 @@ import { t } from "./i18n.js";
 
 export function initSim(ctx) {
   const { $, esc, api, toast } = ctx;
+  const visibles = async () => ctx.PT.modelosVisibles(ctx.P?.(), (await api("/api/modelos")).modelos);   // los de esta partida
   const SM = { lista: [], k: 0, slug: null, modo: null, volver: null, conex: {}, tRed: 0, arrastrando: false, niveles: null, stage: null };
 
   /**
@@ -15,7 +16,7 @@ export function initSim(ctx) {
    * marcados). sugerido = el que sale primero (la IA del dron o la que entrena). Devuelve el slug o null (cancelar).
    */
   async function preguntarModelo(titulo, sugerido, paraAvance) {
-    const ms = ((await api("/api/modelos")).modelos || []).filter((m) => m.tiene_modelo);
+    const ms = (await visibles()).filter((m) => m.tiene_modelo);
     if (!ms.length) { toast(t("No hay modelos guardados todavía."), 4000); return null; }
     // sugerido: la IA del dron; si no, la que entrena; si no, la que entrenaste por última vez
     const reciente = [...ms].sort((a, b) => String(b.actualizado || "").localeCompare(String(a.actualizado || "")))[0];
@@ -56,7 +57,7 @@ export function initSim(ctx) {
     slug = await resolver(slug);
     const r = await api(`/api/avance?modelo=${encodeURIComponent(slug)}`);
     if (!r.ok) {
-      const ms = (await api("/api/modelos")).modelos || [];
+      const ms = await visibles();
       const con = ms.filter((m) => m.avance).map((m) => `"${m.slug}"`);
       toast(`"${esc(slug)}": ${r.msg || t("no hay intentos guardados todavía.")}${con.length ? " " + t("Tienen avance: {lista}.", { lista: con.join(", ") }) : ""}`, 6000);
       return;
@@ -119,7 +120,7 @@ export function initSim(ctx) {
   }
   /** Qué modelo mirar: todos los guardados (los que tienen avance, marcados). */
   async function selectorModelos() {
-    const sel = $("sim-modelo"), ms = ((await api("/api/modelos")).modelos || []).filter((m) => m.tiene_modelo);
+    const sel = $("sim-modelo"), ms = (await visibles()).filter((m) => m.tiene_modelo);
     sel.innerHTML = "";
     for (const m of ms) sel.add(new Option(`${m.slug}${m.entrenando ? " · " + t("entrenando") : ""}${SM.modo === "avance" && !m.avance ? ` (${t("sin avance")})` : ""}`, m.slug, false, m.slug === SM.slug));
     sel.onchange = () => (SM.modo === "avance" ? abrirAvance(sel.value, SM.volver) : abrirSimular(sel.value, SM.volver));

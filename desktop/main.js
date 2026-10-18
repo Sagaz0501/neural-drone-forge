@@ -11,6 +11,7 @@
 const { app, BrowserWindow, Menu, shell } = require("electron");
 const { spawn } = require("child_process");
 const net = require("net");
+const http = require("http");
 const path = require("path");
 const fs = require("fs");
 
@@ -26,10 +27,17 @@ function puertoLibre(desde = 8770) {
     s.listen(desde, "127.0.0.1", () => s.close(() => ok(desde)));
   });
 }
+/** ¿El servidor ya responde? Con http.get leyendo toda la respuesta: fetch() dejaba el cuerpo sin leer y, cuando el
+ *  servidor cerraba la conexión, undici se caía en el proceso principal (AssertionError: assert(!this.paused)). */
+const responde = (url) => new Promise((ok) => {
+  const req = http.get(url, (res) => { res.resume(); res.on("end", () => ok(res.statusCode === 200)); res.on("error", () => ok(false)); });
+  req.on("error", () => ok(false));
+  req.setTimeout(2000, () => { req.destroy(); ok(false); });
+});
 async function esperar(url, ms = 30000) {
   const t0 = Date.now();
   while (Date.now() - t0 < ms) {
-    try { if ((await fetch(url)).ok) return true; } catch { /* todavía no */ }
+    if (await responde(url)) return true;
     await new Promise((r) => setTimeout(r, 300));
   }
   return false;

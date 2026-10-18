@@ -1,6 +1,27 @@
 {
   "misiones": [
     {
+      "id": "despegar",
+      "nombre": "Take off and hold",
+      "para": "First things first: flying",
+      "desc": "Take off, climb to a ring right above at a random height (1-4 m) and hold STILL there for 3 s. The first thing an AI that starts from zero learns: using the throttle without falling or shooting off.",
+      "exito": "Done = 3 s in a row inside the ring (0.5 m radius)."
+    },
+    {
+      "id": "punto",
+      "nombre": "Go to a point",
+      "para": "Arrive and look (the basis of a photo)",
+      "desc": "A random point on the map (4-12 m): go there, brake and hold for 3 s LOOKING where it's told. It's a photo without the house: with this it can already take Doña Marta's photo.",
+      "exito": "Done = 3 s in a row at the point with the nose on the subject (less than 30° off)."
+    },
+    {
+      "id": "linea",
+      "nombre": "Follow a line",
+      "para": "Precision",
+      "desc": "A curved line of points every 1.5 m: follow it without straying more than 1.5 m. This is how it learns to go where it's told (later, a camera route).",
+      "exito": "Done = pass every point in order without leaving the line."
+    },
+    {
       "id": "grabar",
       "nombre": "Filming: shots with a route",
       "para": "House for sale",

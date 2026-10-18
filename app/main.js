@@ -11,6 +11,7 @@ import { DEFAULT_CTL, readGamepad } from "../game/pilot.js";
 import { calcular, pieza, rangoModelo, paramsFisica, DRONES_EJEMPLO } from "./parts.js";
 import * as PT from "./partida.js";
 import * as ESC from "./escenarios.js";
+import * as SW from "./software.js";
 import * as BA from "./banco.js";
 import { Garaje, sfx } from "./garaje.js";
 import { Vuelo, TOMA_OK } from "./vuelo.js";
@@ -41,12 +42,12 @@ const store = {
   set(k, v) { try { localStorage.setItem("dronmaker." + k, JSON.stringify(v)); } catch { /* sin almacenamiento */ } },
 };
 
-const [cat, mis, ent, clientes, trabajos, escen] = await Promise.all(["piezas", "misiones", "entrenamiento", "clientes", "trabajos", "escenarios"]
+const [cat, mis, ent, clientes, trabajos, escen, softw] = await Promise.all(["piezas", "misiones", "entrenamiento", "clientes", "trabajos", "escenarios", "software"]
   .map((f) => fetch(`./data/${f}.json`).then((r) => r.json()).then((j) => datos(f, j))));   // + la capa del idioma (data/en/)
 const G = {
   screen: "inicio", partida: PT.cargar(), quality: store.get("quality", "media"),
   ctl: { ...DEFAULT_CTL, ...store.get("ctl", {}) }, vuelo: null, hover: null, izq: "hangar",
-  videos: [], last: null, keys: new Set(), modelos: [], ias: {}, stl: [], fotos: {},
+  videos: [], last: null, keys: new Set(), todos: [], ias: {}, stl: [], fotos: {},
 };
 /** Los datos del negocio (negocio.js): clientes, plantillas de trabajos y la campaña. */
 const ND = { clientes, trabajos, misiones: mis };
@@ -120,12 +121,15 @@ async function loadModel(slug) {
   } catch { G.ias[slug] = null; }
   return G.ias[slug];
 }
+// G.todos = todo lo que hay en disco (para no repetir nombres); G.modelos = lo que ESTA partida ve (PT.modelosVisibles:
+// una partida nueva solo los suyos, sin la IA base ni los del juego)
+Object.defineProperty(G, "modelos", { get: () => PT.modelosVisibles(P(), G.todos) });
 async function loadModelos() {
   const r = await api("/api/modelos");
-  G.modelos = r.modelos || [];
-  const base = G.modelos.find((m) => m.slug === "base");
+  G.todos = r.modelos || [];
+  const base = G.todos.find((m) => m.slug === "base"), n = G.todos.filter((m) => m.slug !== "base" && !m.reservado).length;
   $("modelo-ini").innerHTML = base?.tiene_modelo !== false && base
-    ? t("IA base: generación {gen}", { gen: base.gen ?? "?" }) + (G.modelos.length > 1 ? " · " + t("{n} IA de drones", { n: G.modelos.length - 1 }) : "") : t("IA: no encontré el modelo (abre el juego con python scripts/jugar.py).");
+    ? t("IA base: generación {gen}", { gen: base.gen ?? "?" }) + (n ? " · " + t("{n} IA de drones", { n }) : "") : t("IA: no encontré el modelo (abre el juego con python scripts/jugar.py).");
 }
 const infoModelo = (slug) => G.modelos.find((m) => m.slug === slug) || null;
 /** Las tomas que pide un pedido, como las anota el entrenador en meta.tomas (las fotos: "foto", niveles 13-14). */
@@ -173,6 +177,7 @@ async function empezar(dev) {
   if (G.partida && !(await confirmar(dev ? t("¿Empezar de cero en modo desarrollador? Se borra la partida guardada (tus IA entrenadas no se borran).") : t("¿Empezar de cero? Se borra la partida guardada (tus IA entrenadas no se borran)."), { si: t("Empezar de cero"), peligro: true }))) return;
   modoNuevo(false);
   G.partida = dev ? PT.nuevaPartidaDesarrollador() : PT.nuevaPartida();
+  estudio.vaciar();                                // sin programas ni modelos: la partida empieza en cero
   TU.pasarA(G.partida, "regalo");                  // el tutorial obligatorio: regalo -> nombre -> armar -> computador -> modelo
   guardar();
   irTaller();
@@ -502,8 +507,8 @@ function puedeVolar(d = D(), ia = false) {
   if (!e.listo) return t("Termínalo en el banco de armado: falta \"{paso}\".", { paso: e.pasos.find((x) => !x.ok).nombre }) + ` ${e.pasos.find((x) => !x.ok).nota}`;
   return null;            // la IA vuela siempre (la que tenga, o la base): si lo hace mal, el cliente se queja
 }
-/** Con qué IA vuela el dron: la suya si tiene un modelo guardado, si no la base. */
-function slugIA(d) { return d?.modelo && G.ias[d.modelo] ? d.modelo : "base"; }
+/** Con qué IA vuela el dron: la suya si tiene un modelo guardado, si no la base (una partida nueva no la tiene: null). */
+function slugIA(d) { return d?.modelo && G.ias[d.modelo] ? d.modelo : PT.enCero(P()) ? null : "base"; }
 /** Antes de que vuele la IA: se carga sola en el dron (la última versión), como si la bajaras del portátil. */
 function cargarIAenDron(d) {
   const slug = slugIA(d), I = G.ias[slug], gen = I?.meta?.generaciones;
@@ -515,7 +520,7 @@ function cargarIAenDron(d) {
 /** La IA con la que sale un dron de la flota (flota.js): la suya o la base, cargada en el dron sin avisar. */
 async function iaDe(d) {
   if (d.modelo && G.ias[d.modelo] === undefined) await loadModel(d.modelo);
-  if (G.ias.base === undefined) await loadModel("base");
+  if (G.ias.base === undefined && !PT.enCero(P())) await loadModel("base");
   const slug = slugIA(d), I = G.ias[slug];
   if (!I) return null;
   const gen = I.meta?.generaciones;
@@ -524,47 +529,46 @@ async function iaDe(d) {
 }
 
 // ---------------- el banco ----------------
-const ctx = { escenarios: escen, G, cat, PT, BA, $, fmt, esc, toast, descr, api, guardar, modal, show, D, U, estadoDe, dronVista, verDron, get garaje() { return garaje; },
+const ctx = { escenarios: escen, software: softw, G, cat, PT, BA, $, fmt, esc, toast, descr, api, guardar, modal, show, D, U, estadoDe, dronVista, verDron, get garaje() { return garaje; },
   renderTaller, irTaller, infoModelo, loadModelos, abrirLab: () => abrirLab(), canvas };
 const banco = initBanco(ctx);
 ctx.tutorial = () => TU.activo(P());        // la mesa señala dónde va cada cable mientras dura el tutorial
-const notas = initNotas({ P: () => P(), guardar: () => guardar(), alAccion: (a) => accionTutorial(a), alSaltar: () => { const N = P()?.negocio; if (N?.espera) { NG.primerCliente(P(), ND); guardar(); } } });
+const notas = initNotas({ P: () => P(), guardar: () => guardar(), alSaltar: () => { const N = P()?.negocio; if (N?.espera) { NG.primerCliente(P(), ND); guardar(); } } });
 /** Mientras armas el regalo, el computador (y todo lo que se abre desde él) está cerrado. */
 function pcCerrado() {
   if (!TU.pcCerrado(P())) return false;
-  toast(t("🔧 Primero arma tu dron: el computador se prende cuando vuele (mira las notas de arriba a la derecha)."), 3500);
+  toast(t("🔧 Primero arma tu dron: el computador se prende cuando vuele."), 3500);
   return true;
 }
 function abrirPC(app) { if (!pcCerrado()) estudio.abrir(app); }
 ctx.abrirPC = abrirPC;
-/** El botón de la nota del tutorial (el tour del computador). */
-async function accionTutorial(a) {
-  const p = P();
-  if (a !== "tour" || TU.etapa(p) !== "pc") return;
-  p.tuto.tour = (p.tuto.tour || 0) + 1;
-  if (p.tuto.tour >= TU.TOUR(p.modo === "dev").length) {
-    await loadModelos();
-    p.tuto.antes = Object.fromEntries(G.modelos.map((m) => [m.slug, m.gen || 0]));   // lo entrenado antes no cuenta
-    TU.pasarA(p, "modelo");
-  }
-  guardar(); sfx("click"); notasTutorial();
-}
-/** El tutorial avanza solo: el dron ya vuela -> el computador; el modelo llega a 80 % -> el primer cliente. */
-let tutoModelosT = 0, tutoModelo = null;
+ctx.historia = historia;                     // los diálogos de la historia (el ⭐ modelo base, en Simuladores)
+/** El tutorial avanza solo: el dron ya vuela -> el computador; compraste los 2 programas -> el modelo; el modelo llega
+ *  a 80 % -> el primer cliente. */
+let tutoModelosT = 0, tutoModelo = null, tutoPc = false;
 function avanzarTutorial(p) {
   const E = TU.etapa(p);
   if (E === "armar" && p.drones.some((x) => !puedeVolar(x))) {
-    TU.pasarA(p, "pc"); p.tuto.tour = 0; guardar(); sfx("listo");
-    toast(t("🎉 ¡Tu dron vuela! Ahora sí: prende el 💻 Computador."), 4500);
+    TU.pasarA(p, "pc"); guardar(); sfx("listo");
+    toast(t("🎉 ¡Tu dron vuela! Prende el 💻 computador."), 4500);
+  }
+  if (E === "pc" && SW.instalado(p, "mensajes") && SW.instalado(p, SW.entrenar(p)) && !tutoPc) {
+    tutoPc = true;
+    loadModelos().then(() => {
+      p.tuto.antes = Object.fromEntries(G.modelos.map((m) => [m.slug, m.gen || 0]));   // lo entrenado antes no cuenta
+      TU.pasarA(p, "modelo"); tutoPc = false; guardar(); sfx("listo");
+    });
   }
   if (E !== "modelo") { tutoModelo = null; return; }
+  const PI = TU.pasoIA(p);                           // 🛫 E1 despegar (nivel 19) y después 📍 E2 ir a un punto (nivel 20)
   if (Date.now() - tutoModelosT > 8000) {
     tutoModelosT = Date.now();
     loadModelos().then(async () => {
-      let mejor = TU.exitoFoto(G.modelos, p.tuto.antes);        // lo del entrenamiento (si el servidor no evalúa)
-      for (const c of TU.candidatosFoto(G.modelos, p.tuto.antes)) {   // la nota de verdad: sin ruido, 20 intentos fijos
+      if (TU.pasoIA(p) !== PI) return;               // ya cambió de paso mientras cargaba
+      let mejor = TU.exitoFoto(G.modelos, p.tuto.antes, PI.nivel);        // lo del entrenamiento (si el servidor no evalúa)
+      for (const c of TU.candidatosFoto(G.modelos, p.tuto.antes, PI.nivel)) {   // la nota de verdad: sin ruido, 20 intentos fijos
         try {
-          const r = await (await fetch(`/api/evaluar?modelo=${c.slug}&nivel=13&n=20`)).json();
+          const r = await (await fetch(`/api/evaluar?modelo=${c.slug}&nivel=${PI.nivel}&n=20`)).json();
           if (r.ok && (!mejor || mejor.slug === c.slug || r.exito > mejor.exito)) mejor = { slug: c.slug, exito: r.exito, filas: c.filas };
         } catch { /* sin servidor: queda lo del entrenamiento */ }
       }
@@ -572,11 +576,20 @@ function avanzarTutorial(p) {
     });
   }
   if (tutoModelo && tutoModelo.exito >= TU.META_EXITO) {
-    const m = tutoModelo;                              // renderTaller vuelve a pasar por aquí y lo limpia
+    const m = tutoModelo, x = Math.round(m.exito * 100);   // renderTaller vuelve a pasar por aquí y lo limpia
+    tutoModelo = null;
+    ESC.aprobar(p, m.slug, PI.id);                   // aprobó el examen de ese escenario (🎓 en Simuladores)
+    if (PI.id === "despegar") {
+      p.tuto.e1 = m.slug;
+      p.tuto.antes = Object.fromEntries(G.modelos.map((y) => [y.slug, y.gen || 0]));   // lo de antes no cuenta para E2
+      guardar(); sfx("listo");
+      historia(t("🎓 ¡Tu IA ya vuela!"), t("«{m}» aprobó <b>Despegar y quedarse</b> con {x} %. Ahora enséñale a <b>ir a un punto</b> y mirar hacia donde le pidas. No empieces de cero: parte de «{m}» (desde=), que ya sabe volar, y va a aprender mucho más rápido.", { m: esc(m.slug), x }));
+      return;
+    }
     TU.pasarA(p, "cliente");
     if (p.negocio?.espera) NG.primerCliente(p, ND);
     guardar(); sfx("listo"); renderTaller();
-    historia(t("¡Tu IA ya toma fotos!"), t("«{m}» llegó a {x} % de éxito en la foto fija. Justo en ese momento vibra el teléfono… <b>te escribió tu primer cliente</b>. Míralo en 💻 Computador → Mensajes.", { m: esc(m.slug), x: Math.round(m.exito * 100) }));
+    historia(t("¡Tu IA ya sabe llegar y mirar!"), t("«{m}» aprobó <b>Ir a un punto</b> con {x} %: ya puede hacer una foto fácil. Justo en ese momento vibra el teléfono… <b>te escribió tu primer cliente</b> (nivel 0). Míralo en 💻 Computador → Mensajes.", { m: esc(m.slug), x }));
   }
 }
 /** Las notas del tutorial según dónde estás (cada medio segundo; notas.js solo redibuja si cambian). */
@@ -586,11 +599,15 @@ function notasTutorial() {
   if (!p || G.screen === "inicio" || !TU.activo(p) || !$("historia").classList.contains("hidden") || $("dialogo")) { notas.poner([]); return; }
   avanzarTutorial(p);
   const d = D(), e = d && estadoDe(d), m = ctx.mesa?.abierta ? ctx.mesa.estadoTuto() : null;
-  notas.poner(TU.notas(p, {
+  const s = {
+    drones: p.drones.map((x) => x.nombre), ide: G.screen === "estudio" ? estudio.estadoTuto() : null,
     pantalla: m ? "mesa" : !$("lab").classList.contains("hidden") ? "lab" : G.screen, izq: G.izq, modelo: tutoModelo, hayDron: p.drones.length > 0, dronListo: p.drones.some((x) => !puedeVolar(x)), dron: d?.nombre,
     banco: e && { falta: e.pasos.find((x) => !x.ok)?.k || null, cablearOk: !!e.pasos.find((x) => x.k === "cablear")?.ok },
     mesa: m, estante: !$("estante").classList.contains("hidden"),
-  }));
+    apps: { abierta: !document.querySelector('.es-win[data-w="apps"]')?.hidden, mensajes: SW.instalado(p, "mensajes"), entrenar: SW.instalado(p, SW.entrenar(p)) },
+  };
+  notas.poner(TU.notas(p, s));
+  estudio.marcar(TU.lineaTuto(p, s));               // 👉 en el margen del editor: la línea que hay que cambiar
 }
 setInterval(notasTutorial, 500);
 ctx.ent = ent; ctx.mis = mis; ctx.P = () => P(); ctx.dronParaEntrenar = (d) => dronParaEntrenar(d);
@@ -619,7 +636,14 @@ ctx.abrirControles = () => { syncControls(); modal("controles"); };
 ctx.irMenu = () => { show("inicio"); renderInicio(); };
 ctx.kit = { faltan: () => kitFaltan(), costo: () => kitCosto(), comprar: () => armarKit() };     // la tienda vende el Kit del garaje
 /** El Laboratorio con una misión elegida (desde 🎮 Simuladores). */
-ctx.labMision = (id) => { const m = ent.misiones.find((x) => x.id === id); if (m) { LAB.mision = m.id; LAB.premios = { ...m.premios }; LAB.viento = m.viento; saveLab(); } };
+ctx.labMision = (id) => {
+  const m = ent.misiones.find((x) => x.id === id);
+  if (!m) return;
+  LAB.mision = m.id; LAB.premios = { ...m.premios }; LAB.viento = m.viento;
+  const e = ESC.deMision(escen, id), desde = e && ESC.desdePara(P(), escen, e.id, (s) => G.todos.some((x) => x.slug === s));
+  if (desde) LAB.baseDe = desde;                     // parte del modelo que aprobó el escenario anterior (o del ⭐ base)
+  saveLab();
+};
 const celular = initCelular({ ...ctx, ND, P: () => P(), openBrief: (pe) => openBrief(pe), misPedido: (id) => mis.pedidos.find((x) => x.id === id), fotos: G.fotos, iaDe, friasDe: (d) => friasDe(d) });
 $("b-celular").onclick = () => { if (pcCerrado()) return; celular.abrir(); };
 ctx.celular = celular;                     // el Estudio lo abre como la app Mensajes
@@ -651,6 +675,12 @@ $("b-cerrar-videos").onclick = () => modal("videos", false);
 const jugable = (pe) => !!(pe.lugar && pe.tomas);
 const ESTRELLITAS = (n) => `${"★".repeat(n)}${"☆".repeat(3 - n)}`;
 
+/** El nivel de un pedido: 0 = el del tutorial (Doña Marta); la campaña va 1, 2, 3… en orden (misiones.json). */
+function nivelPedido(pe) {
+  if (pe?.tutorial) return 0;
+  const i = mis.pedidos.findIndex((x) => x.id === pe?.id);
+  return i >= 0 ? i + 1 : null;
+}
 function renderTablero() {
   const p = P(), et = PT.etapa(p), list = $("lista-pedidos");
   list.innerHTML = "";
@@ -670,7 +700,7 @@ function renderTablero() {
       const hecho = p.hechos[pe.id] !== undefined ? " · " + t("hecho {estrellas}", { estrellas: ESTRELLITAS(p.hechos[pe.id]) }) : "";
       const why = !play ? t("Próximamente · pide: {lista}", { lista: pe.plan.piezas.join(", ") }) : !ok ? t("Necesita {n} de reputación", { n: pe.rep_min })
         : t("{n} tomas: {lista}", { n: pe.tomas.length, lista: pe.tomas.map((tm) => tm.nombre.toLowerCase()).join(", ") }) + hecho;
-      b.innerHTML = `<b>${pe.titulo}</b><span class="pago money">$${pe.pago}</span><small>${pe.cliente} · ${why}</small>`;
+      b.innerHTML = `<b><span class="muted">${t("Nivel {n}", { n: nivelPedido(pe) })}</span> · ${pe.titulo}</b><span class="pago money">$${pe.pago}</span><small>${pe.cliente} · ${why}</small>`;
       if (ok && play) b.onclick = () => { modal("tablero", false); openBrief(pe); };
       list.appendChild(b);
     }
@@ -695,7 +725,8 @@ async function openBrief(pe, mismaRuta = false) {
   G.pedido = pe;
   const p = P(), d = D();
   $("br-cliente").textContent = pe.cliente;
-  $("br-titulo").textContent = pe.titulo;
+  const nv = nivelPedido(pe);
+  $("br-titulo").textContent = (nv != null ? t("Nivel {n}", { n: nv }) + " · " : "") + pe.titulo;
   const M = mundoLugar(pe.lugar, pe), shots = M.shots;
   pe.viento = M.wind;
   const foto = pe.tipo === "foto" || pe.tipo === "inspeccion";
@@ -733,13 +764,14 @@ async function openBrief(pe, mismaRuta = false) {
   // la IA: una tarjeta con su estado (✓ / ! / ✗) y qué entrenar
   const ia = $("br-ia"), tipos = tiposDe(pe, shots);
   const mod = d?.modelo, I = mod ? (G.ias[mod] === undefined ? await loadModel(mod) : G.ias[mod]) : null;
-  const IB = !I ? (G.ias.base === undefined ? await loadModel("base") : G.ias.base) : null;
+  const IB = !I && !PT.enCero(P()) ? (G.ias.base === undefined ? await loadModel("base") : G.ias.base) : null;
   const lineas = [];
   let titulo;
   if (!I) {
     titulo = IB ? `${t("IA base")} · ${t("gen {n}", { n: IB.meta.generaciones ?? "?" })}` : t("Sin IA");
     lineas.push(["meh", mod ? t("la IA \"{m}\" todavía no tiene un modelo guardado", { m: esc(mod) }) : t("\"{nombre}\" todavía no tiene IA propia", { nombre: esc(d?.nombre) })]);
-    lineas.push([IB ? "meh" : "no", IB ? t("vuela con la <b>IA base</b> (generación {gen}), que no está entrenada para este dron.", { gen: IB.meta.generaciones ?? "?" }) : t("no encontré ni la IA base.")]);
+    if (PT.enCero(P())) lineas.push(["no", t("Entrénale una IA en el 💻 computador.")]);
+    else lineas.push([IB ? "meh" : "no", IB ? t("vuela con la <b>IA base</b> (generación {gen}), que no está entrenada para este dron.", { gen: IB.meta.generaciones ?? "?" }) : t("no encontré ni la IA base.")]);
     if (IB) lineas.push([sabeGrabar(IB, tipos) ? "" : "no", sabeGrabar(IB, tipos) ? t("Ya entrenó estas tomas.") : t("Todavía no entrenó estas tomas: entrénala en el Laboratorio.")]);
     if (!IB) $("b-volar-ia").disabled = true;
   } else {
@@ -765,17 +797,20 @@ $("b-brief-lab").onclick = () => {
   modal("brief", false); abrirLab();
 };
 $("b-volar").onclick = () => startVuelo(G.pedido, "yo");
-/** ¿La IA puede hacer este pedido? Necesita el simulador de su misión (🎮 Simuladores). Devuelve el que falta o null. */
-function simuladorQueFalta(pe) {
+/** ¿La IA puede hacer (paraVolar) o entrenar este pedido? Necesita el simulador de su misión (🎮 Simuladores; para volar
+ *  también vale uno que la cubra: "Ir a un punto" hace las fotos fáciles). Devuelve el que falta o null. */
+function simuladorQueFalta(pe, paraVolar = false) {
   const m = pe?.entrenar?.mision || (pe?.entrenar?.nivel != null && ent.misiones.find((x) => x.nivel === pe.entrenar.nivel)?.id);
-  return m && !ESC.iaPuede(P(), escen, m) ? ESC.deMision(escen, m) : null;
+  const puede = paraVolar ? ESC.iaPuede : ESC.puedeEntrenar;
+  return m && !puede(P(), escen, m) ? ESC.deMision(escen, m) : null;
 }
 $("b-volar-ia").onclick = async () => {
-  const falta = simuladorQueFalta(G.pedido);
+  const falta = simuladorQueFalta(G.pedido, true);
   if (falta) { toast(t("Tu IA no sabe hacer esto todavía: compra el simulador «{e}» (💻 → 🎮 Simuladores) y entrénala.", { e: falta.nombre }), 5000); return; }
   const d = D();
   if (d?.modelo) await loadModel(d.modelo);
-  if (!G.ias[slugIA(d)]) await loadModel("base");
+  if (!PT.enCero(P()) && !G.ias[slugIA(d)]) await loadModel("base");
+  if (!G.ias[slugIA(d)]) { toast(t("«{d}» no tiene IA todavía: entrénala en el 💻 computador.", { d: esc(d?.nombre || "") }), 4500); return; }
   const riesgos = riesgosIA(d, G.pedido);
   if (!riesgos.length) return startVuelo(G.pedido, "ia");
   // nunca se bloquea: se avisa y el jugador decide
@@ -837,6 +872,7 @@ async function abrirLab() {
   if (pcCerrado()) return;
   // cada modo con su herramienta: el desarrollador entrena con código (Estudio PBDMM), el normal con el Laboratorio
   if (P()?.modo === "dev") { estudio.abrir(); return; }
+  if (!SW.tieneApp(P(), softw, "lab")) { estudio.abrir("lab"); return; }      // sin el 🧠 Simulador de IA: a 🛍️ Apps
   LAB.drone = LAB.drone || P().activo; await loadModelos(); renderLab(); modal("lab"); labPoll(true);
 }
 
@@ -847,9 +883,9 @@ function renderLab() {
   const grid = document.createElement("div");
   grid.className = "mosaico";
   // solo se entrenan las misiones de los simuladores que compraste (🎮 Simuladores)
-  if (!ESC.iaPuede(P(), escen, LAB.mision)) { const m0 = ent.misiones.find((m) => ESC.iaPuede(P(), escen, m.id)); if (m0) { LAB.mision = m0.id; LAB.premios = { ...m0.premios }; LAB.viento = m0.viento; } }
+  if (!ESC.puedeEntrenar(P(), escen, LAB.mision)) { const m0 = ent.misiones.find((m) => ESC.puedeEntrenar(P(), escen, m.id)); if (m0) { LAB.mision = m0.id; LAB.premios = { ...m0.premios }; LAB.viento = m0.viento; } }
   for (const m of ent.misiones) {
-    const b = document.createElement("button"), e = ESC.deMision(escen, m.id), mia = ESC.iaPuede(P(), escen, m.id);
+    const b = document.createElement("button"), e = ESC.deMision(escen, m.id), mia = ESC.puedeEntrenar(P(), escen, m.id);
     b.className = "tile" + (mia ? "" : " bloq");
     b.setAttribute("aria-pressed", String(m.id === LAB.mision));
     b.innerHTML = `<span class="ic">${mia ? m.icono || "🧪" : "🔒"}</span><b>${m.nombre}</b><small>${mia ? `${t("nivel {n}", { n: m.nivel })} · ${m.para}` : t("simulador ${n}", { n: e?.precio ?? "?" })}</small>`;
@@ -892,6 +928,7 @@ function renderLab() {
     $("lab-simular").onclick = () => { modal("lab", false); labPoll(false); sim.abrirSimular(d.modelo, () => { irTaller(); abrirLab(); }, { preguntar: true }); };
   } else {
     const otros = G.modelos.filter((m) => m.tiene_modelo !== false);
+    if (LAB.baseDe !== "cero" && !otros.some((m) => m.slug === LAB.baseDe)) LAB.baseDe = PT.enCero(P()) ? "cero" : "base";
     mb.innerHTML = `<div class="card" style="cursor:default"><small style="margin:0">${t("\"{nombre}\" todavía no tiene IA. Al empezar a entrenar se crea la suya: <b>\"{slug}\"</b>.", { nombre: esc(d.nombre), slug: slugDe(d.nombre) })}</small>` +
       `<div class="row" style="margin-top:6px"><span style="font-size:13.5px">${t("Empieza desde")}</span><select id="lab-basede" style="background:var(--moss-solid);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:4px 6px;font:inherit;font-size:13.5px">` +
       otros.map((m) => `<option value="${esc(m.slug)}" ${m.slug === LAB.baseDe ? "selected" : ""}>${m.slug === "base" ? t("la IA base") : t("la IA \"{m}\"", { m: esc(m.slug) })} (${t("gen {n}", { n: m.gen ?? 0 })})</option>`).join("") +
@@ -1028,7 +1065,7 @@ async function labIniciar() {
   const fis = dronParaEntrenar(d);
   if (!fis && !LAB.azar) { toast(t("Primero arma un dron que pueda volar."), 3500); return; }
   const nuevo = !d.modelo;
-  const slug = d.modelo || (() => { let s = slugDe(d.nombre), k = 2; while (G.modelos.some((m) => m.slug === s) && !P().drones.some((x) => x.modelo === s && x.id === d.id)) s = `${slugDe(d.nombre)}_${k++}`; return s; })();
+  const slug = d.modelo || (() => { let s = slugDe(d.nombre), k = 2; while (G.todos.some((m) => m.slug === s) && !P().drones.some((x) => x.modelo === s && x.id === d.id)) s = `${slugDe(d.nombre)}_${k++}`; return s; })();
   const bl = LAB.estado?.blender;
   if (LAB.donde === "blender" && slug !== "base" && bl?.abierto && !("modelo" in bl)) {     // Blender con el drone_lab.py de antes: entrenaría la IA base
     toast(t("El Blender abierto tiene el Drone Lab de antes y entrenaría la IA base. Ciérralo (Detener y guardar) y ábrelo otra vez, o elige <b>En segundo plano</b>."), 7000);
@@ -1037,9 +1074,12 @@ async function labIniciar() {
   if (LAB.donde === "fondo" && slug === "base") { toast(t("La IA base solo entrena en Blender. Para entrenar en segundo plano, dale a este dron su propia IA (copia de la base)."), 5000); return; }
   const body = { accion: "iniciar", nivel: misionLab().nivel, dron: LAB.azar ? "AZAR" : fis, drones: LAB.n, velocidad: LAB.vel, viento: LAB.viento, premios: LAB.premios,
     modelo: slug, donde: LAB.donde, ...(nuevo ? { base_de: LAB.baseDe } : {}) };
+  const repaso = ESC.repasoDe(P(), escen, nuevo ? LAB.baseDe : slug, body.nivel);   // lo que ya aprobó: lo repasa (20 %)
+  if (repaso.length) body.tarea = { repaso };
   const r = await api("/api/lab", body);
   if (r.ok) {
-    if (nuevo) { d.modelo = slug; guardar(); }
+    if (nuevo) d.modelo = slug;
+    PT.anotarModelo(P(), slug); guardar();
     LAB.ultimoPedido = r.id; LAB.ultimoDonde = LAB.donde; LAB.pedidoT = Date.now();
     loadModelos().then(renderLab);
   }
@@ -1368,5 +1408,5 @@ document.querySelectorAll("#idioma [data-l], #idioma-sel [data-l]").forEach((b) 
 });
 loadModelos();
 window.__gameReady = true;
-window.__dm = { G, PT, BA, cat, mis, mundoLugar, t, garaje: () => garaje, abrirBanco, mesa: ctx.mesa };   // para probar desde la consola del navegador
+window.__dm = { G, PT, BA, cat, mis, mundoLugar, t, garaje: () => garaje, abrirBanco, abrirPC, irTaller, mesa: ctx.mesa, estudio };   // para probar desde la consola del navegador
 requestAnimationFrame(frame);

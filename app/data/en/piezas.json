@@ -261,6 +261,21 @@
       "id": "multimetro",
       "nombre": "Multimeter",
       "desc": "Measures continuity and voltage: on the workbench it flags bad wires BEFORE you connect the battery."
+    },
+    {
+      "id": "auto_atornillador",
+      "nombre": "🤖 Auto-screwdriver",
+      "desc": "An arm with an electric screwdriver and torque control: it tightens every screw of a step at once, without stripping a single thread."
+    },
+    {
+      "id": "auto_conectores",
+      "nombre": "🤖 Auto-connectors",
+      "desc": "Reads your parts' manual and puts every wire on its pad (and every connector in its socket). Uses the same wire as doing it by hand."
+    },
+    {
+      "id": "auto_soldador",
+      "nombre": "🤖 Auto-solderer",
+      "desc": "A robotic station: it solders every missing joint with just the right temperature, flux and solder. They always come out good."
     }
   ],
   "estilo": {

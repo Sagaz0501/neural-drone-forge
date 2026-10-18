@@ -101,7 +101,7 @@ def test_circuit_two_laps():
     env.reset(seed=0)
     assert len(env.level.goals) == 8                       # 4 aros x 2 vueltas
     assert len(OBS_LABELS) == env.observation_space.shape[0]
-    assert set(MISSIONS) == set(range(15)) | {16, 17, 18}         # 15 = la toma "seguir" (planeada)
+    assert set(MISSIONS) == set(range(15)) | {16, 17, 18, 19, 20, 21}   # 15 = la toma "seguir" (planeada)
     assert run_pilot(5, episodes=5) == 1.0                 # el piloto PD completa las 2 vueltas
 
 
@@ -558,3 +558,48 @@ def test_new_stages_race_delivery_chase():
         obs, *_ = env.step(np.zeros(4))
     assert np.linalg.norm(env._goal() - g0) > 0.5                 # la liebre corre
     assert np.any(np.abs(obs[24:27]) > 0.05)                      # y el dron ve cómo se mueve
+
+
+def run_pilot_mirando(stage, episodes=20):
+    """El PD + girar la nariz: hacia la meta lejos y hacia el sujeto cerca (lo que pide el nivel 20)."""
+    env = DroneEnv(stage=stage)
+    pilot = PDPilot(env.p)
+    ok = 0
+    for ep in range(episodes):
+        env.reset(seed=ep)
+        done = False
+        while not done:
+            a = pilot.act(env.state, env._goal())
+            look = env.subject if env.subject is not None and env._goal_dist() < 2.0 else env._goal()
+            d = look[:2] - env.state.pos[:2]
+            if np.hypot(*d) > 0.3:
+                err = np.arctan2(np.sin(np.arctan2(d[1], d[0]) - env.state.yaw), np.cos(np.arctan2(d[1], d[0]) - env.state.yaw))
+                a[3] = np.clip(2.0 * err, -1, 1)
+            _, _, term, trunc, info = env.step(a)
+            done = term or trunc
+        ok += info["success"]
+    return ok / episodes
+
+
+def test_pd_pilot_solves_basic_scenarios():
+    """Los escenarios E1-E3 del juego (niveles 19-21) se pueden pasar: si un PD lo logra, la IA también puede."""
+    assert run_pilot(19) == 1.0
+    assert run_pilot_mirando(20) >= 0.9
+    assert run_pilot(20) < 0.5                   # sin mirar al sujeto no cuenta
+    assert run_pilot(21) >= 0.9
+
+
+def test_repaso_mezcla_niveles():
+    """repaso: ~20 % de los intentos son de los niveles ya aprobados, marcados con info["repaso"]."""
+    env = DroneEnv(stage=20, tarea={"repaso": [19]})
+    st = []
+    for ep in range(200):
+        env.reset(seed=ep)
+        st.append(env.stage)
+        assert env.es_repaso == (env.stage == 19)
+        assert env.hold_steps == 150 and env.max_steps == int(MISSIONS[env.stage]["tiempo"] * 50)
+    assert 0.1 < st.count(19) / len(st) < 0.3
+    assert DroneEnv(stage=20, tarea={"repaso": [19]}, repaso=()).repaso == ()
+
+
+from drone_rl.env import MISSIONS  # noqa: E402

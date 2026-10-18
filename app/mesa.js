@@ -6,8 +6,10 @@
 //              pieza suelta y vuela a su lugar en el chasis; después cada tornillo: tócalo y MANTÉN apretado hasta el
 //              "clic" (si sigues, la rosca se barre). La batería lleva correa; la radio, cinta doble faz.
 //   🔥 Soldar: la placa grande. Prende la estación y espera que caliente; toma un cable de la izquierda y ponlo en su
-//              pad (la 📄 guía de conexión va aparte); flux (F); el CAUTÍN es el ratón (mantén apretado sobre el pad
-//              para calentarlo) y el ESTAÑO es la barra espaciadora: las dos herramientas a la vez. Limpia la punta (C).
+//              pad (la 📄 guía de conexión va aparte). El CAUTÍN es el ratón (mantén apretado sobre el pad para
+//              calentarlo). La OTRA MANO se toma de la bandeja (a la derecha de la placa, objetos 3D): la jeringa de
+//              💧 flux (tocas el pad y queda el flux), el 🧵 estaño (Espacio lo mete), la 🥤 bomba (Espacio chupa) y la
+//              🟫 malla (el cautín encima la calienta). La 🧽 esponja limpia la punta. Atajos: F, E, X, M, C.
 //              Cada junta sale buena, fría, con puente o con el pad levantado (taller.js resultadoJunta).
 //
 // Tiene su propio canvas y su propio renderer (main.js no dibuja el garaje mientras la mesa está abierta).
@@ -52,6 +54,7 @@ const MAT = {
   jst: new THREE.MeshStandardMaterial({ color: 0xf1ede2, roughness: 0.6 }),
   humo: new THREE.SpriteMaterial({ color: 0xdedede, transparent: true, opacity: 0.35, depthWrite: false }),
 };
+const VISTA_SOLDAR = { x: 0.012, y: 0.112 };            // la cámara de soldar, desde arriba (corrida a la derecha: la bandeja)
 const lerp = (a, b, k) => a + (b - a) * k;
 const suave = (k) => k * k * (3 - 2 * k);
 
@@ -128,7 +131,7 @@ export function initMesa(ctx) {
     cv.addEventListener("contextmenu", (e) => e.preventDefault());
     cv.addEventListener("wheel", (e) => { if (M.arrastre) { e.preventDefault(); girarPieza(e.deltaY > 0 ? 1 : -1); } }, { passive: false });
     addEventListener("keydown", tecla);
-    addEventListener("keyup", (e) => { if (e.code === "Space") M.espacio = false; if (e.key === "m" || e.key === "M") M.malla = false; });
+    addEventListener("keyup", (e) => { if (e.code === "Space") M.espacio = false; });
   }
   function tam() {
     const cv = $("mesa-c"), w = cv.clientWidth || innerWidth, h = cv.clientHeight || innerHeight;
@@ -186,7 +189,7 @@ export function initMesa(ctx) {
     M.E.limpia = p.taller.punta ?? 1;
     M.cautin = PT.cautinDe(p, cat);                      // con qué sueldas (el de lápiz no tiene perilla y le cuestan los pads grandes)
     if (M.cautin) Object.assign(M.E, { potencia: M.cautin.potencia, tau: M.cautin.tau, ajustable: M.cautin.ajustable }, M.cautin.ajustable ? {} : { set: M.cautin.set });
-    M.abierta = true; M.modo = modo; M.enMano = null; M.hold = null; M.flux = false; M.vista = null;
+    M.abierta = true; M.modo = modo; M.enMano = null; M.hold = null; M.mano2 = null; M.vista = null;
     ctx.show("mesa");
     $("mesa-dron").textContent = D().nombre;
     await cargarESP32();
@@ -221,6 +224,7 @@ export function initMesa(ctx) {
     if (M.cableMano) { scene.remove(M.cableMano); M.cableMano = null; }
     M.comps = null;
     for (const k of ["destornillador", "cuter", "cautin", "estano", "halo"]) H[k].visible = false;
+    M.tools = null; if (M.senalT) M.senalT.visible = false; $("mesa-etq").hidden = true;
   }
   function construir() {
     limpiar();
@@ -646,9 +650,11 @@ export function initMesa(ctx) {
     const bb = new THREE.Box3().setFromObject(g);
     M.borde = { x: Math.max(Math.abs(bb.min.x), Math.abs(bb.max.x)), z: Math.max(Math.abs(bb.min.z), Math.abs(bb.max.z)) };
     dibujarCables();
-    H.cautin.visible = true; H.estano.visible = true;
+    H.cautin.visible = true;
+    M.fluxPads = new Map();                            // "ref#sub" -> la gota de flux que pusiste con la jeringa
+    bandeja();
     // desde arriba (casi derecho), para ver todos los pines y sus nombres
-    if (M.vista !== "soldar" + M.placa) { M.vista = "soldar" + M.placa; cam.position.set(0, 0.112, 0.022); controls.target.set(0, 0, 0.001); controls.update(); }
+    if (M.vista !== "soldar" + M.placa) { M.vista = "soldar" + M.placa; cam.position.set(VISTA_SOLDAR.x, VISTA_SOLDAR.y, 0.022); controls.target.set(VISTA_SOLDAR.x, 0, 0.001); controls.update(); }
     controls.minDistance = 0.04; controls.maxDistance = 0.3;
     pestanasPlaca(ps);
   }
@@ -661,6 +667,76 @@ export function initMesa(ctx) {
       b.setAttribute("aria-pressed", String(c.k === M.placa));
       b.onclick = () => { if (M.hold) return; M.placa = c.k; M.enMano = null; construir(); };
       box.appendChild(b);
+    }
+  }
+  // ---------------- la bandeja: lo que toma la otra mano (objetos 3D a la derecha de la placa) ----------------
+  const TOOLS = () => ({ estano: ["🧵", t("Estaño")], flux: ["💧", t("Flux")], bomba: ["🥤", t("Bomba desoldadora")], malla: ["🟫", t("Malla desoldante")], esponja: ["🧽", t("Esponja (limpia la punta)")] });
+  /** Cada herramienta con la punta en el origen y el cuerpo hacia +x, acostada en la mesa. */
+  function toolMesh(k) {
+    const g = new THREE.Group(), add = (geo, mat, x, y, z = 0, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.z = rz; m.castShadow = true; g.add(m); return m; };
+    const acost = Math.PI / 2;
+    if (k === "flux") {
+      add(new THREE.CylinderGeometry(0.0003, 0.0003, 0.004, 8), MAT.acero, 0.002, 0.0024, 0, acost);
+      add(new THREE.CylinderGeometry(0.0022, 0.0022, 0.013, 18), new THREE.MeshStandardMaterial({ color: 0xe8b24a, roughness: 0.15, transparent: true, opacity: 0.8 }), 0.0105, 0.0024, 0, acost);
+      add(new THREE.CylinderGeometry(0.0009, 0.0009, 0.006, 10), MAT.jst, 0.019, 0.0024, 0, acost);
+      add(new THREE.CylinderGeometry(0.0026, 0.0026, 0.0008, 18), MAT.jst, 0.022, 0.0024, 0, acost);
+    } else if (k === "estano") {
+      add(new THREE.CylinderGeometry(0.0048, 0.0048, 0.004, 24), new THREE.MeshStandardMaterial({ color: 0x2b2d31, roughness: 0.6 }), 0.009, 0.002);
+      add(new THREE.CylinderGeometry(0.0042, 0.0042, 0.0042, 24), MAT.estanoOk, 0.009, 0.002);
+      add(new THREE.CylinderGeometry(0.0011, 0.0011, 0.0046, 12), MAT.goma, 0.009, 0.002);
+      add(new THREE.CylinderGeometry(0.00045, 0.00045, 0.005, 8), MAT.estanoOk, 0.0025, 0.0006, 0, acost);
+    } else if (k === "bomba") {
+      add(new THREE.ConeGeometry(0.0013, 0.004, 14), MAT.jst, 0.002, 0.0025, 0, acost);
+      add(new THREE.CylinderGeometry(0.0026, 0.0026, 0.016, 18), new THREE.MeshStandardMaterial({ color: 0x3a7bd5, metalness: 0.6, roughness: 0.3 }), 0.012, 0.0026, 0, acost);
+      add(new THREE.CylinderGeometry(0.0009, 0.0009, 0.005, 10), MAT.acero, 0.0225, 0.0026, 0, acost);
+      add(new THREE.SphereGeometry(0.0017, 14, 10), MAT.goma, 0.0255, 0.0026);
+    } else if (k === "malla") {
+      add(new THREE.BoxGeometry(0.008, 0.0004, 0.0024), new THREE.MeshStandardMaterial({ color: 0xc8743a, metalness: 0.85, roughness: 0.35 }), 0.004, 0.0004);
+      add(new THREE.CylinderGeometry(0.0045, 0.0045, 0.0022, 22), new THREE.MeshStandardMaterial({ color: 0x2f7d4a, roughness: 0.5 }), 0.012, 0.0011);
+      add(new THREE.CylinderGeometry(0.0038, 0.0038, 0.0024, 22), new THREE.MeshStandardMaterial({ color: 0xc8743a, metalness: 0.85, roughness: 0.35 }), 0.012, 0.0011);
+    } else if (k === "esponja") {
+      add(new THREE.CylinderGeometry(0.0052, 0.0046, 0.0034, 22), new THREE.MeshStandardMaterial({ color: 0x2b2d31, roughness: 0.5 }), 0.009, 0.0017);
+      const lana = add(new THREE.IcosahedronGeometry(0.004, 1), new THREE.MeshStandardMaterial({ color: 0xc9a24a, metalness: 0.9, roughness: 0.55, flatShading: true }), 0.009, 0.0042);
+      lana.scale.y = 0.6;
+    }
+    return g;
+  }
+  function bandeja() {
+    // con la cámara de soldar (a 0,112 m, corrida 0,012 a la derecha): la bandeja cabe al lado de la placa
+    const halfW = VISTA_SOLDAR.y * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * cam.aspect;
+    const x0 = Math.max(M.borde.x + 0.006, Math.min(M.borde.x + 0.014, VISTA_SOLDAR.x + halfW - 0.028)), ks = ["estano", "flux", "bomba", "malla", "esponja"], paso = 0.0095, zc = 0.01;   // más abajo: arriba a la derecha van las notas
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.0008, paso * ks.length + 0.004), new THREE.MeshStandardMaterial({ color: 0x24272b, roughness: 0.7 }));
+    base.position.set(x0 + 0.0125, 0.0004, zc); base.receiveShadow = true; mundo.add(base);
+    M.tools = {};
+    ks.forEach((k, i) => {
+      const g = toolMesh(k); g.scale.setScalar(0.8);
+      const home = new THREE.Vector3(x0, 0.0008, zc + (i - (ks.length - 1) / 2) * paso);
+      g.position.copy(home); mundo.add(g);
+      const zona = new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.008, paso * 0.92), new THREE.MeshBasicMaterial({ visible: false }));
+      zona.position.set(x0 + 0.0125, 0.004, home.z); mundo.add(zona);          // el clic agarra toda la casilla
+      zona.userData.accion = { tipo: "tool", k }; M.pick.push(zona);
+      M.tools[k] = { g, home };
+    });
+    M.descanso = new THREE.Vector3(x0 + 0.01, 0.012, zc - paso * 3.2);              // donde se apoya el cautín si la mano lleva la jeringa
+  }
+  /** La herramienta de la otra mano sigue al cautín (la jeringa ES el cursor); las demás vuelven a su lugar. */
+  function moverTools(dt, tocando, h) {
+    if (!M.tools) return;
+    const k = Math.min(1, dt * 16);
+    for (const [id, T] of Object.entries(M.tools)) {
+      const enMano = M.mano2 === id && id !== "estano";
+      let meta = T.home, alto = 0;
+      if (enMano) {
+        const ancla = tocando ? h.info.pos : M.tPunta;
+        meta = id === "flux" ? ancla.clone().add(new THREE.Vector3(0, 0.0008, 0))
+          : id === "bomba" ? ancla.clone().add(new THREE.Vector3(-0.0012, 0.0016, 0.0012))
+          : ancla.clone().add(new THREE.Vector3(-0.0035, -0.0002, 0.0008));
+        alto = id === "flux" ? 0.004 : 0;
+      }
+      T.g.position.lerp(meta.clone().setY(meta.y + alto), k);
+      T.g.rotation.y = enMano ? (id === "flux" ? -0.7 : 0.5) : 0;
+      T.g.rotation.z = enMano && id === "flux" ? 0.9 : 0;                     // la jeringa apunta hacia abajo
+      T.g.visible = !(M.mano2 === "estano" && id === "estano");               // el carrete en la mano: se ve el alambre
     }
   }
   /** Un pad: guarda dónde está y qué pin es. */
@@ -696,11 +772,13 @@ export function initMesa(ctx) {
   }
   /**
    * El nombre de un pin del dron, plano sobre la mesa junto a su pad (afuera de la placa), del color de su tipo,
-   * y un aro del mismo color en el pad: así se ve qué pines usa el dron (los demás GPIO no se tocan).
+   * y un aro del mismo color en el pad: así se ve qué pines usa el dron (los demás GPIO no se tocan). Solo en el tutorial:
+   * después la etiqueta va en gris y sin aro (dónde va cada cable lo dice la 📄 Guía).
    */
   function etiquetaPin(g, info) {
     const pin = info.pin, m = /GPIO(\d+)\s*·\s*(\S+)/.exec(pin.nombre), txt = m ? `${m[2]} · ${m[1]}` : pin.nombre;
-    const color = COLOR_PIN[pin.tipo] === "#1d1f22" ? "#9aa0a6" : COLOR_PIN[pin.tipo] || "#ccc";
+    const tuto = !!ctx.tutorial?.();                    // fuera del tutorial la placa no dice qué cable va en cada pin
+    const color = !tuto || COLOR_PIN[pin.tipo] === "#1d1f22" ? "#9aa0a6" : COLOR_PIN[pin.tipo] || "#ccc";
     const c = document.createElement("canvas"); c.width = 256; c.height = 56;
     const gx = c.getContext("2d");
     gx.fillStyle = "rgba(10,16,14,.85)"; gx.beginPath(); gx.roundRect(2, 2, 252, 52, 14); gx.fill();
@@ -713,7 +791,8 @@ export function initMesa(ctx) {
     et.position.set(info.pos.x, 0.0006, info.pos.z + lado * (0.0032 + W / 2) + lado * (Math.abs(info.pos.z) < 0.014 ? 0.014 - Math.abs(info.pos.z) : 0));
     et.renderOrder = 4; g.add(et);
     const aro = new THREE.Mesh(new THREE.RingGeometry(0.0011, 0.0015, 24), new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity: 0.9, depthWrite: false }));
-    aro.rotation.x = -Math.PI / 2; aro.position.copy(info.pos).add(new THREE.Vector3(0, 0.0008, 0)); aro.renderOrder = 4; g.add(aro);
+    aro.rotation.x = -Math.PI / 2; aro.position.copy(info.pos).add(new THREE.Vector3(0, 0.0008, 0)); aro.renderOrder = 4;
+    if (tuto) g.add(aro);
   }
   function enchufe(g, pos, w, d, mat = MAT.jst) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.0028, d), mat);
@@ -939,10 +1018,7 @@ export function initMesa(ctx) {
       if (prev) { J.estano = prev.estano; J.flux = !!prev.fluxNuevo; }
       M.juntas.set(key, J);
     }
-    if (M.flux) {
-      if (PT.gastar(P(), "flux", 0.25)) { J.flux = true; J.fluxQueda = 1; } else aviso(t("Se te acabó el flux: compra más en la tienda (Soldadura)."));
-      M.flux = false; hud();
-    }
+    if (M.fluxPads.has(key)) { J.flux = true; J.fluxQueda = 1; }      // el flux que pusiste con la jeringa
     M.hold = { tipo: "soldar", info, c, J, key };
     if (M.gotas?.[key]) M.gotas[key].visible = false;            // la gota que había se derrite (se dibuja la de ahora)
     if (!c) aviso(t("Ese pad no tiene cable: pon uno primero (izquierda)."));
@@ -955,6 +1031,7 @@ export function initMesa(ctx) {
     const antes = j.s[info.sub];
     if (J.estano < 0.25 && !antes) { hud(); return; }               // todavía no hay junta: queda para seguir
     const r = TA.resultadoJunta(J, P_vecino(info));
+    if (M.fluxPads.has(key)) { M.placaG.remove(M.fluxPads.get(key)); M.fluxPads.delete(key); }   // el flux se quema al soldar
     j.s[info.sub] = { q: r.q, estano: +J.estano.toFixed(2) };
     const hechas = Array.from({ length: j.n }, (_, i) => j.s[i]?.q || "sin");
     j.q = TA.peor(hechas);
@@ -975,7 +1052,7 @@ export function initMesa(ctx) {
     if (M.modo !== "soldar") return;
     if (!PT.tieneHerramienta(P(), "extractor")) return aviso(t("No tienes extractor de estaño: está en la tienda (Soldadura)."));
     const h = M.hold;
-    if (h?.tipo !== "soldar") return aviso(t("Pon el cautín sobre la junta (mantén el clic) y aprieta X para chupar el estaño."));
+    if (h?.tipo !== "soldar") return aviso(t("Cautín en la junta (mantén el clic) + Espacio."));
     if (M.t - (M.bombaT || -9) < 0.8) return;                     // hay que volver a cargar la bomba
     M.bombaT = M.t;
     const q = TA.extraer(h.J);
@@ -985,13 +1062,79 @@ export function initMesa(ctx) {
     aviso(t("🥤 ¡Chupaste el estaño!"), true);
   }
 
+  // ---------------- las máquinas (herramientas caras de nivel avanzado: piezas.json herramientas) ----------------
+  // 🤖 auto-atornillador: los tornillos del paso de una vez · auto-conectores: cada cable a su pad (o su enchufe) ·
+  // auto-soldador: las juntas que faltan, todas buenas. Cada una gasta lo mismo que a mano (cable, estaño).
+  const tiene = (id) => PT.tieneHerramienta(P(), id);
+  /** Qué hace el botón 🤖 ahora (o null si no hay máquina para esto). */
+  function autoAhora() {
+    if (M.modo === "armar") return tiene("auto_atornillador") && M.proc?.pts?.some((q) => !q.listo) ? "atornillar" : null;
+    if (!M.comps) return null;
+    if (tiene("auto_conectores") && fuentes().some((f) => !f.cable && destinoAqui(f.ref))) return "conectar";
+    if (tiene("auto_soldador") && sinSoldarAqui().length) return "soldar";
+    return null;
+  }
+  const destinoAqui = (ref) => {
+    const a = destinoDe(ref);                         // el arnés (un enchufe) se ve en las dos placas: va igual
+    return a && a.split(".")[0] === M.placa && M.pads.has(`${a}#0`) && (TA.esEnchufe(pinDe(a)) || TA.placaDe([ref, a], M.comps) === a) ? a : null;
+  };
+  const sinSoldarAqui = () => { const B = D().banco; return B.cables.filter((c) => { const r = TA.placaDe(c, M.comps); return r.split(".")[0] === M.placa && !TA.esEnchufe(pinDe(r)) && (B.juntas?.[TA.claveCable(c)]?.q || "sin") !== "buena"; }); };
+  function auto() {
+    const que = autoAhora(), B = D().banco;
+    if (que === "atornillar") {
+      for (const q of M.proc.pts.filter((x) => !x.listo)) { q.tornillo = q.tornillo || ponerHerraje(q); puntoListo(q); }
+      return;
+    }
+    if (que === "conectar") {
+      for (const f of fuentes()) {
+        const a = !f.cable && destinoAqui(f.ref);
+        if (!a) continue;
+        const info = M.pads.get(`${a}#0`), pf = pinDe(f.ref), c = [f.ref, a];
+        const metros = info.enchufe || pf?.tipo === "vbat+" || f.ref.startsWith("xt60") ? 0 : 0.1 * TA.juntasDe(pf, info.pin);
+        if (metros && !PT.gastar(P(), "cable", metros)) { aviso(t("Se te acabó el cable: compra más en la tienda (Soldadura).")); break; }
+        B.cables.push(c);
+        B.juntas = B.juntas || {};
+        B.juntas[TA.claveCable(c)] = info.enchufe ? { q: "enchufado", n: 1, s: [{ q: "enchufado" }] } : { q: "sin", n: TA.juntasDe(pf, info.pin), s: [] };
+      }
+      M.enMano = null;
+    }
+    if (que === "soldar") {
+      for (const c of sinSoldarAqui()) {
+        const r = TA.placaDe(c, M.comps), j = B.juntas[TA.claveCable(c)] || (B.juntas[TA.claveCable(c)] = { q: "sin", n: TA.juntasDe(pinDe(c[0]), pinDe(c[1])), s: [] });
+        const pad = M.pads.get(`${r}#0`)?.pad || "chico", ideal = TA.PADS[pad].ideal, e = (ideal[0] + ideal[1]) / 2;
+        if (!PT.gastar(P(), "estano", e * j.n * TA.GRAMOS)) { aviso(t("Se acabó: 🛒 Tienda → Soldadura.")); break; }
+        j.s = Array.from({ length: j.n }, () => ({ q: "buena", estano: e }));
+        j.q = "buena";
+      }
+    }
+    if (!que) return;
+    guardar(); sfx(que === "soldar" ? "chispa" : "click");
+    aviso("🤖 " + { conectar: t("Cables conectados."), soldar: t("Todo soldado.") }[que], true);
+    dibujarCables(); hud();
+  }
+  $("mesa-auto").onclick = auto;
+
   // ---------------- el ratón y el teclado ----------------
   function apuntar(ev) {
     const r = $("mesa-c").getBoundingClientRect();
     M.mouse.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
     M.cx = ev.clientX; M.cy = ev.clientY;
     ray.setFromCamera(M.mouse, cam);
-    return ray.intersectObjects(M.pick, false).find((h) => h.object.userData.accion) || null;
+    const hit = ray.intersectObjects(M.pick, false).find((h) => h.object.userData.accion) || null;
+    const tipo = hit?.object.userData.accion?.tipo;
+    if (M.modo !== "soldar" || tipo === "pad" || tipo === "tool") return hit;
+    return padCerca(ev, r) || hit;
+  }
+  /** Los pads chicos (la ESP32) son de 1-2 px: el pad más cercano al ratón a menos de 22 px cuenta como tocado. */
+  function padCerca(ev, r) {
+    let mejor = null, dmin = 22 * 22;
+    const v = new THREE.Vector3();
+    for (const info of M.pads?.values() || []) {
+      v.copy(info.pos).project(cam);
+      const dx = (v.x + 1) / 2 * r.width + r.left - ev.clientX, dy = (1 - v.y) / 2 * r.height + r.top - ev.clientY, d = dx * dx + dy * dy;
+      if (d < dmin) { dmin = d; mejor = info; }
+    }
+    return mejor && { object: mejor.mesh, point: mejor.pos.clone() };
   }
   function abajo(ev) {
     if (ev.button !== 0 || M.tweens.some((x) => x.bloquea)) return;
@@ -1026,10 +1169,11 @@ export function initMesa(ctx) {
     if (a?.tipo === "pad") {
       if (M.enMano) return ponerCable(a.info);
       if (a.info.enchufe) { const c = cableEn(a.info); if (c) aviso(t("Ya está enchufado.")); else aviso(t("Toma el conector de la izquierda y ponlo aquí.")); return; }
+      if (M.mano2 === "flux") return ponerFlux(a.info);
       if (!M.E.on) aviso(t("La estación está apagada: préndela (⏻)."));
       empezarJunta(a.info);
       M.tocando = true;
-    }
+    } else if (a?.tipo === "tool") tomar(a.k);
   }
   function mover(ev) {
     const hit = apuntar(ev);
@@ -1047,6 +1191,7 @@ export function initMesa(ctx) {
       if (hit) v.copy(hit.point); else ray.ray.intersectPlane(pl, v);
       if (v) M.tPunta.copy(v);
     }
+    etiqueta(M.hover?.tipo === "tool" ? M.hover.k : null);
     $("mesa-c").style.cursor = M.hover ? "pointer" : M.modo === "soldar" ? "none" : "default";
   }
   function arriba() {
@@ -1066,14 +1211,15 @@ export function initMesa(ctx) {
   }
   function tecla(e) {
     if (!M.abierta || e.target.closest?.("input,textarea")) return;
-    if (e.code === "Space") { M.espacio = true; e.preventDefault(); }
-    else if (e.key === "f" || e.key === "F") toggleFlux();
-    else if (e.key === "c" || e.key === "C") limpiarPunta();
-    else if (e.key === "x" || e.key === "X") bomba();
-    else if (e.key === "m" || e.key === "M") M.malla = true;
+    if (e.code === "Space") { e.preventDefault(); if (!e.repeat) espacio(); }
+    else if (e.key === "f" || e.key === "F") tomar("flux");
+    else if (e.key === "e" || e.key === "E") tomar("estano");
+    else if (e.key === "c" || e.key === "C") tomar("esponja");
+    else if (e.key === "x" || e.key === "X") tomar("bomba");
+    else if (e.key === "m" || e.key === "M") tomar("malla");
     else if (e.key === "t" || e.key === "T") multimetro();
     else if ((e.key === "r" || e.key === "R") && M.modo === "armar") girarPieza(1);
-    else if (e.key === "Escape") { if (M.enMano) { M.enMano = null; hud(); } else if (M.proc) cancelarProc(); else cerrar(); }
+    else if (e.key === "Escape") { if (M.enMano) { M.enMano = null; hud(); } else if (M.mano2) { M.mano2 = null; M.espacio = false; hud(); } else if (M.proc) cancelarProc(); else cerrar(); }
   }
   /** Girar la pieza que llevas (o la última que tocaste) un cuarto de vuelta. */
   function girarPieza(dir) {
@@ -1085,10 +1231,34 @@ export function initMesa(ctx) {
     tween(0.15, (k) => { pz.piv.rotation.y = lerp(r0, r1, k); }, null, false);
     sfx("click");
   }
-  function toggleFlux() {
+  /** Espacio = lo que hace la otra mano: el estaño entra (mientras lo aprietas) o la bomba chupa. */
+  function espacio() {
     if (M.modo !== "soldar") return;
-    if (!M.flux && PT.insumo(P(), "flux") < 0.25) return aviso(t("Se te acabó el flux: compra más en la tienda (Soldadura)."));
-    M.flux = !M.flux; hud();
+    if (M.mano2 === "estano") M.espacio = true;
+    else if (M.mano2 === "bomba") bomba();
+    else if (!M.mano2 && M.t - M.avisoT > 1.5) { M.avisoT = M.t; aviso(t("🧵 Toma el estaño de la bandeja (derecha).")); }
+  }
+  /** Tomar (o devolver) una herramienta de la bandeja con la otra mano. La esponja no se toma: limpia la punta. */
+  function tomar(k) {
+    if (M.modo !== "soldar" || M.hold) return;
+    if (k === "esponja") return limpiarPunta();
+    if (M.mano2 === k) { M.mano2 = null; M.espacio = false; sfx("click"); hud(); return; }
+    const p = P();
+    if (k === "bomba" && !PT.tieneHerramienta(p, "extractor")) return aviso(t("No tienes bomba: 🛒 Tienda → Soldadura."));
+    const falta = { flux: PT.insumo(p, "flux") < 0.25, estano: PT.insumo(p, "estano") < 0.1, malla: PT.insumo(p, "malla") <= 0 }[k];
+    if (falta) return aviso(t("Se acabó: 🛒 Tienda → Soldadura."));
+    M.mano2 = k; M.espacio = false; sfx("click"); hud();
+  }
+  /** La jeringa en el pad: queda una gota de flux (se gasta al ponerla). */
+  function ponerFlux(info) {
+    const key = `${info.ref}#${info.sub}`;
+    if (info.enchufe || M.fluxPads.has(key)) return;
+    if (!PT.gastar(P(), "flux", 0.25)) { M.mano2 = null; hud(); return aviso(t("Se acabó: 🛒 Tienda → Soldadura.")); }
+    const r = info.pad === "grande" ? 0.0034 : info.pad === "medio" ? 0.002 : 0.0015;
+    const gota = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.1, 0.0005, 20), MAT.flux);
+    gota.position.copy(M.placaG.worldToLocal(info.pos.clone())).add(new THREE.Vector3(0, 0.0004, 0));
+    M.placaG.add(gota); M.fluxPads.set(key, gota);
+    sfx("pop"); hud();
   }
   /** El multímetro en continuidad: pita entre dos pads unidos por estaño (corto) y la lectura salta en una junta fría. */
   function multimetro() {
@@ -1115,14 +1285,7 @@ export function initMesa(ctx) {
   };
   $("ms-menos").onclick = () => { if (!M.E.ajustable) return aviso(t("Tu cautín de lápiz no tiene perilla: siempre a {n} °C.", { n: M.E.set })); M.E.set = Math.max(250, M.E.set - 10); hud(); };
   $("ms-mas").onclick = () => { if (!M.E.ajustable) return aviso(t("Tu cautín de lápiz no tiene perilla: siempre a {n} °C.", { n: M.E.set })); M.E.set = Math.min(450, M.E.set + 10); hud(); };
-  $("ms-bomba").onclick = bomba;
   $("ms-multi").onclick = multimetro;
-  $("ms-malla").onpointerdown = () => { M.malla = true; };
-  $("ms-malla").onpointerup = $("ms-malla").onpointerleave = () => { M.malla = false; };
-  $("ms-limpiar").onclick = limpiarPunta;
-  $("ms-flux").onclick = toggleFlux;
-  $("ms-estano").onpointerdown = () => { M.espacio = true; };
-  $("ms-estano").onpointerup = $("ms-estano").onpointerleave = () => { M.espacio = false; };
 
   // ---------------- el bucle ----------------
   function tween(dur, fn, fin, bloquea = true) { M.tweens.push({ t: 0, dur, fn, fin, bloquea }); }
@@ -1156,6 +1319,13 @@ export function initMesa(ctx) {
       M.senal = new THREE.Mesh(new THREE.TorusGeometry(0.0042, 0.00055, 8, 40), new THREE.MeshBasicMaterial({ color: 0xffd23f, transparent: true, depthTest: false }));
       M.senal.rotation.x = Math.PI / 2; M.senal.renderOrder = 10; scene.add(M.senal);
     }
+    if (!M.senalT) {
+      M.senalT = new THREE.Mesh(new THREE.RingGeometry(0.0062, 0.0072, 40), new THREE.MeshBasicMaterial({ color: 0xffd23f, transparent: true, depthTest: false, side: THREE.DoubleSide }));
+      M.senalT.rotation.x = -Math.PI / 2; M.senalT.renderOrder = 10; scene.add(M.senalT);
+    }
+    const tk = ctx.tutorial?.() && M.modo === "soldar" ? toolPedida() : null, T = tk && M.tools?.[tk];
+    M.senalT.visible = !!T;
+    if (T) { M.senalT.position.copy(T.home).add(new THREE.Vector3(0.0125, 0.001, 0)); M.senalT.scale.setScalar(1.6 + 0.2 * Math.sin(M.t * 6)); M.senalT.material.opacity = 0.6 + 0.35 * Math.sin(M.t * 6); }
     const o = ctx.tutorial?.() ? objetivo() : null, pd = o && (M.pads.get(`${o.ref}#1`) || M.pads.get(`${o.ref}#0`));
     M.senal.visible = !!pd;
     if (!pd) return;
@@ -1164,10 +1334,19 @@ export function initMesa(ctx) {
     M.senal.scale.set(k, k, k);
     M.senal.material.opacity = 0.6 + 0.35 * Math.sin(M.t * 6);
   }
+  /** ¿Ese pad ya tiene flux (la gota de la jeringa o una junta empezada con flux)? */
+  const conFlux = (ref) => [...(M.fluxPads?.keys() || [])].some((k) => k.startsWith(ref + "#")) || [...M.juntas].some(([k, J]) => k.startsWith(ref + "#") && J.flux);
+  /** Lo que el tutorial pide tomar de la bandeja ahora (para que brille). */
+  function toolPedida() {
+    const o = objetivo();
+    if (o?.tipo !== "soldar" || !M.E.on || M.E.temp < 280) return null;
+    if (!conFlux(o.ref)) return M.mano2 === "flux" ? null : "flux";
+    return M.mano2 === "estano" ? null : "estano";
+  }
   /** Para las notas del tutorial (main.js): en qué va la mesa. */
   function estadoTuto() {
     if (!M.abierta) return null;
-    const o = { modo: M.modo, placa: M.placa, cautin: !!M.cautin, on: M.E.on, temp: Math.round(M.E.temp), flux: M.flux };
+    const o = { modo: M.modo, placa: M.placa, cautin: !!M.cautin, on: M.E.on, temp: Math.round(M.E.temp), mano2: M.mano2 || null };
     if (M.modo === "armar") {
       o.proc = M.proc ? { pieza: NOMBRE()[M.proc.it.slot], paso: M.proc.pasos[M.proc.i]?.[0] || null } : null;
       o.items = {};
@@ -1181,7 +1360,7 @@ export function initMesa(ctx) {
       o.mano = { de: nomRef(M.enMano), a: a ? nomRef(a) : null, otraPlaca: placaA && placaA !== M.placa ? placaA : null };
     }
     const sinSoldar = fs.find((f) => f.cable && !TA.esEnchufe(f.pin) && (J[TA.claveCable(f.cable)]?.q || "sin") === "sin");
-    if (sinSoldar) o.soldar = nomRef(TA.placaDe(sinSoldar.cable, M.comps));
+    if (sinSoldar) { const r = TA.placaDe(sinSoldar.cable, M.comps); o.soldar = nomRef(r); o.fluxOk = conFlux(r); }
     const sig = fs.find((f) => !f.cable);
     if (sig) o.siguiente = nomRef(sig.ref);
     o.faltan = fs.filter((f) => !f.cable).length;
@@ -1237,13 +1416,16 @@ export function initMesa(ctx) {
     for (const [k, J] of M.juntas) if (h?.key !== k) { TA.tickJunta(J, M.E, dt, false, false); }
     // el cautín: sigue al ratón; apoyado si estás soldando
     const tocando = h?.tipo === "soldar";
-    const objetivo = tocando ? h.info.pos.clone().add(new THREE.Vector3(0.0006, 0.0006, 0.0006)) : M.tPunta.clone().add(new THREE.Vector3(0, 0.004, 0));
+    const objetivo = M.mano2 === "flux" && !tocando ? M.descanso.clone()
+      : tocando ? h.info.pos.clone().add(new THREE.Vector3(0.0006, 0.0006, 0.0006)) : M.tPunta.clone().add(new THREE.Vector3(0, 0.004, 0));
     H.cautin.position.lerp(objetivo, Math.min(1, dt * 18));
     const calor = Math.max(0, Math.min(1, (M.E.temp - 150) / 300));
     H.punta.material.emissive.setRGB(calor * 0.9, calor * 0.25, 0);
     // el alambre de estaño: desde la mano izquierda (abajo a la derecha) hasta casi la punta; con Espacio, toca la junta
     const fin = H.cautin.position.clone().add(new THREE.Vector3(M.espacio ? -0.0011 : -0.005, M.espacio ? 0.0005 : 0.003, M.espacio ? -0.0006 : -0.004));
     entre(H.estano, fin.clone().add(new THREE.Vector3(-0.05, 0.035, -0.04)), fin);           // el estaño entra por la izquierda
+    H.estano.visible = M.mano2 === "estano";
+    moverTools(dt, tocando, h);
     // el halo del pad que apuntas
     const hv = M.hover?.tipo === "pad" ? M.hover.info : null;
     H.halo.visible = !!hv && !tocando;
@@ -1263,9 +1445,10 @@ export function initMesa(ctx) {
       return;
     }
     if (h.tipo === "soldar") {
-      const e0 = h.J.estano, conMalla = M.malla && PT.insumo(P(), "malla") > 0;
-      if (M.malla && !conMalla && M.t - M.avisoT > 2.5) { M.avisoT = M.t; aviso(t("Se te acabó la malla desoldante: compra más en la tienda (Soldadura).")); }
-      const ev = TA.tickJunta(h.J, M.E, dt, true, M.espacio && !!h.c && !conMalla, conMalla);
+      const malla = M.mano2 === "malla", conMalla = malla && PT.insumo(P(), "malla") > 0;
+      const e0 = h.J.estano;
+      if (malla && !conMalla && M.t - M.avisoT > 2.5) { M.avisoT = M.t; aviso(t("Se acabó: 🛒 Tienda → Soldadura.")); }
+      const ev = TA.tickJunta(h.J, M.E, dt, true, M.espacio && M.mano2 === "estano" && !!h.c, conMalla);
       const mas = h.J.estano - e0;
       if (mas > 0 && !PT.gastar(P(), "estano", mas * TA.GRAMOS)) {
         h.J.estano = e0;
@@ -1311,6 +1494,16 @@ export function initMesa(ctx) {
     el.classList.toggle("ok", J.estano >= pd.ideal[0] && J.estano <= pd.ideal[1]);
     el.querySelector("span").textContent = `${Math.round(J.temp)} °C · ${t("estaño")} ${Math.round((J.estano / pd.ideal[1]) * 100)} %`;
   }
+  /** El nombre de la herramienta de la bandeja que apuntas (y cuánto te queda). */
+  function etiqueta(k) {
+    const el = $("mesa-etq");
+    if (!k) { el.hidden = true; return; }
+    const p = P(), q = { estano: `${num(PT.insumo(p, "estano"), 1)} g`, flux: `${num(PT.insumo(p, "flux"), 1)} ml`, malla: `${num(PT.insumo(p, "malla"), 2)} m` }[k];
+    const [ic, nom] = TOOLS()[k];
+    el.textContent = `${ic} ${nom}${q ? " · " + q : ""}${M.mano2 === k ? " · " + t("(en la mano)") : ""}`;
+    el.style.left = (M.cx || 0) + 14 + "px"; el.style.top = (M.cy || 0) - 10 + "px";
+    el.hidden = false;
+  }
   function aviso(txt, ok = false) {
     const el = $("mesa-aviso");
     el.textContent = txt; el.className = ok ? "ok" : "";
@@ -1324,7 +1517,9 @@ export function initMesa(ctx) {
     $("ms-punta").style.width = Math.round(E.limpia * 100) + "%";
   }
   function hud() {
-    const lista = $("mesa-lista"), pista = $("mesa-pista");
+    const lista = $("mesa-lista"), pista = $("mesa-pista"), que = M.abierta ? autoAhora() : null;
+    $("mesa-auto").hidden = !que;
+    if (que) $("mesa-auto").textContent = { atornillar: t("🤖 Atornillar"), conectar: t("🤖 Conectar cables"), soldar: t("🤖 Soldar todo") }[que];
     if (M.modo === "soldar" && !M.comps) { lista.innerHTML = ""; return; }
     lista.innerHTML = "";
     if (M.modo === "armar" && M.proc) {                 // el procedimiento de la pieza que estás montando
@@ -1363,19 +1558,17 @@ export function initMesa(ctx) {
         lista.appendChild(li);
       }
       const E = M.E;
-      pista.textContent = M.enMano ? t("Pon el cable en su pad (mira la 📄 Guía) · Esc para soltarlo") : !M.cautin ? t("Necesitas un cautín: tienda → Soldadura") : !E.on ? t("Prende la estación ⏻ y espera que caliente") : E.temp < 280 ? t("Calentando la punta…") : M.flux ? t("Flux listo: toca el pad donde lo quieres") : t("Mantén el clic en el pad (cautín) y aprieta Espacio (estaño)");
+      pista.textContent = M.enMano ? t("Llévalo a su pad · Esc lo suelta") : !M.cautin ? t("Necesitas un cautín") : !E.on ? t("⏻ Prende la estación") : E.temp < 280 ? t("Calentando…")
+        : ({ flux: t("💧 Toca un pad"), estano: t("🔥 Clic en el pad + Espacio"), bomba: t("🔥 Clic en la junta + Espacio = chupa"), malla: t("🔥 Clic en la junta: la malla chupa") }[M.mano2] || t("Toma algo de la bandeja →"));
       $("ms-on").setAttribute("aria-pressed", String(E.on));
       $("ms-on").classList.toggle("vacio", !M.cautin);
       $("ms-on").title = M.cautin ? M.cautin.nombre : t("No tienes con qué soldar: compra un cautín en la tienda (Soldadura).");
       const p = P(), q = (k, u, d = 1) => `${num(PT.insumo(p, k), d)} ${u}`;
-      $("ms-q-estano").textContent = q("estano", "g"); $("ms-q-flux").textContent = q("flux", "ml"); $("ms-q-malla").textContent = q("malla", "m", 2);
-      $("ms-estano").classList.toggle("vacio", PT.insumo(p, "estano") < 0.1); $("ms-flux").classList.toggle("vacio", PT.insumo(p, "flux") < 0.25); $("ms-malla").classList.toggle("vacio", PT.insumo(p, "malla") <= 0);
-      $("ms-bomba").disabled = !PT.tieneHerramienta(p, "extractor"); $("ms-multi").disabled = !PT.tieneHerramienta(p, "multimetro");
+      $("ms-multi").disabled = !PT.tieneHerramienta(p, "multimetro");
       $("ms-multi").setAttribute("aria-pressed", String(!!M.multi));
       $("ms-menos").disabled = $("ms-mas").disabled = !E.ajustable;
       lista.insertAdjacentHTML("afterbegin", `<li class="stock"><small>🧷 ${t("cable")}: ${q("cable", "m")}</small></li>`);
       $("ms-set").textContent = `${E.set} °C`;
-      $("ms-flux").setAttribute("aria-pressed", String(M.flux));
       hudTemp();
     }
   }

@@ -1,0 +1,23 @@
+{
+  "_nota": "El SOFTWARE del computador (software.js, la app 🛍️ Apps): cada programa se compra una vez y abre una o más apps del escritorio ('apps' = las ventanas de estudio.js). 'base' = viene instalado. 'modo' = solo en ese modo (normal | dev). Las partidas de antes de la tienda de apps tienen todo.",
+  "software": [
+    { "id": "apps", "icono": "🛍️", "nombre": "Apps", "desc": "Aquí compras los programas.", "precio": 0, "base": true, "apps": ["apps"] },
+    { "id": "dronmarket", "icono": "🛒", "nombre": "DronMarket", "desc": "Piezas, herramientas y soldadura.", "precio": 0, "base": true, "apps": ["tienda"] },
+    { "id": "mensajes", "icono": "💬", "nombre": "Mensajes", "desc": "Los clientes te escriben aquí.", "precio": 10, "apps": ["mensajes"] },
+    { "id": "simulador", "icono": "🧠", "nombre": "Simulador de IA", "desc": "Entrena el cerebro de tu dron.", "precio": 40, "modo": "normal", "apps": ["lab", "escenarios"] },
+    { "id": "ide", "icono": "💻", "nombre": "IDE PBDMM", "desc": "Programa el entrenamiento de tu IA.", "precio": 40, "modo": "dev", "apps": ["ide", "docs", "sim", "escenarios"] },
+    { "id": "calendario", "icono": "📅", "nombre": "Calendario", "desc": "Plazos y entregas.", "precio": 10, "apps": ["calendario"] },
+    { "id": "finanzas", "icono": "🏦", "nombre": "Finanzas", "desc": "Cada peso que entra y sale.", "precio": 10, "apps": ["banco"] },
+    { "id": "campana", "icono": "⭐", "nombre": "Campaña", "desc": "Los pedidos grandes de la historia.", "precio": 15, "apps": ["campana"] },
+    { "id": "videos", "icono": "🎬", "nombre": "Videos", "desc": "Tus videos y fotos.", "precio": 10, "apps": ["videos"] },
+    { "id": "fondos", "icono": "🖼️", "nombre": "Fondos de pantalla", "desc": "Cambia el fondo del computador.", "precio": 15, "apps": ["fondos"] }
+  ],
+  "fondos": [
+    { "id": "taller", "nombre": "Taller", "css": "radial-gradient(ellipse at 70% 30%, #1a2e27 0%, #0b1210 75%)" },
+    { "id": "atardecer", "nombre": "Atardecer", "css": "linear-gradient(160deg, #3a1c4a 0%, #a13d4b 45%, #f0a35a 100%)" },
+    { "id": "oceano", "nombre": "Océano", "css": "linear-gradient(170deg, #06213a 0%, #0b4f6c 55%, #1fa2a6 100%)" },
+    { "id": "noche", "nombre": "Noche neón", "css": "radial-gradient(circle at 20% 80%, #ff2bd655 0%, transparent 40%), radial-gradient(circle at 80% 20%, #3ccbff55 0%, transparent 45%), #07070f" },
+    { "id": "bosque", "nombre": "Bosque", "css": "linear-gradient(180deg, #0f2a1c 0%, #1d4a2c 50%, #3e6b2f 100%)" },
+    { "id": "circuito", "nombre": "Circuito", "css": "repeating-linear-gradient(90deg, #12301f 0 2px, transparent 2px 38px), repeating-linear-gradient(0deg, #12301f 0 2px, transparent 2px 38px), #0a1a12" }
+  ]
+}

@@ -569,6 +569,11 @@ class LiveLink(BaseCallback):
             if done:
                 st = 2 if info.get("success") else 1 if info.get("crashed") else 3
                 self.events.append([i, st] + r3(info.get("pos", (0, 0, 0))))
+                self.total_eps += 1
+                if not self.args.level and (self.args.stage >= 2 or self.args.repaso):
+                    self.send_level(i, envs[i])      # nivel aleatorio nuevo para ese dron
+                if info.get("repaso"):               # un intento de repaso: no cuenta en el éxito del nivel que entrena
+                    continue
                 self.ep_succ.append(float(info.get("success", False)))
                 if info.get("front") is not None:
                     self.ep_front.append(float(info["front"]))
@@ -583,9 +588,6 @@ class LiveLink(BaseCallback):
                 ep = info.get("episode")             # lo agrega el Monitor de SB3
                 if ep:
                     self.ep_rew.append(float(ep["r"]))
-                self.total_eps += 1
-                if not self.args.level and self.args.stage >= 2:
-                    self.send_level(i, envs[i])      # nivel aleatorio nuevo para ese dron
 
         now = time.perf_counter()
         if now - getattr(self, "last_stats", 0.0) > 1.0:
@@ -656,6 +658,7 @@ def main():
     ap.add_argument("--dron", type=str, default=None,
                     help="física: drones/madera.json (un dron del juego) o 'azar' (al azar en cada intento)")
     args = ap.parse_args()
+    args.repaso = tuple(json.loads(args.tarea or "{}").get("repaso") or ())   # la tarea trae el repaso (env.py)
     params, phys_range, args.dron_nombre, args.rango = load_drone(args.dron)
 
     reward = dict(DEFAULT_REWARD)

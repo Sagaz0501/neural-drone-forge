@@ -56,7 +56,7 @@ const htmlFaltan = [...textos].filter((k) => !(k in en));
 ok(!htmlFaltan.length, `${textos.size} textos fijos de index.html: todos traducidos${htmlFaltan.length ? ` (faltan ${htmlFaltan.length}: ${htmlFaltan.slice(0, 6).map((k) => `"${k.slice(0, 40)}"`).join(" · ")}…)` : ""}`);
 
 // 3) las capas de datos
-for (const nombre of ["piezas", "misiones", "entrenamiento", "pbdmm", "clientes", "trabajos", "escenarios"]) {
+for (const nombre of ["piezas", "misiones", "entrenamiento", "pbdmm", "clientes", "trabajos", "escenarios", "software"]) {
   const f = new URL(`data/en/${nombre}.json`, dir);
   if (!existsSync(f)) { ok(false, `data/en/${nombre}.json existe`); continue; }
   const base = JSON.parse(readFileSync(new URL(`data/${nombre}.json`, dir), "utf8")), capa = JSON.parse(readFileSync(f, "utf8"));

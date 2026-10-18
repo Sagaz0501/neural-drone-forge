@@ -117,7 +117,7 @@ def _config_prueba(carpeta: Path, entrenando: dict | None = None) -> dict:
 def env_prueba(cfg: dict) -> DroneEnv:
     params, phys_range = cargar_dron(cfg.get("dron"))
     kw = dict(stage=int(cfg["stage"]), params=params, phys_range=phys_range, wind=float(cfg.get("wind") or 0.0),
-              density=float(cfg.get("density") or 1.0))
+              density=float(cfg.get("density") or 1.0), repaso=())        # la prueba es SOLO de su nivel (sin repaso)
     if cfg.get("reward"):
         kw["reward"] = {k: float(v) for k, v in cfg["reward"].items()}
     if cfg.get("tarea"):

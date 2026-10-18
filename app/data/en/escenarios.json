@@ -1,6 +1,9 @@
 {
   "escenarios": [
-    { "id": "foto_fija", "nombre": "Still photo", "desc": "Take off, reach a point, hold still and take a photo that passes the quality test. The basis of everything.", "trabajos": "House photos and inspections (1 photo)" },
+    { "id": "despegar", "nombre": "Take off and hold", "desc": "Climb to a random height and hold still for 3 s. The first thing an AI learns from zero.", "trabajos": "None yet: it's the base of everything" },
+    { "id": "punto", "nombre": "Go to a point", "desc": "Go to a random point and hold for 3 s looking where it's told: a photo without the house.", "trabajos": "Easy photos ★ (Doña Marta's)" },
+    { "id": "linea", "nombre": "Follow a line", "desc": "Follow a curved line without leaving it: go exactly where it's told.", "trabajos": "Precision training" },
+    { "id": "foto_fija", "nombre": "Still photo", "desc": "A real photo: arrive, brake and frame the house (or the roof) right in the center.", "trabajos": "House photos and inspections (1 photo)" },
     { "id": "set_fotos", "nombre": "Photo set", "desc": "Several photos in a row around the subject: the same plan, repeated with a for.", "trabajos": "Sets of 2 to 4 photos" },
     { "id": "repaso_metas", "nombre": "Ring course", "desc": "Fly through a series of rings: so it doesn't forget to move fast and precisely.", "trabajos": "Precision training (no jobs for this yet)" },
     { "id": "video_ruta", "nombre": "Video on a path", "desc": "Follow a camera path (static, orbit, reveal) with the house centered, without losing it.", "trabajos": "House videos" },

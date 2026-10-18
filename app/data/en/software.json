@@ -1,0 +1,22 @@
+{
+  "software": [
+    { "id": "apps", "nombre": "Apps", "desc": "Buy your programs here." },
+    { "id": "dronmarket", "nombre": "DronMarket", "desc": "Parts, tools and soldering." },
+    { "id": "mensajes", "nombre": "Messages", "desc": "Clients write to you here." },
+    { "id": "simulador", "nombre": "AI Simulator", "desc": "Train your drone's brain." },
+    { "id": "ide", "nombre": "PBDMM IDE", "desc": "Program your AI's training." },
+    { "id": "calendario", "nombre": "Calendar", "desc": "Deadlines and deliveries." },
+    { "id": "finanzas", "nombre": "Finances", "desc": "Every peso in and out." },
+    { "id": "campana", "nombre": "Campaign", "desc": "The story's big jobs." },
+    { "id": "videos", "nombre": "Videos", "desc": "Your videos and photos." },
+    { "id": "fondos", "nombre": "Wallpapers", "desc": "Change the computer's background." }
+  ],
+  "fondos": [
+    { "id": "taller", "nombre": "Workshop" },
+    { "id": "atardecer", "nombre": "Sunset" },
+    { "id": "oceano", "nombre": "Ocean" },
+    { "id": "noche", "nombre": "Neon night" },
+    { "id": "bosque", "nombre": "Forest" },
+    { "id": "circuito", "nombre": "Circuit" }
+  ]
+}

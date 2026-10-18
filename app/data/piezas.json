@@ -768,6 +768,27 @@
       "etapa": 1,
       "precio": 8,
       "desc": "Mide continuidad y voltajes: en el banco te marca los cables malos ANTES de conectar la batería."
+    },
+    {
+      "id": "auto_atornillador",
+      "nombre": "🤖 Auto-atornillador",
+      "etapa": 4,
+      "precio": 1500,
+      "desc": "Un brazo con destornillador eléctrico y control de torque: aprieta todos los tornillos de un paso de una vez, sin barrer ninguna rosca."
+    },
+    {
+      "id": "auto_conectores",
+      "nombre": "🤖 Auto-conectores",
+      "etapa": 4,
+      "precio": 1800,
+      "desc": "Lee el manual de tus piezas y pone cada cable en su pad (y cada conector en su enchufe). Gasta el mismo cable que a mano."
+    },
+    {
+      "id": "auto_soldador",
+      "nombre": "🤖 Auto-soldador",
+      "etapa": 5,
+      "precio": 3000,
+      "desc": "Una estación robótica: suelda todas las juntas que faltan con la temperatura, el flux y el estaño justos. Siempre quedan buenas."
     }
   ],
   "estilo": {

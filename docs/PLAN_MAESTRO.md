@@ -32,33 +32,37 @@
 | v0.1 | La demo | ✅ | Simulador Python = JS, IA con PPO, garaje, tienda, banco, 3 pedidos, PBDMM 1 |
 | v1.0 | El negocio | ✅ | Celular con clientes, trabajos repetibles ★–★★★★, relación, arriendo, inglés, PBDMM 2 |
 | v2.0 | El taller de verdad | ✅ 16-10-2026 | Regalo de mamá + tutorial obligatorio, la mesa (montar, atornillar, soldar), el computador como centro, simuladores, la flota, niveles 13/14, PBDMM 3 |
-| **v2.1** | **Freestyle** | 🔨 **← estamos aquí** | 3 mapas, mando PS5/Xbox, FPV, acro, carrera y persecución contra la IA; niveles 16 Carrera, 17 Entrega, 18 Persecución |
+| v2.1 | Freestyle | ✅ (sale en la v3.0) | 3 mapas, mando PS5/Xbox, FPV, acro, carrera y persecución contra la IA; niveles 16 Carrera, 17 Entrega, 18 Persecución |
+| **v3.0** | **La app y el aprendizaje paso a paso** | ✅ **18-10-2026 · ← estamos aquí** | App de escritorio (E1), la partida empieza en cero, escenarios E1-E12 con examen, repaso y ⭐ modelo base (niveles 19 Despegar, 20 Ir a un punto, 21 Seguir una línea), tutorial completo con nivel 0, prueba de motores en un botón, máquinas 🤖 |
+| **v3.1** | **Pulir** | 🔨 **lo siguiente** | Instaladores (E2), partidas en archivos (E3), medir y ajustar los tiempos de entrenamiento, lo que se vea al jugar el tutorial con gente nueva |
 | v2.2 | Acto 2 · El pequeño negocio | 📋 | Acto 2 completo, nivel 15 Seguir, la batería y el multímetro en la mesa, concesionario |
 | v2.3 | Acto 3 · El taller crece | 📋 | Entregas en el negocio, QA de drones ajenos, armado por encargo, la empresa rival |
 | v2.4 | Acto 4 · La liga | 📋 | Liga de carreras (mapas del freestyle + niveles 16/18), IA contra IA, retos |
-| v2.5 | Acto 5 · La tormenta | 📋 | El clímax: búsqueda y rescate con la flota; nivel 19 Búsqueda; epílogo |
-| v3.0 | App + gráficos | 📋 | App de escritorio (Electron) con instaladores y el salto de gráficos |
-| v3.x | Steam | 📋 | Página en Steam, logros, nube, auto-update; contenido post-juego (niveles 20/21) |
+| v2.5 | Acto 5 · La tormenta | 📋 | El clímax: búsqueda y rescate con la flota; nivel 22 Búsqueda; epílogo |
+| v3.x | Gráficos | 📋 | El salto de gráficos (sección 7) |
+| v3.x | Steam | 📋 | Página en Steam, logros, nube, auto-update; contenido post-juego (niveles 23/24) |
 
-Por qué este orden: primero el juego (las versiones 2.x), después el empaque (3.0). Una app bonita con medio juego
+Los números de versión ya no van en orden de calendario: la v3.0 (la app) salió antes que los actos 2-5 porque el
+tutorial y la demo quedaron listos y la app ya funciona. El plan de los actos sigue igual (2.2 → 2.5 son ahora
+contenido de las 3.x). Por qué este orden al principio: primero el juego (las versiones 2.x), después el empaque (3.0). Una app bonita con medio juego
 no se vende; un juego completo en el navegador sí se puede mostrar en el portafolio desde ya.
 
 ---
 
-## 3. Dónde estamos hoy (v2.0.0, 16-10-2026)
+## 3. Dónde estamos hoy (v3.0.0, 18-10-2026)
 
 Lo que ya existe y se puede jugar (detalle en [CLAUDE.md](../CLAUDE.md), sección *Estado*):
 
 | Parte | Qué hay |
 |---|---|
 | **El inicio** | Le pediste a tu mamá un dron profesional y te regaló uno de madera para armar: llega en cajas con cautín, estaño y flux; $150. Los dos modos (normal y desarrollador) empiezan igual |
-| **Tutorial obligatorio** | regalo → nombre → armar (computador apagado) → tour del computador → entrenar el nivel 13 hasta 80 % → llega Doña Marta |
+| **Tutorial obligatorio** | regalo → nombre → armar (computador apagado) → comprar Mensajes + Simulador/IDE → la primera IA en dos pasos (🛫 E1 despegar, 📍 E2 ir a un punto; examen de 80 % sin ruido) → **nivel 0**: llega Doña Marta. La partida empieza sin ningún modelo |
 | **La mesa** | Abrir cajas, montar cada pieza con su procedimiento, atornillar hasta el clic, soldar con estación + cautín + estaño + flux. Juntas buenas, frías, con puente o con el pad levantado; la mesa no avisa |
 | **El banco** | Imprimir (forma o tu STL), cableado real, prueba de humo, firmware, motores, hélices, prueba atada |
 | **El computador** | Centro del juego: Mensajes, Calendario, Campaña, Laboratorio, Tienda, Inventario, Finanzas, Videos, Ajustes (+ IDE, Documentación, Simuladores en modo dev) |
 | **Negocio** | 4 clientes (Doña Marta, Don Ernesto, Agencia Horizonte, Doña Lucía), foto / inspección / video en 4 dificultades, relación ♥, recomendaciones, arriendo |
-| **Simuladores** | 7 escenarios que se compran en orden (Foto fija gratis → Entre postes $420) y abren misiones de la IA y funciones de PBDMM |
-| **La IA** | Un modelo por dron; niveles 1-14 (11 grabar, 12 entre postes, 13 foto, 14 set de fotos); la flota vuela sola al terminar el día |
+| **Simuladores** | 12 escenarios E1-E12 en orden de dificultad (E1-E2 gratis → E12 Persecución), cada uno con examen 🎓; el que aprueba E1-E4 + E6 es ⭐ modelo base; cada escenario parte del modelo que aprobó el anterior y repasa lo aprendido (20 %) |
+| **La IA** | Un modelo por dron; niveles 0-21 (11 grabar, 12 entre postes, 13 foto, 14 set de fotos, 16-18 carrera/entrega/persecución, 19-21 despegar/ir a un punto/seguir una línea); la flota vuela sola al terminar el día |
 | **PBDMM 3** | El lenguaje del modo dev: modelos, premios, hooks y el plan de vuelo (despegar, ir_a, mantener, foto…) |
 | **Campaña** | 3 pedidos especiales jugables (casa, finca, restaurante); 7 más en plan |
 
@@ -194,7 +198,7 @@ El Capitán Herrera no tiene helicóptero. Tiene tu taller.*
 |---|---|---|---|---|---|
 | ⭐ Ver el derrumbe | Cap. Herrera | fotos en cuadrícula de la vía | Li-ion 4S, ELRS 900 | 14 (barrido) | $300 |
 | ⭐ Medicinas a la vereda | Farmacia San José | 3 entregas con viento 4 m/s | gancho, carbono 7" | 17 + viento | $400 |
-| ⭐ Buscar a Tomás | Cap. Herrera | 4 IA barren el monte; encontrar la señal | térmica (nueva), luces | **19 Búsqueda** | $900 |
+| ⭐ Buscar a Tomás | Cap. Herrera | 4 IA barren el monte; encontrar la señal | térmica (nueva), luces | **22 Búsqueda** | $900 |
 | ⭐ Guiar a los rescatistas | Cap. Herrera | seguir al equipo de noche hasta Tomás | luces LED | 15 de noche | $600 |
 
 Todo lo aprendido junto: entregar, barrer, seguir, viento, noche, flota. No hay misión manual: si la IA no aprendió,
@@ -350,7 +354,7 @@ Ordenado por prioridad. Tamaño: **S** = días, **M** = 1-2 semanas, **L** = un 
 
 | Fase | Qué | Versión |
 |---|---|---|
-| **E1** | Envoltorio: Electron arranca el servidor y abre la ventana. **Prototipo hecho (16-10-2026):** `desktop/` (`npm install && npm start`; usa el `.venv` del proyecto, puerto libre desde 8770, cierra el servidor al salir) | v3.0 |
+| **E1** ✅ | Envoltorio: Electron arranca el servidor y abre la ventana. **Hecho (v3.0):** `desktop/` (`npm install && npm start`; usa el `.venv` del proyecto, puerto libre desde 8770, cierra el servidor al salir) | v3.0 |
 | **E2** | Instaladores: `.dmg` firmado y notarizado (Mac), `.exe` (Windows) | v3.0 |
 | **E3** | Auto-update, partidas en archivos (+ importar), reportes de fallos | v3.0 / v3.1 |
 | **E4** | Steam: página, logros (6.5), guardado en la nube, soporte de mando | v3.x |
@@ -377,11 +381,11 @@ boda (multi-cámara) · "perder plata" completo · apps Trabajos y Mercado.
 **v2.4 Acto 4** — la liga (fechas en el Calendario, inscripciones) · IA contra IA con la misma semilla · bosque ·
 retos diarios y semanales · app Retos.
 
-**v2.5 Acto 5** — nivel 19 Búsqueda · clima (lluvia) y noche en las misiones · cámara térmica · los 4 ⭐ de la
+**v2.5 Acto 5** — nivel 22 Búsqueda · clima (lluvia) y noche en las misiones · cámara térmica · los 4 ⭐ de la
 tormenta · epílogo, créditos y modo libre · La película.
 
 **v3.0** — Electron E1-E3 · gráficos 1-6 · pulido de sonido.
-**v3.x** — Steam E4 · gráficos 7-10 · niveles 20 Mapeo y 21 Formación · exportar la red a un ESP32.
+**v3.x** — Steam E4 · gráficos 7-10 · niveles 23 Mapeo y 24 Formación · exportar la red a un ESP32.
 
 ---
 

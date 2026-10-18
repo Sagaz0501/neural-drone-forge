@@ -89,7 +89,7 @@ export function initCelular(ctx) {
     if (!pe) return el;
     const p = ctx.P(), N = p.negocio, quedan = pe.limite - N.dia + 1;
     el.className = "tarjeta " + pe.estado;
-    const titulo = `<span>${ICONO[pe.tipo]} <b>${esc(pe.titulo)}</b></span>`;
+    const titulo = `<span>${ICONO[pe.tipo]} ${pe.tutorial ? `<span class="chip">${t("Nivel {n}", { n: 0 })}</span> ` : ""}<b>${esc(pe.titulo)}</b></span>`;
     const det = [TIPO[pe.tipo]() + (pe.tipo === "video" ? "" : ` · ${pe.n}`), LUGAR[pe.lugar]?.() || pe.lugar,
       pe.viento ? t("viento {v} m/s", { v: fmt(pe.viento) }) : t("sin viento")].join(" · ");
     const estado = { nuevo: "", aceptado: `<span class="chip warn">${t("Aceptado")}</span>`, hecho: `<span class="chip on">${t("Entregado")} ${"★".repeat(pe.estrellasHechas || 0)}</span>`,

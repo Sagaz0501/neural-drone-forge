@@ -24,7 +24,10 @@
     14,
     16,
     17,
-    18
+    18,
+    19,
+    20,
+    21
   ],
   "nombres_niveles": {
     "0": "Hover (quedarse quieto)",
@@ -44,7 +47,10 @@
     "14": "Set de fotos",
     "16": "Carrera",
     "17": "Entrega",
-    "18": "Persecución"
+    "18": "Persecución",
+    "19": "Despegar y quedarse",
+    "20": "Ir a un punto",
+    "21": "Seguir una línea"
   },
   "alias_premios": {
     "grabar": "film",
@@ -1103,7 +1109,9 @@
     }
   ],
   "ejemplos": {
-    "foto_fija": "# Foto fija (PBDMM 3): el primer simulador.\n# Le dices al dron qué hacer y el entrenamiento aprende a hacerlo.\n\nmodelo(\"fotografo\", desde=\"base\")\nmision(\"foto\")\ndron(\"estandar\")\nentrenar_en(\"fondo\")\n\n# el plan de vuelo\ndespegar(altura=2)\nir_a(\"punto\")\nmantener(segundos=3)       # quieto 3 s\nfoto(calidad=0.6)          # la foto tiene que sacar 0,6 o más\naterrizar()\n\ndef cada_generacion(e):\n    print(f\"gen {e.generacion}: fotos buenas {e.exito:.0%}\")\n",
+    "despegar": "# Despegar: tu primer modelo de IA.\n# Le dices al dron qué hacer y el entrenamiento aprende a hacerlo.\n\nmodelo(\"mi_piloto\", desde=\"cero\")   # el nombre de tu IA · \"cero\" = empieza sin saber nada\nmision(\"despegar\")\ndron(\"estandar\")           # ← cambia \"estandar\" por el nombre de TU dron\nentrenar_en(\"fondo\")       # entrena aquí, sin Blender\n\n# el plan de vuelo\ndespegar(altura=2)\nmantener(segundos=3)       # quieto 3 s\naterrizar()\n\ndef cada_generacion(e):\n    print(f\"gen {e.generacion}: éxito {e.exito:.0%}\")\n",
+    "ir_a_punto": "# Ir a un punto: tu IA ya sabe despegar. Ahora aprende a llegar a un punto y mirar.\n# Parte de lo que ya sabe (desde=): así aprende mucho más rápido que desde cero.\n\nmodelo(\"mi_piloto_2\", desde=\"mi_piloto\")   # un modelo NUEVO que parte de mi_piloto\nmision(\"punto\")\ndron(\"estandar\")           # ← tu dron\nentrenar_en(\"fondo\")\n\n# el plan de vuelo\ndespegar(altura=2)\nir_a(\"punto\")\nmantener(segundos=3)       # quieto 3 s, mirando hacia donde se pide\naterrizar()\n\ndef cada_generacion(e):\n    print(f\"gen {e.generacion}: éxito {e.exito:.0%}\")\n",
+    "foto_fija": "# Foto fija: tu primer modelo de IA.\n# Le dices al dron qué hacer y el entrenamiento aprende a hacerlo.\n\nmodelo(\"mi_fotografo\", desde=\"cero\")   # el nombre de tu IA · \"cero\" = empieza sin saber nada\nmision(\"foto\")\ndron(\"estandar\")           # ← cambia \"estandar\" por el nombre de TU dron\nentrenar_en(\"fondo\")       # entrena aquí, sin Blender\n\n# el plan de vuelo\ndespegar(altura=2)\nir_a(\"punto\")\nmantener(segundos=3)       # quieto 3 s\nfoto(calidad=0.5)          # la foto tiene que sacar 0,5 o más\naterrizar()\n\ndef cada_generacion(e):\n    print(f\"gen {e.generacion}: fotos buenas {e.exito:.0%}\")\n",
     "hover": "# Mi primer modelo: quedarse quieto en el aire.\n# Una red chica, desde cero. Mira cómo pasa de caerse a flotar.\n\nmodelo(\"colibri\", desde=\"cero\")\nred(capas=[64, 64])\nnivel(0)                 # hover: quedarse en un punto\ndron(\"estandar\")\ndrones(50)\nentrenar_en(\"fondo\")\n\n# todo va de 0 a 10: 0 = apagado, 4 = lo normal, 10 = al máximo\npremios(cerca=8)\ncastigos(chocar=4, inclinar=8, brusco=4)\n\ndef cada_generacion(e):\n    print(f\"gen {e.generacion}: éxito {e.exito:.0%}, choque {e.choque:.0%}\")\n    if e.exito >= 0.95:\n        avisar(\"¡Colibrí ya flota!\")\n        detener()\n",
     "grabar": "# Grabar casas: parte de la IA de la campaña (ya sabe volar)\n# y la especializa en grabar con tu dron.\n\nmodelo(\"camarografo\", desde=\"base\")\nmision(\"grabar\")\ndron(\"azar\")             # cambia por el nombre de un dron de tu hangar\nentrenar_en(\"fondo\")\naprendizaje(lr=0.0003)\n\n# los premios y castigos de la misión, con más castigo a las sacudidas\ncastigos(sacudidas=6)     # lo normal es 4\n\ndef cada_generacion(e):\n    if e.generacion % 10 == 0:\n        print(f\"gen {e.generacion}: éxito {e.exito:.0%} · calidad {e.calidad}\")\n    if e.exito >= 0.8:\n        aprendizaje(lr=0.0001)   # ya casi: ajustes finos\n    if e.exito >= 0.9:\n        detener()\n",
     "curriculum": "# Currículum: primero que no choque, después que grabe bien.\n\nmodelo(\"aprendiz\", desde=\"base\")\nmision(\"grabar_postes\")\ndron(\"azar\")\nentrenar_en(\"fondo\")\n\ncastigos(chocar=8)     # fase 1: no chocar es lo que más importa\npremios(grabar=1)\nfase = 1\n\ndef cada_generacion(e):\n    global fase\n    if fase == 1 and e.choque is not None and e.choque < 0.1:\n        fase = 2\n        castigos(chocar=3)    # fase 2: ahora, grabar bien\n        premios(grabar=6)\n        avisar(\"Fase 2: ya no choca, ahora a grabar\")\n    if fase == 2 and e.exito >= 0.85:\n        detener()\n\ndef al_terminar(e):\n    print(\"terminó en la fase\", fase, \"con éxito\", e.exito)\n",
@@ -1218,6 +1226,9 @@
       "azar": "random"
     },
     "misiones": {
+      "despegar": "takeoff",
+      "punto": "point",
+      "linea": "line",
       "grabar": "film",
       "grabar_viento": "film_wind",
       "grabar_postes": "film_poles",

@@ -22,7 +22,6 @@ const SLOT3D = { xt60: "bateria", esc: "esc", fc: "controladora", gps: "controla
 const ORDEN = () => [["chasis", t("Chasis"), "chasis"], ["motores", t("Motores"), "motores"], ["esc", t("ESC 4 en 1"), "esc"], ["controladora", t("Controladora"), "controladora"],
   ["radio", t("Radio"), "radio"], ["camara", t("Cámara"), "camara"], ["montaje", t("Montaje de la cámara"), "camara"], ["bateria", t("Batería"), "bateria"]];
 const posn = (k) => ({ FL: t("adelante izq."), FR: t("adelante der."), RL: t("atrás izq."), RR: t("atrás der.") })[k];
-const giro = (k) => ({ cw: t("↻ horario"), ccw: t("↺ antihorario") })[k];
 /** El mensaje de un daño en futuro ("se va a quemar"): con el multímetro, antes de conectar la batería. */
 const vaAQuemar = (msg) => msg.replace(t("se quemó"), t("se va a quemar")).replace(t("Se quemó"), t("Se va a quemar"));
 const ibaAQuemar = (msg) => msg.replace(t("se quemó"), t("se iba a quemar")).replace(t("Se quemó"), t("Se iba a quemar"));
@@ -90,11 +89,11 @@ export function initBanco(ctx) {
     const p = P(), chU = U(d.slots.chasis), chP = chU && cat.chasis.find((x) => x.id === chU.id), impresora = PT.tieneHerramienta(p, "impresora");
     h(der, `<h3>${t("Diseño e impresión")}</h3>`);
     if (!chU) { h(der, `<p>${t("Primero elige un chasis para este dron (en el hangar).")}</p>`); return; }
-    if (!chP.imprimible) h(der, `<p>${t("El <b>{chasis}</b> no se imprime: viene hecho. Si quieres tu propia forma, usa un chasis de PLA o PETG con la impresora 3D.", { chasis: chP.nombre })}</p>`);
-    else if (!impresora) h(der, `<p>${t("Sin impresora 3D, el <b>{chasis}</b> llega impreso de la tienda (en X). Con la impresora eliges la forma, imprimes tu STL y te sale 40 % más barato.", { chasis: chP.nombre })}</p>`);
+    if (!chP.imprimible) h(der, `<p>${t("El <b>{chasis}</b> viene hecho: no se imprime.", { chasis: chP.nombre })}</p>`);
+    else if (!impresora) h(der, `<p>${t("Sin impresora 3D, el <b>{chasis}</b> llega impreso de la tienda.", { chasis: chP.nombre })}</p>`);
     else {
       const actual = chU.diseno, dis = BK.diseno || actual || { tipo: "forma", forma: "x" };
-      h(der, `<p>${actual ? t("Este chasis ya está impreso ({diseno}). Reimprimirlo cuesta <span class=\"money\">${n}</span> de filamento.", { diseno: actual.tipo === "stl" ? t("tu STL") : cat.estilo.formas[actual.forma], n: reimpresion(chP) }) : t("Elige la forma y dale imprimir: sale en {mat}, del color que pintaste el dron.", { mat: chP.id === "petg" ? "PETG" : "PLA" })}</p><div class="disenos" id="bk-dis"></div>`);
+      h(der, `<p>${actual ? t("Este chasis ya está impreso ({diseno}). Reimprimirlo cuesta <span class=\"money\">${n}</span> de filamento.", { diseno: actual.tipo === "stl" ? t("tu STL") : cat.estilo.formas[actual.forma], n: reimpresion(chP) }) : t("Elige la forma y dale Imprimir ({mat}).", { mat: chP.id === "petg" ? "PETG" : "PLA" })}</p><div class="disenos" id="bk-dis"></div>`);
       const box = der.querySelector("#bk-dis");
       const opts = [...Object.entries(cat.estilo.formas).map(([k, n]) => ({ d: { tipo: "forma", forma: k }, n: n.split(" (")[0], s: (n.split("(")[1] || "").replace(")", "") })),
         ...G.stl.filter((s) => s.tipo === "chasis").map((s) => { const m = STL_CACHE.get(s.id)?.meta; return { d: { tipo: "stl", id: s.id }, n: s.nombre, s: m ? t("tu STL · ~{g} g · hélices {pul}\"", { g: m.masa_g, pul: m.helice_max }) : t("tu STL") }; })];
@@ -106,12 +105,12 @@ export function initBanco(ctx) {
         b.onclick = () => { BK.diseno = o.d; render(); verPrevia(o.d); };
         box.appendChild(b);
       }
-      h(der, `<p style="font-size:13px">${t("¿Tu propio diseño? Importa un STL en <b>Inventario → Tus diseños 3D</b> (tipo Chasis). El peso sale del volumen impreso y los motores van en las puntas de los brazos.")}</p>`);
+      h(der, `<p style="font-size:13px">${t("¿Tu diseño? Importa un STL en <b>Inventario → Tus diseños 3D</b>.")}</p>`);
       const mismo = actual && actual.tipo === dis.tipo && (actual.forma || actual.id) === (dis.forma || dis.id);
       boton(der, actual ? (mismo ? t("Ya está impreso así") : t("Reimprimir (${n})", { n: reimpresion(chP) })) : t("Imprimir"), "main", () => imprimirChasis(d, chU, chP, dis, !!actual), mismo);
     }
     // carcasa
-    h(der, `<h3 style="margin-top:18px">${t("Carcasa (canopy)")}</h3><p>${t("Tapa la electrónica. Se imprime en TPU/PLA: pesa poco y es del color de los detalles.")}</p><div class="disenos" id="bk-can"></div>`);
+    h(der, `<h3 style="margin-top:18px">${t("Carcasa (canopy)")}</h3><p>${t("Tapa la electrónica.")}</p><div class="disenos" id="bk-can"></div>`);
     const cb = der.querySelector("#bk-can"), act = d.canopy?.tipo || "ninguna";
     const copts = [...Object.entries(cat.estilo.canopies).filter(([k]) => !k.startsWith("_")).map(([k, v]) => ({ c: { tipo: k, masa_g: v.masa_g }, n: v.nombre, s: v.masa_g ? `${v.masa_g} g` : "" })),
       ...G.stl.filter((s) => s.tipo === "canopy").map((s) => { const m = STL_CACHE.get(s.id)?.meta; return { c: { tipo: "stl", id: s.id, masa_g: m?.masa_g || 10 }, n: s.nombre, s: t("tu STL · ~{g} g", { g: m?.masa_g ?? "?" }) }; })];
@@ -129,7 +128,7 @@ export function initBanco(ctx) {
       else boton(der, impresora ? t("Imprimir carcasa") : t("Necesitas la impresora 3D"), "main", () => imprimirCanopy(d, sel), !impresora);
     }
     // descargar
-    h(der, `<h3 style="margin-top:18px">${t("Descargar STL")}</h3><p>${t("Para imprimirlo de verdad (en milímetros, Z arriba, listo para Cura/PrusaSlicer/Bambu Studio), o para diseñar tu carcasa encima de la placa.")}</p>`);
+    h(der, `<h3 style="margin-top:18px">${t("Descargar STL")}</h3><p>${t("Para imprimirlo de verdad (Cura, PrusaSlicer, Bambu Studio).")}</p>`);
     nuevaFila(der);
     const b = ctx.dronVista(d);
     boton(der, t("Chasis"), "ghost small", () => bajar(buildDrone({ chasis: b.chasis, diseno: BK.diseno || b.diseno, estilo: b.estilo }, cat).userData.slots.chasis, `chasis_${d.nombre}`), !b.chasis);
@@ -185,7 +184,7 @@ export function initBanco(ctx) {
   function pArmar(der, d, e) {
     const p = P(), B = d.banco, chP = cat.chasis.find((x) => x.id === U(d.slots.chasis)?.id), impresora = PT.tieneHerramienta(p, "impresora");
     const sinImprimir = chP?.imprimible && impresora && !U(d.slots.chasis)?.diseno;
-    h(der, `<h3>${t("Armar")}</h3><p>${t("En la mesa: abre las cajas, lleva cada pieza a su lugar y atorníllala.")}</p><ul class="lista bk-estado" id="bk-arm"></ul>`);
+    h(der, `<h3>${t("Armar")}</h3><p>${t("En la mesa: abre las cajas y monta cada pieza.")}</p><ul class="lista bk-estado" id="bk-arm"></ul>`);
     const ul = der.querySelector("#bk-arm"), ic = { montada: "✅", suelta: "🔩", caja: "📦", camino: "🚚" };
     let camino = 0;
     for (const [slot, nombre] of ORDEN()) {
@@ -199,8 +198,8 @@ export function initBanco(ctx) {
       const ok = d.extras.length === (B.instalado.extras || []).length && d.extras.every((x) => B.instalado.extras.includes(x));
       ul.insertAdjacentHTML("beforeend", `<li><span>${ok ? "✅" : "🔩"} ${t("Extras")}</span><small class="muted"></small></li>`);
     }
-    if (sinImprimir) h(der, `<p class="warn">${t("El chasis es de {mat} y tienes la impresora: imprímelo primero (paso \"Imprimir\").", { mat: chP.id.toUpperCase() })}</p>`);
-    if (camino) h(der, `<p style="font-size:13px">${t("🚚 Lo que viene en camino llega al empezar ese día (💻 Computador → Mensajes → Terminar el día).")}</p>`);
+    if (sinImprimir) h(der, `<p class="warn">${t("Imprime el chasis primero ({mat}).", { mat: chP.id.toUpperCase() })}</p>`);
+    if (camino) h(der, `<p style="font-size:13px">${t("🚚 Lo que viene en camino llega al terminar el día.")}</p>`);
     boton(der, "🔧 " + t("Ir a la mesa de trabajo"), "main", () => ctx.mesa.abrir("armar"), sinImprimir);
     if (e.pasos.find((x) => x.k === "armar").ok) boton(der, t("Siguiente: cablear →"), "ghost", () => { BK.paso = "cablear"; render(); });
   }
@@ -208,13 +207,13 @@ export function initBanco(ctx) {
   // ---------------- cablear: soldar en la mesa; el diagrama es la guía aparte ----------------
   function pCablear(der, d, e) {
     const tieneMulti = PT.tieneHerramienta(P(), "multimetro"), rev = e.rev, armado = e.pasos.find((x) => x.k === "armar").ok;
-    h(der, `<h3>${t("Cablear")}</h3><p>${t("En la mesa: prende el cautín, pon cada cable en su pad y suéldalo (el ratón es el cautín y Espacio el estaño). La 📄 guía dice qué va con qué.")}</p>`);
+    h(der, `<h3>${t("Cablear")}</h3><p>${t("En la mesa: pon cada cable en su pad y suéldalo.")}</p>`);
     if (!armado) h(der, `<p class="warn">${t("Primero arma el dron.")}</p>`);
     const lst = [...rev.faltan.slice(0, 6).map((x) => `○ ${x.msg}`)];
     if (tieneMulti) lst.push(...rev.danos.map((x) => `<span class="bad">⚡ ${vaAQuemar(x.msg)}</span>`), ...rev.fallas.map((x) => `<span class="warn">✗ ${x.msg}</span>`), ...(rev.frias || []).map((x) => `<span class="warn">❄️ ${x.msg}</span>`));
     h(der, lst.length ? `<ul class="lista" style="display:block">${lst.slice(0, 10).map((x) => `<li style="display:block">${x}</li>`).join("")}</ul>` :
-      `<p class="ok">${t("✓ Todo conectado.")}</p>${tieneMulti ? "" : `<p style="font-size:13px">${t("Sin multímetro no sabes si hay un corto o un puente de estaño… hasta que conectes la batería.")}</p>`}`);
-    if (!tieneMulti) h(der, `<p style="font-size:13px">${t("Con un <b>multímetro</b> ($8 en la tienda, herramientas) el banco te marca los cables malos y las soldaduras frías antes de conectar la batería.")}</p>`);
+      `<p class="ok">${t("✓ Todo conectado.")}</p>${tieneMulti ? "" : `<p style="font-size:13px">${t("Sin multímetro, los cortos salen al conectar la batería.")}</p>`}`);
+    if (!tieneMulti) h(der, `<p style="font-size:13px">${t("Un <b>multímetro</b> ($8) encuentra cortos y juntas frías.")}</p>`);
     boton(der, "🔥 " + t("Ir a soldar"), "main", () => ctx.mesa.abrir("soldar"), !armado);
     boton(der, "📄 " + t("Guía de conexión"), "ghost", () => abrirGuia());
     if (e.pasos.find((x) => x.k === "cablear").ok) boton(der, t("Siguiente: prueba de humo →"), "ghost", () => { BK.paso = "humo"; render(); });
@@ -313,9 +312,9 @@ export function initBanco(ctx) {
   // ---------------- prueba de humo ----------------
   function pHumo(der, d, e) {
     const tiene = PT.tieneHerramienta(P(), "humo"), ok = e.pasos.find((x) => x.k === "humo").ok;
-    h(der, `<h3>${t("Prueba de humo")}</h3><p>${t("El momento de la verdad: conectar la batería por primera vez. Si hay un corto o un voltaje equivocado, algo se quema (y hay que comprarlo otra vez).")}</p>` +
-      (tiene ? `<p class="ok">${t("Tienes el probador de humo: si hay un corto, corta la corriente y no se quema nada.")}</p>` : `<p style="font-size:13px">${t("Un <b>probador de humo</b> ($10, herramientas) corta la corriente si hay un corto: nada se quema.")}</p>`) +
-      (ok ? `<p class="ok">${t("✓ Pasó: la controladora prende y el ESC hizo sus 3 pitidos.")}</p>` : ""));
+    h(der, `<h3>${t("Prueba de humo")}</h3><p>${t("Conecta la batería. Si algo quedó mal, se quema.")}</p>` +
+      (tiene ? `<p class="ok">${t("🛡️ Tu probador de humo corta la corriente si hay un corto.")}</p>` : `<p style="font-size:13px">${t("Un <b>probador de humo</b> ($10) evita que se queme.")}</p>`) +
+      (ok ? `<p class="ok">${t("✓ Pasó: prende y pita 3 veces.")}</p>` : ""));
     boton(der, t("Conectar la batería"), "main", () => humo(), !e.pasos.find((x) => x.k === "armar").ok || ok);
     if (ok) boton(der, t("Siguiente: programar →"), "ghost", () => { BK.paso = "firmware"; BK.tab = "flash"; render(); });
   }
@@ -353,7 +352,7 @@ export function initBanco(ctx) {
     if (BK.paso === "config" && !["config", "radio"].includes(BK.tab)) BK.tab = "config";
     if (BK.paso === "motores") BK.tab = "motores";
     const fcU = U(d.slots.controladora), fcP = fcU && PT.buscarPieza(cat, fcU.id);
-    h(der, `<h3>${t("Programar")}</h3><p style="margin-top:0">${t("El portátil está conectado por USB a la <b>{fc}</b> (chip {chip}).", { fc: fcP ? fcP.nombre : t("controladora"), chip: (BA.CHIP[fcU?.id] || "?").toUpperCase() })}</p><div class="tabs" id="bk-tabs"></div>`);
+    h(der, `<h3>${t("Programar")}</h3><p style="margin-top:0">${t("USB conectado a la <b>{fc}</b> ({chip}).", { fc: fcP ? fcP.nombre : t("controladora"), chip: (BA.CHIP[fcU?.id] || "?").toUpperCase() })}</p><div class="tabs" id="bk-tabs"></div>`);
     const tabs = der.querySelector("#bk-tabs");
     for (const [k, n] of [["flash", t("Firmware")], ["config", t("Configurar")], ["radio", t("Radio")], ["motores", t("Motores")], ["ia", t("IA")]]) {
       const b = document.createElement("button");
@@ -367,7 +366,7 @@ export function initBanco(ctx) {
 
   function tFlash(der, d, e, fcU) {
     const sel = BK.fw || fcU.fw?.id || "";
-    h(der, `<p>${t("Elige el firmware <b>del chip de tu placa</b> (si eliges el de otro chip, se flashea pero la placa no arranca).")}</p>` +
+    h(der, `<p>${t("Elige el firmware <b>de tu chip</b>.")}</p>` +
       `<select id="bk-fw" style="width:100%;background:var(--moss-solid);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px;font:inherit">` +
       `<option value="">${t("— elige —")}</option>${BA.FIRMWARES.map((f) => `<option value="${f.id}" ${f.id === sel ? "selected" : ""}>${t(f.nombre)}</option>`).join("")}</select>` +
       `<div class="barra"><i id="bk-bar"></i></div><div class="log" id="bk-log">${fcU.fw ? t("Firmware actual: {fw}", { fw: t(BA.FIRMWARES.find((f) => f.id === fcU.fw.id)?.nombre || "?") }) + "\n" + (fcU.fw.ok ? t("La placa arranca bien.") : t("¡La placa no arranca! (no es de su chip)")) : t("La placa está vacía (sin firmware).")}</div>`);
@@ -413,12 +412,12 @@ export function initBanco(ctx) {
   function tConfig(der, d, e, fcU) {
     if (!e.pasos.find((x) => x.k === "firmware").ok) { h(der, `<p class="warn">${t("Primero flashea un firmware que arranque.")}</p>`); return; }
     const esp = BA.CHIP[fcU.id] === "esp32", uarts = ["UART1", "UART2"];
-    h(der, `<p><b>${t("Acelerómetro:")}</b> ${fcU.cal ? `<span class='ok'>${t("calibrado ✓")}</span>` : t("sin calibrar (el dron cree que está inclinado y se iría de lado)")}.</p>`);
+    h(der, `<p><b>${t("Acelerómetro:")}</b> ${fcU.cal ? `<span class='ok'>${t("calibrado ✓")}</span>` : t("sin calibrar")}.</p>`);
     boton(der, fcU.cal ? t("Calibrar otra vez") : t("Calibrar (con el dron nivelado)"), fcU.cal ? "ghost small" : "main", () => ocupado(async () => {
       await correrLog([t("Pon el dron sobre una superficie plana…"), t("Midiendo la gravedad (2 s)…"), t("Ángulos: roll 0.0° · pitch 0.0°"), t("✓ Acelerómetro calibrado")], 2.2);
       fcU.cal = true; guardar(); sfx("listo");
     }));
-    h(der, `<p style="margin-top:14px">${t("<b>Puertos:</b> dile a la controladora qué soldaste en cada UART (TX/RX).")}</p>`);
+    h(der, `<p style="margin-top:14px">${t("<b>Puertos:</b> qué va en cada UART.")}</p>`);
     for (const u of uarts) {
       const actual = Object.entries(fcU.puertos || {}).find(([, v]) => v === u)?.[0] || "";
       const row = document.createElement("div");
@@ -443,9 +442,9 @@ export function initBanco(ctx) {
     const b = PT.build(P(), d), rxU = U(d.slots.radio), elrs = b.radio === "rx_elrs24" || b.radio === "rx_elrs900", esp = BA.CHIP[fcU.id] === "esp32";
     const humo = e.pasos.find((x) => x.k === "humo").ok, fw = e.pasos.find((x) => x.k === "firmware").ok;
     if (!fw) { h(der, `<p class="warn">${t("Primero flashea el firmware.")}</p>`); return; }
-    if (!elrs && !esp) { h(der, `<p class="bad">${t("La radio ESP-NOW es del ESP32: tu controladora STM32 no la tiene. Ponle un receptor ExpressLRS (hangar → Radio).")}</p>`); return; }
+    if (!elrs && !esp) { h(der, `<p class="bad">${t("Tu STM32 no tiene ESP-NOW: ponle un receptor ExpressLRS.")}</p>`); return; }
     const linked = elrs ? rxU?.bind : fcU.bind;
-    h(der, `<p>${elrs ? t("Receptor ExpressLRS: se empareja con tu control con la misma <b>frase de enlace</b> (bind phrase).") : t("ESP-NOW: el ESP32 se empareja directo con tu control por su dirección MAC.")} ${linked ? `<span class='ok'>${t("Emparejado ✓")}</span>` : ""}</p>` +
+    h(der, `<p>${elrs ? t("ExpressLRS: se empareja con la <b>frase de enlace</b>.") : t("ESP-NOW: se empareja directo con tu control.")} ${linked ? `<span class='ok'>${t("Emparejado ✓")}</span>` : ""}</p>` +
       (elrs ? `<div class="row"><label for="bk-bind">${t("Frase de enlace")}</label><input id="bk-bind" value="${esc(P().empresa || "garaje films").toLowerCase().replace(/\s+/g, "")}" class="prop-in" style="border-color:var(--line);width:auto;margin:0"></div>` : "") +
       `<div id="bk-canales"></div>`);
     boton(der, t("Emparejar"), "main", () => ocupado(async () => {
@@ -464,7 +463,7 @@ export function initBanco(ctx) {
     }));
     if (linked && humo && (!elrs || fcU.puertos?.rx === e.rev.uarts.rx)) {
       const box = der.querySelector("#bk-canales");
-      box.innerHTML = ["Roll", "Pitch", t("Gas"), "Yaw", idioma() === "es" ? "Armar" : "Arm"].map((n) => `<div class="canal"><span>${n}</span><span class="barra" style="margin:0"><i></i></span><output>1500</output></div>`).join("") + `<p style='font-size:13px'>${t("Mueve las palancas: las barras se mueven. ✓ La radio funciona.")}</p>`;
+      box.innerHTML = ["Roll", "Pitch", t("Gas"), "Yaw", idioma() === "es" ? "Armar" : "Arm"].map((n) => `<div class="canal"><span>${n}</span><span class="barra" style="margin:0"><i></i></span><output>1500</output></div>`).join("") + `<p style='font-size:13px'>${t("Mueve las palancas. ✓ La radio funciona.")}</p>`;
       let tt = 0;
       const anim = setInterval(() => {
         if (!box.isConnected) { clearInterval(anim); return; }
@@ -478,73 +477,59 @@ export function initBanco(ctx) {
 
   function tMotores(der, d, e, fcU) {
     const B = d.banco, escU = U(d.slots.esc), humo = e.pasos.find((x) => x.k === "humo").ok, fw = e.pasos.find((x) => x.k === "firmware").ok;
-    if (!fw || !humo) { h(der, `<p class="warn">${t("Necesitas el firmware y haber pasado la prueba de humo (los motores necesitan la batería).")}</p>`); return; }
+    if (!fw || !humo) { h(der, `<p class="warn">${t("Primero el firmware y la prueba de humo.")}</p>`); return; }
     const conHelices = B.helices && B.instalado.helices;
     if (conHelices) {
-      h(der, `<p class="bad">${t("¡Tiene las hélices puestas! Nunca pruebes motores con hélices en la mesa.")}</p>`);
+      h(der, `<p class="bad">${t("¡Quítale las hélices antes de probar motores!")}</p>`);
       boton(der, t("Quitar las hélices"), "main", () => { B.helices = false; B.instalado.helices = null; refrescar(); });
       return;
     }
+    // Pocas palabras (pedido de Santiago): un botón prueba los 4, cada motor sale ✓ o ✗ y aparece el arreglo que toca.
     const pm = BA.pruebaMotores(e.rev, fcU, escU, d.slots.motores);
     const firmaMot = `${JSON.stringify(fcU.remap || null)}|${JSON.stringify(escU?.inv || {})}`;
-    if (BK.firmaMot !== firmaMot) { BK.girados = []; BK.firmaMot = firmaMot; }      // cambió el orden o el sentido: hay que volver a mirar
-    h(der, `<p>${t("Betaflight espera cada motor en su lugar y girando para su lado (hélices hacia adentro), como en el dibujo. El dron está <b>visto desde atrás, como lo ves al pilotear</b> (la flecha naranja del plato es el frente). Dale <b>Girar</b> a cada uno y mira cuál gira y para dónde: <span class=\"ok\">verde ↻ horario</span>, <span class=\"warn\">amarilla ↺ antihorario</span>.")}</p>`);
+    if (BK.firmaMot !== firmaMot) { BK.girados = []; BK.firmaMot = firmaMot; }      // cambió el orden o el sentido: hay que volver a probar
     der.insertAdjacentHTML("beforeend", diagramaMotores(pm));
+    const probado = pm.every((r, i) => BK.girados[i]);
     pm.forEach((r, i) => {
       const box = document.createElement("div");
       box.className = "mot";
-      const visto = BK.vistos[i], g = BK.girados[i];
-      const res = !g ? `<span class="muted">${t("sin probar")}</span>`
-        : !g.pos ? `<span class="bad">${t("no giró nada")}</span>`
-        : `${t("giró <b>{pos}</b> {giro}", { pos: posn(g.pos), giro: giro(g.gira) })} ${g.pos !== r.espera ? `<span class="bad">${t("✗ lugar equivocado")}</span>` : g.gira !== r.sentido ? `<span class="bad">${t("✗ al revés")}</span>` : `<span class="ok">✓</span>`}`;
-      box.innerHTML = `<b>${r.m}</b><span>${t("debe ir <b>{pos}</b> y girar <b>{giro}</b>", { pos: posn(r.espera), giro: giro(r.sentido) })}<br>${res}</span><span style="display:flex;gap:4px"><button class="btn ghost small">${t("Girar")}</button><button class="btn ghost small">${t("Invertir")}</button></span><div class="pos"><span class="muted" style="font-size:12.5px;align-self:center">${t("¿Cuál giró?")}</span></div>`;
-      const [girar, inv] = box.querySelectorAll("span > button");
-      girar.disabled = inv.disabled = BK.ocupado;
-      girar.onclick = () => ocupado(async () => {
-        BK.girados[i] = { pos: r.pos, gira: r.gira };
-        if (!r.pos) { sfx("error"); toast(t("{m}: no gira nada (no hay motor soldado en {pad}).", { m: r.m, pad: r.pad.toUpperCase() })); return; }
-        BK.vistos[i] = r.pos;
-        BK.girando = r.pos; render();
-        await ctx.garaje.girarMotor(r.pos, r.gira, 1.6);
-        BK.girando = null;
-      });
-      inv.onclick = () => {
-        escU.inv = { ...(escU.inv || {}) }; escU.inv[r.pad] = !escU.inv[r.pad];
-        BK.girados[i] = null; BK.firmaMot = `${JSON.stringify(fcU.remap || null)}|${JSON.stringify(escU.inv)}`;   // solo este hay que volver a mirarlo
-        guardar(); sfx("click"); toast(t("{m}: sentido invertido en el ESC (BLHeli). Gíralo otra vez para ver.", { m: r.m })); render();
-      };
-      const posBox = box.querySelector(".pos");
-      for (const k of ["FL", "FR", "RL", "RR"]) {
-        const b = document.createElement("button");
-        b.className = "btn small " + (visto === k ? "main" : "ghost"); b.textContent = posn(k);
-        b.onclick = () => { BK.vistos[i] = k; render(); };
-        posBox.appendChild(b);
-      }
+      const est = !BK.girados[i] ? `<span class="muted">${t("Test")}</span>`
+        : !r.pos ? `<span class="bad">✗ ${t("no gira")}</span>`
+        : r.pos !== r.espera ? `<span class="bad">✗ ${t("otro lugar")}</span>`
+        : r.gira !== r.sentido ? `<span class="bad">✗ ${t("al revés")}</span>` : `<span class="ok">✓</span>`;
+      box.innerHTML = `<b>${r.m}</b><span>${est}</span>`;
       der.appendChild(box);
     });
-    const completos = BK.vistos.filter(Boolean).length === 4, distintos = new Set(BK.vistos.filter(Boolean)).size === 4;
-    const ordenBien = BK.vistos.every((v, i) => !v || v === pm[i].espera);
-    boton(der, t("Reordenar motores (con lo que viste)"), "ghost", () => {
-      const remap = fcU.remap || ["m1", "m2", "m3", "m4"], padDe = {};
-      BK.vistos.forEach((pos, i) => (padDe[pos] = remap[i]));
-      fcU.remap = BA.ESPERA.map((pos) => padDe[pos]);
-      BK.vistos = [];
-      guardar(); sfx("listo");
-      toast(t("Orden guardado: ahora cada M debería girar en su lugar. Pruébalos otra vez."), 4000);
-      render();
-    }, !(completos && distintos) || ordenBien || BK.ocupado);
-    if (fcU.remap && fcU.remap.join() !== "m1,m2,m3,m4")
-      boton(der, t("Volver al orden de fábrica"), "ghost", () => { fcU.remap = null; BK.vistos = []; guardar(); sfx("click"); toast(t("Orden de fábrica: M1-M4 = las salidas M1-M4 del ESC. Pruébalos otra vez.")); render(); }, BK.ocupado);
-    boton(der, t("Quedaron bien"), "main", () => {
-      const sinProbar = pm.filter((r, i) => !BK.girados[i]).map((r) => r.m);
-      if (sinProbar.length) { sfx("error"); toast(t("Primero gira {lista} y mira que cada uno quede bien.", { lista: sinProbar.join(", ") }), 4000); return; }
-      const malos = pm.filter((r) => !r.ok).map((r) => `${r.m} ${r.pos !== r.espera ? t("giró {pos} (debía {espera})", { pos: posn(r.pos) || t("nada"), espera: posn(r.espera) }) : t("gira al revés (Invertir)")}`);
-      if (malos.length) { sfx("error"); toast(t("Todavía no: {lista}.", { lista: malos.join(" · ") }), 6000); return; }
+    boton(der, "▶ " + (probado ? t("Probar otra vez") : t("Probar motores")), probado ? "ghost" : "main", () => ocupado(async () => {
+      for (const [i, r] of pm.entries()) {
+        BK.girados[i] = { pos: r.pos, gira: r.gira };
+        if (!r.pos) { sfx("error"); render(); continue; }
+        BK.girando = r.pos; render();
+        await ctx.garaje.girarMotor(r.pos, r.gira, 1.1);
+      }
+      BK.girando = null; render();
+    }), BK.ocupado);
+    if (!probado) return;
+    const sinMotor = pm.filter((r) => !r.pos), lugar = pm.filter((r) => r.pos && r.pos !== r.espera), sentido = pm.filter((r) => r.pos && r.gira !== r.sentido);
+    if (sinMotor.length || new Set(pm.map((r) => r.pos)).size < 4)
+      boton(der, "🔥 " + t("Volver a soldar"), "main", () => ctx.mesa.abrir("soldar"), BK.ocupado);
+    else if (lugar.length)
+      boton(der, "🔧 " + t("Programar el orden"), "main", () => {
+        const padDe = Object.fromEntries(pm.map((r) => [r.pos, r.pad]));
+        fcU.remap = BA.ESPERA.map((pos) => padDe[pos]);
+        guardar(); sfx("listo"); render();
+      }, BK.ocupado);
+    else if (sentido.length)
+      boton(der, "🔄 " + t("Programar el sentido"), "main", () => {
+        escU.inv = { ...(escU.inv || {}) };
+        for (const r of sentido) escU.inv[r.pad] = !escU.inv[r.pad];
+        guardar(); sfx("listo"); render();
+      }, BK.ocupado);
+    else boton(der, t("Siguiente: hélices →"), "main", () => {
       fcU.motoresProbados = `${d.slots.esc}|${d.slots.motores}|${e.sig}`;
       guardar(); sfx("listo");
       BK.paso = "helices"; render();
     }, BK.ocupado);
-    if (!(completos && distintos)) h(der, `<p style="font-size:12.5px">${t("Si un M gira en otro lugar: gira los 4, marca cuál giró en cada uno (salen marcados solos) y dale <b>Reordenar</b>. Si gira en su lugar pero al revés: <b>Invertir</b>.")}</p>`);
   }
 
   /** El dibujo de Betaflight visto desde arriba (la nariz arriba): dónde va cada M y para dónde gira. */
@@ -579,13 +564,13 @@ export function initBanco(ctx) {
   function tIA(der, d, e, fcU) {
     const m = d.modelo && ctx.infoModelo(d.modelo), B = d.banco, f = BA.FIRMWARES.find((x) => x.id === fcU.fw?.id);
     if (!d.modelo) {
-      h(der, `<p>${t("\"{dron}\" todavía no tiene IA. En el Laboratorio le creas la suya (con su nombre): empieza desde la IA base, desde la de otro dron o desde cero, y la entrenas para lo que hace este dron.", { dron: esc(d.nombre) })}</p>`);
+      h(der, `<p>${t("\"{dron}\" no tiene IA todavía: créala en el Laboratorio.", { dron: esc(d.nombre) })}</p>`);
       boton(der, ctx.esDev?.() ? t("Ir al Estudio PBDMM") : t("Ir al laboratorio"), "ai", () => { ctx.irTaller(); ctx.abrirLab(); });
       return;
     }
     const kb = 180;
     h(der, `<p>${t("Su IA: <b>\"{modelo}\"</b>", { modelo: esc(d.modelo) })} · ${m?.tiene_modelo ? t("generación {gen} · tomas: {tomas}", { gen: m.gen ?? 0, tomas: (m.tomas || []).join(", ") || t("ninguna todavía") }) : t("todavía sin entrenar")}.</p>` +
-      `<p>${f?.ia ? t("Con el firmware <b>Dron Maker AI</b>, la red corre a bordo en el coprocesador K210.") : t("Modo laboratorio: la red corre en tu computador y le manda las palancas al dron por la radio (con la STM32H743 + K210 corre a bordo).")}</p>` +
+      `<p>${f?.ia ? t("La red corre a bordo (K210).") : t("La red corre en tu computador y manda las palancas por radio.")}</p>` +
       `<p>${B.ia?.modelo === d.modelo ? `<span class="ok">${B.ia.gen !== undefined ? t("✓ Cargada (generación {gen}).", { gen: B.ia.gen }) : t("✓ Cargada.")}</span>${m?.gen && B.ia.gen !== undefined && m.gen > B.ia.gen ? ` <span class="warn">${t("Hay una más nueva: la {gen}.", { gen: m.gen })}</span>` : ""}` : t("No está cargada en el dron.")}</p>` +
       `<div class="barra"><i id="bk-bar"></i></div><div class="log" id="bk-log" style="height:90px"></div>`);
     boton(der, B.ia?.modelo === d.modelo ? t("Cargar la última versión") : t("Descargar la IA al dron"), "ai", () => ocupado(async () => {
@@ -601,7 +586,7 @@ export function initBanco(ctx) {
   // ---------------- hélices y prueba atada ----------------
   function pHelices(der, d, e) {
     const B = d.banco, ok = e.pasos.find((x) => x.k === "helices").ok, mot = e.pasos.find((x) => x.k === "motores").ok;
-    h(der, `<h3>${t("Hélices")}</h3><p>${t("Siempre de último: con los motores ya probados. Las de adelante van del color de los detalles para saber hacia dónde mira el dron.")}</p>` +
+    h(der, `<h3>${t("Hélices")}</h3><p>${t("Siempre de último, con los motores ya probados.")}</p>` +
       (ok ? `<p class="ok">${t("✓ Puestas.")}</p>` : mot ? "" : `<p class="warn">${t("Antes prueba los motores (Programar → Motores).")}</p>`));
     boton(der, t("Poner las hélices"), "main", () => ocupado(async () => {
       B.helices = true; B.instalado.helices = d.slots.helices; guardar(); ctx.verDron();
@@ -613,7 +598,7 @@ export function initBanco(ctx) {
 
   function pPrueba(der, d, e) {
     const ok = e.pasos.find((x) => x.k === "prueba").ok, antes = e.pasos.filter((x) => x.k !== "prueba" && x.k !== "imprimir").every((x) => x.ok);
-    h(der, `<h3>${t("Prueba atada")}</h3><p>${t("Lo enciendes amarrado a la mesa y le das un poco de gas: si los motores están en su lugar y giran bien, sube un poco y se queda. Si algo está mal, se voltea (y se rompen las hélices).")}</p>` +
+    h(der, `<h3>${t("Prueba atada")}</h3><p>${t("Amarrado a la mesa, un poco de gas: si sube y se queda, está listo.")}</p>` +
       (ok ? `<p class="ok">${t("✓ ¡Pasó! \"{dron}\" está listo para volar.", { dron: esc(d.nombre) })}</p>` : antes ? "" : `<p class="warn">${t("Faltan pasos: {lista}.", { lista: e.pasos.filter((x) => !x.ok && x.k !== "prueba").map((x) => x.nombre.toLowerCase()).join(", ") })}</p>`));
     boton(der, t("Encender (amarrado)"), "main", () => ocupado(async () => {
       const pm = BA.pruebaMotores(e.rev, U(d.slots.controladora), U(d.slots.esc), d.slots.motores), bien = pm.every((r) => r.ok);

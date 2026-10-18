@@ -211,13 +211,21 @@
   .tile.bloq { opacity: .55; }
   /* la app 🎮 Simuladores (estudio.js): los escenarios de entrenamiento, en orden */
   #es-esc { overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+  #es-apps, #es-fondos { overflow-y: auto; padding: 12px 14px; }
   .esc-c { display: grid; grid-template-columns: 54px 1fr auto; gap: 12px; align-items: start; border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: rgba(234,242,239,.03); }
   .esc-c.tuyo { border-color: rgba(71,240,138,.45); } .esc-c.bloqueado { opacity: .5; }
+  .sw-c { display: grid; grid-template-columns: 48px 1fr auto; gap: 12px; align-items: center; border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; background: rgba(234,242,239,.03); margin-bottom: 8px; }
+  .sw-c.tuyo { border-color: rgba(71,240,138,.4); } .sw-c.foco { border-color: #ffd23f; box-shadow: 0 0 0 2px rgba(255,210,63,.35); }
+  .sw-c .ic { font-size: 32px; text-align: center; } .sw-c h4 { margin: 0; font-size: 15.5px; } .sw-c p { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+  #es-fondos { align-content: start; display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+  .fondo-b { height: 78px; border-radius: 12px; border: 2px solid var(--line); cursor: pointer; display: flex; align-items: flex-end; padding: 6px 8px; color: #fff; font: 13px var(--font); text-shadow: 0 1px 3px #000; }
+  .fondo-b[aria-pressed="true"] { border-color: #ffd23f; }
   .esc-c .ic { font-size: 34px; text-align: center; } .esc-c h4 { margin: 0 0 2px; font-size: 16px; } .esc-c p { margin: 4px 0; font-size: 13.5px; color: var(--muted); line-height: 1.4; }
   .esc-plan { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 6px 0 2px; font-size: 12.5px; }
   .esc-plan code { background: rgba(60,203,255,.12); color: var(--next); padding: 1px 7px; border-radius: 6px; font-family: ui-monospace, Menlo, monospace; }
   .esc-fn code { background: rgba(255,210,63,.12); color: var(--gold); }
   .esc-acc { display: flex; flex-direction: column; gap: 6px; align-items: stretch; min-width: 120px; }
+  .esc-acc .esc-sel { font: inherit; font-size: 12.5px; padding: 4px 6px; border-radius: 8px; background: var(--panel, #10201b); color: inherit; border: 1px solid var(--line); }
   .tile { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; text-align: left; border: 1px solid var(--line); background: rgba(234,242,239,0.03); color: var(--text); border-radius: 11px; padding: 8px 10px; cursor: pointer; font: inherit; min-height: 74px; }
   .tile:hover { border-color: rgba(60,203,255,0.45); }
   .tile[aria-pressed="true"] { border-color: rgba(60,203,255,0.8); background: rgba(60,203,255,0.1); }
@@ -389,14 +397,17 @@
   #mesa-lista li.cab { cursor: pointer; } #mesa-lista li.cab:hover { background: rgba(234,242,239,.07); }
   #mesa-lista li.sig { outline: 2px solid #ffd23f; animation: notaLatido 1.1s ease-in-out infinite; }
   @keyframes notaLatido { 50% { outline-color: rgba(255,210,63,.25); } }
-  #notas { position: fixed; top: 74px; right: 14px; z-index: 70; width: min(340px, calc(100vw - 28px)); display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
-  .nota { pointer-events: auto; background: rgba(12,20,17,.95); border: 1px solid rgba(255,210,63,.45); border-radius: 14px; padding: 10px 12px 10px 14px; box-shadow: 0 8px 26px rgba(0,0,0,.45); font-size: 14.5px; line-height: 1.45; animation: notaEntra .3s ease-out; }
-  .nota.fija { border-color: #ffd23f; border-width: 2px; }
-  .nota header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-  .nota header b { flex: 1; font-size: 15px; color: #ffd23f; }
-  .nota header button { background: none; border: 0; color: var(--muted); font-size: 16px; cursor: pointer; padding: 0 2px; }
-  .nota.min .nota-txt, .nota.min .nota-pie { display: none; }
-  .nota-pie { display: flex; gap: 6px; justify-content: flex-end; margin-top: 8px; }
+  #notas { position: fixed; top: 74px; right: 14px; z-index: 70; width: min(320px, calc(100vw - 28px)); display: flex; flex-direction: column; align-items: flex-end; gap: 6px; pointer-events: none; }
+  #notas[hidden] { display: none; }
+  .notas-b { pointer-events: auto; position: relative; display: flex; align-items: center; gap: 6px; background: rgba(12,20,17,.95); border: 2px solid #ffd23f; color: #ffd23f; border-radius: 22px; padding: 6px 14px; font: 600 14px var(--font); cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,.4); }
+  .notas-b[aria-expanded="true"] { background: #ffd23f; color: #121a16; }
+  .notas-punto { position: absolute; top: -3px; right: -3px; width: 11px; height: 11px; border-radius: 50%; background: #ff5a4a; animation: tutoBrilla 1.1s ease-in-out infinite; }
+  .notas-panel { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+  .notas-panel[hidden] { display: none; }
+  .nota { pointer-events: auto; position: relative; background: rgba(12,20,17,.95); border: 1px solid rgba(255,210,63,.4); border-radius: 14px; padding: 9px 30px 9px 13px; box-shadow: 0 8px 26px rgba(0,0,0,.45); font-size: 15px; line-height: 1.4; animation: notaEntra .3s ease-out; }
+  .nota.fija { border-color: #ffd23f; border-width: 2px; padding-right: 13px; font-size: 16px; }
+  .nota-x { position: absolute; top: 4px; right: 6px; background: none; border: 0; color: var(--muted); font-size: 18px; cursor: pointer; }
+  .nota-saltar { display: block; margin: 6px 0 0 auto; background: none; border: 0; color: var(--muted); font-size: 12px; text-decoration: underline; cursor: pointer; }
   .nota kbd { background: rgba(255,255,255,.12); border-radius: 4px; padding: 0 5px; font-size: 13px; }
   .tuto-resalta { outline: 3px solid #ffd23f !important; outline-offset: 3px; animation: tutoBrilla 1.1s ease-in-out infinite; position: relative; z-index: 2; }
   @keyframes tutoBrilla { 50% { outline-color: rgba(255,210,63,.2); box-shadow: 0 0 18px rgba(255,210,63,.55); } }
@@ -413,7 +424,8 @@
   #mesa-pista { position: absolute; left: 50%; bottom: 96px; transform: translateX(-50%); background: rgba(10,16,14,.78); padding: 7px 14px; border-radius: 20px; font-size: 14px; white-space: nowrap; pointer-events: none; }
   #mesa-aviso { position: absolute; left: 50%; top: 76px; transform: translateX(-50%); background: rgba(10,16,14,.92); border: 1px solid var(--line); padding: 8px 16px; border-radius: 12px; font-size: 14.5px; max-width: min(560px, calc(100vw - 32px)); text-align: center; pointer-events: none; }
   #mesa-aviso.ok { border-color: rgba(71,240,138,.5); }
-  #mesa-aviso[hidden], #mesa-anillo[hidden], #mesa-sold[hidden] { display: none; }
+  #mesa-aviso[hidden], #mesa-anillo[hidden], #mesa-sold[hidden], #mesa-etq[hidden] { display: none; }
+  #mesa-etq { position: fixed; z-index: 6; pointer-events: none; background: rgba(10,16,14,.9); border: 1px solid var(--line); border-radius: 9px; padding: 4px 9px; font-size: 13.5px; white-space: nowrap; }
   #mesa-anillo { position: fixed; pointer-events: none; transform: translate(18px, -50%); display: flex; align-items: center; gap: 8px; --p: 0; }
   #mesa-anillo i { width: 34px; height: 34px; border-radius: 50%; background: conic-gradient(var(--next) calc(var(--p) * 1%), rgba(234,242,239,.15) 0); -webkit-mask: radial-gradient(circle, transparent 10px, #000 11px); mask: radial-gradient(circle, transparent 10px, #000 11px); }
   #mesa-anillo.ok i { background: conic-gradient(var(--gate) calc(var(--p) * 1%), rgba(234,242,239,.15) 0); }
@@ -430,7 +442,7 @@
   .ms-temp b { font-size: 24px; font-variant-numeric: tabular-nums; } .ms-temp b.frio { color: #7fb8ff; } .ms-temp b.listo { color: var(--gate); } .ms-temp b.caliente { color: var(--crash); }
   .ms-temp small { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 12px; }
   .ms-temp small button { background: rgba(234,242,239,.08); border: 1px solid var(--line); color: var(--text); border-radius: 6px; width: 22px; height: 20px; cursor: pointer; }
-  .ms-barra { width: 40px; height: 4px; background: rgba(234,242,239,.15); border-radius: 3px; overflow: hidden; } .ms-barra i { display: block; height: 100%; background: var(--gate); }
+  .ms-barra { width: 60px; margin-top: 3px; height: 4px; background: rgba(234,242,239,.15); border-radius: 3px; overflow: hidden; } .ms-barra i { display: block; height: 100%; background: var(--gate); }
   @media (max-width: 760px) { #mesa-lista { top: auto; bottom: 170px; max-height: 30vh; width: calc(100vw - 24px); } #mesa-pista { bottom: 100px; white-space: normal; text-align: center; } }
   #cableado { position: fixed; inset: 12px; border-radius: 18px; padding: 12px 14px; z-index: 5; display: flex; flex-direction: column; }
   #cableado .top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -589,6 +601,7 @@
   #es-editor { display: flex; flex: 1; min-height: 0; }
   #es-gut { width: 44px; padding: 10px 6px 10px 0; text-align: right; color: #5d726a; font: 13.5px/20px ui-monospace, Menlo, monospace; overflow: hidden; user-select: none; flex: none; }
   #es-gut .err { color: #fff; background: var(--crash); border-radius: 0 4px 4px 0; }
+  #es-gut .tuto { color: #1a1300; background: #ffd23f; border-radius: 0 4px 4px 0; }
   #es-area { position: relative; flex: 1; min-width: 0; }
   #es-hl, #es-src { position: absolute; inset: 0; margin: 0; padding: 10px 12px; font: 13.5px/20px ui-monospace, Menlo, monospace; white-space: pre; overflow: auto; tab-size: 4; border: 0; }
   #es-hl { color: var(--text); pointer-events: none; overflow: hidden; }
@@ -713,20 +726,20 @@
 <section id="estudio" class="hidden" aria-label="Estudio PBDMM">
   <div id="es-escritorio">
     <nav id="es-iconos" aria-label="Apps">
+      <button class="es-icono" data-w="apps"><i>🛍️</i><span>Apps</span><b class="es-badge" id="es-apps-badge" hidden></b></button>
+      <button class="es-icono" data-w="tienda"><i>🛒</i><span>Tienda</span></button>
       <button class="es-icono" data-w="mensajes"><i>💬</i><span>Mensajes</span><b class="es-badge" id="es-badge" hidden></b></button>
       <button class="es-icono" data-w="calendario"><i>📅</i><span>Calendario</span></button>
       <button class="es-icono" data-w="campana"><i>⭐</i><span>Campaña</span></button>
       <button class="es-icono" data-w="ide"><i>💻</i><span>IDE</span></button>
       <button class="es-icono" data-w="docs"><i>📖</i><span>Documentación</span></button>
       <button class="es-icono" data-w="lab"><i>🧠</i><span>Laboratorio</span></button>
-      <button class="es-icono" data-w="tienda"><i>🛒</i><span>Tienda</span></button>
       <button class="es-icono" data-w="inventario"><i>📦</i><span>Inventario</span></button>
       <button class="es-icono" data-w="escenarios"><i>🎮</i><span>Simuladores</span></button>
       <button class="es-icono" data-w="sim"><i>📈</i><span>Monitor</span></button>
       <button class="es-icono" data-w="banco"><i>🏦</i><span>Finanzas</span></button>
-      <button class="es-icono" id="es-armar"><i>🔧</i><span>Banco de armado</span></button>
       <button class="es-icono" data-w="videos"><i>🎬</i><span>Videos</span></button>
-      <button class="es-icono" data-w="ajustes"><i>⚙️</i><span>Ajustes</span></button>
+      <button class="es-icono" data-w="fondos"><i>🖼️</i><span>Fondos</span></button>
     </nav>
     <div id="es-archivo-m" class="es-pop-menu" hidden>
       <h4>Tus programas</h4><div id="es-archivos"></div>
@@ -757,6 +770,10 @@
     <div class="es-win es-host" data-w="lab" aria-label="Laboratorio"><div class="es-wbar"><span>🧠 Laboratorio de IA</span><span class="es-wsub"></span><button class="es-wx" data-x="lab" aria-label="Cerrar">×</button></div><div class="es-wbody"></div><div class="es-wtam"></div></div>
     <div class="es-win es-host" data-w="videos" aria-label="Videos"><div class="es-wbar"><span>🎬 Videos</span><span class="es-wsub"></span><button class="es-wx" data-x="videos" aria-label="Cerrar">×</button></div><div class="es-wbody"></div><div class="es-wtam"></div></div>
     <div class="es-win es-host" data-w="ajustes" aria-label="Ajustes"><div class="es-wbar"><span>⚙️ Ajustes</span><span class="es-wsub"></span><button class="es-wx" data-x="ajustes" aria-label="Cerrar">×</button></div><div class="es-wbody"></div><div class="es-wtam"></div></div>
+    <div class="es-win" data-w="apps" aria-label="Apps"><div class="es-wbar"><span>🛍️ Apps</span><span class="es-wsub"></span><button class="es-wx" data-x="apps" aria-label="Cerrar">×</button></div>
+      <div class="es-wbody"><div id="es-apps"></div></div><div class="es-wtam"></div></div>
+    <div class="es-win" data-w="fondos" aria-label="Fondos"><div class="es-wbar"><span>🖼️ Fondos</span><span class="es-wsub"></span><button class="es-wx" data-x="fondos" aria-label="Cerrar">×</button></div>
+      <div class="es-wbody"><div id="es-fondos"></div></div><div class="es-wtam"></div></div>
     <div class="es-win" data-w="banco" aria-label="Finanzas"><div class="es-wbar"><span>🏦 Finanzas</span><span class="es-wsub"></span><button class="es-wx" data-x="banco" aria-label="Cerrar">×</button></div>
       <div class="es-wbody"><div id="es-banco"></div></div><div class="es-wtam"></div></div>
   </div>
@@ -764,6 +781,8 @@
     <b class="es-logo" id="es-logo">PBDMM</b>
     <div id="es-tareas" aria-label="Apps abiertas"></div>
     <span class="es-sp"></span>
+    <button class="btn ghost small" id="es-armar" title="Banco de armado" aria-label="Banco de armado">🔧</button>
+    <button class="btn ghost small" id="es-ajustes" title="Ajustes" aria-label="Ajustes">⚙️</button>
     <button class="btn ghost small" id="es-ordenar" title="Ordenar las ventanas" aria-label="Ordenar las ventanas">⊞</button>
     <button class="btn ai small" id="es-blender">Blender</button>
     <button class="btn ghost small" id="es-volver" title="Volver al hangar">🛠️ Hangar</button>
@@ -929,6 +948,7 @@
     <div class="seg" id="mesa-modos"><button data-m="armar">🔩 Armar</button><button data-m="soldar">🔥 Soldar</button></div>
     <div class="seg" id="mesa-placas"></div>
     <span class="es-sp"></span>
+    <button class="btn small" id="mesa-auto" hidden></button>
     <button class="btn ghost small" id="mesa-guia" title="El diagrama de qué va con qué (aparte)">📄 Guía</button>
     <button class="btn ghost small" id="mesa-salir">Listo</button>
   </header>
@@ -936,15 +956,11 @@
   <div id="mesa-pista"></div>
   <div id="mesa-aviso" hidden></div>
   <div id="mesa-anillo" hidden><i></i><span></span></div>
+  <div id="mesa-etq" hidden></div>
   <div id="mesa-sold" class="panel" hidden>
     <button class="ms-b" id="ms-on" title="Prender / apagar la estación">⏻</button>
-    <div class="ms-temp"><b id="ms-temp">25 °C</b><small><button id="ms-menos" aria-label="Menos temperatura">−</button><span id="ms-set">330 °C</span><button id="ms-mas" aria-label="Más temperatura">+</button></small></div>
-    <button class="ms-b" id="ms-limpiar" title="Limpiar la punta (C)">🧽<small>C</small><span class="ms-barra"><i id="ms-punta"></i></span></button>
-    <button class="ms-b" id="ms-flux" title="Flux (F): toca el pad">💧<small>F · <span id="ms-q-flux"></span></small></button>
-    <button class="ms-b" id="ms-estano" title="Estaño: mantén Espacio mientras el cautín calienta el pad">🧵<small>Espacio · <span id="ms-q-estano"></span></small></button>
+    <div class="ms-temp"><b id="ms-temp">25 °C</b><small><button id="ms-menos" aria-label="Menos temperatura">−</button><span id="ms-set">330 °C</span><button id="ms-mas" aria-label="Más temperatura">+</button></small><span class="ms-barra" title="La punta (límpiala en la esponja 🧽)"><i id="ms-punta"></i></span></div>
     <span class="ms-sep"></span>
-    <button class="ms-b" id="ms-bomba" title="Extractor de estaño (X): con el estaño derretido, chupa de un golpe">🥤<small>X</small></button>
-    <button class="ms-b" id="ms-malla" title="Malla desoldante: mantén M con el cautín sobre el estaño">🟫<small>M · <span id="ms-q-malla"></span></small></button>
     <button class="ms-b" id="ms-multi" title="Multímetro (T): continuidad entre pads">📟<small>T</small></button>
   </div>
 </section>

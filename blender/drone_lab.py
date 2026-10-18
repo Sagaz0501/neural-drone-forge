@@ -57,12 +57,16 @@ STAGE_ITEMS = [
     ("16", "Carrera", "Una pista de 6-9 portales lejos unos de otros (7-15 m), con curvas: pasarlos RÁPIDO en orden"),
     ("17", "Entrega", "Llevar el paquete a una plataforma a 14-32 m (a veces en una azotea) entre edificios y quedarse quieto encima"),
     ("18", "Persecución", "Alcanzar a la liebre: un blanco que corre solo a 2-8 m/s por un campo de 40 m con columnas"),
+    ("19", "Despegar y quedarse", "Subir a una altura al azar (1-4 m) y quedarse quieto 3 s"),
+    ("20", "Ir a un punto", "Ir a un punto al azar y quedarse 3 s mirando hacia el sujeto (como para una foto)"),
+    ("21", "Seguir una línea", "Pasar por una línea curva de puntos sin alejarse más de 1,5 m"),
     ("LEVEL", "Nivel JSON", "Un nivel exportado desde Blender (todos los drones en el mismo nivel)"),
 ]
 STAGE_NAMES = {"hover": "Hover", "goal_fixed": "Meta fija", "goal_random": "Metas", "obstacles": "Columnas",
                "multi_goal": "Varias metas", "circuit": "Circuito", "forest": "Bosque", "forest_multi": "Bosque 3 aros", "hunt": "Caza",
                "hunt_columns": "Caza columnas", "hunt_forest": "Caza bosque", "film_fixed": "Grabar", "film_posts": "Grabar entre postes",
-               "photo": "Foto", "photo_set": "Set de fotos", "race": "Carrera", "delivery": "Entrega", "chase": "Persecución"}
+               "photo": "Foto", "photo_set": "Set de fotos", "race": "Carrera", "delivery": "Entrega", "chase": "Persecución",
+               "takeoff_hold": "Despegar y quedarse", "point_hold": "Ir a un punto", "line_follow": "Seguir una línea"}
 COLORS = {"fly": (0.9, 0.9, 0.95, 1), 1: (1.0, 0.12, 0.08, 1), 2: (0.1, 1.0, 0.35, 1), 3: (1.0, 0.75, 0.1, 1)}
 REWARD_KEYS = ["progress", "goal", "crash", "time", "smooth", "tilt", "near", "clearance", "danger", "speed",
                "stability", "heading", "film", "framing", "settle", "altitude", "pan", "overspeed", "energy"]

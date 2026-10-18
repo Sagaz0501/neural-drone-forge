@@ -193,6 +193,20 @@ def random_goal(rng: np.random.Generator, spawn: np.ndarray, r_min=3.0, r_max=8.
     return spawn + np.array([r * np.cos(ang), r * np.sin(ang), 0.0]) + np.array([0, 0, rng.uniform(*z)])
 
 
+def random_line(rng: np.random.Generator, spawn: np.ndarray, n=(9, 14), step=1.5) -> list:
+    """Nivel 21 · Seguir una línea: una línea curva (puntos cada `step` m) que empieza 2 m adelante del spawn y se va
+    doblando de a poco (hasta ±20° por tramo, sube y baja entre 1 y 4 m). El dron la recorre sin salirse."""
+    a = rng.uniform(-np.pi, np.pi)
+    p = spawn + np.array([2.0 * np.cos(a), 2.0 * np.sin(a), rng.uniform(1.5, 3.0)])
+    pts = [p.copy()]
+    for _ in range(int(rng.integers(n[0], n[1] + 1)) - 1):
+        a += rng.uniform(-0.35, 0.35)
+        p = p + np.array([step * np.cos(a), step * np.sin(a), rng.uniform(-0.3, 0.3)])
+        p[2] = float(np.clip(p[2], 1.0, 4.0))
+        pts.append(p.copy())
+    return pts
+
+
 def random_pillars(rng, spawn, goals, n=(2, 5), keep_out=1.5) -> tuple[np.ndarray, np.ndarray]:
     """Pone columnas (cajas altas) cerca del camino spawn -> metas, sin tapar spawn ni metas."""
     pts = [spawn] + list(goals)

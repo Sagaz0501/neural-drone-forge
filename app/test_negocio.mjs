@@ -2,6 +2,8 @@
 import { readFileSync } from "fs";
 import * as NG from "./negocio.js";
 import * as TU from "./tutorial.js";
+import * as SW from "./software.js";
+import * as PT from "./partida.js";
 import * as REQ from "./requisitos.js";
 
 const leer = (f) => JSON.parse(readFileSync(new URL(`./data/${f}.json`, import.meta.url)));
@@ -104,10 +106,12 @@ ok(NG.pasoTutorial(dv, {})?.paso === 1 && dv.negocio.pedidos.length === 1, "modo
   ok(!q.negocio.pedidos.length, "tutorial: terminar el día no trae pedidos mientras esperas");
   ok(TU.pcCerrado(q) && TU.activo(q), "tutorial: el computador está cerrado mientras armas");
   ok(/hangar/.test(TU.notas(q, { pantalla: "taller", izq: "hangar", dron: "Chispa" })[0].html) && !TU.notas(q, { pantalla: "taller" })[0].saltable, "tutorial: armar primero, y no se puede saltar");
-  TU.pasarA(q, "pc"); q.tuto.tour = 0;
+  TU.pasarA(q, "pc");
   ok(!TU.pcCerrado(q) && TU.notas(q, { pantalla: "taller" })[0].resaltar === "#b-computador", "tutorial: ya vuela -> el botón del computador brilla");
-  const tour = TU.notas(q, { pantalla: "estudio" })[0];
-  ok(tour.boton?.accion === "tour" && /mensajes/.test(tour.resaltar), "tutorial: el tour muestra una app a la vez con Siguiente");
+  const enPc = (apps) => TU.notas(q, { pantalla: "estudio", apps })[0].resaltar;
+  ok(/data-w="apps"/.test(enPc({ abierta: false })), "tutorial: en el computador, primero abrir 🛍️ Apps");
+  ok(/data-sw="mensajes"/.test(enPc({ abierta: true })) && /data-sw="simulador"/.test(enPc({ abierta: true, mensajes: true })), "tutorial: comprar Mensajes y después el Simulador (brilla el botón de comprar)");
+  q.modo = "dev"; ok(/data-sw="ide"/.test(enPc({ abierta: true, mensajes: true })), "tutorial: en el modo desarrollador, el IDE"); delete q.modo;
   TU.pasarA(q, "modelo");
   const mods = [{ slug: "base", gen: 900, recientes: { 13: [[899, 0.95], [900, 0.95], [898, 0.9]] } },
     { slug: "chispa", base_de: "base", gen: 905, recientes: { 13: [[899, 0.95], [900, 0.95], [903, 0.7], [904, 0.9], [905, 0.9]] } }];
@@ -120,6 +124,52 @@ ok(NG.pasoTutorial(dv, {})?.paso === 1 && dv.negocio.pedidos.length === 1, "modo
   NG.primerCliente(q, D);
   ok(!q.negocio.espera && q.negocio.pedidos.length === 1 && q.negocio.pedidos[0].tutorial, "tutorial: al 80 % llega el primer mensaje (Doña Marta)");
   ok(TU.notas(q, { pantalla: "taller" })[0].saltable, "tutorial: con el cliente ya se puede saltar");
+}
+
+// el software del computador (software.js): dos programas de fábrica, lo demás se compra en 🛍️ Apps
+{
+  const S = JSON.parse(readFileSync(new URL("./data/software.json", import.meta.url), "utf8"));
+  const q = PT.nuevaPartida(), viejo = PT.nuevaPartida(); delete viejo.software;
+  ok(SW.tieneApp(q, S, "apps") && SW.tieneApp(q, S, "tienda") && !SW.tieneApp(q, S, "mensajes") && !SW.tieneApp(q, S, "lab"), "software: de fábrica solo Apps y la Tienda");
+  ok(SW.tieneApp(q, S, "ajustes"), "software: Ajustes es del sistema (no se compra)");
+  ok(SW.tieneApp(viejo, S, "mensajes") && SW.tieneApp(viejo, S, "lab"), "software: una partida de antes tiene todo");
+  const p0 = q.plata;
+  ok(!SW.comprar(q, S, "mensajes") && SW.tieneApp(q, S, "mensajes") && q.plata === p0 - SW.programa(S, "mensajes").precio, "software: comprar Mensajes cobra y lo instala");
+  ok(!!SW.comprar(q, S, "mensajes") && !!SW.comprar(q, S, "ide"), "software: no se compra dos veces, ni el IDE en el modo normal");
+  ok(!SW.comprar(q, S, "simulador") && SW.tieneApp(q, S, "lab") && SW.tieneApp(q, S, "escenarios"), "software: el Simulador de IA abre el Laboratorio y los simuladores");
+  const d = PT.nuevaPartidaDesarrollador();
+  ok(SW.entrenar(d) === "ide" && !SW.comprar(d, S, "ide") && SW.tieneApp(d, S, "ide") && SW.tieneApp(d, S, "docs"), "software: en el modo desarrollador se compra el IDE (con la documentación)");
+  const pobre = PT.nuevaPartida(); pobre.plata = 5;
+  ok(!!SW.comprar(pobre, S, "simulador") && !SW.tieneApp(pobre, S, "lab"), "software: sin plata no se compra");
+}
+
+// una partida nueva empieza SIN modelos: ni la IA base ni los del juego; solo los que entrena ella
+{
+  const lista = [{ slug: "base" }, { slug: "corredor", reservado: true }, { slug: "sagaz" }, { slug: "mio" }];
+  const n = PT.nuevaPartidaDesarrollador(), vieja = { ...PT.nuevaPartida() };
+  delete vieja.modelos;
+  ok(PT.enCero(n) && !PT.modelosVisibles(n, lista).length, "modelos: una partida nueva no ve ninguno (ni la base ni los del juego)");
+  PT.anotarModelo(n, "mio");
+  ok(PT.modelosVisibles(n, lista).map((m) => m.slug).join() === "mio", "modelos: solo ve los que entrenó ella");
+  PT.anotarModelo(n, "mio2", "mio");
+  ok(n.modelos.join() === "mio2", "modelos: renombrar cambia el de la lista");
+  ok(PT.modelosVisibles(vieja, lista).map((m) => m.slug).join() === "base,sagaz,mio", "modelos: una partida de antes ve todos menos los del juego");
+  // el tutorial del modo desarrollador en el IDE: abrir el ejemplo, cambiar la línea dron(…), ▶ Correr
+  TU.pasarA(n, "modelo");
+  const s = (ide) => ({ pantalla: "estudio", dron: "Chispa", drones: ["Chispa"], ide });
+  const paso = (ide) => TU.notas(n, s(ide))[0].resaltar;
+  ok(paso({ ide: false }) === '.es-icono[data-w="ide"]', "tutorial dev: primero abrir el IDE");
+  ok(paso({ ide: true, menu: false }) === "#es-archivo-b" && paso({ ide: true, menu: true }) === '#es-ejemplos [data-ej="despegar"]', "tutorial dev (1/2): el menú de programas -> el ejemplo despegar");
+  const ej = { ide: true, mision: "despegar", dron: { linea: 6, valor: "estandar" } };
+  ok(/Línea 6/.test(TU.notas(n, s(ej))[0].html) && /1\/2/.test(TU.notas(n, s(ej))[0].html) && TU.lineaTuto(n, s(ej)) === 6, "tutorial dev: señala la línea dron(…) (👉 en el margen)");
+  ok(TU.lineaTuto(n, s({ ...ej, mision: "foto" })) === null, "tutorial dev: otro programa abierto: no señala nada");
+  const listo = { ...ej, dron: { linea: 6, valor: "chispa" } };
+  ok(paso(listo) === "#es-correr" && TU.lineaTuto(n, s(listo)) === null, "tutorial dev: con tu dron, ▶ Correr");
+  // aprobó Despegar (p.tuto.e1): el paso 2 es ir a un punto, partiendo de ese modelo
+  n.tuto.e1 = "mi_piloto";
+  ok(TU.pasoIA(n).nivel === 20 && paso({ ide: true, menu: true }) === '#es-ejemplos [data-ej="ir_a_punto"]', "tutorial dev (2/2): después, el ejemplo ir_a_punto (nivel 20)");
+  ok(/desde=/.test(TU.notas(n, s({ ide: true, mision: "punto", dron: { linea: 6, valor: "chispa" } }))[0].html), "tutorial dev (2/2): ▶ Correr parte de lo que ya sabe");
+  ok(TU.exitoFoto([{ slug: "a", recientes: { "20": [[5, 0.9], [6, 0.9], [7, 0.9]] } }], {}, 20)?.exito === 0.9 && !TU.exitoFoto([{ slug: "a", recientes: { "20": [[5, 0.9]] } }], {}, 19), "el éxito del tutorial se mide en el nivel del paso");
 }
 
 // el tutorial del primer dron (tutorial.js): las notas de arriba a la derecha

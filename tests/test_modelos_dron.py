@@ -245,3 +245,18 @@ def test_recientes_por_nivel():
     assert set(r) == {"11", "13"}
     assert [x[0] for x in r["13"]] == [26, 27, 28, 29] and len(r["11"]) == 4
     assert jugar.recientes_por_nivel([[1, 2, 0.5]]) == {}
+
+
+def test_reservados_no_se_tocan(root, monkeypatch):
+    monkeypatch.delenv("DRONMAKER_INTERNO", raising=False)
+    (root / "drone_rl").mkdir()
+    (root / "drone_rl" / "missions.json").write_text(json.dumps({"16": {}}))
+    jugar.ensure_model("corredor", "base")
+    assert {m["slug"]: m for m in jugar.list_models()}["corredor"]["reservado"]
+    assert not jugar.lab_request({"accion": "iniciar", "nivel": 16, "modelo": "corredor", "donde": "fondo"})[0]
+    assert not jugar.lab_request({"accion": "iniciar", "nivel": 16, "modelo": "mio", "base_de": "corredor"})[0]
+    for body in ({"accion": "copiar", "slug": "corredor", "nuevo": "mio"}, {"accion": "borrar", "slug": "corredor"},
+                 {"accion": "renombrar", "slug": "corredor", "nuevo": "x"}, {"accion": "copiar", "slug": "base", "nuevo": "cazador"}):
+        assert not jugar.model_request(body)[0]
+    monkeypatch.setenv("DRONMAKER_INTERNO", "1")                      # Santiago sí los entrena
+    assert jugar.lab_request({"accion": "iniciar", "nivel": 16, "modelo": "corredor"})[0]

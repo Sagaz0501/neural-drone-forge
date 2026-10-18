@@ -45,7 +45,9 @@ y entrenando.log si entrena en el fondo). slug = [a-z0-9_-], 1-40, sin "_" al in
                      "w" = conexiones más fuertes por capa [origen, destino, peso], "i" = qué dron, "n" = cuántos);
                      {"ok": false} si no entrena. "watch": i en POST /api/lab (iniciar/ajustar) cambia el dron que mira
   GET  /api/modelos  {"modelos": [{slug, nombre, tiene_modelo, gen, pasos, tomas, niveles, rango_fisica, drones,
-                     creado, actualizado, base_de, entrenando: bool, donde: "blender"|"fondo"|null, web}]}
+                     creado, actualizado, base_de, entrenando: bool, donde: "blender"|"fondo"|null, web, reservado}]}
+  RESERVADOS (corredor, cazador = los rivales del freestyle; fotografo, repartidor = pruebas): son del juego. El jugador
+  no los entrena, no los copia, no los renombra/borra ni parte de ellos (base_de). DRONMAKER_INTERNO=1 lo permite.
   GET  /models/drones/<slug>/modelo_web.json   se re-exporta solo si su modelo.zip es más nuevo (como el base)
   POST /api/modelo {"accion": "renombrar", "slug", "nuevo"?: slug nuevo (mueve la carpeta), "nombre"?: texto}
                    {"accion": "copiar", "slug" (o "base"), "nuevo", "nombre"?}
@@ -167,6 +169,8 @@ def lab_request(body):
     if acc not in ("iniciar", "ajustar", "pausar", "detener", "guardar"):
         return False, "acción desconocida"
     slug = check_slug(body.get("modelo") or "base")
+    if acc == "iniciar" and (bloqueado(slug) or bloqueado(body.get("base_de"))):
+        return False, "ese modelo es del juego (los rivales del freestyle y las pruebas): ponle otro nombre a tu modelo"
     donde = body.get("donde") or "blender"
     if donde not in ("blender", "fondo"):
         return False, "donde: blender o fondo"
@@ -199,8 +203,11 @@ def lab_request(body):
                 t2["foto_ok"] = max(0.2, min(0.95, float(tarea["foto_ok"])))
             if "fotos" in tarea:
                 t2["fotos"] = max(1, min(6, int(tarea["fotos"])))
+            if tarea.get("repaso"):              # los niveles que ya aprobó: el 20 % de los intentos los repasa
+                niveles = {k for k in json.loads((ROOT / "drone_rl" / "missions.json").read_text()) if k.isdigit()}
+                t2["repaso"] = sorted({int(x) for x in tarea["repaso"] if str(int(x)) in niveles})[:6]
         except (TypeError, ValueError):
-            return False, "tarea: foto_seg [min, max], foto_ok (0,2-0,95), fotos (1-6)"
+            return False, "tarea: foto_seg [min, max], foto_ok (0,2-0,95), fotos (1-6), repaso [niveles]"
         req["tarea"] = t2
     if "ent" in body:                            # exploración extra (coeficiente de entropía)
         req["ent"] = max(0.0, min(0.1, float(body["ent"])))
@@ -273,6 +280,12 @@ def lab_request(body):
 # ======================================================================
 SLUG_RE = re.compile(r"[a-z0-9][a-z0-9_-]{0,39}")     # sin "_" al inicio: _papelera es nuestra
 MODEL_FILES = ("modelo.zip", "modelo.json", "modelo_web.json")
+RESERVADOS = ("corredor", "cazador", "fotografo", "repartidor")      # del juego: el jugador no los toca
+
+
+def bloqueado(slug):
+    """¿Es un modelo del juego que el jugador no puede tocar? (DRONMAKER_INTERNO=1 = Santiago los entrena)"""
+    return slug in RESERVADOS and os.environ.get("DRONMAKER_INTERNO") != "1"
 
 
 def check_slug(slug, allow_base=True):
@@ -450,7 +463,7 @@ def list_models():
                     "rango_fisica": m.get("rango_fisica"), "creado": m.get("creado"),
                     "actualizado": m.get("actualizado"), "base_de": info.get("base_de"),
                     "entrenando": donde is not None, "donde": donde, "red": m.get("red"),
-                    "avance": (d / "avance.json").exists(),
+                    "avance": (d / "avance.json").exists(), "reservado": slug in RESERVADOS,
                     "ultimo": (m.get("historia") or [None])[-1],      # [gen, pasos, éxito, choque, nivel, calidad]
                     "mejor_exito": max((h[2] for h in m.get("historia") or [] if len(h) > 2), default=None),
                     "recientes": recientes_por_nivel(m.get("historia") or []),
@@ -465,6 +478,8 @@ def model_request(body):
     if not model_dir(slug).is_dir() or (slug == "base" and not model_zip("base").exists() and acc == "copiar"):
         return False, f"no existe el modelo {slug}", {}
     nombre = str(body["nombre"]).strip()[:60] if body.get("nombre") else None
+    if bloqueado(slug) or bloqueado(body.get("nuevo")):
+        return False, f"{slug if bloqueado(slug) else body.get('nuevo')} es un modelo del juego: no se toca", {}
     if acc == "copiar":
         nuevo = check_slug(body.get("nuevo"), allow_base=False)
         dst = model_dir(nuevo)
