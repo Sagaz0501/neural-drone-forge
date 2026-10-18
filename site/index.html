@@ -1,0 +1,861 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Neural Drone Forge · Arma el dron. Entrena su cerebro.</title>
+<meta name="description" content="Un juego donde armas un dron pieza por pieza, lo sueldas y le enseñas a volar con una IA que aprende en tu propia computadora. Gratis y de código abierto.">
+<meta name="theme-color" content="#0b0d10">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛸</text></svg>">
+
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://sagaz0501.github.io/neural-drone-forge/">
+<meta property="og:title" content="Neural Drone Forge — Arma el dron. Entrena su cerebro. Míralo aprender a volar.">
+<meta property="og:description" content="Armas un dron de madera, lo sueldas cable por cable y le enseñas a volar con una IA que aprende frente a ti. Gratis y open source.">
+<meta property="og:image" content="https://sagaz0501.github.io/neural-drone-forge/img/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://sagaz0501.github.io/neural-drone-forge/img/og.jpg">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg:#0b0d10; --bg2:#11151a; --panel:#151a20; --line:#232b34;
+  --text:#eef1f4; --muted:#9aa6b2; --dim:#66727e;
+  --orange:#ff7a1a; --orange2:#ffb066; --cyan:#35c6f4; --green:#3ee08a; --red:#ff4d5e; --wood:#c98a4b;
+  --r:18px;
+  --display:"Bricolage Grotesque",system-ui,sans-serif;
+  --body:"Inter",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;overflow-x:hidden}
+body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:17px;line-height:1.6;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+img,video{display:block;max-width:100%}
+.wrap{width:min(1180px,100% - 32px);margin-inline:auto}
+h1,h2,h3{font-family:var(--display);line-height:1.05;letter-spacing:-.02em}
+h2{font-size:clamp(34px,5vw,58px);font-weight:800}
+h3{font-size:22px;font-weight:700}
+.eyebrow{font-family:var(--mono);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--orange)}
+.lead{color:var(--muted);font-size:clamp(17px,1.6vw,20px);max-width:640px}
+section{padding:120px 0;position:relative}
+.sec-head{display:grid;gap:16px;margin-bottom:56px}
+.sec-head.center{text-align:center;justify-items:center}
+
+/* botones */
+.btn{display:inline-flex;align-items:center;gap:10px;padding:15px 24px;border-radius:999px;font-weight:600;font-size:16px;transition:transform .15s,box-shadow .2s,background .2s;cursor:pointer;border:0;font-family:var(--body)}
+.btn:hover{transform:translateY(-2px)}
+.btn-main{background:var(--orange);color:#1a0d02;box-shadow:0 10px 40px -10px rgba(255,122,26,.7)}
+.btn-main:hover{box-shadow:0 14px 50px -8px rgba(255,122,26,.9)}
+.btn-ghost{background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--line)}
+.btn-ghost:hover{background:rgba(255,255,255,.1)}
+.btn svg{width:20px;height:20px}
+
+/* nav */
+nav{position:fixed;inset:0 0 auto;z-index:50;transition:background .3s,border-color .3s;border-bottom:1px solid transparent}
+nav.solid{background:rgba(11,13,16,.82);backdrop-filter:blur(14px);border-color:var(--line)}
+nav .wrap{display:flex;align-items:center;gap:24px;height:68px}
+.logo{display:flex;align-items:center;gap:10px;white-space:nowrap;font-family:var(--display);font-weight:800;font-size:19px}
+.logo i{width:30px;height:30px;border-radius:9px;background:conic-gradient(from 200deg,var(--orange),var(--orange2),var(--cyan),var(--orange));display:grid;place-items:center;font-style:normal;font-size:16px}
+nav .links{display:flex;gap:26px;margin-left:auto;font-size:15px;color:var(--muted)}
+nav .links a:hover{color:var(--text)}
+.lang{white-space:nowrap;font-family:var(--mono);font-size:13px;border:1px solid var(--line);border-radius:999px;padding:6px 12px;background:none;color:var(--muted);cursor:pointer}
+.lang b{color:var(--text)}
+nav .btn{padding:10px 18px;font-size:14px}
+@media (max-width:860px){nav .links{display:none} nav .lang{margin-left:auto}}
+@media (max-width:480px){nav .btn span{display:none} nav .btn{padding:10px 12px} nav .wrap{gap:12px} .logo{font-size:16px} .badge{border-radius:14px}}
+
+/* hero */
+.hero{min-height:100svh;padding:110px 0 60px;display:flex;align-items:center;overflow:hidden}
+#net{position:absolute;inset:0;width:100%;height:100%;opacity:.55}
+#drone{position:absolute;right:-6%;top:50%;translate:0 -46%;width:min(56vw,780px);aspect-ratio:1;pointer-events:none}
+.hero::after{content:"";position:absolute;inset:auto 0 0;height:200px;background:linear-gradient(transparent,var(--bg))}
+.hero .wrap{position:relative;z-index:2}
+.hero-copy{max-width:600px}
+.badge{display:inline-flex;flex-wrap:wrap;max-width:100%;align-items:center;gap:8px;font-family:var(--mono);font-size:12.5px;color:var(--muted);border:1px solid var(--line);background:rgba(17,21,26,.7);padding:7px 14px;border-radius:999px;margin-bottom:28px}
+.badge .dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 12px var(--green);animation:pulse 1.6s infinite}
+@keyframes pulse{50%{opacity:.35}}
+.hero h1{font-size:clamp(44px,5.8vw,84px);font-weight:800;margin-bottom:26px}
+.hero h1 span{display:block}
+.hero h1 .g{background:linear-gradient(92deg,var(--orange) 10%,var(--orange2) 45%,var(--cyan) 90%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero .lead{margin-bottom:36px}
+.cta{display:flex;flex-wrap:wrap;gap:14px}
+.chips{display:flex;flex-wrap:wrap;gap:10px 22px;margin-top:40px;font-size:14px;color:var(--muted)}
+.chips span::before{content:"✓ ";color:var(--green)}
+@media (max-width:900px){
+  #drone{position:relative;right:auto;top:auto;translate:none;width:min(100%,460px);max-width:100%;min-width:0;margin:-10px auto -30px;order:-1}
+  .hero{flex-direction:column;padding-top:80px;min-height:0}
+  .hero>*{min-width:0;max-width:100%}
+}
+
+/* video grande */
+.showreel{padding-top:40px}
+.frame{position:relative;border-radius:24px;overflow:hidden;border:1px solid var(--line);background:#000;box-shadow:0 40px 120px -40px rgba(53,198,244,.35),0 0 0 1px rgba(255,255,255,.03)}
+.frame video{width:100%;aspect-ratio:16/9;object-fit:cover}
+.frame .tag{position:absolute;left:18px;top:18px;display:flex;gap:8px;align-items:center;font-family:var(--mono);font-size:12.5px;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);padding:7px 12px;border-radius:999px}
+.frame .tag b{width:8px;height:8px;border-radius:50%;background:var(--red);animation:pulse 1s infinite}
+.caption{margin-top:18px;color:var(--muted);font-size:15px;text-align:center}
+.caption b{color:var(--text)}
+
+/* números */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-top:72px}
+.stat{background:var(--bg);padding:30px 26px}
+.stat b{display:block;font-family:var(--display);font-size:clamp(38px,4.4vw,56px);font-weight:800;line-height:1;margin-bottom:8px}
+.stat:nth-child(1) b{color:var(--orange)} .stat:nth-child(2) b{color:var(--cyan)} .stat:nth-child(3) b{color:var(--green)} .stat:nth-child(4) b{color:var(--orange2)}
+.stat span{color:var(--muted);font-size:14.5px}
+@media (max-width:760px){.stats{grid-template-columns:repeat(2,1fr)}}
+
+/* el ciclo */
+.steps{display:grid;gap:120px}
+.step{display:grid;grid-template-columns:1fr 1.25fr;gap:64px;align-items:center}
+.step:nth-child(even){grid-template-columns:1.25fr 1fr}
+.step:nth-child(even) .step-copy{order:2}
+.num{font-family:var(--mono);font-size:14px;color:var(--dim);margin-bottom:14px;display:flex;align-items:center;gap:12px}
+.num::after{content:"";height:1px;width:60px;background:var(--line)}
+.step h3{font-size:clamp(30px,3.6vw,44px);font-weight:800;margin-bottom:18px}
+.step p{color:var(--muted);margin-bottom:22px}
+.step ul{list-style:none;display:grid;gap:10px}
+.step li{display:flex;gap:12px;font-size:15.5px}
+.step li::before{content:"";flex:none;width:7px;height:7px;margin-top:9px;border-radius:2px;background:var(--orange);rotate:45deg}
+.step.ia li::before{background:var(--cyan)}
+.step.vuela li::before{background:var(--green)}
+.shots{position:relative}
+.shots .main{border-radius:var(--r);border:1px solid var(--line);overflow:hidden;box-shadow:0 30px 80px -30px rgba(0,0,0,.8)}
+.shots .main img,.shots .main video{width:100%}
+.shots .float{position:absolute;width:46%;right:-5%;bottom:-12%;border-radius:14px;overflow:hidden;border:1px solid var(--line);box-shadow:0 20px 60px -10px rgba(0,0,0,.9);rotate:2deg}
+.step:nth-child(even) .shots .float{right:auto;left:-5%;rotate:-2deg}
+@media (max-width:900px){
+  .step,.step:nth-child(even){grid-template-columns:1fr;gap:40px}
+  .step:nth-child(even) .step-copy{order:0}
+  .shots .float{right:-2%;width:44%}
+  .step:nth-child(even) .shots .float{left:-2%}
+  .steps{gap:100px}
+}
+
+/* demo de aprendizaje */
+.learn{background:radial-gradient(800px 400px at 50% 0%,rgba(53,198,244,.09),transparent),var(--bg2);border-block:1px solid var(--line)}
+.lab{display:grid;grid-template-columns:1.5fr 1fr;gap:20px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:22px}
+.card-h{display:flex;justify-content:space-between;align-items:center;font-family:var(--mono);font-size:13px;color:var(--muted);margin-bottom:14px;gap:10px;flex-wrap:wrap}
+.card-h b{color:var(--text)}
+#sim{width:100%;aspect-ratio:16/10;border-radius:12px;background:#0a0e12}
+#chart{width:100%;height:190px;margin-top:6px}
+.big{font-family:var(--display);font-weight:800;font-size:64px;line-height:1;color:var(--green)}
+.legend{display:flex;gap:16px;font-size:13px;color:var(--muted);margin-top:10px;flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.lab-ctrl{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+.lab-ctrl .btn{padding:10px 16px;font-size:14px}
+.note{font-size:13px;color:var(--dim);margin-top:14px}
+@media (max-width:900px){.lab{grid-template-columns:1fr}}
+
+/* escenarios */
+.ladder{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.esc{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;position:relative;overflow:hidden;transition:transform .2s,border-color .2s}
+.esc:hover{transform:translateY(-4px);border-color:#3a4652}
+.esc .e{font-family:var(--mono);font-size:12px;color:var(--dim)}
+.esc .ic{font-size:30px;margin:10px 0 8px}
+.esc h4{font-family:var(--display);font-size:19px;font-weight:700;margin-bottom:6px}
+.esc p{font-size:14px;color:var(--muted);line-height:1.5}
+.esc .bar{position:absolute;left:0;bottom:0;height:3px;background:linear-gradient(90deg,var(--green),var(--cyan),var(--orange),var(--red))}
+@media (max-width:1000px){.ladder{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:700px){.ladder{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:420px){.ladder{grid-template-columns:1fr}}
+
+/* código */
+.code-sec .wrap{display:grid;grid-template-columns:1fr 1.15fr;gap:64px;align-items:center}
+.editor{background:#0d1116;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;box-shadow:0 30px 90px -30px rgba(255,122,26,.25)}
+.editor-top{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+.editor-top i{width:11px;height:11px;border-radius:50%;background:#2c343d}
+.editor-top i:nth-child(1){background:#ff5f57}.editor-top i:nth-child(2){background:#febc2e}.editor-top i:nth-child(3){background:#28c840}
+.editor-top span{margin-left:10px}
+.editor pre{font-family:var(--mono);font-size:14.5px;line-height:1.75;padding:20px 22px;min-height:400px;white-space:pre-wrap;overflow-wrap:anywhere}
+.editor .term{border-top:1px solid var(--line);padding:14px 22px;font-family:var(--mono);font-size:13px;color:var(--green);min-height:74px;background:#0a0d11}
+.k{color:#ff79c6}.f{color:#ffcc66}.s{color:#9be37a}.n{color:#bd93f9}.c{color:#5d6b78;font-style:italic}
+.caret{display:inline-block;width:8px;height:1.1em;background:var(--orange);vertical-align:-3px;animation:pulse .9s steps(1) infinite}
+@media (max-width:900px){.code-sec .wrap{grid-template-columns:1fr;gap:40px}.editor pre{min-height:0;font-size:13px}}
+
+/* galería */
+.gallery{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.gallery figure{border-radius:14px;overflow:hidden;border:1px solid var(--line);background:var(--panel);cursor:zoom-in;transition:transform .2s}
+.gallery figure:hover{transform:scale(1.02)}
+.gallery figure.w2{grid-column:span 2;grid-row:span 2}
+.gallery img{width:100%;height:100%;object-fit:cover;aspect-ratio:16/10.3}
+.gallery figcaption{display:none}
+@media (max-width:800px){.gallery{grid-template-columns:repeat(2,1fr)}}
+.lightbox{position:fixed;inset:0;z-index:100;background:rgba(5,6,8,.92);display:none;place-items:center;padding:24px;backdrop-filter:blur(6px)}
+.lightbox.open{display:grid}
+.lightbox img{max-height:80vh;border-radius:14px}
+.lightbox p{text-align:center;color:var(--muted);margin-top:14px;max-width:760px;margin-inline:auto}
+.lightbox button{position:absolute;top:18px;right:22px;font-size:28px;background:none;border:0;color:var(--text);cursor:pointer}
+
+/* freestyle */
+.free{overflow:hidden}
+.free-box{position:relative;border-radius:28px;overflow:hidden;border:1px solid var(--line);min-height:520px;display:flex;align-items:flex-end;background:#000}
+.free-box img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.7}
+.free-box::before{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(11,13,16,.97) 10%,rgba(11,13,16,.2) 70%),linear-gradient(90deg,rgba(11,13,16,.85),transparent 70%);z-index:1}
+.fs-thumbs{position:absolute;right:28px;bottom:28px;z-index:2;display:grid;gap:12px;width:min(30%,300px)}
+.fs-thumbs img{position:static;opacity:1;width:100%;height:auto;border-radius:12px;border:1px solid rgba(255,255,255,.15);box-shadow:0 16px 40px rgba(0,0,0,.6);aspect-ratio:16/10;object-fit:cover}
+@media (max-width:900px){.fs-thumbs{display:none}}
+.free-copy{position:relative;z-index:2;padding:48px;max-width:640px}
+.free-copy h2{margin:14px 0 18px}
+.modes{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
+.modes span{font-size:14px;padding:8px 14px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12)}
+@media (max-width:600px){.free-copy{padding:28px}}
+
+/* descargar */
+.dl{text-align:center;background:radial-gradient(700px 380px at 50% 100%,rgba(255,122,26,.18),transparent)}
+.dl h2{font-size:clamp(40px,6vw,76px);margin:14px 0 20px}
+.dl .lead{margin:0 auto 40px}
+.cmd{max-width:720px;margin:0 auto 34px;text-align:left;background:#0d1116;border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.cmd-top{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+.cmd-top button{background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:5px 12px;font-family:var(--mono);font-size:12px;cursor:pointer}
+.cmd pre{font-family:var(--mono);font-size:14px;padding:18px 20px;line-height:1.8;overflow-x:auto;color:#d6dde4}
+.cmd pre .c{font-style:normal}
+.dl .cta{justify-content:center}
+.req{margin-top:26px;font-size:14px;color:var(--dim)}
+
+footer{border-top:1px solid var(--line);padding:44px 0 60px;color:var(--muted);font-size:14.5px}
+footer .wrap{display:flex;flex-wrap:wrap;gap:20px 40px;align-items:center;justify-content:space-between}
+footer .fl{display:flex;gap:22px;flex-wrap:wrap}
+footer a:hover{color:var(--text)}
+
+/* aparecer al bajar */
+.rv{opacity:0;translate:0 28px;transition:opacity .8s ease,translate .8s cubic-bezier(.2,.7,.2,1)}
+.rv.in{opacity:1;translate:0 0}
+@media (prefers-reduced-motion:reduce){.rv{opacity:1;translate:none;transition:none}*{animation:none!important}}
+</style>
+</head>
+<body>
+
+<nav id="nav">
+  <div class="wrap">
+    <a class="logo" href="#"><i>🛸</i>Neural Drone Forge</a>
+    <div class="links">
+      <a href="#ciclo" data-en="How it works">Cómo funciona</a>
+      <a href="#aprende" data-en="Watch it learn">Míralo aprender</a>
+      <a href="#escenarios" data-en="Scenarios">Escenarios</a>
+      <a href="#descargar" data-en="Download">Descargar</a>
+    </div>
+    <button class="lang" id="lang" aria-label="Idioma / Language"><b>ES</b> · EN</button>
+    <a class="btn btn-ghost" href="https://github.com/Sagaz0501/neural-drone-forge" target="_blank" rel="noopener">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      <span>GitHub</span>
+    </a>
+  </div>
+</nav>
+
+<!-- ============ HERO ============ -->
+<header class="hero">
+  <canvas id="net"></canvas>
+  <div class="wrap">
+    <div class="hero-copy">
+      <div class="badge"><span class="dot"></span><span data-en="v3.0 · free & open source · Mac · Windows · Linux">v3.0 · gratis y de código abierto · Mac · Windows · Linux</span></div>
+      <h1>
+        <span data-en="Build the drone.">Arma el dron.</span>
+        <span class="g" data-en="Train its brain.">Entrena su cerebro.</span>
+        <span data-en="Watch it learn to fly.">Míralo aprender a volar.</span>
+      </h1>
+      <p class="lead" data-en="A game where you assemble a wooden drone piece by piece, solder it wire by wire, and teach it to fly with a <b>real neural network</b> that learns right in front of you, on your own computer.">Un juego donde armas un dron de madera pieza por pieza, lo sueldas cable por cable y le enseñas a volar con una <b>red neuronal de verdad</b> que aprende frente a ti, en tu propia computadora.</p>
+      <div class="cta">
+        <a class="btn btn-main" href="#descargar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 21h16"/></svg>
+          <span data-en="Play free">Jugar gratis</span>
+        </a>
+        <a class="btn btn-ghost" href="#aprende">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          <span data-en="Watch the AI learn">Ver cómo aprende la IA</span>
+        </a>
+      </div>
+      <div class="chips">
+        <span data-en="Real AI (PPO)">IA real (PPO)</span>
+        <span data-en="100% local, no cloud">100 % local, sin nube</span>
+        <span data-en="Spanish & English">Español e inglés</span>
+      </div>
+    </div>
+  </div>
+  <canvas id="drone" aria-hidden="true"></canvas>
+</header>
+
+<!-- ============ SHOWREEL ============ -->
+<section class="showreel" id="aprende-video">
+  <div class="wrap">
+    <div class="frame rv">
+      <video src="media/entrenamiento.mp4" poster="media/entrenamiento.jpg" autoplay muted loop playsinline></video>
+      <div class="tag"><b></b><span data-en="LIVE TRAINING · BLENDER">ENTRENANDO EN VIVO · BLENDER</span></div>
+    </div>
+    <p class="caption rv" data-en="<b>25 drones learning at once.</b> Each camera's cone turns from red to green when the shot is good. Nobody programmed how to fly: they figured it out.">
+      <b>25 drones aprendiendo a la vez.</b> El cono de cada cámara pasa de rojo a verde cuando la toma sale bien. Nadie les programó cómo volar: lo descubrieron solos.</p>
+
+    <div class="stats rv">
+      <div class="stat"><b data-count="38">0</b><span data-en="sensors the AI feels">sensores que siente la IA</span></div>
+      <div class="stat"><b data-count="50">0</b><span data-en="drones training at once">drones entrenando a la vez</span></div>
+      <div class="stat"><b data-count="12">0</b><span data-en="scenarios, basic to brutal">escenarios, de lo básico a lo brutal</span></div>
+      <div class="stat"><b>$0</b><span data-en="free, open source, MIT">gratis, open source, MIT</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ EL CICLO ============ -->
+<section id="ciclo">
+  <div class="wrap">
+    <div class="sec-head center rv">
+      <span class="eyebrow" data-en="The loop">El ciclo</span>
+      <h2 data-en="From a cardboard box<br>to an autonomous fleet">De una caja de cartón<br>a una flota autónoma</h2>
+      <p class="lead" data-en="Your mom gives you a wooden drone kit. With $150 and a soldering iron, you start a drone business.">Tu mamá te regala un dron de madera para armar. Con $150 y un cautín empiezas tu negocio de drones.</p>
+    </div>
+
+    <div class="steps">
+      <div class="step rv">
+        <div class="step-copy">
+          <div class="num">01</div>
+          <h3 data-en="Build it for real">Ármalo de verdad</h3>
+          <p data-en="Nothing snaps together by magic. On the 3D workbench you open the boxes, mount every part with its procedure and solder every wire.">Nada se arma solo. En la mesa de trabajo 3D abres las cajas, montas cada pieza con su procedimiento y sueldas cada cable.</p>
+          <ul>
+            <li data-en="Hold the screwdriver until it clicks; keep going and you strip the thread.">Atornillas hasta el clic; si sigues, se barre la rosca.</li>
+            <li data-en="Iron, flux and solder: cold joints and bridges the table won't warn you about.">Cautín, flux y estaño: juntas frías y puentes que la mesa no te avisa.</li>
+            <li data-en="Multimeter, smoke test, firmware flashing and the motor test.">Multímetro, prueba de humo, flashear el firmware y probar los motores.</li>
+          </ul>
+        </div>
+        <div class="shots">
+          <div class="main"><video src="media/soldar.mp4" autoplay muted loop playsinline></video></div>
+          <div class="float"><img src="img/atornillar.webp" alt="Atornillando la controladora en la mesa 3D" loading="lazy"></div>
+        </div>
+      </div>
+
+      <div class="step ia rv">
+        <div class="step-copy">
+          <div class="num">02</div>
+          <h3 data-en="Train its brain">Entrena su cerebro</h3>
+          <p data-en="Every drone has its own neural network. It learns by reinforcement (PPO) with the rewards and penalties <b>you</b> choose, and its own physics: weight, motors, propellers.">Cada dron tiene su propia red neuronal. Aprende por refuerzo (PPO) con los premios y castigos que <b>tú</b> decides, y con su propia física: peso, motores, hélices.</p>
+          <ul>
+            <li data-en="Watch the network light up live while it learns.">Mira la red encenderse en vivo mientras aprende.</li>
+            <li data-en="Developer mode: program it in PBDMM, a Python-like language.">Modo desarrollador: prográmala en PBDMM, un lenguaje tipo Python.</li>
+            <li data-en="Replay its best and worst attempt, frame by frame.">Repite su mejor y su peor intento, cuadro por cuadro.</li>
+          </ul>
+        </div>
+        <div class="shots">
+          <div class="main"><img src="img/monitor_red.webp" alt="El monitor de entrenamiento con la red neuronal en vivo" loading="lazy"></div>
+          <div class="float"><img src="img/avance_modelo.webp" alt="El avance del modelo" loading="lazy"></div>
+        </div>
+      </div>
+
+      <div class="step vuela rv">
+        <div class="step-copy">
+          <div class="num">03</div>
+          <h3 data-en="Fly it, get paid, grow">Vuela, cobra y crece</h3>
+          <p data-en="Clients text you: a photo of a house, a farm inspection, a restaurant video. Fly it yourself or let the AI do it. Get paid, buy better parts, build more drones.">Los clientes te escriben al celular: la foto de una casa, la inspección de una finca, el video de un restaurante. Vuélalo tú o deja que lo haga la IA. Cobras, compras mejores piezas, armas más drones.</p>
+          <ul>
+            <li data-en="An autonomous fleet: each AI flies its job at the end of the day.">Una flota autónoma: cada IA vuela su trabajo al terminar el día.</li>
+            <li data-en="Wind, deadlines, star ratings and clients who recommend you.">Viento, plazos, estrellas y clientes que te recomiendan.</li>
+            <li data-en="A real store: ESP32, STM32, ExpressLRS, BLHeli_32…">Una tienda de verdad: ESP32, STM32, ExpressLRS, BLHeli_32…</li>
+          </ul>
+        </div>
+        <div class="shots">
+          <div class="main"><img src="img/vuelo.webp" alt="Grabando una casa con el dron" loading="lazy"></div>
+          <div class="float"><img src="img/tienda.webp" alt="La tienda de piezas" loading="lazy"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DEMO: ASÍ APRENDE ============ -->
+<section class="learn" id="aprende">
+  <div class="wrap">
+    <div class="sec-head center rv">
+      <span class="eyebrow" data-en="Try it here">Pruébalo aquí</span>
+      <h2 data-en="This is what learning looks like">Así se ve aprender</h2>
+      <p class="lead" data-en="Generation 1: they don't know anything and crash. Each generation keeps what worked. Hit play and watch them figure it out.">Generación 1: no saben nada y se estrellan. Cada generación se queda con lo que funcionó. Dale play y mira cómo lo descubren.</p>
+    </div>
+    <div class="lab rv">
+      <div class="card">
+        <div class="card-h"><span>🛫 <span data-en="E2 · Go to a point">E2 · Ir a un punto</span></span><span><span data-en="generation">generación</span> <b id="gen">1</b></span></div>
+        <canvas id="sim"></canvas>
+        <div class="legend">
+          <span><i style="background:var(--green)"></i><span data-en="made it">llegó</span></span>
+          <span><i style="background:var(--red)"></i><span data-en="crashed">se estrelló</span></span>
+          <span><i style="background:var(--cyan)"></i><span data-en="flying">volando</span></span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><span data-en="success rate">tasa de éxito</span><span data-en="goal: 80 %">meta: 80 %</span></div>
+        <div class="big" id="pct">0 %</div>
+        <canvas id="chart"></canvas>
+        <div class="lab-ctrl">
+          <button class="btn btn-main" id="play"><span data-en="⏸ Pause">⏸ Pausa</span></button>
+          <button class="btn btn-ghost" id="reset"><span data-en="↺ From scratch">↺ Desde cero</span></button>
+        </div>
+        <p class="note" data-en="Simplified illustration. In the game it's real reinforcement learning (PPO) with 38 sensors and full physics, running on your computer.">Ilustración simplificada. En el juego es aprendizaje por refuerzo de verdad (PPO), con 38 sensores y física completa, corriendo en tu computadora.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ESCENARIOS ============ -->
+<section id="escenarios">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="eyebrow" data-en="Step by step">Paso a paso</span>
+      <h2 data-en="12 scenarios.<br>From hovering to chasing.">12 escenarios.<br>De flotar a perseguir.</h2>
+      <p class="lead" data-en="Each scenario starts from the model that passed the previous one and reviews what it already knows. Pass the 🎓 exam and unlock the next.">Cada escenario parte del modelo que aprobó el anterior y repasa lo que ya sabe. Aprueba el examen 🎓 y abre el siguiente.</p>
+    </div>
+    <div class="ladder" id="ladder"></div>
+  </div>
+</section>
+
+<!-- ============ PBDMM ============ -->
+<section class="code-sec" style="background:var(--bg2);border-block:1px solid var(--line)">
+  <div class="wrap">
+    <div class="rv">
+      <span class="eyebrow" data-en="Developer mode">Modo desarrollador</span>
+      <h2 style="margin:14px 0 20px" data-en="Write its brain<br>in 10 lines.">Escribe su cerebro<br>en 10 líneas.</h2>
+      <p class="lead" style="margin-bottom:24px" data-en="PBDMM is the game's language: like Python, but made for drones. Choose the mission, the rewards, the network, the flight plan. Hit ▶ Run and watch it train.">PBDMM es el lenguaje del juego: como Python, pero hecho para drones. Eliges la misión, los premios, la red, el plan de vuelo. Le das ▶ Correr y lo ves entrenar.</p>
+      <ul style="list-style:none;display:grid;gap:10px;color:var(--muted)">
+        <li data-en="✦ Autocomplete, built-in docs and errors that explain themselves">✦ Autocompletado, documentación y errores que se explican</li>
+        <li data-en="✦ A programmer's path: one chapter per drone you create">✦ La ruta del programador: un capítulo por dron que creas</li>
+        <li data-en="✦ Bilingual: write it in Spanish or English">✦ Bilingüe: escríbelo en español o en inglés</li>
+      </ul>
+    </div>
+    <div class="editor rv">
+      <div class="editor-top"><i></i><i></i><i></i><span>foto_marta.pbd</span></div>
+      <pre id="code"></pre>
+      <div class="term" id="term">&nbsp;</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ GALERÍA ============ -->
+<section id="galeria">
+  <div class="wrap">
+    <div class="sec-head center rv">
+      <span class="eyebrow" data-en="Screenshots">Capturas</span>
+      <h2 data-en="Inside the workshop">Dentro del taller</h2>
+    </div>
+    <div class="gallery rv">
+      <figure class="w2"><img src="img/montar.webp" alt="" loading="lazy"><figcaption data-en="The workbench: each part with its procedure. Flip the drone, screws from below, standoffs…">La mesa de trabajo: cada pieza con su procedimiento. Voltear el dron, tornillos por abajo, separadores…</figcaption></figure>
+      <figure><img src="img/regalo.webp" alt="" loading="lazy"><figcaption data-en="Mom's gift. That's how it all starts: $150 and a wooden drone in boxes.">El regalo de mamá. Así empieza todo: $150 y un dron de madera en cajas.</figcaption></figure>
+      <figure><img src="img/soldar_esp32.webp" alt="" loading="lazy"><figcaption data-en="Soldering the ESP32. Iron, flux, solder.">Soldar la ESP32. Cautín, flux, estaño.</figcaption></figure>
+      <figure><img src="img/prueba_motores.webp" alt="" loading="lazy"><figcaption data-en="Motor test: each motor ✓ or ✗, and the fix it needs.">Prueba de motores: cada motor ✓ o ✗, y el arreglo que toca.</figcaption></figure>
+      <figure><img src="img/ide_tutorial.webp" alt="" loading="lazy"><figcaption data-en="Your first AI: the tutorial points to the line to change (👉).">Tu primera IA: el tutorial te señala la línea que cambia (👉).</figcaption></figure>
+      <figure><img src="img/hangar.webp" alt="" loading="lazy"><figcaption data-en="The hangar: several drones, each with its own AI.">El hangar: varios drones, cada uno con su propia IA.</figcaption></figure>
+      <figure><img src="img/red_neuronal.webp" alt="" loading="lazy"><figcaption data-en="The neural network of the drone you're watching, live.">La red neuronal del dron que miras, en vivo.</figcaption></figure>
+      <figure class="w2"><img src="img/monitor_red.webp" alt="" loading="lazy"><figcaption data-en="The computer: IDE, monitor and the network learning.">El computador: IDE, monitor y la red aprendiendo.</figcaption></figure>
+      <figure><img src="img/avance_modelo.webp" alt="" loading="lazy"><figcaption data-en="Model progress: its best and worst attempt.">Avance del modelo: su mejor y su peor intento.</figcaption></figure>
+      <figure><img src="img/atornillar.webp" alt="" loading="lazy"><figcaption data-en="Screw until it clicks.">Atornillar hasta el clic.</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FREESTYLE ============ -->
+<section class="free">
+  <div class="wrap">
+    <div class="free-box rv">
+      <img src="img/fs_estadio.webp" alt="El estadio de noche del freestyle" loading="lazy">
+      <div class="fs-thumbs"><img src="img/fs_carrera.webp" alt="Carrera contra la IA en FPV" loading="lazy"><img src="img/fs_canon.webp" alt="El cañón" loading="lazy"></div>
+      <div class="free-copy">
+        <span class="eyebrow" data-en="Bonus · Freestyle">Bonus · Freestyle</span>
+        <h2 data-en="Race against<br>the AI you trained.">Corre contra<br>la IA que entrenaste.</h2>
+        <p class="lead" data-en="3 maps (abandoned factory, canyon, neon stadium), FPV camera, PS5/Xbox controller and Acro mode with flips. Can you beat your own brain?">3 mapas (la fábrica abandonada, el cañón, el estadio de neón), cámara FPV, control de PS5/Xbox y modo Acro con flips. ¿Le ganas a tu propio cerebro?</p>
+        <div class="modes">
+          <span data-en="🏁 Race vs AI">🏁 Carrera vs IA</span>
+          <span data-en="⏱️ Time trial">⏱️ Contrarreloj</span>
+          <span data-en="🐇 Chase">🐇 Persecución</span>
+          <span data-en="🕊️ Free flight">🕊️ Vuelo libre</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DESCARGAR ============ -->
+<section class="dl" id="descargar">
+  <div class="wrap">
+    <span class="eyebrow rv" data-en="Free · open source">Gratis · código abierto</span>
+    <h2 class="rv" data-en="Your drone is waiting<br>in the box.">Tu dron te espera<br>en la caja.</h2>
+    <p class="lead rv" data-en="Download it from GitHub and play in 5 minutes. Everything runs on your computer: your AI is yours.">Bájalo de GitHub y juega en 5 minutos. Todo corre en tu computadora: tu IA es tuya.</p>
+    <div class="cmd rv">
+      <div class="cmd-top"><span>terminal</span><button id="copy" data-en="copy">copiar</button></div>
+<pre id="cmd"><span class="c"># 1.</span> git clone https://github.com/Sagaz0501/neural-drone-forge.git
+cd neural-drone-forge
+<span class="c"># 2.</span> python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+<span class="c"># 3.</span> cd desktop && npm install && npm start</pre>
+    </div>
+    <div class="cta rv">
+      <a class="btn btn-main" href="https://github.com/Sagaz0501/neural-drone-forge" target="_blank" rel="noopener">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        <span data-en="Get it on GitHub">Descargar en GitHub</span>
+      </a>
+      <a class="btn btn-ghost" href="https://github.com/Sagaz0501/neural-drone-forge/stargazers" target="_blank" rel="noopener">⭐ <span data-en="Give it a star">Dale una estrella</span></a>
+    </div>
+    <p class="req rv" data-en="Needs Python 3.11+ and Node 18+. Blender is optional (to watch training in 3D). Installers for Mac and Windows coming soon.">Necesitas Python 3.11+ y Node 18+. Blender es opcional (para ver el entrenamiento en 3D). Pronto: instaladores para Mac y Windows.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <a class="logo" href="#"><i>🛸</i>Neural Drone Forge</a>
+    <div class="fl">
+      <a href="https://github.com/Sagaz0501/neural-drone-forge" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/Sagaz0501/neural-drone-forge/blob/main/docs/ROADMAP.md" target="_blank" rel="noopener">Roadmap</a>
+      <a href="https://github.com/Sagaz0501/neural-drone-forge/blob/main/CHANGELOG.md" target="_blank" rel="noopener" data-en="Changelog">Cambios</a>
+      <a href="https://www.instagram.com/neuraldroneforge/" target="_blank" rel="noopener">Instagram</a>
+      <a href="https://www.facebook.com/neuraldroneforge" target="_blank" rel="noopener">Facebook</a>
+    </div>
+    <span data-en="Made by Santiago Bernal · MIT">Hecho por Santiago Bernal · MIT</span>
+  </div>
+</footer>
+
+<div class="lightbox" id="lb"><button aria-label="Cerrar">×</button><div><img alt=""><p></p></div></div>
+
+<script>
+/* ---------- idioma ---------- */
+const ES = new Map();
+let lang = "es";
+try { lang = localStorage.getItem("ndf.lang") || (navigator.language || "es").slice(0, 2); } catch (e) {}
+const pedido = new URLSearchParams(location.search).get("lang");
+if (pedido) lang = pedido;
+if (lang !== "en") lang = "es";
+function setLang(l) {
+  lang = l;
+  document.documentElement.lang = l;
+  document.querySelectorAll("[data-en]").forEach(el => {
+    if (!ES.has(el)) ES.set(el, el.innerHTML);
+    el.innerHTML = l === "en" ? el.dataset.en : ES.get(el);
+  });
+  document.getElementById("lang").innerHTML = l === "en" ? "ES · <b>EN</b>" : "<b>ES</b> · EN";
+  try { localStorage.setItem("ndf.lang", l); } catch (e) {}
+  pintarEscenarios();
+  window.dispatchEvent(new Event("lang"));
+}
+document.getElementById("lang").onclick = () => setLang(lang === "es" ? "en" : "es");
+const T = (es, en) => lang === "en" ? en : es;
+
+/* ---------- nav y aparecer ---------- */
+const nav = document.getElementById("nav");
+addEventListener("scroll", () => nav.classList.toggle("solid", scrollY > 30), { passive: true });
+const io = new IntersectionObserver(es => es.forEach(e => {
+  if (!e.isIntersecting) return;
+  e.target.classList.add("in");
+  e.target.querySelectorAll("[data-count]").forEach(contar);
+  io.unobserve(e.target);
+}), { threshold: .15 });
+document.querySelectorAll(".rv").forEach(el => io.observe(el));
+function revisarVisibles() {
+  document.querySelectorAll(".rv:not(.in)").forEach(el => {
+    if (el.getBoundingClientRect().top < innerHeight * .95) { el.classList.add("in"); el.querySelectorAll("[data-count]").forEach(contar); io.unobserve(el); }
+  });
+}
+addEventListener("scroll", revisarVisibles, { passive: true }); addEventListener("load", revisarVisibles); setTimeout(revisarVisibles, 300);
+function contar(el) {
+  const fin = +el.dataset.count, t0 = performance.now();
+  const paso = t => { const k = Math.min(1, (t - t0) / 1400); el.textContent = Math.round(fin * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(paso); };
+  requestAnimationFrame(paso);
+}
+
+/* ---------- escenarios ---------- */
+const ESC = [
+  ["🛫", "Despegar y quedarse", "Take off and hold", "Subir y quedarse quieto. Lo primero que aprende una IA desde cero.", "Climb and hold still. The first thing an AI learns from scratch."],
+  ["📍", "Ir a un punto", "Go to a point", "Llegar y mirar al sujeto. Con esto sale tu primera foto.", "Arrive and face the subject. Your first photo job."],
+  ["〰️", "Seguir una línea", "Follow a line", "Ir exactamente por donde se le dice.", "Go exactly where it's told."],
+  ["📷", "Foto fija", "Still photo", "Llegar, frenar y encuadrar la casa al centro.", "Arrive, brake and frame the house dead center."],
+  ["🖼️", "Set de fotos", "Photo set", "Varias fotos seguidas alrededor del sujeto.", "Several photos in a row around the subject."],
+  ["🎬", "Video con ruta", "Video on a path", "Órbitas y revelados sin perder la casa del cuadro.", "Orbits and reveals without losing the house."],
+  ["🏛️", "Bosque de columnas", "Column forest", "Llegar a la meta esquivando columnas.", "Reach the goal dodging columns."],
+  ["💨", "Video con viento", "Video in wind", "Ráfagas de viento sin perder el encuadre.", "Wind gusts without losing the framing."],
+  ["🏮", "Entre postes", "Between poles", "Grabar con postes a metro y medio. Precisión pura.", "Film with poles 1.5 m away. Pure precision."],
+  ["📦", "Entregas", "Deliveries", "Un paquete a una azotea, entre edificios.", "A package to a rooftop, between buildings."],
+  ["🏁", "Carrera", "Race", "Portales rápido y en orden. Será tu rival.", "Gates, fast and in order. It becomes your rival."],
+  ["🐇", "Persecución", "Chase", "Alcanzar a la liebre que cambia de rumbo.", "Catch the hare that changes direction."],
+];
+function pintarEscenarios() {
+  document.getElementById("ladder").innerHTML = ESC.map((e, i) =>
+    `<div class="esc"><div class="e">E${i + 1}</div><div class="ic">${e[0]}</div><h4>${T(e[1], e[2])}</h4><p>${T(e[3], e[4])}</p><div class="bar" style="width:${(i + 1) / 12 * 100}%"></div></div>`).join("");
+}
+
+/* ---------- galería ---------- */
+const lb = document.getElementById("lb");
+document.querySelectorAll(".gallery figure").forEach(f => f.onclick = () => {
+  lb.querySelector("img").src = f.querySelector("img").src;
+  lb.querySelector("p").innerHTML = f.querySelector("figcaption").innerHTML;
+  lb.classList.add("open");
+});
+lb.onclick = () => lb.classList.remove("open");
+addEventListener("keydown", e => { if (e.key === "Escape") lb.classList.remove("open"); });
+
+/* ---------- copiar ---------- */
+document.getElementById("copy").onclick = async e => {
+  const txt = document.getElementById("cmd").innerText.replace(/^# \d\. /gm, "");
+  try { await navigator.clipboard.writeText(txt); e.target.textContent = T("¡copiado!", "copied!"); } catch (_) {}
+  setTimeout(() => e.target.textContent = T("copiar", "copy"), 1800);
+};
+
+/* ---------- la red del fondo ---------- */
+(() => {
+  const cv = document.getElementById("net"), g = cv.getContext("2d");
+  let W, H, nodos, enlaces, pulsos = [];
+  function armar() {
+    W = cv.width = cv.offsetWidth * devicePixelRatio; H = cv.height = cv.offsetHeight * devicePixelRatio;
+    const capas = [10, 14, 14, 4], x0 = W * .06, x1 = W * .94;
+    nodos = capas.map((n, c) => Array.from({ length: n }, (_, i) => ({ x: x0 + (x1 - x0) * c / (capas.length - 1), y: H * (.12 + .76 * (i + .5) / n), a: 0 })));
+    enlaces = [];
+    for (let c = 0; c < capas.length - 1; c++) for (const a of nodos[c]) for (const b of nodos[c + 1]) if (Math.random() < .32) enlaces.push([a, b, Math.random() < .5]);
+  }
+  armar(); addEventListener("resize", armar);
+  function frame() {
+    g.clearRect(0, 0, W, H);
+    g.lineWidth = devicePixelRatio * .6;
+    for (const [a, b, o] of enlaces) { g.strokeStyle = o ? "rgba(255,122,26,.10)" : "rgba(53,198,244,.10)"; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); }
+    if (Math.random() < .5) { const e = enlaces[Math.random() * enlaces.length | 0]; pulsos.push({ e, t: 0 }); }
+    pulsos = pulsos.filter(p => {
+      p.t += .018; const [a, b, o] = p.e;
+      if (p.t >= 1) { b.a = 1; return false; }
+      g.fillStyle = o ? "#ff7a1a" : "#35c6f4"; g.globalAlpha = .9;
+      g.beginPath(); g.arc(a.x + (b.x - a.x) * p.t, a.y + (b.y - a.y) * p.t, 2.2 * devicePixelRatio, 0, 7); g.fill();
+      g.globalAlpha = 1; return true;
+    });
+    for (const capa of nodos) for (const n of capa) {
+      n.a *= .96;
+      g.fillStyle = `rgba(${n.a > .1 ? "255,176,102" : "120,135,150"},${.35 + n.a * .65})`;
+      g.beginPath(); g.arc(n.x, n.y, (3 + n.a * 3) * devicePixelRatio, 0, 7); g.fill();
+    }
+    requestAnimationFrame(frame);
+  }
+  frame();
+})();
+
+/* ---------- la demo de aprendizaje ---------- */
+(() => {
+  const cv = document.getElementById("sim"), g = cv.getContext("2d");
+  const ch = document.getElementById("chart"), gc = ch.getContext("2d");
+  const N = 40, DUR = 260, DT = 1 / 60;
+  let gen, hist, drones, t, skill, playing = true, visible = false;
+  const meta = { x: .78, y: .32 }, base = { x: .15, y: .85 };
+  const cols = [{ x: .45, y: .55, r: .05 }, { x: .62, y: .72, r: .04 }, { x: .55, y: .22, r: .035 }];
+  function reset() { gen = 1; hist = [0]; skill = .15; nueva(); }
+  function nueva() {
+    t = 0;
+    drones = Array.from({ length: N }, () => ({ x: base.x + (Math.random() - .5) * .05, y: base.y, vx: 0, vy: 0, st: 0, ruido: Math.random() * 6.28, rastro: [], k: Math.max(0, Math.min(1, skill * 1.25 - .1 + (Math.random() - .5) * .7)) }));
+  }
+  function paso() {
+    for (const d of drones) {
+      if (d.st) continue;
+      const k = d.k;
+      const dx = meta.x - d.x, dy = meta.y - d.y, dist = Math.hypot(dx, dy);
+      // lo que ya aprendió: ir a la meta y frenar; lo que no: ruido
+      let ax = (dx * 7 - d.vx * 4.5) * k, ay = (dy * 7 - d.vy * 4.5) * k;
+      for (const c of cols) {
+        const ex = d.x - c.x, ey = d.y - c.y, r = Math.hypot(ex, ey);
+        if (r < c.r + .09) { const f = 9 * k * k * (c.r + .09 - r) / .09; ax += ex / r * f; ay += ey / r * f; }
+      }
+      d.ruido += (Math.random() - .5) * .5;
+      const amp = 2.2 * (1 - k * .9);
+      ax += Math.cos(d.ruido) * amp; ay += Math.sin(d.ruido) * amp + .6 * (1 - k);
+      d.vx += ax * DT; d.vy += ay * DT;
+      d.x += d.vx * DT; d.y += d.vy * DT;
+      if (t % 3 === 0) { d.rastro.push(d.x, d.y); if (d.rastro.length > 80) d.rastro.splice(0, 2); }
+      if (d.x < 0 || d.x > 1 || d.y < 0 || d.y > 1 || cols.some(c => Math.hypot(d.x - c.x, d.y - c.y) < c.r)) d.st = 2;
+      else if (dist < .045 && Math.hypot(d.vx, d.vy) < .25) d.st = 1;
+    }
+    t++;
+    if (t > DUR || drones.every(d => d.st)) {
+      const ok = drones.filter(d => d.st === 1).length / N;
+      hist.push(ok); gen++;
+      skill = Math.min(1, skill + .025 + Math.random() * .02);
+      if (gen > 40) reset(); else nueva();
+    }
+  }
+  function dibujar() {
+    const W = cv.width = cv.offsetWidth * devicePixelRatio, H = cv.height = cv.offsetHeight * devicePixelRatio, s = devicePixelRatio;
+    g.strokeStyle = "rgba(255,255,255,.04)"; g.lineWidth = 1;
+    for (let i = 1; i < 16; i++) { g.beginPath(); g.moveTo(W * i / 16, 0); g.lineTo(W * i / 16, H); g.stroke(); }
+    for (let i = 1; i < 10; i++) { g.beginPath(); g.moveTo(0, H * i / 10); g.lineTo(W, H * i / 10); g.stroke(); }
+    for (const c of cols) { g.fillStyle = "#2a323b"; g.beginPath(); g.arc(c.x * W, c.y * H, c.r * W, 0, 7); g.fill(); }
+    g.fillStyle = "rgba(255,122,26,.25)"; g.fillRect(base.x * W - 22 * s, base.y * H - 4 * s, 44 * s, 8 * s);
+    const pul = 1 + Math.sin(performance.now() / 300) * .15;
+    g.strokeStyle = "#3ee08a"; g.lineWidth = 2 * s; g.beginPath(); g.arc(meta.x * W, meta.y * H, .045 * W * pul, 0, 7); g.stroke();
+    g.fillStyle = "rgba(62,224,138,.12)"; g.fill();
+    g.fillStyle = "#3ee08a"; g.font = `${12 * s}px JetBrains Mono`; g.fillText(T("META", "GOAL"), meta.x * W - 16 * s, meta.y * H - .06 * W);
+    for (const d of drones) {
+      const col = d.st === 1 ? "#3ee08a" : d.st === 2 ? "#ff4d5e" : "#35c6f4";
+      g.strokeStyle = col; g.globalAlpha = .25; g.lineWidth = 1.2 * s; g.beginPath();
+      for (let i = 0; i < d.rastro.length; i += 2) g[i ? "lineTo" : "moveTo"](d.rastro[i] * W, d.rastro[i + 1] * H);
+      g.stroke(); g.globalAlpha = 1;
+      g.fillStyle = col; g.beginPath(); g.arc(d.x * W, d.y * H, (d.st === 2 ? 3 : 4) * s, 0, 7); g.fill();
+    }
+    // la gráfica
+    const CW = ch.width = ch.offsetWidth * s, CH = ch.height = ch.offsetHeight * s;
+    gc.strokeStyle = "rgba(255,255,255,.08)"; gc.setLineDash([4 * s, 4 * s]);
+    gc.beginPath(); gc.moveTo(0, CH * .2); gc.lineTo(CW, CH * .2); gc.stroke(); gc.setLineDash([]);
+    gc.fillStyle = "#66727e"; gc.font = `${11 * s}px JetBrains Mono`; gc.fillText("80 %", 4 * s, CH * .2 - 6 * s);
+    const n = 40, px = i => i / n * CW, py = v => CH - v * CH * .98;
+    gc.beginPath(); hist.forEach((v, i) => gc[i ? "lineTo" : "moveTo"](px(i), py(v)));
+    gc.strokeStyle = "#3ee08a"; gc.lineWidth = 2.5 * s; gc.stroke();
+    gc.lineTo(px(hist.length - 1), CH); gc.lineTo(0, CH); gc.closePath();
+    const gr = gc.createLinearGradient(0, 0, 0, CH); gr.addColorStop(0, "rgba(62,224,138,.3)"); gr.addColorStop(1, "rgba(62,224,138,0)");
+    gc.fillStyle = gr; gc.fill();
+    document.getElementById("gen").textContent = gen;
+    document.getElementById("pct").textContent = Math.round(hist[hist.length - 1] * 100) + " %";
+  }
+  function loop() {
+    if (visible && playing) { paso(); paso(); paso(); }
+    if (visible) dibujar();
+    requestAnimationFrame(loop);
+  }
+  new IntersectionObserver(e => visible = e[0].isIntersecting).observe(cv);
+  const bp = document.getElementById("play");
+  const etiqueta = () => bp.innerHTML = playing ? T("⏸ Pausa", "⏸ Pause") : T("▶ Seguir", "▶ Resume");
+  bp.onclick = () => { playing = !playing; etiqueta(); };
+  addEventListener("lang", etiqueta);
+  document.getElementById("reset").onclick = () => { reset(); playing = true; etiqueta(); };
+  reset(); loop();
+})();
+
+/* ---------- el código que se escribe solo ---------- */
+(() => {
+  const CODE = {
+    es: [["c", "# La foto de Doña Marta: llegar y mirar la casa\n"], ["f", "modelo"], ["", "("], ["s", '"mi_piloto_2"'], ["", ", desde="], ["s", '"mi_piloto"'], ["", ")\n"],
+      ["f", "mision"], ["", "("], ["s", '"punto"'], ["", ")\n"], ["f", "dron"], ["", "("], ["s", '"Madera"'], ["", ")\n"], ["f", "entrenar_en"], ["", "("], ["s", '"blender"'], ["", ")\n"],
+      ["f", "premios"], ["", "(meta="], ["n", "6"], ["", ", mirar="], ["n", "5"], ["", ")\n"], ["f", "castigos"], ["", "(chocar="], ["n", "8"], ["", ")\n\n"],
+      ["c", "# el plan de vuelo\n"], ["f", "despegar"], ["", "(altura="], ["n", "2"], ["", ")\n"], ["f", "ir_a"], ["", "("], ["s", '"punto"'], ["", ")\n"],
+      ["f", "mantener"], ["", "(segundos="], ["n", "3"], ["", ")\n"], ["f", "aterrizar"], ["", "()\n\n"],
+      ["k", "def "], ["f", "cada_generacion"], ["", "(e):\n    "], ["f", "print"], ["", "("], ["s", 'f"gen {e.generacion}: éxito {e.exito:.0%}"'], ["", ")\n"]],
+    en: [["c", "# Mrs. Marta's photo: arrive and face the house\n"], ["f", "model"], ["", "("], ["s", '"my_pilot_2"'], ["", ", start_from="], ["s", '"my_pilot"'], ["", ")\n"],
+      ["f", "mission"], ["", "("], ["s", '"point"'], ["", ")\n"], ["f", "drone"], ["", "("], ["s", '"Wood"'], ["", ")\n"], ["f", "train_on"], ["", "("], ["s", '"blender"'], ["", ")\n"],
+      ["f", "rewards"], ["", "(goal="], ["n", "6"], ["", ", heading="], ["n", "5"], ["", ")\n"], ["f", "penalties"], ["", "(crash="], ["n", "8"], ["", ")\n\n"],
+      ["c", "# the flight plan\n"], ["f", "take_off"], ["", "(height="], ["n", "2"], ["", ")\n"], ["f", "go_to"], ["", "("], ["s", '"point"'], ["", ")\n"],
+      ["f", "hold"], ["", "(seconds="], ["n", "3"], ["", ")\n"], ["f", "land"], ["", "()\n\n"],
+      ["k", "def "], ["f", "every_generation"], ["", "(e):\n    "], ["f", "print"], ["", "("], ["s", 'f"gen {e.generation}: success {e.success:.0%}"'], ["", ")\n"]],
+  };
+  const pre = document.getElementById("code"), term = document.getElementById("term");
+  let corre = 0, empezado = false;
+  const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  async function escribir() {
+    const id = ++corre, toks = CODE[lang];
+    const total = toks.reduce((a, t) => a + t[1].length, 0);
+    term.innerHTML = "&nbsp;";
+    for (let n = 0; n <= total; n += 2) {
+      if (id !== corre) return;
+      let quedan = n, html = "";
+      for (const [c, s] of toks) { if (quedan <= 0) break; const p = s.slice(0, quedan); quedan -= p.length; html += c ? `<span class="${c}">${esc(p)}</span>` : esc(p); }
+      pre.innerHTML = html + '<span class="caret"></span>';
+      await new Promise(r => setTimeout(r, 22));
+    }
+    const lineas = [T("▶ entrenando «mi_piloto_2» · 50 drones en Blender", "▶ training “my_pilot_2” · 50 drones in Blender")];
+    const pct = [0, 4, 12, 31, 58, 74, 83];
+    for (let i = 0; i < pct.length; i++) {
+      if (id !== corre) return;
+      term.innerHTML = lineas.join("<br>") + "<br>" + `gen ${(i + 1) * 12}: ${T("éxito", "success")} ${pct[i]}%` + (pct[i] >= 80 ? "  🎓" : "");
+      await new Promise(r => setTimeout(r, 650));
+    }
+    await new Promise(r => setTimeout(r, 3500));
+    if (id === corre) escribir();
+  }
+  const completo = () => { pre.innerHTML = CODE[lang].map(([c, s]) => c ? `<span class="${c}">${esc(s)}</span>` : esc(s)).join(""); };
+  completo();
+  new IntersectionObserver(e => { if (e[0].isIntersecting && !empezado) { empezado = true; escribir(); } }).observe(pre);
+  addEventListener("lang", () => { if (!empezado) completo(); });
+  addEventListener("lang", () => { if (empezado) escribir(); });
+})();
+
+setLang(lang);
+</script>
+
+<!-- ---------- el dron 3D del inicio ---------- -->
+<script type="module">
+import * as THREE from "./three.module.min.js";
+const cv = document.getElementById("drone");
+const r = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true });
+r.setPixelRatio(Math.min(devicePixelRatio, 2));
+r.outputColorSpace = THREE.SRGBColorSpace;
+r.toneMapping = THREE.ACESFilmicToneMapping;
+const scene = new THREE.Scene();
+const cam = new THREE.PerspectiveCamera(32, 1, .1, 50);
+cam.position.set(0, 2.3, 5.4); cam.lookAt(0, 0, 0);
+
+scene.add(new THREE.HemisphereLight(0xbfe6ff, 0x1a1008, 1.1));
+const sol = new THREE.DirectionalLight(0xffe2c0, 2.6); sol.position.set(3, 5, 2); scene.add(sol);
+const azul = new THREE.PointLight(0x35c6f4, 18, 8); azul.position.set(-2.5, .5, 1.5); scene.add(azul);
+const nar = new THREE.PointLight(0xff7a1a, 14, 8); nar.position.set(2.5, -.6, 1.2); scene.add(nar);
+
+// textura de madera dibujada en un canvas
+function madera() {
+  const c = document.createElement("canvas"); c.width = 512; c.height = 64;
+  const g = c.getContext("2d"); g.fillStyle = "#b9783d"; g.fillRect(0, 0, 512, 64);
+  for (let i = 0; i < 40; i++) {
+    g.strokeStyle = `rgba(${90 + Math.random() * 40},${50 + Math.random() * 20},20,${.15 + Math.random() * .25})`;
+    g.lineWidth = 1 + Math.random() * 2; g.beginPath();
+    const y = Math.random() * 64; g.moveTo(0, y);
+    for (let x = 0; x <= 512; x += 32) g.lineTo(x, y + Math.sin(x / 60 + i) * 3);
+    g.stroke();
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+const mWood = new THREE.MeshStandardMaterial({ map: madera(), roughness: .75 });
+const mDark = new THREE.MeshStandardMaterial({ color: 0x1c2026, roughness: .4, metalness: .6 });
+const mMotor = new THREE.MeshStandardMaterial({ color: 0x9aa3ad, roughness: .25, metalness: .9 });
+const mPcb = new THREE.MeshStandardMaterial({ color: 0x1f6b3a, roughness: .5 });
+const mChip = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: .3, metalness: .4 });
+const mBat = new THREE.MeshStandardMaterial({ color: 0x2a2f36, roughness: .5 });
+const mBatL = new THREE.MeshStandardMaterial({ color: 0xff7a1a, roughness: .5, emissive: 0x331400 });
+const mLens = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: .05, metalness: 1 });
+
+const dron = new THREE.Group(); scene.add(dron);
+const L = 1.25;
+for (const a of [Math.PI / 4, -Math.PI / 4]) {
+  const brazo = new THREE.Mesh(new THREE.BoxGeometry(L * 2.1, .07, .16), mWood); brazo.rotation.y = a; dron.add(brazo);
+}
+const placa = new THREE.Mesh(new THREE.BoxGeometry(.75, .06, .75), mWood); placa.position.y = .05; dron.add(placa);
+const pcb = new THREE.Mesh(new THREE.BoxGeometry(.5, .03, .32), mPcb); pcb.position.y = .1; dron.add(pcb);
+const chip = new THREE.Mesh(new THREE.BoxGeometry(.18, .04, .16), mChip); chip.position.set(.06, .13, 0); dron.add(chip);
+const led = new THREE.Mesh(new THREE.SphereGeometry(.025), new THREE.MeshBasicMaterial({ color: 0x3ee08a })); led.position.set(-.18, .13, .1); dron.add(led);
+const bat = new THREE.Mesh(new THREE.BoxGeometry(.52, .16, .24), mBat); bat.position.set(0, -.08, 0); dron.add(bat);
+const batL = new THREE.Mesh(new THREE.BoxGeometry(.53, .04, .25), mBatL); batL.position.set(0, -.08, 0); dron.add(batL);
+const camara = new THREE.Group(); camara.position.set(0, .04, .48); dron.add(camara);
+camara.add(new THREE.Mesh(new THREE.BoxGeometry(.18, .16, .14), mDark));
+const lente = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, .06, 24), mLens); lente.rotation.x = Math.PI / 2; lente.position.z = .09; camara.add(lente);
+
+const helices = [];
+const mHel = new THREE.MeshStandardMaterial({ color: 0xff7a1a, roughness: .4, transparent: true, opacity: .9 });
+const mDisco = new THREE.MeshBasicMaterial({ color: 0xffb066, transparent: true, opacity: .12, side: THREE.DoubleSide, depthWrite: false });
+for (let i = 0; i < 4; i++) {
+  const a = Math.PI / 4 + i * Math.PI / 2, x = Math.cos(a) * L, z = Math.sin(a) * L;
+  const motor = new THREE.Mesh(new THREE.CylinderGeometry(.13, .14, .2, 24), mMotor); motor.position.set(x, .12, z); dron.add(motor);
+  const tapa = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, .06, 12), mDark); tapa.position.set(x, .25, z); dron.add(tapa);
+  const h = new THREE.Group(); h.position.set(x, .27, z); dron.add(h);
+  for (const s of [0, Math.PI]) {
+    const p = new THREE.Mesh(new THREE.BoxGeometry(.62, .015, .08), mHel); p.rotation.y = s; p.position.x = Math.cos(s) * .31; p.position.z = -Math.sin(s) * .31; p.rotation.x = .18; h.add(p);
+  }
+  const disco = new THREE.Mesh(new THREE.CircleGeometry(.66, 40), mDisco); disco.rotation.x = -Math.PI / 2; disco.position.set(x, .28, z); dron.add(disco);
+  helices.push({ h, dir: i % 2 ? 1 : -1 });
+}
+// el aro de la toma, debajo
+const aro = new THREE.Mesh(new THREE.TorusGeometry(1.9, .012, 8, 120), new THREE.MeshBasicMaterial({ color: 0x35c6f4, transparent: true, opacity: .45 }));
+aro.rotation.x = Math.PI / 2; aro.position.y = -.9; scene.add(aro);
+const aro2 = aro.clone(); aro2.material = aro.material.clone(); aro2.material.color.set(0xff7a1a); aro2.scale.setScalar(.7); scene.add(aro2);
+
+let mx = 0, my = 0;
+addEventListener("pointermove", e => { mx = e.clientX / innerWidth - .5; my = e.clientY / innerHeight - .5; });
+function tam() { const w = cv.clientWidth, h = cv.clientHeight; r.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+tam(); addEventListener("resize", tam);
+const quieto = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let vis = true; new IntersectionObserver(e => vis = e[0].isIntersecting).observe(cv);
+const reloj = new THREE.Clock();
+r.setAnimationLoop(() => {
+  if (!vis) return;
+  const t = reloj.getElapsedTime();
+  dron.position.y = Math.sin(t * 1.3) * .12;
+  dron.rotation.y += ((quieto ? .6 : t * .25) + mx * .8 - dron.rotation.y) * .04;
+  dron.rotation.x += (my * .35 + Math.sin(t * .9) * .05 - dron.rotation.x) * .05;
+  dron.rotation.z += (-mx * .3 + Math.cos(t * 1.1) * .04 - dron.rotation.z) * .05;
+  for (const { h, dir } of helices) h.rotation.y += dir * .9;
+  aro.scale.setScalar(1 + Math.sin(t * 1.3) * .03); aro2.rotation.z = t * .4;
+  led.material.color.setHex(Math.sin(t * 6) > 0 ? 0x3ee08a : 0x114422);
+  r.render(scene, cam);
+});
+</script>
+</body>
+</html>

@@ -9,7 +9,7 @@ flasheas el firmware) y después le enseñas a volar con aprendizaje por refuerz
 paso: primero a despegar, después a llegar a un punto, a seguir una línea, a tomar fotos y a grabar. Y puedes
 **ver el entrenamiento en Blender**: 50 drones probando a la vez y la red neuronal encendiéndose mientras aprende.
 
-[English](README.en.md) · [Descargar y jugar](#descargar-y-jugar) · [Cómo se juega](#cómo-se-juega) · [Entrenar paso a paso](#entrenar-paso-a-paso-e1e12) · [PBDMM](#pbdmm-el-lenguaje-para-crear-ias) · [Roadmap](docs/ROADMAP.md) · [Documentación](#documentación)
+[🌐 Página web](https://sagaz0501.github.io/neural-drone-forge/) · [English](README.en.md) · [Descargar y jugar](#descargar-y-jugar) · [Cómo se juega](#cómo-se-juega) · [Entrenar paso a paso](#entrenar-paso-a-paso-e1e12) · [PBDMM](#pbdmm-el-lenguaje-para-crear-ias) · [Roadmap](docs/ROADMAP.md) · [Documentación](#documentación)
 
 ![25 drones aprendiendo a grabar casas en el Drone Lab de Blender](docs/media/blender_entrenamiento.gif)
 
