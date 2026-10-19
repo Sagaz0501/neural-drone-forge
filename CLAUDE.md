@@ -191,6 +191,7 @@ node app/test_negocio.mjs              # el negocio (clientes, días, pedidos, t
 node --import ./app/three_node.mjs app/test_flota.mjs   # la flota y el vuelo sin pantalla (vuelos de verdad con la IA base)
 node app/test_i18n.mjs                 # las traducciones (cada t() con su inglés, el HTML, las capas de datos)
 node app/test_modulos.mjs              # que nada importado quede tapado por una variable local
+node app/test_demo.mjs           # la demo: hasta E6 + la finca (demo.js ACTIVA); el final al comprar E7/E8
 node app/test_freestyle.mjs            # los mapas del freestyle: la pista libre, salida y portales adentro
 node app/doc_pbdmm.mjs                 # vuelve a escribir docs/PBDMM.md y docs/pbdmm/tutorial.md si cambias app/data/pbdmm.json
 node app/exportar_dron.mjs             # vuelve a escribir drones/madera.json si cambian las piezas

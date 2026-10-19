@@ -12,6 +12,7 @@
 //   D = { clientes (data/clientes.json), trabajos (data/trabajos.json), misiones (data/misiones.json) }
 // =====================================================================
 import { t } from "./i18n.js";
+import * as DM from "./demo.js";
 import { twrParaViento } from "./requisitos.js";
 import { anotar } from "./partida.js";
 
@@ -301,6 +302,7 @@ export function especiales(p, D) {
   for (const pe of D.misiones.pedidos) {
     const cid = D.clientes.especiales[pe.id];
     if (!cid || N.ofrecidos.includes(pe.id) || !pe.lugar || !pe.tomas || p.rep < (pe.rep_min || 0) || p.hechos?.[pe.id] !== undefined) continue;
+    if (DM.pedidoFuera(pe.id)) continue;                                          // la demo llega hasta la finca
     // los especiales son videos de la campaña: llegan cuando ya puedes comprar E6 (tienes E5); antes, fotos para juntar la
     // plata de los simuladores. El de la casa, además, después de la primera foto (antes llegaba el de la finca sin esto)
     if (!posible(p, { tipo: "video" }) || (pe.id === "casa_venta" && N.tutorial < 2)) continue;

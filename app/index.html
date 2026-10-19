@@ -280,6 +280,20 @@
   .color.on, .colores .btn.on { outline: 2px solid var(--text); outline-offset: 2px; }
   #historia { width: min(560px, calc(100vw - 32px)); border-left: 4px solid var(--prop); }
   #historia p { font-size: 16px; line-height: 1.55; }
+  #demo-fin { width: min(620px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow: auto; border-top: 4px solid #ff7a1a; text-align: center; padding: 26px 30px 22px; }
+  #demo-fin .df-eyebrow { font-size: 13px; letter-spacing: .16em; text-transform: uppercase; color: #ff7a1a; font-weight: 700; }
+  #demo-fin h2 { font-size: 34px; margin: 6px 0 8px; }
+  #demo-fin h3 { margin: 18px 0 6px; font-size: 17px; }
+  #demo-fin p { font-size: 16px; line-height: 1.5; margin: 0 auto; max-width: 480px; }
+  #demo-fin .df-datos { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 10px; margin: 18px 0 6px; }
+  #demo-fin .df-datos div { background: rgba(234,242,239,.06); border: 1px solid rgba(234,242,239,.1); border-radius: 14px; padding: 10px 6px; display: flex; flex-direction: column; gap: 2px; }
+  #demo-fin .df-datos span { font-size: 22px; }
+  #demo-fin .df-datos b { font-size: 24px; }
+  #demo-fin .df-datos small { font-size: 12px; opacity: .7; overflow-wrap: anywhere; }
+  #demo-fin .df-lista { text-align: left; margin: 0 auto; padding-left: 4px; list-style: none; max-width: 470px; font-size: 15px; line-height: 1.6; }
+  #demo-fin .df-b { display: flex; flex-direction: column; gap: 8px; margin: 20px auto 10px; max-width: 380px; }
+  #demo-fin .df-b .btn { text-decoration: none; text-align: center; }
+  #demo-fin .df-pie { font-size: 13px; }
   #fps { position: fixed; right: 8px; bottom: 4px; font-size: 11px; color: var(--muted); pointer-events: none; z-index: 9; }
   #fatal { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(560px, calc(100vw - 32px)); border-radius: 18px; padding: 24px 26px; border-left: 4px solid var(--crash); z-index: 10; }
   #fatal p, #fatal li { color: var(--muted); font-size: 16px; line-height: 1.5; }
@@ -1019,6 +1033,9 @@
   <h2 id="hist-h"></h2><p id="hist-p"></p>
   <div class="go"><button class="btn main" id="b-hist">¡Vamos!</button></div>
 </section>
+
+<!-- ============ EL FINAL DE LA DEMO (demo.js · main.js finDemo) ============ -->
+<section id="demo-fin" class="modal panel hidden" role="dialog" aria-label="Fin de la demo"><div id="demo-fin-c"></div></section>
 
 <section id="idioma" class="modal panel hidden" role="dialog" aria-label="Idioma · Language" style="max-width:420px;text-align:center">
   <h2 style="margin-top:0">Neural Drone Forge</h2>

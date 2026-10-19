@@ -33,6 +33,7 @@ import * as NG from "./negocio.js";
 import { initCelular } from "./celular.js";
 import * as RUTA from "./ruta.js";
 import * as TU from "./tutorial.js";
+import * as DM from "./demo.js";
 import { initNotas } from "./notas.js";
 import { precargar } from "./modelos3d.js";
 import { confirmar, pedirTexto } from "./dialogo.js";
@@ -167,7 +168,7 @@ const sabePedido = (ia, slug, pe, tipos) => sabeGrabar(ia, tipos) || !!(ia?.poli
 
 // ---------------- pantallas ----------------
 const PANELS = { inicio: ["inicio"], taller: ["taller-izq", "taller-der"], banco: ["banco-izq", "banco-der"], vuelo: ["hud"], estudio: ["estudio"], sim: ["sim"], mesa: ["mesa"] };
-const MODALES = ["estante", "celular", "idioma", "sim-elegir", "aviso-ia", "tablero", "brief", "videos", "controles", "pausa", "resultado", "lab", "historia", "tienda", "inventario", "nuevo-dron", "cableado"];
+const MODALES = ["demo-fin", "estante", "celular", "idioma", "sim-elegir", "aviso-ia", "tablero", "brief", "videos", "controles", "pausa", "resultado", "lab", "historia", "tienda", "inventario", "nuevo-dron", "cableado"];
 function show(screen) {
   G.screen = screen;
   for (const ids of Object.values(PANELS)) ids.forEach((id) => $(id).classList.add("hidden"));
@@ -721,9 +722,44 @@ function avanzarTutorial(p) {
   }
 }
 /** Las notas del tutorial según dónde estás (cada medio segundo; notas.js solo redibuja si cambian). */
+/** La demo, después del tutorial: la nota 🎯 que lleva al segundo dron y a la finca (demo.js pista). */
+function pistaDemo(p) {
+  const fin = mis.pedidos.find((x) => x.id === DM.FINAL);
+  const sirven = fin ? p.drones.filter((d) => { const st = PT.dronArmado(p, cat, d)?.stats; return st?.ok && !puedeVolar(d) && REQ.cumple(fin.requisitos || {}, st, {}).ok; }).map((d) => d.nombre) : [];
+  const html = DM.pista(p, { finca: !!p.negocio?.ofrecidos?.includes(DM.FINAL), sirven, e6: ESC.tiene(p, DM.HASTA) }, t);
+  return html ? [{ id: "demo", fija: true, saltable: false, html }] : [];
+}
+
+/** El final de la demo: lo que lograste + el juego completo (al comprar un simulador de después de E6). */
+function finDemo() {
+  const p = P();
+  if (!p.demoFin) { p.demoFin = { dia: p.negocio?.dia ?? 0, t: Date.now() }; guardar(); }
+  const gen = Math.max(0, ...G.modelos.filter((m) => m.slug !== "base").map((m) => m.gen || 0));
+  const dato = (ic, v, l) => `<div><span>${ic}</span><b>${v}</b><small>${l}</small></div>`;
+  $("demo-fin-c").innerHTML = `<div class="df-eyebrow">${t("Fin de la demo")}</div><h2>${t("¡Lo lograste! 🎉")}</h2>` +
+    `<p>${t("Empezaste con un dron de madera en cajas y terminaste con {n} drones y una IA que vuela sola.", { n: p.drones.length })}</p>` +
+    `<div class="df-datos">${dato("🚁", p.drones.length, p.drones.map((d) => esc(d.nombre)).join(" · "))}${dato("📅", p.negocio?.dia ?? 1, t("días de negocio"))}` +
+    `${dato("💰", "$" + p.plata, t("en la cuenta"))}${gen ? dato("🧠", gen, t("generaciones de tu IA")) : ""}${dato("📦", p.negocio?.hechos ?? 0, t("pedidos entregados"))}</div>` +
+    `<h3>${t("En el juego completo")}</h3><ul class="df-lista">` +
+    [t("🎮 Los simuladores E7 a E12: bosque de columnas, viento, postes, entregas, carreras y persecución"),
+      t("🍽️ El restaurante, el concesionario y los capítulos 2 a 5 de la historia"),
+      t("📦 Entregas de paquetes entre edificios"),
+      t("🏁 Carreras contra la IA que tú entrenaste"),
+      t("🤖 Una flota grande que trabaja sola mientras duermes")].map((x) => `<li>${x}</li>`).join("") + "</ul>" +
+    `<div class="df-b"><a class="btn main" href="${DM.STEAM_URL}" target="_blank" rel="noopener">⭐ ${t("Agregar a mi lista de deseos en Steam")}</a>` +
+    `<a class="btn ghost" href="${DM.WEB_URL}" target="_blank" rel="noopener">🌐 ${t("La web del juego")}</a>` +
+    `<button class="btn ghost" id="b-demo-seguir">${t("Seguir jugando")}</button></div>` +
+    `<p class="muted df-pie">${t("Tu partida queda guardada: puedes seguir haciendo pedidos con lo que tienes.")}</p>`;
+  $("b-demo-seguir").onclick = () => modal("demo-fin", false);
+  sfx("listo");
+  modal("demo-fin");
+}
+ctx.finDemo = finDemo;
+
 function notasTutorial() {
   const p = P();
   if (p) $("b-computador").classList.toggle("bloq", TU.pcCerrado(p));
+  if (p && G.screen !== "inicio" && !TU.activo(p) && $("historia").classList.contains("hidden") && !$("dialogo")) { notas.poner(pistaDemo(p)); return; }
   if (!p || G.screen === "inicio" || !TU.activo(p) || !$("historia").classList.contains("hidden") || $("dialogo")) { notas.poner([]); return; }
   avanzarTutorial(p);
   const d = D(), e = d && estadoDe(d), m = ctx.mesa?.abierta ? ctx.mesa.estadoTuto() : null;
@@ -857,11 +893,11 @@ function renderTablero() {
     list.appendChild(h);
     if (!abierto && cap.n > PT.etapa(p) + 1) continue;
     for (const pe of peds) {
-      const ok = pe.etapa <= et && p.rep >= pe.rep_min, play = jugable(pe);
+      const demo = DM.pedidoFuera(pe.id), ok = !demo && pe.etapa <= et && p.rep >= pe.rep_min, play = jugable(pe);
       const b = document.createElement("button");
       b.className = "pedido" + (ok && play ? "" : " bloq");
       const hecho = p.hechos[pe.id] !== undefined ? " · " + t("hecho {estrellas}", { estrellas: ESTRELLITAS(p.hechos[pe.id]) }) : "";
-      const why = !play ? t("Próximamente · pide: {lista}", { lista: pe.plan.piezas.join(", ") }) : !ok ? t("Necesita {n} de reputación", { n: pe.rep_min })
+      const why = demo ? "🔒 " + t("En el juego completo") : !play ? t("Próximamente · pide: {lista}", { lista: pe.plan.piezas.join(", ") }) : !ok ? t("Necesita {n} de reputación", { n: pe.rep_min })
         : t("{n} tomas: {lista}", { n: pe.tomas.length, lista: pe.tomas.map((tm) => tm.nombre.toLowerCase()).join(", ") }) + hecho;
       b.innerHTML = `<b><span class="muted">${t("Nivel {n}", { n: nivelPedido(pe) })}</span> · ${pe.titulo}</b><span class="pago money">$${pe.pago}</span><small>${pe.cliente} · ${why}</small>`;
       if (ok && play) b.onclick = () => { modal("tablero", false); openBrief(pe); };
@@ -1351,6 +1387,7 @@ function onEnd(r) {
   } else if (pe && r.completa && !r.crash && !r.dead) {
     pay = PT.cobrar(p, mis, pe, r.estrellas);
     NG.entregarEspecial(p, ND, pe.id, r.estrellas);
+    if (pe.id === DM.FINAL && DM.terminada(p)) setTimeout(() => toast(t("🔓 ¡Don Ernesto tiene su video! Se abrió un simulador nuevo: 💻 → 🎮 Simuladores."), 6000), 900);
   }
   else if (pe && r.piloto === "ia") {           // la IA no entregó el video: el cliente se queja
     p.rep = Math.max(0, p.rep - REP_FALLA_IA);

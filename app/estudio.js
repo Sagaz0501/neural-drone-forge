@@ -16,6 +16,7 @@ import { pieza } from "./parts.js";
 import { mundoLugar, alcanceNecesario } from "./lugares.js";
 import * as RUTA from "./ruta.js";
 import * as NG from "./negocio.js";
+import * as DM from "./demo.js";
 import * as ESC from "./escenarios.js";
 import * as SW from "./software.js";
 import { sfx } from "./garaje.js";
@@ -1237,6 +1238,10 @@ export function initEstudio(ctx) {
           acc.appendChild(sel);
           btn("🎓 " + t("Examen"), "ghost", (ev) => examen(e, sel.value, ev.currentTarget));
         }
+      } else if (DM.escenario(p, E, e.id) === "finca") {            // la demo: primero el video de la finca (con el 2.º dron)
+        acc.insertAdjacentHTML("beforeend", `<small class="muted">🔒 ${t("Entrega el video de la finca")}</small>`);
+      } else if (DM.escenario(p, E, e.id) === "fin") {              // abierto, pero comprarlo = el final de la demo
+        btn(t("Comprar ${n}", { n: e.precio }), "main", () => ctx.finDemo?.(e));
       } else if (est === "comprable") {
         btn(e.precio ? t("Comprar ${n}", { n: e.precio }) : t("Gratis"), "main", () => {
           const err = ESC.comprar(p, E, e.id);
