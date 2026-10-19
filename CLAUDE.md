@@ -136,6 +136,9 @@ app/               EL JUEGO (Dron Maker): usa los módulos de game/
                    las pantallas del juego metidas en una ventana (alojar), Simuladores, Finanzas = p.movimientos; layout en
                    localStorage "dronmaker.pbdmm.escritorio") y una barra de tareas;
                    lee GET /api/lab cada 1,5 s y llama los hooks. Programas en localStorage "dronmaker.pbdmm.archivos"
+  casino.js        EL CASINO (app gratis 🎰 de 🛍️ Apps, pedido de Santiago 19-10-2026): Blackjack, Video póker (Jacks or
+                   Better 9/6) y Mayor o menor; lógica pura con rng inyectable, apuestas de $1 a $50 (máx. 25 % de la plata),
+                   todo anotado en Finanzas. Pantalla: casino_ui.js (ventana #es-casino del computador). test: node app/test_casino.mjs
   autocompletar.js el autocompletado del editor PBDMM: contexto(texto antes del cursor) + opciones() (las fijas en
                    data/pbdmm.json "opciones"; $drones/$misiones/$modelos/$premios salen del juego). Pruebas en test_pbdmm
   doc_pbdmm.mjs    genera docs/PBDMM.md desde data/pbdmm.json (ayuda, comandos, lecciones, ejemplos)
@@ -195,6 +198,7 @@ node app/test_i18n.mjs                 # las traducciones (cada t() con su ingl�
 node app/test_modulos.mjs              # que nada importado quede tapado por una variable local
 node app/test_demo.mjs           # la demo: hasta E6 + la finca (demo.js ACTIVA); el final al comprar E7/E8
 node app/test_freestyle.mjs            # los mapas del freestyle: la pista libre, salida y portales adentro
+node app/test_casino.mjs               # el casino: baraja, blackjack, póker, mayor o menor, la plata y la ventaja de la casa
 node app/doc_pbdmm.mjs                 # vuelve a escribir docs/PBDMM.md y docs/pbdmm/tutorial.md si cambias app/data/pbdmm.json
 node app/exportar_dron.mjs             # vuelve a escribir drones/madera.json si cambian las piezas
 cd desktop && npm start                # LA APP DE ESCRITORIO (Electron): "abre el juego" = esto, no el navegador
