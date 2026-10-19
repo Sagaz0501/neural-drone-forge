@@ -2,10 +2,12 @@
 // FREESTYLE: volar por gusto. 3 mapas (freestyle_mapas.js), con el control (PS5/Xbox) o el teclado, en FPV.
 //   Libre · Carrera contra la IA (rivales con un modelo entrenado: el nivel 16 · Carrera) · Contrarreloj ·
 //   Persecución (drones con IA te persiguen: el nivel 18 · Persecución; la "liebre" eres tú).
-// Dos formas de volar:
-//   Estable = la misma física que la IA (game/sim.js step: las palancas piden un ángulo; centro = flotar).
-//   Acro    = solo del freestyle (la IA nunca la ve): las palancas piden una VELOCIDAD de giro, el dron gira en 3D
-//             (flips y rolls) y el empuje sale hacia donde apunta la panza. Es como vuelan los drones de carreras.
+// Cuatro modos, como en una radio (radio.js; los controles y la calibración: radio_ui.js):
+//   Fácil   = la misma física que la IA (game/sim.js step: las palancas piden un ángulo; gas al centro = flotar).
+//   Angle · Horizon · Acro = solo del freestyle (la IA nunca los ve): un cuerpo rígido con gas ABSOLUTO (sin piloto de
+//             altura), motores que tardan en responder, propwash al bajar en tu propio aire y armar con un interruptor.
+//             Angle pide un ángulo y se nivela; Acro pide una VELOCIDAD de giro (rates de Betaflight: flips y rolls);
+//             Horizon es Angle al centro y Acro a fondo.
 // Los rivales vuelan con game/sim.js (step, buildObs, sensorRays) y su red (Policy): exactamente lo que aprendieron.
 // =====================================================================
 import * as THREE from "three";
@@ -15,7 +17,8 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { Level, Policy, step as fisica, newState, buildObs, sensorRays, actionToThrottle, CONTROL_HZ, SUBSTEPS } from "../game/sim.js";
 import { V, makeDrone } from "../game/scene.js";
-import { readGamepad, rawSticks } from "../game/pilot.js";
+import * as RA from "./radio.js";
+import { abrirRadio, dibujarPalancas } from "./radio_ui.js";
 import { t, cargarIdioma, num, datos } from "./i18n.js";
 import * as PT from "./partida.js";
 import { paramsFisica } from "./parts.js";
@@ -30,9 +33,20 @@ const DT = 1 / CONTROL_HZ;
 // ---------------- lo que se recuerda ----------------
 const CLAVE = "dronmaker.freestyle";
 const cfg = { dron: "racer", mapa: "fabrica", modo: "libre", acro: false, rival: "corredor", cazador: "cazador", nRivales: 1, vueltas: 2, cam: "fpv",
-  mando: 2, gasLineal: false, tasa: 600, tilt: 25, records: {} };
+  mando: 2, tilt: 25, records: {},
+  vuelo: null, rates: "freestyle", ratesPropias: null, gasCurva: { mid: 0.5, expo: 0 }, angulo: 55, bateria: 0, radios: {}, padId: null };
 try { Object.assign(cfg, JSON.parse(localStorage.getItem(CLAVE) || "{}")); } catch { /* sin almacenamiento */ }
+if (!RA.MODOS.includes(cfg.vuelo)) cfg.vuelo = cfg.acro ? "acro" : "facil";      // antes: Estable / Acro
 const guardar = () => { try { localStorage.setItem(CLAVE, JSON.stringify(cfg)); } catch { /* sin almacenamiento */ } };
+/** Los rates que usas (un preset o los tuyos). */
+const rates = () => cfg.ratesPropias || RA.PRESETS[cfg.rates] || RA.PRESETS.freestyle;
+/** El control que usas: el elegido en 🎮 Radio, o el primero con palancas. */
+function padElegido() {
+  const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
+  return pads.find((p) => p.id === cfg.padId && p.axes?.length >= 4) || pads.find((p) => p.axes?.length >= 4) || null;
+}
+const perfilDe = (gp) => (gp ? cfg.radios[gp.id] || RA.perfilPorDefecto(gp) : null);
+const readGamepad = padElegido;
 let calidad = "media";
 try { calidad = JSON.parse(localStorage.getItem("dronmaker.quality") || '"media"'); } catch { /* por defecto */ }
 
@@ -75,42 +89,48 @@ const aEuler = (q) => {
 };
 const aThree = (q, out) => out.set(q[1], q[3], -q[2], q[0]);     // los mismos ejes que V(): (x, z, -y)
 
-/** Tu dron: Estable (sim.js) o Acro (rate mode, solo aquí). */
+/** Tu dron: Fácil (sim.js, como la IA) o Angle / Horizon / Acro (un cuerpo rígido con gas absoluto, solo aquí). */
 class Piloto {
-  constructor(acro, p = RACER) {
-    this.acro = acro;
-    // acro: tu dron con la respuesta de uno de carreras (el racer de la liga usa el de acro, más liviano)
-    this.p = !acro ? p : p === RACER ? ACRO : { ...p, attResp: 22, crashSpeed: Math.max(p.crashSpeed, 4.5) };
+  constructor(modo, p = RACER) {
+    this.modo = modo;
+    this.facil = modo === "facil";
+    // los modos de radio: tu dron con la respuesta de uno de carreras (el racer de la liga usa el de acro, más liviano)
+    this.p = this.facil ? p : p === RACER ? ACRO : { ...p, attResp: 22, crashSpeed: Math.max(p.crashSpeed, 4.5) };
     this.cmd = [0, 0, 0, 0];
   }
   reset(pos, yaw) {
     this.s = newState(pos, yaw);
     this.q = qEuler(0, 0, yaw); this.w = [0, 0, 0];
     this.prev = { pos: pos.slice(), q: this.q.slice() };
-    this.cmd = [0, 0, 0, 0]; this.thr = 0;
+    this.cmd = [0, 0, 0, 0]; this.thr = 0; this.tw = 0;
   }
   get pos() { return this.s.pos; } get vel() { return this.s.vel; }
-  paso(raw) {
+  /** e: en Fácil [gas −1..1, roll, pitch, yaw]; en los de radio { gas 0..1, roll, pitch, yaw, armado, modo, fuerza }. */
+  paso(e) {
     const s = this.s, p = this.p;
     this.prev = { pos: s.pos.slice(), q: this.q.slice() };
-    const k = 1 - Math.exp(-DT / 0.06);                       // teclado: suaviza; el control ya es analógico
-    for (let i = 0; i < 4; i++) this.cmd[i] += (raw[i] - this.cmd[i]) * k;
-    const [gas, roll, pitch, yaw] = this.cmd;
     let suelo = false, golpe = 0;
-    if (!this.acro) {
-      const a = [gas, roll, pitch, yaw];
+    if (this.facil) {
+      const k = 1 - Math.exp(-DT / 0.06);                     // teclado: suaviza; el control ya es analógico
+      for (let i = 0; i < 4; i++) this.cmd[i] += (e[i] - this.cmd[i]) * k;
+      const a = this.cmd.slice();
       for (let i = 0; i < SUBSTEPS; i++) { const inf = fisica(s, a, DT / SUBSTEPS, null, p); if (inf.grounded) { suelo = true; golpe = Math.max(golpe, inf.groundCrash ? 99 : 0); } }
       this.q = qEuler(s.roll, s.pitch, s.yaw);
       this.thr = s.throttle;
     } else {
-      const R = (cfg.tasa * Math.PI) / 180, e = 0.45, curva = (x) => e * x * x * x + (1 - e) * x;
-      const wc = [curva(roll) * R, curva(pitch) * R, curva(yaw) * R];
-      const thr = cfg.gasLineal ? (gas + 1) / 2 : actionToThrottle(gas, p);
-      this.thr = clip(thr, 0, 1);
+      // el gas es ABSOLUTO (la curva de la radio) y los motores tardan ~35 ms en llegar; desarmado = motores apagados
+      const pedido = e.armado ? RA.gasCurva(e.gas, cfg.gasCurva) * (e.fuerza ?? 1) : 0;
       const h = DT / SUBSTEPS;
       for (let n = 0; n < SUBSTEPS; n++) {
+        this.thr += (pedido - this.thr) * Math.min(1, h / 0.035);
+        this.tw += h;
         const enPiso = s.pos[2] <= 0.01 && this.thr < p.hover * 0.6;      // en el piso sin gas: no se revuelca
-        for (let i = 0; i < 3; i++) this.w[i] = enPiso ? 0 : this.w[i] + (wc[i] - this.w[i]) * Math.min(1, p.attResp * h);
+        const wc = e.armado ? RA.pedirGiro(e.modo, e, aEuler(this.q), rates(), { angulo: cfg.angulo }) : [0, 0, 0];
+        if (e.armado && s.vel[2] < -2 && this.thr > 0.12) {                // propwash: bajar en tu propio aire te sacude
+          const a = Math.min(1, (-s.vel[2] - 2) / 6) * 1.4;
+          wc[0] += a * Math.sin(this.tw * 37); wc[1] += a * Math.sin(this.tw * 29 + 1.3);
+        }
+        for (let i = 0; i < 3; i++) this.w[i] = enPiso ? 0 : e.armado ? this.w[i] + (wc[i] - this.w[i]) * Math.min(1, p.attResp * h) : this.w[i] * (1 - Math.min(1, 0.4 * h));
         if (enPiso) { const eu = aEuler(this.q); this.q = qEuler(eu.roll * 0.9, eu.pitch * 0.9, eu.yaw); }
         this.q = qNorm(this.q.map((x, i) => x + 0.5 * qMul(this.q, [0, ...this.w])[i] * h));
         const bz = qRot(this.q, [0, 0, 1]), T = this.thr * p.twr * p.mass * p.g, sp = Math.hypot(...s.vel);
@@ -319,7 +339,9 @@ function menu() {
     sel.onchange = () => { cfg.dron = sel.value; guardar(); };
     fila(t("Dron"), sel);
   }
-  fila(t("Cómo vuela tu dron"), seg("s-acro", [[false, t("Estable (como la IA)")], [true, t("Acro (flips)")]], cfg.acro, (v) => { cfg.acro = v; guardar(); menu(); }));
+  fila(t("Modo de vuelo"), seg("s-vuelo", [["facil", t("Fácil")], ["angle", "Angle"], ["horizon", "Horizon"], ["acro", "Acro"]], cfg.vuelo, (v) => { cfg.vuelo = v; guardar(); menu(); }));
+  if (cfg.vuelo !== "facil") fila(t("Rates"), seg("s-rates", [["principiante", t("Principiante")], ["freestyle", "Freestyle"], ["carreras", t("Carreras")], ["cinematico", t("Cinemático")]],
+    cfg.ratesPropias ? null : cfg.rates, (v) => { cfg.rates = v; cfg.ratesPropias = null; guardar(); menu(); }));
   if (cfg.modo === "carrera" || cfg.modo === "persecucion") {
     const sel = document.createElement("select"), clave = cfg.modo === "carrera" ? "rival" : "cazador";
     const lista = S.modelos.length ? S.modelos : [cfg[clave]];
@@ -331,7 +353,9 @@ function menu() {
   if (cfg.modo === "carrera" || cfg.modo === "reloj") fila(t("Vueltas"), seg("s-v", [[1, "1"], [2, "2"], [3, "3"]], cfg.vueltas, (v) => { cfg.vueltas = v; guardar(); }));
   fila(t("Cámara"), seg("s-cam", [["fpv", "FPV"], ["detras", t("Detrás")], ["lejos", t("Lejos")]], cfg.cam, (v) => { cfg.cam = v; guardar(); }));
   fila(t("Control"), seg("s-mando", [[2, t("Modo 2")], [1, t("Modo 1")]], cfg.mando, (v) => { cfg.mando = v; guardar(); }));
-  if (cfg.acro) fila(t("Gas en acro"), seg("s-gas", [[false, t("Centro = flotar")], [true, t("Lineal (como un radio)")]], cfg.gasLineal, (v) => { cfg.gasLineal = v; guardar(); }));
+  const rb = document.createElement("button"); rb.className = "btn ghost"; rb.textContent = t("🎮 Radio y controles: calibrar, rates, gas…");
+  rb.onclick = () => abrirRadio({ $, cfg, guardar, padElegido, perfilDe, volver: menu, toast });
+  m.appendChild(rb);
   const pad = document.createElement("div"); pad.id = "pad"; m.appendChild(pad);
   const rec = cfg.records[cfg.mapa] || {}, r = document.createElement("div"); r.id = "record";
   r.innerHTML = [`<b>${t("Tus récords aquí")}</b>`,
@@ -345,9 +369,12 @@ function menu() {
   const volver = document.createElement("a"); volver.className = "btn ghost"; volver.href = "./index.html"; volver.textContent = t("Volver al juego");
   acc.append(ir, volver); m.appendChild(acc);
   const ayuda = document.createElement("p"); ayuda.className = "muted"; ayuda.style.cssText = "margin:0;font-size:12.5px;line-height:1.45";
-  ayuda.textContent = cfg.acro
-    ? t("Acro: la palanca derecha GIRA el dron (suelta y se queda inclinado), la izquierda es gas y giro. Teclado: WASD gira, Espacio/Shift gas, flechas giro.")
-    : t("Estable: la palanca derecha inclina (suelta y se nivela), la izquierda es gas (centro = flotar) y giro. Teclado: WASD moverse, Espacio subir, Shift bajar, flechas girar.");
+  ayuda.textContent = {
+    facil: t("Fácil: la palanca derecha inclina (suelta y se nivela), la izquierda es gas (centro = flotar) y giro. Teclado: WASD moverse, Espacio subir, Shift bajar, flechas girar."),
+    angle: t("Angle: como una radio. Primero ARMA (interruptor, L1/LB o la tecla E, con el gas abajo). El gas no se queda flotando: tú lo sostienes. La palanca derecha inclina y al soltarla se nivela."),
+    horizon: t("Horizon: se nivela solo cerca del centro y hace flips con la palanca a fondo. Arma con el gas abajo (interruptor, L1/LB o E)."),
+    acro: t("Acro: como los pilotos de FPV. La palanca derecha GIRA el dron (suelta y se queda inclinado) y el gas es tuyo. Arma con el gas abajo (interruptor, L1/LB o E). Teclado: WASD gira, Espacio/Shift gas, flechas giro."),
+  }[cfg.vuelo];
   m.appendChild(ayuda);
   ir.focus();
   estadoPad();
@@ -355,7 +382,10 @@ function menu() {
 function estadoPad() {
   const el = $("pad"); if (!el) return;
   const gp = readGamepad();
-  el.textContent = gp ? t("🎮 Control conectado: {n}", { n: gp.id.split("(")[0].trim().slice(0, 40) }) : t("🎮 Conecta un control (PS5, Xbox…) y mueve una palanca. También sirve el teclado.");
+  const nom = gp && gp.id.split("(")[0].trim().slice(0, 40);
+  el.textContent = !gp ? t("🎮 Conecta un control (PS5, Xbox…) o tu radio por USB y mueve una palanca. También sirve el teclado.")
+    : RA.esRadio(gp) ? (cfg.radios[gp.id]?.cal ? t("📻 Radio conectada: {n} (calibrada)", { n: nom }) : t("📻 Radio conectada: {n} · calíbrala en 🎮 Radio", { n: nom }))
+    : t("🎮 Control conectado: {n}", { n: nom });
 }
 window.addEventListener("gamepadconnected", () => { estadoPad(); toast(t("Control conectado")); });
 window.addEventListener("gamepaddisconnected", () => { estadoPad(); toast(t("Se desconectó el control")); });
@@ -374,7 +404,9 @@ function salida(i) {
 async function empezar() {
   prenderAudio();
   const M = S.mapa, modo = cfg.modo;
-  S.piloto = new Piloto(cfg.acro, fisicaDe(cfg.dron));
+  S.piloto = new Piloto(cfg.vuelo, fisicaDe(cfg.dron));
+  S.armEst = { armado: false, antes: true };                 // como Betaflight: si el interruptor ya estaba arriba, hay que bajarlo y subirlo
+  S.armSw = false; S.mando = null; S.gasTeclado = 0;
   S.ias.forEach((r) => scene.remove(r.mesh)); S.ias = [];
   if (modo === "carrera" || modo === "persecucion") {
     const slug = modo === "carrera" ? cfg.rival : cfg.cazador;
@@ -417,7 +449,7 @@ function reiniciar() {
     r.k = 0; r.tFin = null; r.mesh.visible = true;
   });
   Object.assign(S, { t: 0, acc: 0, cuenta: modo === "libre" ? 0 : 3.0, pausa: false, fin: false, k: 0, vueltaT0: 0, vueltas: [], vmax: 0, muerto: 0,
-    vidas: 3, atrapado: 0, tFin: null, camNueva: true });
+    vidas: 3, atrapado: 0, tFin: null, camNueva: true, bat: (cfg.bateria || 0) * 60 });
   S.portales.pintar(modo === "libre" ? -1 : 0);
   S.grabando = []; S.vueltasSucias = false;
   cargarFantasma();
@@ -434,13 +466,45 @@ function lejosDe(p, d, semilla = 0) {
   return [p[0], p[1] - d, 3];
 }
 function teclasHUD() {
-  $("h-teclas").textContent = t("R reiniciar · T volver al último portal · C cámara · Esc pausa. Control: ○/B cámara, △/Y volver, Options pausa.");
+  $("h-teclas").textContent = cfg.vuelo === "facil"
+    ? t("R reiniciar · T volver al último portal · C cámara · Esc pausa. Control: ○/B cámara, △/Y volver, Options pausa.")
+    : t("E armar · R reiniciar · T volver al último portal · C cámara · Esc pausa. Control: L1/LB armar, ○/B cámara, △/Y volver, Options pausa.");
 }
 
 // ---------------- el vuelo, paso a paso (50 por segundo) ----------------
+/**
+ * Lo que mandan tus manos este paso (control/radio + teclado). Arma y desarma como Betaflight (radio.js armado).
+ * Deja S.mando = { gas 0..1, roll, pitch, yaw, armado, modo, motivo } para el HUD (las palancas) y el OSD.
+ */
+const BAT_BAJA = 0.75;                                        // con la batería vacía el empuje cae (si pusiste el timer)
+let botonArmarAntes = false;
 function palancas() {
-  const raw = rawSticks(keys, { mode: cfg.mando });
-  return raw;
+  const gp = padElegido(), perfil = perfilDe(gp), r = RA.leer(gp, perfil, { mando: cfg.mando });
+  const k = (a, b) => (keys.has(a) ? 1 : 0) - (keys.has(b) ? 1 : 0);
+  const kg = (keys.has("Space") || keys.has("ArrowUp") ? 1 : 0) - (keys.has("ShiftLeft") || keys.has("ShiftRight") || keys.has("ArrowDown") ? 1 : 0);
+  const roll = clip((r?.roll || 0) + k("KeyD", "KeyA")), pitch = clip((r?.pitch || 0) + k("KeyW", "KeyS")), yaw = clip((r?.yaw || 0) + k("ArrowLeft", "ArrowRight"));
+  if (cfg.vuelo === "facil") {                                // el de siempre: gas al centro = flotar
+    const gas = clip((r ? r.gas * 2 - 1 : 0) + kg);
+    S.mando = { gas: (gas + 1) / 2, roll, pitch, yaw, armado: true, modo: "facil", motivo: null };
+    return [gas, roll, pitch, yaw];
+  }
+  // radio: el gas del teclado se queda donde lo dejas (Espacio sube, Shift baja); el de la radio es el que marca
+  S.gasTeclado = clip((S.gasTeclado || 0) + kg * DT * 0.9, 0, 1);
+  if (!S.gasDe && perfil?.tipo === "radio") S.gasDe = "pad";   // una radio: su gas manda desde el principio
+  if (kg) S.gasDe = "teclado";                               // manda el último que se movió
+  else if (r && Math.abs(r.gas - (S.gasPadAntes ?? r.gas)) > 0.02) S.gasDe = "pad";
+  if (r) S.gasPadAntes = r.gas;
+  const gas = S.gasDe === "pad" && r ? r.gas : S.gasTeclado;
+  // armar: el interruptor de la radio, o un botón que alterna (L1/LB en un mando) o la tecla E
+  const btn = perfil?.armar?.tipo === "boton" && perfil.armar.alterna ? !!r?.botones?.[perfil.armar.i] : false;
+  if (btn && !botonArmarAntes) S.armSw = !S.armSw;
+  botonArmarAntes = btn;
+  const pedido = r?.armar ?? S.armSw;
+  const a = RA.armado(S.armEst, !!pedido, gas);
+  if (a.armado && !S.mando?.armado) { aviso(t("ARMADO"), "#47f08a", 900); bip(1175, 0.08, 0.1); }
+  const modo = (r?.modo && cfg.vuelo !== "facil") ? r.modo : cfg.vuelo;
+  S.mando = { gas, roll, pitch, yaw, armado: a.armado, modo, motivo: a.motivo, fuerza: cfg.bateria && S.bat <= 0 ? BAT_BAJA : 1 };
+  return S.mando;
 }
 function chocar(quien, pos) {
   chispas.en(pos);
@@ -458,6 +522,7 @@ function reaparecer(quien) {
 }
 function paso() {
   const M = S.mapa, n = M.gates.length, modo = cfg.modo, P = S.piloto;
+  const manos = palancas();                                   // también en la cuenta: ahí se arma
   if (S.cuenta > 0) {                                          // 3, 2, 1… (nadie se mueve)
     const antes = Math.ceil(S.cuenta);
     S.cuenta -= DT;
@@ -469,7 +534,13 @@ function paso() {
   if (S.muerto > 0) { S.muerto -= DT; if (S.muerto <= 0) reaparecer(P); }
   else {
     const a = P.pos.slice();
-    const { golpe } = P.paso(palancas());
+    const { golpe } = P.paso(manos);
+    if (cfg.bateria && S.mando?.armado) {                    // el timer de la batería (como el de la radio)
+      const antes = S.bat;
+      S.bat -= DT * (0.6 + 0.8 * P.thr);
+      if (antes > 30 && S.bat <= 30) { aviso(t("Batería: 30 s"), "#ffd23f", 1500); bip(660, 0.2, 0.12); }
+      if (antes > 0 && S.bat <= 0) { aviso(t("¡BATERÍA BAJA!"), "#ff5040", 2000); vibrar(0.6, 400); }
+    }
     let choque = golpe > 0;
     if (S.nivel.collides(P.pos, P.p.radius)) {
       if (Math.hypot(...P.vel) > P.p.crashSpeed * 0.7) choque = true;
@@ -580,6 +651,7 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "KeyR") reiniciar();
   if (e.code === "KeyC") cambiarCam();
   if (e.code === "KeyT" && !S.fin) reaparecer(S.piloto);
+  if (e.code === "KeyE" && !e.repeat) S.armSw = !S.armSw;     // armar / desarmar con el teclado
 });
 window.addEventListener("keyup", (e) => keys.delete(e.code));
 window.addEventListener("blur", () => keys.clear());
@@ -637,8 +709,11 @@ function hud(pos, q3) {
   const P = S.piloto, M = S.mapa, n = M.gates.length, modo = cfg.modo;
   const v = Math.hypot(...P.vel);
   $("h-kmh").textContent = Math.round(v * 3.6);
-  $("h-sub").innerHTML = `km/h · ${t("altura {h} m", { h: num(P.pos[2], 1) })}<br>${cfg.acro ? "ACRO" : t("ESTABLE")} · ${t("máx. {v} km/h", { v: Math.round(S.vmax) })}`;
+  const md = S.mando || {}, bat = cfg.bateria ? ` · 🔋 ${fmtT(Math.max(0, S.bat))}` : "";
+  const modoTxt = { facil: t("FÁCIL"), angle: "ANGLE", horizon: "HORIZON", acro: "ACRO" }[md.modo || cfg.vuelo];
+  $("h-sub").innerHTML = `km/h · ${t("altura {h} m", { h: num(P.pos[2], 1) })}<br>${modoTxt}${cfg.vuelo !== "facil" ? ` · ${md.armado ? `<b style="color:#47f08a">${t("ARMADO")}</b>` : `<b style="color:#ff5040">${t("DESARMADO")}</b>`}` : ""}${bat} · ${t("máx. {v} km/h", { v: Math.round(S.vmax) })}`;
   $("h-gas").firstElementChild.style.width = `${Math.round(P.thr * 100)}%`;
+  dibujarPalancas($("h-palancas"), md, cfg.mando);
   let arriba = fmtT(S.t), info = "";
   if (modo === "carrera" || modo === "reloj") {
     const vuelta = Math.min(S.vueltas.length + 1, cfg.vueltas);
@@ -682,6 +757,19 @@ function osd() {
   g.clearRect(0, 0, W, H);
   if (S.pantalla !== "vuelo") return;
   const s = S.piloto.s, cx = W / 2, cy = H / 2;
+  const md = S.mando;
+  if (cfg.vuelo !== "facil" && md && !md.armado && !S.fin) {     // el aviso de Betaflight: grande, al centro abajo
+    g.textAlign = "center"; g.font = '700 30px "Chakra Petch", system-ui';
+    g.lineWidth = 4; g.strokeStyle = "rgba(0,0,0,.7)"; g.fillStyle = "#ff5040";
+    g.strokeText(t("DESARMADO"), cx, cy + H * 0.2); g.fillText(t("DESARMADO"), cx, cy + H * 0.2);
+    g.font = '600 15px "Chakra Petch", system-ui'; g.fillStyle = "#fff";
+    const ayuda = md.motivo === "gas" ? t("Baja el gas del todo para armar") : t("Arma: interruptor, L1/LB o la tecla E");
+    g.strokeText(ayuda, cx, cy + H * 0.2 + 26); g.fillText(ayuda, cx, cy + H * 0.2 + 26);
+  }
+  if (cfg.bateria && S.bat <= 0 && Math.floor(performance.now() / 400) % 2) {
+    g.textAlign = "center"; g.font = '700 20px "Chakra Petch", system-ui'; g.fillStyle = "#ff5040";
+    g.fillText(t("BATERÍA BAJA"), cx, cy - H * 0.22);
+  }
   if (cfg.cam === "fpv") {
     g.strokeStyle = "rgba(255,122,26,0.95)"; g.lineWidth = 2;
     g.beginPath(); g.moveTo(cx - 14, cy); g.lineTo(cx - 5, cy); g.moveTo(cx + 5, cy); g.lineTo(cx + 14, cy); g.moveTo(cx, cy - 4); g.lineTo(cx, cy + 4); g.stroke();

@@ -85,7 +85,11 @@ app/               EL JUEGO (Dron Maker): usa los módulos de game/
                    Calendario, Finanzas, Campaña, Videos, 🖼️ Fondos. p.software (sin él = partida vieja = todo). Ajustes y el
                    banco van en la barra de tareas (del sistema). El tutorial "pc" = comprar Mensajes + Simulador/IDE
   freestyle.html   EL FREESTYLE (página aparte, botón en el inicio): freestyle.js = modos (libre, carrera contra la IA,
-                   contrarreloj, persecución), tu dron Estable (sim.js) o Acro (rate mode con flips, SOLO aquí: la IA nunca lo ve),
+                   contrarreloj, persecución), tu dron en 4 modos: Fácil (sim.js, como la IA) o Angle/Horizon/Acro como una radio
+                   (SOLO aquí: la IA nunca los ve; gas absoluto, armar con interruptor, rates Betaflight, propwash, timer de
+                   batería); radio.js = la lógica pura (rates, gas, calibración, perfiles, armar; test_radio.mjs) y radio_ui.js =
+                   🎮 Radio (radios USB EdgeTX/TBS como joystick: asistente que calibra y detecta cada canal, asignar, invertir,
+                   zona muerta, Modo 1/2, rates con su curva) + las palancas en el HUD; cfg.radios[id del control] en localStorage,
                    los rivales con su red (sim.js step/buildObs/sensorRays + Policy; modelos corredor = nivel 16, cazador = 18),
                    HUD, minimapa, sonido, récords en localStorage "dronmaker.freestyle"; freestyle_mapas.js = los 3 mapas (solo
                    datos: cajas/cilindros/esferas + portales; test: node app/test_freestyle.mjs revisa que la pista quede libre);
@@ -192,6 +196,7 @@ node --import ./app/three_node.mjs app/test_flota.mjs   # la flota y el vuelo si
 node app/test_i18n.mjs                 # las traducciones (cada t() con su inglés, el HTML, las capas de datos)
 node app/test_modulos.mjs              # que nada importado quede tapado por una variable local
 node app/test_freestyle.mjs            # los mapas del freestyle: la pista libre, salida y portales adentro
+node app/test_radio.mjs                # la radio del freestyle: rates Betaflight, curva del gas, calibración, armar, modos
 node app/doc_pbdmm.mjs                 # vuelve a escribir docs/PBDMM.md y docs/pbdmm/tutorial.md si cambias app/data/pbdmm.json
 node app/exportar_dron.mjs             # vuelve a escribir drones/madera.json si cambian las piezas
 cd desktop && npm start                # LA APP DE ESCRITORIO (Electron): "abre el juego" = esto, no el navegador
