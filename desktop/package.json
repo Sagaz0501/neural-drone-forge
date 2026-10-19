@@ -1,15 +1,70 @@
 {
   "name": "neural-drone-forge",
   "productName": "Neural Drone Forge",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "Arma el dron. Entrena su cerebro. Míralo aprender a volar.",
   "main": "main.js",
   "private": true,
   "scripts": {
     "start": "electron .",
-    "prueba": "electron . --captura=captura.png"
+    "prueba": "electron . --captura=captura.png",
+    "dist": "sh empaquetar.sh"
   },
   "devDependencies": {
-    "electron": "44.4.5"
+    "electron": "44.4.5",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "io.github.sagaz0501.neuraldroneforge",
+    "productName": "Neural Drone Forge",
+    "copyright": "Santiago Bernal",
+    "files": [
+      "main.js",
+      "icon.png",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "build/py/servidor",
+        "to": "servidor"
+      },
+      {
+        "from": "build/juego",
+        "to": "juego"
+      }
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "icon.png",
+      "category": "public.app-category.simulation-games",
+      "identity": "-",
+      "artifactName": "Neural-Drone-Forge-mac.${ext}",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
+    },
+    "dmg": {
+      "title": "Neural Drone Forge"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "icon.png",
+      "artifactName": "Neural-Drone-Forge-windows.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }

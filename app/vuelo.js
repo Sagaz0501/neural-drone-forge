@@ -31,6 +31,9 @@ function mundo(quality, lugar = "casa") {
   makeSky(scene);
   const mats = makeMaterials();
   const lights = makeLights(scene, quality);
+  // la luz del juego (solo app/: game/ queda igual): menos luz plana del cielo y un sol de tarde, más contraste
+  lights.hemi.intensity = 0.75;
+  lights.sun.color.set(0xffd8a8); lights.sun.intensity = 3.0;
   const wv = new WorldView(scene, mats, quality);
   const m = mundoLugar(lugar, null);
   wv.build(m.world);
@@ -90,6 +93,12 @@ export class Vuelo extends MisionSim {
     this.r = renderer;
     const M = (this.M = mundo(opts.quality, opts.pedido?.lugar || "casa"));
     this.scene = M.scene;
+    if (!M.scene.environment) {                        // reflejos del cielo (los metales del dron, los vidrios): una vez por mundo
+      const cielo = new THREE.Scene(); makeSky(cielo);
+      const pm = new THREE.PMREMGenerator(renderer);
+      M.scene.environment = pm.fromScene(cielo, 0.02).texture; M.scene.environmentIntensity = 0.45;
+      pm.dispose();
+    }
     if (M.zona) this.scene.remove(M.zona);
     this.rutasView = this.shots.length ? new RutasView(this.shots) : null;   // las rutas (solo las ve el piloto)
     M.zona = this.rutasView ? this.rutasView.group : new THREE.Group();

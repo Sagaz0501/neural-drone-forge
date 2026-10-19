@@ -161,5 +161,9 @@
  "{f}() todavía no la tienes: se abre con el simulador «{e}» (💻 → 🎮 Simuladores)": "you don't have {f}() yet: it opens with the «{e}» simulator (💻 → 🎮 Simulators)",
  "a este plan de vuelo le falta: {lista}. La misión «{m}» pide: {plan}": "this flight plan is missing: {lista}. The «{m}» mission needs: {plan}",
  "no tienes la IA base: empieza desde=\"cero\" o desde uno de tus modelos": "you don't have the base AI: start_from=\"zero\" or from one of your models",
- "el nombre \"{m}\" ya está usado en este computador: ponle otro (por ejemplo \"{m}_2\")": "the name \"{m}\" is already used on this computer: pick another (for example \"{m}_2\")"
+ "el nombre \"{m}\" ya está usado en este computador: ponle otro (por ejemplo \"{m}_2\")": "the name \"{m}\" is already used on this computer: pick another (for example \"{m}_2\")",
+ "en esta misión los premios y castigos los pones tú: escribe premios(…) y castigos(…) (lo que no escribas queda en 0)": "in this mission you set the rewards and penalties: write rewards(…) and penalties(…) (anything you don't write is 0)",
+ "en esta misión los premios los pones tú: escribe premios(…) (lo que no escribas queda en 0)": "in this mission you set the rewards: write rewards(…) (anything you don't write is 0)",
+ "en esta misión los castigos los pones tú: escribe castigos(…) (lo que no escribas queda en 0; sin chocar=, chocar no le duele)": "in this mission you set the penalties: write penalties(…) (anything you don't write is 0; without crash=, crashing doesn't hurt)",
+ "todos tus premios están en 0: la IA no tiene nada que ganar y no aprende": "all your rewards are 0: the AI has nothing to gain and won't learn"
 }

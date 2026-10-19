@@ -65,7 +65,7 @@ export function initMesa(ctx) {
   const P = () => ctx.P(), D = () => ctx.D(), U = (uid) => PT.unidad(P(), uid);
   const ray = new THREE.Raycaster();
   let renderer, scene, cam, controls, mundo, raf = 0, last = 0;
-  const glb = { esp32: null, cargando: null };
+  const glb = { esp32: null, esc: null, cargando: null };
 
   // ---------------- arrancar la escena (una vez) ----------------
   function iniciar() {
@@ -95,32 +95,34 @@ export function initMesa(ctx) {
     const mesa = new THREE.Mesh(new THREE.PlaneGeometry(3, 3), new THREE.MeshStandardMaterial({ map: madera, roughness: 0.8 }));
     mesa.rotation.x = -Math.PI / 2; mesa.position.y = -0.002; mesa.receiveShadow = true;
     const plancha = tex(1024, 768, (g, w, h) => {
-      g.fillStyle = "#1f5a3c"; g.fillRect(0, 0, w, h);
-      g.strokeStyle = "rgba(220,240,225,.18)"; g.lineWidth = 1;
+      g.fillStyle = "#17402d"; g.fillRect(0, 0, w, h);
+      for (let i = 0; i < 4000; i++) { g.fillStyle = `rgba(${i % 2 ? "0,0,0" : "255,255,255"},${0.02 + (i % 7) * 0.006})`; g.fillRect((i * 7919) % w, (i * 104729) % h, 2, 2); }   // el grano de la goma
+      g.strokeStyle = "rgba(220,240,225,.12)"; g.lineWidth = 1;
       for (let x = 0; x < w; x += 32) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); }
       for (let y = 0; y < h; y += 32) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); }
-      g.strokeStyle = "rgba(240,250,245,.35)"; g.lineWidth = 2;
+      g.strokeStyle = "rgba(240,250,245,.24)"; g.lineWidth = 2;
       for (let x = 0; x < w; x += 160) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); }
-      g.fillStyle = "rgba(240,250,245,.4)"; g.font = "bold 22px sans-serif"; g.fillText("DRON MAKER · 1 cm", 24, h - 22);
+      g.fillStyle = "rgba(240,250,245,.28)"; g.font = "bold 22px sans-serif"; g.fillText("DRON MAKER · 1 cm", 24, h - 22);
     });
-    const mat = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.003, 0.6), new THREE.MeshStandardMaterial({ map: plancha, roughness: 0.9 }));
+    const mat = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.003, 0.6), new THREE.MeshStandardMaterial({ map: plancha, roughness: 0.75 }));
     mat.position.y = -0.0015; mat.receiveShadow = true;
     scene.add(mesa, mat);
-    scene.add(new THREE.HemisphereLight(0xdfe8f0, 0x3a2e24, 0.9));
-    const sol = new THREE.DirectionalLight(0xfff1dc, 2.2);
+    scene.add(new THREE.HemisphereLight(0xdfe8f0, 0x3a2e24, 0.38));
+    const sol = new THREE.DirectionalLight(0xffe6c4, 2.3);          // la lámpara de la mesa: cálida, desde adelante a la derecha
     sol.position.set(0.3, 0.9, 0.45); sol.castShadow = true;
     sol.shadow.mapSize.set(2048, 2048);
     Object.assign(sol.shadow.camera, { left: -0.5, right: 0.5, top: 0.5, bottom: -0.5, near: 0.1, far: 3 });
     sol.shadow.bias = -0.0004;
     scene.add(sol);
-    const relleno = new THREE.DirectionalLight(0x9fc3ff, 0.6); relleno.position.set(-0.6, 0.5, -0.3); scene.add(relleno);
+    const relleno = new THREE.DirectionalLight(0x9fc3ff, 0.45); relleno.position.set(-0.6, 0.5, -0.3); scene.add(relleno);
+    const borde = new THREE.DirectionalLight(0xbcd6ff, 0.9); borde.position.set(-0.2, 0.35, -0.9); scene.add(borde);   // contraluz: marca el borde de las piezas
     // reflejos para los metales (estaño, tornillos, el oro de los pads): un cuarto de luz hecho aquí
     const envS = new THREE.Scene(); envS.background = new THREE.Color(0x3a3e42);
     const panel = (c, k, pos, w, h) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(c).multiplyScalar(k), side: THREE.DoubleSide })); m.position.set(...pos); m.lookAt(0, 0, 0); envS.add(m); };
     panel(0xffffff, 5, [0, 6, 0], 7, 7); panel(0xffe2c0, 3, [6, 2, 4], 4, 3); panel(0xc8dcff, 2.2, [-6, 3, -3], 4, 3); panel(0x6a5a48, 1, [0, -5, 0], 9, 9);
     const pm = new THREE.PMREMGenerator(renderer);
     scene.environment = pm.fromScene(envS, 0.04).texture;
-    scene.environmentIntensity = 0.55;
+    scene.environmentIntensity = 0.7;
     mundo = new THREE.Group(); scene.add(mundo);
     herramientas();
     new ResizeObserver(tam).observe(cv);
@@ -211,10 +213,13 @@ export function initMesa(ctx) {
   $("mesa-guia").onclick = () => ctx.abrirGuia?.();
   document.querySelectorAll("#mesa-modos button").forEach((b) => (b.onclick = async () => { if (M.hold || M.arrastre) return; M.proc = null; M.modo = b.dataset.m; M.enMano = null; if (M.modo === "soldar") await cargarESP32(); construir(); }));
 
+  /** Las placas hechas en Blender (blender/piezas/): la ESP32 y el ESC 4 en 1. Si no cargan, se dibujan aquí. */
   async function cargarESP32() {
     if (glb.esp32 || glb.cargando === false) return;
-    try { glb.cargando = new GLTFLoader().loadAsync("modelos/esp32_devkitc.glb"); glb.esp32 = (await glb.cargando).scene; }
-    catch { glb.cargando = false; }
+    const cargar = (f) => new GLTFLoader().loadAsync(`modelos/${f}.glb`).then((x) => x.scene).catch(() => null);
+    glb.cargando = Promise.all([cargar("esp32_devkitc"), cargar("esc_4en1")]);
+    [glb.esp32, glb.esc] = await glb.cargando;
+    if (!glb.esp32 && !glb.esc) glb.cargando = false;
   }
 
   // ---------------- construir lo que se ve ----------------
@@ -283,10 +288,6 @@ export function initMesa(ctx) {
     M.giro = new THREE.Group(); M.giro.add(dron); mundo.add(M.giro);
     M.dron = dron; M.proc = null; M.arrastre = null;
     const S = dron.userData.slots, body = dron.userData.body;
-    if (CHIP[build.controladora] === "esp32" && glb.esp32 && S.controladora) {        // la ESP32 de verdad (Blender)
-      const e = glb.esp32.clone(true); e.scale.setScalar(0.7); e.position.y = 0.029;
-      S.controladora.clear(); S.controladora.add(e);
-    }
     M.items = its;
     // lo que es de la radio ESP-NOW (va en la placa) no tiene nada que montar
     for (const it of its) if (!S[it.s3] && it.slot !== "montaje" && it.estado !== "camino") {
@@ -308,9 +309,11 @@ export function initMesa(ctx) {
       // la pieza (o las piezas: los 4 motores) salen del dron y van a su puesto en la mesa
       it.piezas = [];
       if (it.slot === "motores" && g) {
+        // cada pieza al brazo más cercano (el motor de Blender es 1 objeto; el dibujado, 3 cilindros)
         const co = dron.userData.corners, kids = [...g.children];
+        const deEsquina = kids.map((m) => co.reduce((b, c, j) => Math.hypot(m.position.x - c.x, m.position.z - c.z) < Math.hypot(m.position.x - co[b].x, m.position.z - co[b].z) ? j : b, 0));
         co.forEach((c, i) => {
-          const mg = new THREE.Group(); kids.slice(i * 3, i * 3 + 3).forEach((m) => mg.add(m));
+          const mg = new THREE.Group(); kids.filter((_, j) => deEsquina[j] === i).forEach((m) => mg.add(m));
           const centro = base(mg); it.piezas.push({ g: mg, centro, destino: null });
         });
       } else if (it.slot === "montaje") {
@@ -341,7 +344,7 @@ export function initMesa(ctx) {
     M.giro.position.y = M.base;
     recogibles();
     controls.minDistance = 0.06; controls.maxDistance = 1.4;
-    if (M.vista !== "armar") { M.vista = "armar"; cam.position.set(0, 0.6, 0.56); controls.target.set(0, 0, 0.05); controls.update(); }
+    if (M.vista !== "armar") { M.vista = "armar"; cam.position.set(0, 0.52, 0.62); controls.target.set(0, 0, 0.06); controls.update(); }
   }
   /**
    * El soporte de la cámara: una U (base + dos paredes, la cámara va entre ellas y se atornilla por los lados).
@@ -645,6 +648,7 @@ export function initMesa(ctx) {
     const g = new THREE.Group(); mundo.add(g);
     M.pads = new Map();                                // "k.pin#sub" -> {mesh, pos, ref, sub, pad}
     if (comp.k === "fc" && comp.chip === "esp32" && glb.esp32) placaESP32(g, comp);
+    else if (comp.k === "esc" && glb.esc) placaESC(g, comp);
     else placaGenerica(g, comp);
     M.placaG = g;
     const bb = new THREE.Box3().setFromObject(g);
@@ -798,6 +802,20 @@ export function initMesa(ctx) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.0028, d), mat);
     m.position.copy(pos); m.castShadow = true; g.add(m);
     return m;
+  }
+  /** El ESC 4 en 1 de Blender (esc_4en1.py): pad_BATP/N, pad_M<n>_<1-3>, conector_FC. Mismo lugar de cada motor que
+   * la placa genérica (M1 atrás der., M2 adelante der., M3 atrás izq., M4 adelante izq.). */
+  function placaESC(g, comp) {
+    const e = glb.esc.clone(true);
+    g.add(e);
+    e.traverse((o) => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; } });
+    e.updateMatrixWorld(true);
+    const malla = (n) => { const m = e.getObjectByName(n); return m && (m.isMesh ? m : m.getObjectByProperty("isMesh", true)); };
+    for (const pin of comp.pines) {
+      if (pin.id === "bat+" || pin.id === "bat-") { const m = malla(pin.id === "bat+" ? "pad_BATP" : "pad_BATN"); if (m) pad(m, comp, pin); }
+      else if (/^m\d$/.test(pin.id)) for (let s2 = 0; s2 < 3; s2++) { const m = malla(`pad_M${pin.id[1]}_${s2 + 1}`); if (m) pad(m, comp, pin, s2); }
+      else if (pin.id === "conn") { const m = malla("conector_FC"); if (m) pad(m, comp, pin); }
+    }
   }
   /** Una placa hecha aquí: el ESC (pads grandes de batería, 3 pads por motor) o una controladora STM32. */
   function placaGenerica(g, comp) {

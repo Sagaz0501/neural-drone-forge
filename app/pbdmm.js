@@ -755,7 +755,7 @@ export function compilar(src, data, host = {}) {
       if (v < 0 || v > 10) throw new ErrorPB(t("{k}={v}: los {fn} van de 0 a 10 (0 = apagado, 4 = lo normal, 10 = al máximo)", { k: kk, v: repr(v), fn }), n);
       c[key] = realDe(key, v, data.escala);                 // el entrenador recibe el valor real
     }
-    if (fase === "arriba") Object.assign(cfg.premios, c);
+    if (fase === "arriba") { Object.assign(cfg.premios, c); (cfg.escribio = cfg.escribio || {})[tipo] = n; }
     else { cfg.premiosVivos = { ...(cfg.premiosVivos || cfg.premiosFinal || {}), ...c }; accion({ [fn]: c }); host.ajustar?.({ premios: cfg.premiosVivos }); }
   };
 
@@ -1104,6 +1104,9 @@ export function compilar(src, data, host = {}) {
     try { revisionAuto = revision(cfg.dron.hangar, cfg.mision, cfg.lineas.dron); } catch { revisionAuto = null; }
   }
   // PBDMM 3: el plan que pide la misión (escenarios.json "plan") y lo que el plan le dice al entrenamiento
+  // los premios según el simulador (escenarios.json "premios_modo"): "libre" = los que no escribes los pone el juego,
+  // "pista" = igual, pero el ejemplo ya los muestra, "obligatorio" = los escribes tú y lo que no escribes queda en 0
+  cfg.modoPremios = data.modosPremios?.[cfg.mision] || "libre";
   try { tareaDelPlan(); } catch (err) { throw enIdioma(err, AL); }
   function tareaDelPlan() {
     const pide = data.planes?.[cfg.mision];
@@ -1121,13 +1124,23 @@ export function compilar(src, data, host = {}) {
     if (rp?.length) cfg.tarea.repaso = rp;
     if (!Object.keys(cfg.tarea).length) delete cfg.tarea;
     // los premios que pide el plan (si el programa no los puso): quieto -> llegar quieto; foto -> encuadre; esquivar -> chocar
-    const pon = (k, v) => { if (!(k in cfg.premios) && (data.premiosValidos || []).includes(k)) cfg.premios[k] = realDe(k, v, data.escala); };
+    const pon = (k, v) => { if (cfg.modoPremios !== "obligatorio" && !(k in cfg.premios) && (data.premiosValidos || []).includes(k)) cfg.premios[k] = realDe(k, v, data.escala); };
     if (quieto.length) pon("settle", 4);
     if (fotos.length) pon("framing", 3);
     if (cfg.plan.some((x) => x.a === "esquivar")) pon("crash", 6);
   }
-  const premiosMision = cfg.mision ? data.misiones.find((x) => x.id === cfg.mision)?.premios || {} : {};
-  cfg.premiosFinal = { ...premiosMision, ...cfg.premios };
+  if (cfg.modoPremios === "obligatorio") {
+    const falta = ["premio", "castigo"].filter((x) => !cfg.escribio?.[x]);
+    if (falta.length) throw enIdioma(new ErrorPB(falta.length === 2 ? t("en esta misión los premios y castigos los pones tú: escribe premios(…) y castigos(…) (lo que no escribas queda en 0)")
+      : falta[0] === "premio" ? t("en esta misión los premios los pones tú: escribe premios(…) (lo que no escribas queda en 0)")
+      : t("en esta misión los castigos los pones tú: escribe castigos(…) (lo que no escribas queda en 0; sin chocar=, chocar no le duele)")), AL);
+    if (!Object.entries(cfg.premios).some(([k, v]) => v > 0 && (tipos[k] || "premio") === "premio"))
+      throw enIdioma(new ErrorPB(t("todos tus premios están en 0: la IA no tiene nada que ganar y no aprende"), cfg.escribio.premio), AL);
+    cfg.premiosFinal = { ...Object.fromEntries((data.premiosValidos || []).map((k) => [k, 0])), ...cfg.premios };
+  } else {
+    const premiosMision = cfg.mision ? data.misiones.find((x) => x.id === cfg.mision)?.premios || {} : {};
+    cfg.premiosFinal = { ...premiosMision, ...cfg.premios };
+  }
   const nombresHook = data.hooks || ["al_empezar", "cada_generacion", "al_terminar"];
   // cada hook se puede escribir en español o en inglés (cada_generacion / every_generation)
   const hooks = nombresHook.filter((h) => interp.tiene(h) || interp.tiene(hookEn[h]));
@@ -1235,7 +1248,7 @@ export function narracion(e, cada, ses = {}) {
 
 /** Los campos de e también en inglés (como "e" en data/pbdmm.json alias_en: la prueba revisa que coincidan). */
 export const E_EN = { generacion: "generation", generaciones_sesion: "session_generations", exito: "success", choque: "crash",
-  premio: "reward", calidad: "quality", mejor_exito: "best_success", historia_exito: "success_history", pasos: "steps",
+  premio: "reward", calidad: "quality", mejor_exito: "best_success", examen: "exam", historia_exito: "success_history", pasos: "steps",
   minutos: "minutes", nivel: "level", pausado: "paused", exploracion: "exploration", ruido: "noise", viento: "wind", premios: "rewards",
   cambio: "change", diagnosticos: "diagnostics" };
 
@@ -1301,6 +1314,7 @@ export function estadoE(tr, ses = {}, escala = null) {
     premio: val(tr.rew),
     calidad: val(ult[5] ?? tr.film),
     mejor_exito: val(ses.mejor ?? tr.succ),
+    examen: val(ses.examen),                 // la nota sin ruido (el estudio la pide cada 3 min); None al principio
     nivel: tr.stage ?? null,
     minutos: ses.t0 ? Math.round((Date.now() - ses.t0) / 600) / 100 : 0,
     pausado: !!p.paused,

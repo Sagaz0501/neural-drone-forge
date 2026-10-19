@@ -146,13 +146,13 @@ def dron_items(self, context):
               "la red aprende a volar cualquier dron que el jugador pueda armar")]
     try:
         project = os.path.expanduser(bpy.path.abspath(self.project)).rstrip("/")
-        folder = os.path.join(project, "drones")
-        for f in sorted(os.listdir(folder)):
+        folders = [os.path.join(project, "drones"), os.path.join(datos_de(project), "drones")]
+        for f in sorted({x for d in folders if os.path.isdir(d) for x in os.listdir(d)}):
             if not f.endswith(".json") or f == "rango_juego.json":
                 continue
             name = f[:-5]
             try:
-                with open(os.path.join(folder, f), encoding="utf-8") as fh:
+                with open(dron_json(project, name), encoding="utf-8") as fh:
                     d = json.load(fh)
                 fis = d["fisica"]
                 label = f"{d.get('nombre', name).capitalize()} ({fis['mass'] * 1000:.0f} g, empuje/peso {fis['twr']:.2f})"
@@ -186,6 +186,18 @@ def _on_env_change(self, context):
 # =====================================================================
 # Probar el modelo en un escenario aleatorio 3D (escena "Prueba IA")
 # =====================================================================
+def datos_de(project):
+    """Dónde van los datos (models/, drones/ del jugador, los logs): el proyecto, o la carpeta del usuario cuando el juego
+    está instalado (DRONMAKER_DATOS: el código de la app es de solo lectura)."""
+    return os.environ.get("DRONMAKER_DATOS") or project
+
+
+def dron_json(project, nombre):
+    """drones/<nombre>.json: el que armó el jugador (datos) o uno del juego (código)."""
+    f = os.path.join(datos_de(project), "drones", nombre + ".json")
+    return f if os.path.isfile(f) else os.path.join(project, "drones", nombre + ".json")
+
+
 def _paths(props):
     project = os.path.expanduser(bpy.path.abspath(props.project)).rstrip("/")
     python = os.path.expanduser(bpy.path.abspath(props.python))
@@ -194,7 +206,7 @@ def _paths(props):
 
 def model_files(project):
     """El modelo único: (zip de PyTorch, npz para Blender, json con su historia)."""
-    m = os.path.join(project, "models")
+    m = os.path.join(datos_de(project), "models")
     return os.path.join(m, "modelo.zip"), os.path.join(m, "modelo.npz"), os.path.join(m, "modelo.json")
 
 
@@ -1628,10 +1640,11 @@ class DRONELAB_OT_start(bpy.types.Operator):
         if p.dron == "AZAR":
             cmd += ["--dron", "azar"]
         elif p.dron and p.dron != "ESTANDAR":
-            cmd += ["--dron", os.path.join(project, "drones", p.dron + ".json")]
+            cmd += ["--dron", dron_json(project, p.dron)]
         cmd += ["--model", LAB().get("modelo") or model_files(project)[0]]   # el modelo del pedido (o el base): se continúa si existe
         if LAB().get("tarea"):
             cmd += ["--tarea", json.dumps(LAB()["tarea"])]
+        cmd += ["--estado", os.path.join(datos_de(project), "models", "entrenando.json")]   # el progreso (lo lee el juego)
         cmd += ["--salir-sin-padre"]                  # si Blender se cierra, el entrenador guarda y termina (no queda huérfano)
         libre, txt = liberar_ctrl()
         if not libre:
@@ -1639,7 +1652,7 @@ class DRONELAB_OT_start(bpy.types.Operator):
             return self.fail(txt)
         if txt:
             self.report({'INFO'}, txt)
-        log = os.path.join(project, "live_train.log")
+        log = os.path.join(datos_de(project), "live_train.log")
         proc = subprocess.Popen(cmd, cwd=project, stdout=open(log, "w"), stderr=subprocess.STDOUT,
                                 start_new_session=True)
         lab = lab_scene()
@@ -1838,7 +1851,7 @@ class DRONELAB_OT_reset_model(bpy.types.Operator):
             return {'CANCELLED'}
         import shutil
         project, _ = _paths(lab_scene().drone_lab)
-        dest = os.path.join(project, "models", "anteriores")
+        dest = os.path.join(datos_de(project), "models", "anteriores")
         os.makedirs(dest, exist_ok=True)
         tag = time.strftime("%Y%m%d_%H%M%S")
         moved = 0
@@ -2366,7 +2379,7 @@ def _lab_watch():
     if not roots:
         return
     root = roots[0]
-    mdir = os.path.join(root, "models")
+    mdir = os.path.join(datos_de(root), "models")
     req_path = os.path.join(mdir, "lab_pedido.json")
     if os.path.isfile(req_path):
         try:

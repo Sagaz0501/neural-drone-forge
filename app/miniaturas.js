@@ -5,6 +5,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { buildDrone } from "./dron3d.js";
+import { modelo } from "./modelos3d.js";
 
 const CACHE = new Map(), COLA = [];
 let R = null, escena = null, camara = null, ocupado = false;
@@ -48,11 +49,11 @@ async function objeto(cat, r, pz) {
   const id = pz.id;
   switch (r) {
     case "chasis": return ranura({ chasis: id }, cat, "chasis");
-    case "motores": return ranura({ chasis: "madera", motores: id }, cat, "motores", true);
+    case "motores": return modelo("motor_" + id) || ranura({ chasis: "madera", motores: id }, cat, "motores", true);
     case "helices": return ranura({ chasis: "madera", helices: id }, cat, "helices", true);
-    case "baterias": return ranura({ bateria: id }, cat, "bateria");
-    case "camaras": return ranura({ camara: id }, cat, "camara");
-    case "escs": return ranura({ esc: id }, cat, "esc");
+    case "baterias": return modelo("bateria_" + id) || ranura({ bateria: id }, cat, "bateria");
+    case "camaras": return (id === "cam_juguete" && modelo("esp32_cam")) || ranura({ camara: id }, cat, "camara");
+    case "escs": return modelo("esc_4en1") || ranura({ esc: id }, cat, "esc");
     case "radios": return ranura({ radio: id }, cat, "radio");
     case "extras": return ranura({ chasis: "madera", helices: "h5", extras: [id] }, cat, "extras");
     case "controladoras": {

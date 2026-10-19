@@ -48,17 +48,42 @@ r = NG.entregar(p, D, tut.id, { estrellas: 3, fotos: 1 });
 ok(r.pago === 26 && tut.estado === "hecho" && p.plata === 176, `3 estrellas: paga ×1,3 (${r.pago})`);
 ok(p.movimientos?.length === 1 && p.movimientos[0].monto === 26 && p.movimientos[0].saldo === 176, "Finanzas: el pago queda anotado (0 estrellas no anota nada)");
 ok(NG.pasoTutorial(p, {}) === null, "el tutorial terminó");
-ok(N.ofrecidos.includes("casa_venta") && N.chats.marta.some((m) => m.especial === "casa_venta"), "después de la foto llega el video de la casa (pedido especial ⭐)");
+ok(!N.ofrecidos.includes("casa_venta"), "después de la foto el video de la casa todavía no llega (sin el simulador E5 no lo puedes hacer con la IA)");
+p.escenarios = [...(p.escenarios || ["despegar", "punto"]), "set_fotos"];
+NG.especiales(p, D);
+ok(N.ofrecidos.includes("casa_venta") && N.chats.marta.some((m) => m.especial === "casa_venta"), "con E5 (Set de fotos) llega el video de la casa (pedido especial ⭐)");
 
 // 3) los días
 const antes = N.pedidos.length;
 const dia2 = NG.nuevoDia(p, D);
-ok(N.dia === 2 && dia2.nuevos.length === 1, "día 2: 1 pedido nuevo con poca reputación");
-ok(N.pedidos.length === antes + 1, "el pedido queda guardado");
+ok(N.dia === 2 && dia2.nuevos.length === 3, "día 2: 3 pedidos nuevos con poca reputación (fotos ★ para juntar plata)");
+ok(N.pedidos.length === antes + 3, "los pedidos quedan guardados");
 // vencer
 const pe = dia2.nuevos[0];
 for (let k = 0; k < 6; k++) NG.nuevoDia(p, D);
 ok(pe.estado === "vencido", "un pedido sin hacer vence");
+// lo que te piden depende de lo que tienes: con E1-E2 solo fotos de 1 (nada de video ni techo); con E5, sets y videos
+{
+  const f = partida({ rep: 3, escenarios: ["despegar", "punto"] });
+  NG.asegurar(f, D);
+  for (let k = 0; k < 12; k++) NG.nuevoDia(f, D);
+  const pes = f.negocio.pedidos.filter((x) => !x.tutorial);
+  ok(pes.length >= 20 && pes.every((x) => x.tipo === "foto" && x.n === 1), `con E1-E2: ${pes.length} pedidos, todos de 1 foto`);
+  ok(new Set(pes.map((x) => x.plantilla)).size >= 3, "fotos variadas (fachada, jardín, la casa)");
+  const mentiras = pes.filter((x) => x.mentira);
+  ok(mentiras.length >= 1 && mentiras.every((x) => x.viento_real > x.viento && x.dia >= 3), `${mentiras.length} clientes dicen menos viento del que hay (desde el día 3)`);
+  const m0 = mentiras.filter((x) => x.estado === "nuevo").at(-1) || mentiras[0], v0 = NG.paraVolar(f, D, m0);
+  ok(v0.viento_ms === m0.viento_real && v0.viento_dicho === m0.viento, "el vuelo usa el viento real; el pedido muestra lo que dijo el cliente");
+  if (m0.estado !== "nuevo") Object.assign(m0, { estado: "nuevo", limite: f.negocio.dia + 2 });   // (con otra semilla pudo vencer)
+  NG.aceptar(f, D, m0.id); NG.entregar(f, D, m0.id, { estrellas: 2 });
+  ok(D.trabajos.mentiras.despues.some((tx) => f.negocio.chats[m0.cliente].some((x) => x.txt === tx)), "al entregar, el cliente reconoce lo del viento");
+  const g = partida({ rep: 3, escenarios: ["despegar", "punto", "linea", "foto_fija", "set_fotos"] });
+  NG.asegurar(g, D);
+  for (let k = 0; k < 15; k++) NG.nuevoDia(g, D);
+  const tipos = new Set(g.negocio.pedidos.map((x) => x.tipo));
+  ok(!f.negocio.ofrecidos.length, "con E1-E2 no llega ningún video especial de la campaña (ni la casa ni la finca)");
+  ok(tipos.has("video") && tipos.has("inspeccion") && g.negocio.pedidos.some((x) => x.tipo === "foto" && x.n > 1), "con E5: también videos, techos y sets de fotos");
+}
 // más reputación: más pedidos, más difíciles, otros clientes
 const q = partida({ rep: 15 });
 NG.asegurar(q, D);

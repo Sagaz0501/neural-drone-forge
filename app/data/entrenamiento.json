@@ -39,7 +39,7 @@
       "id": "punto",
       "icono": "📍",
       "desc": "Un punto al azar del mapa (4-12 m): ir, frenar y quedarse 3 s MIRANDO hacia donde se le pide. Es una foto sin la casa: con esto ya puede hacer la foto de Doña Marta.",
-      "exito": "Lograda = 3 s seguidos en el punto con la nariz hacia el sujeto (menos de 30° de error).",
+      "exito": "Lograda = 3 s seguidos en el punto con la nariz hacia el sujeto (menos de 10° de error).",
       "premios": {
         "progress": 2.0,
         "goal": 10.0,

@@ -14,6 +14,7 @@ Claude Code lee este archivo solo al abrir una sesión en esta carpeta. Es el re
 | **el lenguaje PBDMM** del modo desarrollador: la API (se genera desde `app/data/pbdmm.json`) · la documentación completa (tutorial, referencia, gramática, biblioteca, errores; a mano: si cambias `pbdmm.js`, actualízala) · el plan de PBDMM 2 | [`docs/PBDMM.md`](docs/PBDMM.md) · [`docs/pbdmm/`](docs/pbdmm/README.md) · [`docs/PBDMM2_PLAN.md`](docs/PBDMM2_PLAN.md) |
 | **el negocio**: clientes que escriben al celular, trabajos repetibles ★–★★★★, tipos de trabajo, tutorial del día 1 | [`docs/NEGOCIO.md`](docs/NEGOCIO.md) |
 | **la carrera del taller**: todo desde el computador, personas, pedidos chicos y misiones grandes, entregas, retos, ventas, calendario, misiones manuales; modelos reales | [`docs/PLAN_CARRERA.md`](docs/PLAN_CARRERA.md) |
+| **cuánto tarda cada escenario E1-E12 y qué premios funcionan** (entrenado y medido; de aquí salen las pistas ⏱️ de los programas) | [`docs/ENTRENAMIENTO_PROBADO.md`](docs/ENTRENAMIENTO_PROBADO.md) |
 | **el armado de verdad** (Fase 2): la mesa, soldar con la estación, atornillar, la guía aparte, la batería; las piezas 3D hechas por script en Blender (`blender/piezas/` → `app/modelos/*.glb`) | [`docs/ARMADO_PLAN.md`](docs/ARMADO_PLAN.md) |
 
 ## La idea
@@ -63,7 +64,9 @@ app/               EL JUEGO (Dron Maker): usa los módulos de game/
   celular.js       la pantalla del celular: chats, tarjetas (aceptar, ¿qué me falta?, volar), terminar el día
   requisitos.js    qué pide un pedido/misión y si un dron cumple (briefing, celular y PBDMM revisar usan este)
   ruta.js          la ruta del programador (PBDMM 2): 1 capítulo por dron creado en modo dev, retos medidos solos; partida.ruta
-  partida.js       la partida v3 (localStorage): plata, reputación, INVENTARIO de unidades (cada pieza comprada,
+  partida.js       la partida v3: un ARCHIVO por partida (jugar.py partidas/<id>.json; $DRONMAKER_DATOS/partidas en la app
+                   instalada) + la que juegas en localStorage; 📂 Partidas en el inicio (jugar, renombrar, exportar, importar,
+                   borrar = papelera + sus IA); sus programas .pbd van adentro (p.pbdmm). plata, reputación, INVENTARIO de unidades (cada pieza comprada,
                    con su vida), el HANGAR (varios drones: nombre, propósito, piezas, banco, su IA), daños, cobrar.
                    Migra las v1/v2 (un dron) y deja respaldo en localStorage "dronmaker.partida_v2"
   taller.js        EL OFICIO (lógica, sin pantalla): envíos (las piezas llegan en caja: hoy, mañana o en 2 días; u.caja,
@@ -96,6 +99,8 @@ app/               EL JUEGO (Dron Maker): usa los módulos de game/
                    estaño: Espacio; bomba: Espacio chupa; malla; esponja = limpiar; atajos F/E/X/M/C; M.mano2), enchufar el
                    arnés, multímetro (T); NO avisa
                    si una junta salió mal. Gasta p.insumos (estaño, flux, cable, malla: PT.gastar); el cautín = PT.cautinDe
+  modelos3d.js     las piezas hechas en Blender (blender/piezas/*.py -> app/modelos/*.glb: ESP32, ESC 4 en 1, ESP32-CAM,
+                   motores, baterías, el chasis de madera del kit con su tapa): precargar() al abrir; dron3d/mesa/tienda piden modelo(nombre) y si es null dibujan cajas
   miniaturas.js    las fotos de la tienda: cada pieza dibujada una vez en 3D (dron3d.js, los GLB de Blender), en cola
   banco.js         el banco de armado (lógica, sin pantalla): componentes y pines, cableado del manual, revisar()
                    (qué se quema / no funciona / falta), firmwares, orden y sentido de motores, estado() = pasos
@@ -189,6 +194,12 @@ node app/test_modulos.mjs              # que nada importado quede tapado por una
 node app/test_freestyle.mjs            # los mapas del freestyle: la pista libre, salida y portales adentro
 node app/doc_pbdmm.mjs                 # vuelve a escribir docs/PBDMM.md y docs/pbdmm/tutorial.md si cambias app/data/pbdmm.json
 node app/exportar_dron.mjs             # vuelve a escribir drones/madera.json si cambian las piezas
+cd desktop && npm start                # LA APP DE ESCRITORIO (Electron): "abre el juego" = esto, no el navegador
+cd desktop && npm run dist             # EL INSTALADOR: desktop/empaquetar.sh = PyInstaller (servidor.spec + scripts/lanzador.py:
+                                       # el Python congelado con PyTorch CPU) + el código en build/juego + electron-builder -> dist/*.dmg
+                                       # (.exe: GitHub Actions "Instaladores"). Instalada: código en los recursos (solo lectura),
+                                       # datos (models/, drones/ del jugador, stl/, partidas/) en la carpeta del usuario: jugar.py datos()
+                                       # Blender: el del jugador (jugar.py _buscar_blender) abre recursos/juego/blender; drone_lab.py datos_de()
 ```
 
 Node v22 está en `/opt/homebrew/bin/node`. Blender 5.2 en `/Applications/Blender.app`.
@@ -211,7 +222,7 @@ Node v22 está en `/opt/homebrew/bin/node`. Blender 5.2 en `/Applications/Blende
    El slug `"base"` = los archivos de siempre (`models/modelo.zip` …). Un dron nuevo parte de una copia
    del base, de otro dron o de cero (`base_de`); nunca se toca el original. `live_train.py --model` escribe
    todo en la carpeta del modelo (`--estado` = progreso). El juego puede entrenar en Blender (uno) o en el
-   fondo (`"donde": "fondo"`, jugar.py lanza live_train sin Blender; máx. 2). API en el docstring de
+   fondo (`"donde": "fondo"`, jugar.py lanza live_train sin Blender; UNO a la vez en todo el juego: al iniciar otro, el anterior guarda y se detiene, `solo_uno`). API en el docstring de
    `scripts/jugar.py` (`/api/lab`, `/api/modelos`, `/api/modelo`, `/api/stl`). Cada modelo sabe qué drones
    vuela por `meta.rango_fisica` (lo escribe `live_train.py` según `--dron`); el juego lo lee para avisar si
    el dron del jugador está fuera de lo que conoce. Borrar = mover a `models/drones/_papelera/`.
@@ -226,7 +237,7 @@ Node v22 está en `/opt/homebrew/bin/node`. Blender 5.2 en `/Applications/Blende
   sigue corriendo en `~/Documents/drone-rl`; para entrenar desde esta carpeta, en el panel Drone Lab
   cambia *Proyecto* y *Python* a esta carpeta y su `.venv`.
 - **Hangar, tienda y banco (15-10-2026):** varios drones, cada uno con nombre, propósito y su propia IA
-  (`models/drones/<slug>/`, entrenable en Blender o en segundo plano, hasta 2 a la vez). Tienda por categorías
+  (`models/drones/<slug>/`, entrenable en Blender o en segundo plano, uno a la vez). Tienda por categorías
   con cantidades; inventario por unidades. Para volar, cada dron pasa por el banco: imprimir (forma o STL
   propio) -> armar -> cablear (cortos y piezas quemadas de verdad) -> prueba de humo -> firmware -> configurar
   -> motores -> hélices -> prueba atada (+ cargar su IA). Herramientas nuevas: probador de humo y multímetro.
@@ -299,6 +310,12 @@ Node v22 está en `/opt/homebrew/bin/node`. Blender 5.2 en `/Applications/Blende
   botón (✓/✗ por motor + Programar el orden / el sentido / Volver a soldar), los pads chicos se tocan a 22 px (flux en la
   ESP32), fuera del tutorial la placa no colorea los pines, y 3 máquinas caras (🤖 auto-atornillador, auto-conectores,
   auto-soldador; piezas.json herramientas, etapa 4-5). Falta medir cuánto tarda E1 desde cero.
+- **Premios progresivos y e.examen (19-10-2026, pedido de Santiago):** cada simulador abre su programa (`pbdmm.json`
+  `escenarios_codigo`, con capa en inglés): E1 lo mínimo y cada uno agrega pocas líneas `← NUEVO`. Premios por simulador
+  (`escenarios.json` `premios_modo`): E1-E3 libres (los pone la misión), E4-E5 "pista" (el programa los muestra), E6-E12
+  "obligatorio" (sin premios()/castigos() no corre y lo que no escribe = 0; compilar() en pbdmm.js). `e.examen` = la nota
+  sin ruido (el estudio pide /api/evaluar cada 3 min): el éxito con ruido miente en la foto. `aprendizaje()` se abre en E4.
+  "Que grabe la IA" y la flota ya no se bloquean si falta el simulador (solo avisan). Tiempos: docs/ENTRENAMIENTO_PROBADO.md.
 - **Lo siguiente (docs/ROADMAP.md):** Fase 1b parte 2 (la física del dron en el entrenamiento), encargos de armado,
   pruebas de drones (QA), a mano, entregas. Decidido: el tutorial es el modo desarrollador (la demo grabada);
   imágenes y rendimiento se mejoran sobre la marcha.

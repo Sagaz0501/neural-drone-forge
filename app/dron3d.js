@@ -5,6 +5,7 @@
 // =====================================================================
 import * as THREE from "three";
 import { STL_CACHE } from "./stl.js";
+import { modelo } from "./modelos3d.js";
 
 const MAT = {};
 function m(key, opts) {
@@ -34,6 +35,29 @@ function woodTexture() {
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   MAT._wood = t;
   return t;
+}
+
+/** Una hélice de 2 palas con forma (punta redondeada, más ancha cerca del cubo, un poco torcida), plana en XZ, de
+ *  largo L y ancho máximo w; centrada en el eje. Una por tamaño (la comparten todos los drones: userData.compartida). */
+const GEO_HELICE = new Map();
+function geoHelice(L, w) {
+  const k = `${L.toFixed(4)}|${w.toFixed(4)}`;
+  if (GEO_HELICE.has(k)) return GEO_HELICE.get(k);
+  const sh = new THREE.Shape(), R = L / 2, a = w / 2;
+  sh.moveTo(0, -a * 0.55);
+  sh.bezierCurveTo(R * 0.3, -a * 1.25, R * 0.8, -a * 1.0, R, -a * 0.1);
+  sh.bezierCurveTo(R * 1.02, a * 0.45, R * 0.7, a * 0.6, 0, a * 0.55);
+  sh.bezierCurveTo(-R * 0.7, -a * 0.6, -R * 1.02, -a * 0.45, -R, a * 0.1);
+  sh.bezierCurveTo(-R * 0.8, a * 1.0, -R * 0.3, a * 1.25, 0, -a * 0.55);
+  const g = new THREE.ExtrudeGeometry(sh, { depth: 0.0018, bevelEnabled: false, curveSegments: 8 });
+  g.translate(0, 0, -0.0009); g.rotateX(-Math.PI / 2);
+  // la torsión: cada pala sube por el borde de ataque (se ve como hélice y no como tabla)
+  const P = g.attributes.position;
+  for (let i = 0; i < P.count; i++) { const x = P.getX(i), z = P.getZ(i); P.setY(i, P.getY(i) + Math.sign(x) * z * 0.18 * Math.min(1, Math.abs(x) / R + 0.3)); }
+  g.computeVertexNormals();
+  g.userData.compartida = true;
+  GEO_HELICE.set(k, g);
+  return g;
 }
 
 /** Material del chasis: el de fábrica, o pintado con el color que elegiste (la madera conserva sus vetas). */
@@ -95,7 +119,11 @@ export function buildDrone(build, cat) {
     const g = slot("chasis"), [fw, fh] = FRAME_DIM[ch.id] || [0.02, 0.008];
     const f = { arm: frameMat(ch.id, est.color), w: fw, h: fh };
     f.plate = f.arm;
-    if (stlCh) {                                       // tu diseño (STL), impreso en el material del chasis
+    const glbCh = ch.id === "madera" && !stlCh && forma === "x" && (!est.color || est.color === "#b07a45") ? modelo("chasis_madera") : null;
+    if (glbCh) {                                       // el de Blender (chasis_madera.py): listones, triplex, tornillos, bridas y su tapa
+      glbCh.scale.setScalar(R / ((glbCh.userData.radio_motor_mm || 156) / 1000));
+      g.add(glbCh);
+    } else if (stlCh) {                                // tu diseño (STL), impreso en el material del chasis
       const mesh = new THREE.Mesh(stlCh.geo, f.arm);
       mesh.castShadow = mesh.receiveShadow = true;
       g.add(mesh);
@@ -111,7 +139,7 @@ export function buildDrone(build, cat) {
         }
       }
     }
-    if (!stlCh) {
+    if (!stlCh && !glbCh) {
       box(g, 0.11, f.h, 0.075, f.plate, 0, f.h / 2, 0);
       box(g, 0.1, f.h * 0.6, 0.07, f.plate, 0, 0.042, 0).userData.tapa = true;       // la placa de arriba (tapa el stack; la batería va encima)
     }
@@ -126,7 +154,7 @@ export function buildDrone(build, cat) {
     }
     // los separadores del stack (standoffs de bronce): pasan por las esquinas del ESC y de la controladora
     for (const sx of [-0.016, 0.016]) for (const sz of [-0.016, 0.016]) cyl(g, 0.0021, 0.028, m("separador", { color: 0xc9a14a, metalness: 0.85, roughness: 0.3 }), sx, 0.0215, sz, 6).userData.separador = true;
-    if (ch.id === "madera") {                           // tornillos y cinta: hecho en casa
+    if (ch.id === "madera" && !glbCh) {                 // tornillos y cinta: hecho en casa
       for (const c of corners) cyl(g, 0.004, f.h + 0.004, m("screw", { color: 0x6b6b6b, metalness: 0.8 }), c.x * 0.55, f.h / 2, c.z * 0.55, 6);
       box(g, 0.02, f.h + 0.002, f.w + 0.004, m("tape", { color: 0x2b2b2b, roughness: 0.9 }), corners[0].x * 0.3, f.h / 2, corners[0].z * 0.3, corners[0].a);
     }
@@ -136,6 +164,13 @@ export function buildDrone(build, cat) {
   if (mo) {
     const g = slot("motores"), r = MOTOR_R[mo.id] || 0.014;
     for (const c of corners) {
+      const glb = modelo("motor_" + mo.id);           // el de Blender: la campana del mismo radio, los cables hacia el centro
+      if (glb) {
+        const k = (r * 1.02) / ((glb.userData.radio_campana_mm || 14) / 1000);
+        glb.scale.setScalar(k); glb.position.set(c.x, 0.014, c.z); glb.rotation.y = Math.atan2(c.z, -c.x);
+        g.add(glb);
+        continue;
+      }
       cyl(g, r * 1.1, 0.006, m("mount", { color: 0x222428 }), c.x, 0.017, c.z);
       cyl(g, r, 0.016, m("stator", { color: 0x2a2c30, metalness: 0.9, roughness: 0.3 }), c.x, 0.028, c.z);
       cyl(g, r * 1.02, 0.007, m("bell" + mo.id, { color: MOTOR_BELL[mo.id] || 0x888888, metalness: 0.8, roughness: 0.3 }), c.x, 0.039, c.z);
@@ -148,9 +183,9 @@ export function buildDrone(build, cat) {
       const p = new THREE.Group();
       const front = Math.cos(c.a) > 0;
       const acc = est.acento || "#ff7a1a";
-      const blade = new THREE.Mesh(new THREE.BoxGeometry(L, 0.002, 0.011 + he.pulgadas * 0.001),
-        m(front ? "propF_" + acc : "propB", { color: front ? acc : 0x3c4046, roughness: 0.45 }));
-      blade.castShadow = true;
+      const blade = new THREE.Mesh(geoHelice(L, 0.011 + he.pulgadas * 0.001),
+        m(front ? "propF_" + acc : "propB", { color: front ? acc : 0x3c4046, roughness: 0.4 }));
+      blade.castShadow = true; blade.userData.compartida = true;
       p.add(blade);
       const disc = new THREE.Mesh(new THREE.CylinderGeometry(L / 2, L / 2, 0.001, 32),
         new THREE.MeshBasicMaterial(front ? { color: est.acento || 0xff7a1a, transparent: true, opacity: 0.25, depthWrite: false }
@@ -164,18 +199,26 @@ export function buildDrone(build, cat) {
   }
   // ---- batería (encima, con correa) ----
   if (ba) {
-    const g = slot("bateria"), k = Math.cbrt(ba.masa_g / 120);
-    const lx = 0.075 * k, ly = 0.026 * k, lz = 0.036 * k;
-    box(g, lx, ly, lz, m("batt" + ba.celdas, { color: ba.id === "b4s3000" ? 0x2f6b3a : 0x15161a, roughness: 0.5 }), -0.005, 0.05 + ly / 2, 0);
-    box(g, lx * 0.7, 0.001, lz + 0.002, m("label" + ba.celdas, { color: [0, 0, 0xf2c00c, 0x3ccbff, 0xff5a3a][ba.celdas] || 0xf2c00c }), -0.005, 0.05 + ly + 0.0005, 0);
+    const g = slot("bateria"), k = Math.cbrt(ba.masa_g / 120), glb = modelo("bateria_" + ba.id);
+    let lx = 0.075 * k, ly = 0.026 * k, lz = 0.036 * k;
+    if (glb) {                                         // la de Blender, a su tamaño real (los cables salen para atrás)
+      const bb = new THREE.Box3().setFromObject(glb.getObjectByName("bateria_cuerpo") || glb), t = bb.getSize(new THREE.Vector3());
+      [lx, ly, lz] = [t.x, t.y, t.z];
+      glb.position.set(-0.005, 0.05, 0); g.add(glb);
+    } else {
+      box(g, lx, ly, lz, m("batt" + ba.celdas, { color: ba.id === "b4s3000" ? 0x2f6b3a : 0x15161a, roughness: 0.5 }), -0.005, 0.05 + ly / 2, 0);
+      box(g, lx * 0.7, 0.001, lz + 0.002, m("label" + ba.celdas, { color: [0, 0, 0xf2c00c, 0x3ccbff, 0xff5a3a][ba.celdas] || 0xf2c00c }), -0.005, 0.05 + ly + 0.0005, 0);
+    }
     box(g, 0.012, ly + 0.004, lz + 0.006, m("strap", { color: 0xd93a2a, roughness: 0.8 }), -0.005, 0.05 + ly / 2, 0);
   }
   // ---- controladora (adentro; GPS en un mástil; chip de IA con luz) ----
   if (fc) {
     const g = slot("controladora"), vis = STL_CACHE.get(build.visuales?.controladora);
+    const esp = !vis && fc.id.startsWith("fc_b") && modelo("esp32_devkitc");
     if (vis) { const mm = new THREE.Mesh(vis.geo, m("pcbStl", { color: 0x1d6b3a, roughness: 0.5 })); mm.position.y = 0.028; g.add(mm); }
+    else if (esp) { esp.scale.setScalar(0.7); esp.position.y = 0.029; g.add(esp); }                   // la ESP32 de Blender
     else box(g, 0.036, 0.004, 0.036, m(fc.id.startsWith("fc_b") ? "pcbEsp" : "pcb", { color: fc.id.startsWith("fc_b") ? 0x14143a : 0x1d6b3a, roughness: 0.5 }), 0, 0.03, 0);
-    if (fc.id.startsWith("fc_b")) box(g, 0.018, 0.003, 0.025, m("espCan", { color: 0xb8bec6, metalness: 0.8, roughness: 0.3 }), 0.004, 0.0335, 0);   // el módulo ESP32 (lata metálica)
+    if (fc.id.startsWith("fc_b") && !esp) box(g, 0.018, 0.003, 0.025, m("espCan", { color: 0xb8bec6, metalness: 0.8, roughness: 0.3 }), 0.004, 0.0335, 0);   // el módulo ESP32 (lata metálica)
     else box(g, 0.01, 0.0025, 0.01, m("mcu", { color: 0x111111, roughness: 0.4 }), 0, 0.0333, 0);                                               // el chip STM32
     if (fc.id === "fc_gps" || fc.id === "fc_ia") {
       cyl(g, 0.002, 0.05, m("mast", { color: 0x333333 }), -0.045, 0.075, 0, 6);
@@ -192,7 +235,11 @@ export function buildDrone(build, cat) {
     mm.position.set(0.065, 0.02, 0); g.add(mm);
   } else if (ca) {
     const g = slot("camara");
-    if (ca.id === "cam_juguete") {
+    const glbCam = ca.id === "cam_juguete" && modelo("esp32_cam");
+    if (glbCam) {                                      // la ESP32-CAM de Blender, parada, el lente donde iba el de antes
+      glbCam.scale.setScalar(0.75); glbCam.position.set(0.068, 0.005, 0); g.add(glbCam);
+      camPos = new THREE.Vector3(0.076, 0.03, 0);
+    } else if (ca.id === "cam_juguete") {
       box(g, 0.02, 0.016, 0.024, m("toy", { color: 0xf2f2f2, roughness: 0.5 }), 0.06, 0.03, 0);
       const l = cyl(g, 0.005, 0.006, m("lens", { color: 0x111118, roughness: 0.05 }), 0.072, 0.03, 0);
       l.rotation.z = Math.PI / 2;
@@ -247,10 +294,13 @@ export function buildDrone(build, cat) {
   }
   // ---- ESC 4 en 1 (abajo de la controladora, con el cable XT60 saliendo para atrás) ----
   if (build.esc) {
-    const g = slot("esc");
-    box(g, 0.038, 0.004, 0.038, m("escpcb", { color: 0x15161a, roughness: 0.5 }), 0, 0.019, 0);
-    for (const [x, z] of [[0.012, 0.012], [-0.012, 0.012], [0.012, -0.012], [-0.012, -0.012]]) box(g, 0.006, 0.002, 0.006, m("mosfet", { color: 0x333333 }), x, 0.0215, z);
-    cyl(g, 0.004, 0.012, m("capa", { color: 0x2a3a6a, roughness: 0.4 }), -0.022, 0.024, 0, 10);
+    const g = slot("esc"), glb = modelo("esc_4en1");
+    if (glb) { glb.scale.setScalar(1.05); glb.position.y = 0.017; g.add(glb); }        // el de Blender: sus agujeros en los separadores (±16 mm)
+    else {
+      box(g, 0.038, 0.004, 0.038, m("escpcb", { color: 0x15161a, roughness: 0.5 }), 0, 0.019, 0);
+      for (const [x, z] of [[0.012, 0.012], [-0.012, 0.012], [0.012, -0.012], [-0.012, -0.012]]) box(g, 0.006, 0.002, 0.006, m("mosfet", { color: 0x333333 }), x, 0.0215, z);
+      cyl(g, 0.004, 0.012, m("capa", { color: 0x2a3a6a, roughness: 0.4 }), -0.022, 0.024, 0, 10);
+    }
     box(g, 0.012, 0.007, 0.016, m("xt60", { color: 0xe8c020, roughness: 0.5 }), -0.075, 0.03, 0);
   }
   // ---- carcasa impresa (canopy) ----
@@ -306,5 +356,5 @@ export function tickPop(drone, dt) {
 }
 
 export function disposeDrone(drone) {
-  drone.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
+  drone.traverse((o) => { if (o.geometry && !o.userData.compartida) o.geometry.dispose(); });   // las de Blender son del caché
 }

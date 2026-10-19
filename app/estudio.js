@@ -46,7 +46,24 @@ export function initEstudio(ctx) {
     if (!ES.archivos[ES.abierto]) ES.abierto = Object.keys(ES.archivos)[0] || null;
     return ES.data;
   }
-  const guardarArchivos = () => { ponerLS(ARCH, ES.archivos); ponerLS(ABIERTO, ES.abierto); };
+  /** Los programas son DE LA PARTIDA (p.pbdmm, van en su archivo); localStorage queda como copia de la que juegas. */
+  const guardarArchivos = () => {
+    ponerLS(ARCH, ES.archivos); ponerLS(ABIERTO, ES.abierto);
+    const p = ctx.P();
+    if (!p) return;
+    p.pbdmm = { archivos: ES.archivos, abierto: ES.abierto };
+    clearTimeout(guardarArchivos.t);
+    guardarArchivos.t = setTimeout(() => ctx.guardar(), 300);       // al escribir: no en cada tecla
+  };
+  /** Cambiaste de partida: sus programas. Una partida de antes (sin p.pbdmm) se queda con los de localStorage. */
+  function deLaPartida(p) {
+    if (!p) return;
+    if (p.pbdmm) { ES.archivos = { ...(p.pbdmm.archivos || {}) }; ES.abierto = p.pbdmm.abierto ?? null; }
+    else if (ES.archivos) p.pbdmm = { archivos: ES.archivos, abierto: ES.abierto };
+    if (ES.archivos) { ponerLS(ARCH, ES.archivos); ponerLS(ABIERTO, ES.abierto); }
+    ES.modelos = [];
+    if (ES.data) { if (!ES.archivos[ES.abierto]) ES.abierto = Object.keys(ES.archivos)[0] || null; renderArchivos(); cargarEditor(); }
+  }
   const enCero = () => ctx.PT.enCero(ctx.P());
   /** Partida nueva: sin programas (los de antes quedan de respaldo en localStorage "dronmaker.pbdmm.archivos_respaldo"). */
   function vaciar() {
@@ -89,7 +106,8 @@ export function initEstudio(ctx) {
   function simuladores() {
     const d = ESC.disponibles(ctx.P(), ctx.escenarios);
     return { misionesDisponibles: d.misiones, nivelesDisponibles: d.niveles, bloqueadas: d.bloqueadas, planes: d.planes,
-      repaso: (slug, nivel) => ESC.repasoDe(ctx.P(), ctx.escenarios, slug, nivel) };
+      repaso: (slug, nivel) => ESC.repasoDe(ctx.P(), ctx.escenarios, slug, nivel),
+      modosPremios: Object.fromEntries(ESC.lista(ctx.escenarios).map((e) => [e.mision, e.premios_modo || "libre"])) };
   }
   /** Lo que PBDMM 2 puede leer del juego: los drones del hangar (con su física), lo que pide cada misión y las piezas. */
   function leerJuego() {
@@ -319,7 +337,7 @@ export function initEstudio(ctx) {
     if (!Object.keys(ES.archivos).length) ul.innerHTML = `<p class="muted" style="font-size:13px;margin:4px 8px">${t("No tienes programas: + Nuevo o abre un ejemplo.")}</p>`;
     const ej = $("es-ejemplos");
     ej.innerHTML = "";
-    for (const n of Object.keys(ES.data.ejemplos)) {
+    for (const n of ejemplosTuyos()) {
       const b = document.createElement("button");
       b.className = "es-item muted";
       b.dataset.ej = n;
@@ -327,6 +345,15 @@ export function initEstudio(ctx) {
       b.onclick = () => { menuArchivos(false); comando("ejemplo " + n); };
       ej.appendChild(b);
     }
+  }
+  /** Los ejemplos que puedes correr: los de las misiones y niveles de tus simuladores (los demás no salen). */
+  function ejemplosTuyos() {
+    const S = simuladores(), en = Object.fromEntries(Object.entries(ES.data.alias_en?.misiones || {}).map(([es, x]) => [x, es]));
+    return Object.keys(ES.data.ejemplos).filter((n) => {
+      const src = ES.data.ejemplos[n], m = /\b(?:mision|mission)\(\s*"([^"]+)"/.exec(src), nv = /\b(?:nivel|level)\(\s*(\d+)/.exec(src);
+      if (m) return S.misionesDisponibles.has(en[m[1]] || m[1]);
+      return !nv || S.nivelesDisponibles.has(+nv[1]);
+    });
   }
   const nombreArchivo = (s) => String(s || "").toLowerCase().replace(/\.pbd$/, "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40);
   function nuevoArchivo(nombre, src) {
@@ -455,8 +482,8 @@ export function initEstudio(ctx) {
         }
         case "borrar_archivo": case "eliminar": return borrarArchivo(nombreArchivo(a0 || ES.abierto));
         case "ejemplo": {
-          const src = ES.data.ejemplos[a0] && adaptarEjemplo(ES.data.ejemplos[a0]);
-          if (!src) return linea(t("Ejemplos: {lista}", { lista: Object.keys(ES.data.ejemplos).join(", ") }), "muted");
+          const src = ejemplosTuyos().includes(a0) && adaptarEjemplo(ES.data.ejemplos[a0]);
+          if (!src) return linea(t("Ejemplos: {lista}", { lista: ejemplosTuyos().join(", ") }), "muted");
           const n = nuevoArchivo("ejemplo_" + a0, src);
           return linea(t("Abrí el ejemplo como {n}.pbd: léelo, cámbialo y córrelo.", { n }), "ok");
         }
@@ -684,6 +711,9 @@ export function initEstudio(ctx) {
       nivel: c.nivel, niv, dron: typeof c.dron === "object" ? t('tu dron "{d}"', { d: c.dron.hangar }) : c.dron === "AZAR" ? t("drones al azar") : t("dron estándar"),
       n: c.drones, donde: c.donde === "blender" ? "Blender" : t("el fondo"), vel: idioma() === "en" ? ES.data.alias_en?.valores?.[c.velocidad] || c.velocidad : c.velocidad }));
     if (c.tarea?.repaso) linea("  " + t("repasa lo que ya aprobó (20 % de los intentos): {lista}", { lista: c.tarea.repaso.map((n) => ES.data.nombres_niveles[n] || n).join(", ") }), "muted");
+    if (c.modoPremios === "obligatorio") linea("  " + t("premios y castigos: los tuyos (lo que no escribiste queda en 0)"), "muted");
+    else if (!c.escribio) linea("  " + t("premios y castigos: no escribiste ninguno, van los de la misión"), "muted");
+    else linea("  " + t("premios y castigos: los tuyos + los de la misión en lo que no escribiste"), "muted");
     linea(`  ${valoresTxt(c.premiosFinal)}${c.viento ? " · " + t("viento {v} m/s", { v: c.viento }) : ""}${c.lr !== undefined ? ` · lr ${c.lr}` : ""}${c.ent !== undefined ? " · " + t("exploración {v}", { v: c.ent }) : ""}`, "muted");
     if (prog.revision) {                             // PBDMM 2: el dron de dron(…) contra lo que pide la misión
       linea("  " + t('revisión de "{d}" para {m}:', { d: c.dron.hangar, m: c.mision }), prog.revision.ok ? "ok" : "warn");
@@ -711,6 +741,7 @@ export function initEstudio(ctx) {
     if (!r.ok) { linea("✗ " + (r.msg || t("el servidor no lo aceptó")), "bad"); return; }
     ctx.PT.anotarModelo(ctx.P(), c.modelo); ctx.guardar();          // ahora es un modelo de esta partida
     linea(`✓ ${r.msg}${r.modelo_txt ? " · " + r.modelo_txt : ""}`, "ok");
+    if (r.detenidos?.length) linea("  " + t("Un entrenamiento a la vez: {m} guardó y se detuvo.", { m: r.detenidos.join(", ") }), "warn");
     if (c.donde === "blender") {
       const s = await api("/api/lab");
       if (!s.blender?.abierto) linea("  " + t("Blender no está abierto: escribe blender (cuando abra, toma el pedido)."), "warn");
@@ -759,6 +790,18 @@ export function initEstudio(ctx) {
     for (const f of s.fondo || []) if (f.activo && !out.some((x) => x.slug === f.modelo)) out.push({ slug: f.modelo, donde: "fondo" });
     return out;
   }
+  /** e.examen: cada 3 min, la nota SIN ruido del último guardado (20 intentos fijos, como el 🎓 examen). El éxito del
+   *  entrenamiento lleva el ruido con el que explora: en la foto marca ~0 % cuando el examen ya saca 90 %. */
+  function examenVivo(R) {
+    if (R.examPend || Date.now() - (R.ses.tExamen || R.t0) < 180000) return;
+    R.examPend = true; R.ses.tExamen = Date.now();
+    api(`/api/evaluar?modelo=${encodeURIComponent(R.cfg.modelo)}&nivel=${R.cfg.nivel}&n=20`).then((r) => {
+      if (r && typeof r.exito === "number") {
+        R.ses.examen = r.exito;
+        if (ES.run === R) linea("  🎓 " + t("examen sin ruido (gen {g}): {p}", { g: r.gen, p: Math.round(r.exito * 100) + " %" }), "muted");
+      }
+    }).catch(() => {}).finally(() => { R.examPend = false; });
+  }
   async function tick() {
     const s = await api("/api/lab");
     if (s.ok === false) return;
@@ -780,6 +823,7 @@ export function initEstudio(ctx) {
         } else if ((tr.gen ?? 0) > R.ultGen) {
           R.ultGen = tr.gen;
           if (typeof tr.succ === "number") R.ses.mejor = Math.max(R.ses.mejor ?? 0, tr.succ);
+          examenVivo(R);
           const e = estadoE(tr, R.ses, ctx.ent.escala_premios);
           const acc = ES.run === R ? llamarHook(R, "cada_generacion", e) || [] : [];
           for (const l of R.prog.narrar(e, R.ses)) linea(l, l.includes("💡") ? "warn" : "muted");
@@ -1140,6 +1184,12 @@ export function initEstudio(ctx) {
     if (e.id === "set_fotos") pasos = ["despegar(altura=2)", "for i in range(3):", '    ir_a("punto")', "    mantener(segundos=2)", "    foto(calidad=0.55)"];
     else pasos = [...new Set(e.plan)].map((a) => plan[a]).concat(e.plan.includes("grabar") ? ["seguir_ruta()"] : []);
     const desde = ESC.desdePara(ctx.P(), ctx.escenarios, e.id, (s) => ES.modelos.some((m) => m.slug === s)) || (enCero() ? "cero" : "base");
+    // el programa del simulador (pbdmm.json escenarios_codigo): progresivo, cada uno agrega pocas líneas al anterior
+    const tpl = ES.data.escenarios_codigo?.[e.id];
+    if (tpl) {
+      const src = tpl.replaceAll("{nom}", nom).replaceAll("{desde}", desde).replaceAll("{dron}", dron);
+      return idioma() === "en" && !/\bmodel\(/.test(src) ? traducirCodigo(src, "en", ES.data.alias_en) : src;   // la capa en inglés ya lo trae
+    }
     const src = `# ${nom}.pbd · ${t("simulador")}: ${e.nombre}\n# ${e.desc}\n\nmodelo("${nom}", desde="${desde}")\nmision("${e.mision}")\ndron("${dron}")\nentrenar_en("fondo")\n\n# ${t("el plan de vuelo")}\n${pasos.join("\n")}\naterrizar()\n\ndef cada_generacion(e):\n    print(f"gen {e.generacion}: ${t("éxito")} {e.exito:.0%}")\n`;
     return idioma() === "en" ? traducirCodigo(src, "en", ES.data.alias_en) : src;
   }
@@ -1158,6 +1208,7 @@ export function initEstudio(ctx) {
         `<div class="esc-plan"><span class="muted">${t("plan")}:</span>${e.plan.map((a) => `<code>${esc(nombreFnDe(a))}()</code>`).join("→")}</div>` +
         (e.abre.length ? `<div class="esc-plan esc-fn"><span class="muted">${t("abre en PBDMM")}:</span>${e.abre.map((f) => `<code>${esc(nombreFnDe(f))}</code>`).join("")}</div>` : "") +
         `<p style="font-size:12.5px">🧰 ${esc(e.trabajos)}</p>` +
+        (esDev() && e.premios_modo ? `<p style="font-size:12.5px">🎯 ${e.premios_modo === "obligatorio" ? t("Premios y castigos: los escribes tú (lo que falte queda en 0)") : t("Premios y castigos: el programa te los muestra (opcionales)")}</p>` : "") +
         (pasaron.length ? `<p style="font-size:12.5px">🎓 ${pasaron.map((s) => `<b>${esc(s)}</b>${ESC.esBase(p, s) ? " ⭐" : ""}`).join(", ")}</p>` : "") + `</div><div class="esc-acc"></div>`;
       const acc = c.querySelector(".esc-acc");
       const btn = (txt, cls, fn, dis = false) => { const b = document.createElement("button"); b.className = "btn small " + cls; b.innerHTML = txt; b.disabled = dis; b.onclick = fn; acc.appendChild(b); };
@@ -1434,6 +1485,7 @@ export function initEstudio(ctx) {
   $("es-volver").onclick = cerrar;
 
   $("es-menu").onclick = () => { cerrar(); ctx.irMenu?.(); };
+  $("es-salir").onclick = () => ctx.salir?.();
   /** Para el tutorial del modo desarrollador: ¿el IDE abierto? ¿el menú de programas? la línea dron(…) del programa abierto. */
   function estadoTuto() {
     const src = ES.abierto ? ES.archivos[ES.abierto] || "" : "", lineas = src.split("\n");
@@ -1445,7 +1497,7 @@ export function initEstudio(ctx) {
   }
   /** El tutorial marca una línea del editor (👉 en el margen); null = ninguna. */
   function marcar(n) { if (ES.marca !== n) { ES.marca = n; if (ES.data) pintar(); } }
-  return { abrir, comando, vaciar, estadoTuto, marcar, get estado() { return ES; } };
+  return { abrir, comando, vaciar, deLaPartida, estadoTuto, marcar, get estado() { return ES; } };
 }
 
 export { repr };

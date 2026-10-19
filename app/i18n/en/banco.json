@@ -419,11 +419,9 @@
  "Toca una pieza para montarla · mantén sobre una montada para desmontarla": "Tap a part to mount it · hold on a mounted one to remove it",
  "Receptor": "Receiver",
  "Antena": "Antenna",
- "su IA no tiene el simulador «{e}»": "its AI doesn't have the «{e}» simulator",
  "Todavía no tienes drones. Compra el <b>Kit del garaje</b> en 💻 Computador → Tienda → 🎁 Kits (el dron de madera de siempre), o crea uno con lo que tengas en el estante.": "You don't have drones yet. Buy the <b>Garage kit</b> in 💻 Computer → Shop → 🎁 Kits (the classic wooden drone), or create one with what's on your shelf.",
  "No tienes ninguna en el estante: cómprala en 💻 Computador → Tienda.": "None on your shelf: buy one in 💻 Computer → Shop.",
  "Para entrenar esto necesitas el simulador «{e}».": "To train this you need the «{e}» simulator.",
- "Tu IA no sabe hacer esto todavía: compra el simulador «{e}» (💻 → 🎮 Simuladores) y entrénala.": "Your AI can't do this yet: buy the «{e}» simulator (💻 → 🎮 Simulators) and train it.",
  "simulador ${n}": "simulator ${n}",
  "Esa misión se abre comprando el simulador «{e}» (💻 → 🎮 Simuladores).": "That mission opens by buying the «{e}» simulator (💻 → 🎮 Simulators).",
  "El <b>{chasis}</b> viene hecho: no se imprime.": "The <b>{chasis}</b> comes ready-made: it isn't printed.",
@@ -474,5 +472,6 @@
  "Programar el sentido": "Program the direction",
  "Siguiente: hélices →": "Next: propellers →",
  "Probar otra vez": "Test again",
- "Probar motores": "Test motors"
+ "Probar motores": "Test motors",
+ "No entrenó en el simulador «{e}»: puede que no sepa hacer este trabajo.": "It didn't train in the «{e}» simulator: it may not know how to do this job."
 }

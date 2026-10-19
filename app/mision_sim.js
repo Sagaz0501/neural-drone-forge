@@ -13,6 +13,7 @@ import { mundoLugar } from "./lugares.js";
 import { estrellasDe } from "./partida.js";
 import { t } from "./i18n.js";
 
+export const FOTO_CLIC = 0.5;     // s: la foto se califica con el último medio segundo quieto (env.py FOTO_CLIC)
 export const TOMA_OK = 0.5;       // calidad media para que una toma cuente (drone_rl/env.py FILM_OK)
 export const NOMBRE_TOMA = { fija: () => t("fija"), orbita: () => t("órbita"), revelar: () => t("revelar"), seguir: () => t("seguir") };
 export const IA_MAX_S = 150;      // la IA se rinde y vuelve a la base después de esto (o con poca batería)
@@ -166,7 +167,8 @@ export class MisionSim {
       const r = this.res[this.k];
       if (sh.phase === "grabando" || (sh.phase === "lista" && !r.lista)) {
         if (!this.rec) { this.toggleRec(true); this.toast(this.foto ? t("📷 {nombre}: ¡quieto!…", { nombre: sh.nombre }) : t("¡Grabando {nombre}! Sigue el punto sin perder el encuadre", { nombre: sh.nombre }), 2200); }
-        r.n++; r.q += this.q.q; r.framing += this.q.framing; r.track += this.q.track; r.flow += this.q.flow; r.steady += this.q.steady;
+        // una foto vale lo que sale en el clic: el último medio segundo (drone_rl/env.py FOTO_CLIC), no mientras frena
+        if (!this.foto || sh.t >= sh.dur - FOTO_CLIC) { r.n++; r.q += this.q.q; r.framing += this.q.framing; r.track += this.q.track; r.flow += this.q.flow; r.steady += this.q.steady; }
       }
       if (sh.phase === "lista" && !r.lista) {
         r.lista = true;

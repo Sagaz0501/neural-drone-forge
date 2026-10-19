@@ -54,3 +54,12 @@ models/avance.json
 
 # los videos originales (pesados): las versiones para el repo van en docs/media/
 /media/
+
+# las partidas (una por archivo)
+partidas/
+
+# macOS
+.DS_Store
+# los drones que exporta cada partida para entrenar (de cada jugador)
+drones/dron_*.json
+blender/Untitled.blend

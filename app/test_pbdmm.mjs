@@ -353,17 +353,18 @@ ok(salida.join("|") === "0 a|1 b|[[1, 3], [2, 4]] True False [2, 1]", "enumerate
   const HASTA_FOTO = ["despegar", "punto", "linea", "foto_fija"];
   const p = { escenarios: HASTA_FOTO }, dis = ESC.disponibles(p, ES3);
   const D3 = { ...D, misionesDisponibles: dis.misiones, nivelesDisponibles: dis.niveles, bloqueadas: dis.bloqueadas, planes: dis.planes };
-  const P3 = compilar(data.ejemplos.foto_fija, D3, host);
+  const FF = data.ejemplos.foto_fija.replace('desde="mi_piloto"', 'desde="cero"');   // el ejemplo parte del modelo de E2 (adaptarEjemplo lo cambia)
+  const P3 = compilar(FF, D3, host);
   ok(P3.cfg.plan.map((x) => x.a).join(",") === "despegar,ir_a,mantener,foto,aterrizar", "el ejemplo foto_fija: despegar → ir_a → mantener → foto → aterrizar");
   const b = pedidoDe(P3.cfg, () => null);
   ok(b.tarea && b.tarea.foto_ok === 0.5 && b.tarea.foto_seg[0] === 2.6 && b.tarea.foto_seg[1] === 3.4 && b.premios.settle > 0 && b.premios.framing > 0, `el plan es la tarea del entrenamiento: ${JSON.stringify(b.tarea)} + premios de quieto y encuadre`);
   const err3 = (src) => falla(() => compilar(src, D3, host))?.message || "";
   // una partida nueva: sin la IA base (desde="cero" por defecto) y sin nombres de otra partida
   const D0 = { ...D3, sinBase: true, modelos: [], ocupados: ["fotografo"] };
-  ok(compilar(data.ejemplos.foto_fija, D0, host).cfg.desde === "cero", "partida nueva: el ejemplo foto_fija empieza desde cero");
+  ok(compilar(FF, D0, host).cfg.desde === "cero", "partida nueva: el ejemplo foto_fija empieza desde cero");
   ok(compilar('modelo("x")\nmision("foto")\ndespegar()\nir_a("punto")\nmantener(segundos=3)\nfoto()\naterrizar()', D0, host).cfg.desde === "cero", "partida nueva: sin desde= es cero");
-  ok(/IA base/.test(falla(() => compilar(data.ejemplos.foto_fija.replace('desde="cero"', 'desde="base"'), D0, host))?.message || ""), "partida nueva: desde=\"base\" es un error");
-  ok(/ya está usado/.test(falla(() => compilar(data.ejemplos.foto_fija.replace("mi_fotografo", "fotografo"), D0, host))?.message || ""), "partida nueva: un nombre de otra partida es un error");
+  ok(/IA base/.test(falla(() => compilar(FF.replace('desde="cero"', 'desde="base"'), D0, host))?.message || ""), "partida nueva: desde=\"base\" es un error");
+  ok(/ya está usado/.test(falla(() => compilar(FF.replace("mi_fotografo", "fotografo"), D0, host))?.message || ""), "partida nueva: un nombre de otra partida es un error");
   ok(/le falta: mantener\(\)/.test(err3('modelo("x")\nmision("foto")\ndespegar()\nir_a()\nmantener()\nfoto()'.replace("mantener()\nfoto()", "foto()"))) || /quieto/.test(err3('modelo("x")\nmision("foto")\ndespegar()\nir_a()\nfoto()')), "foto() sin mantener() antes: error");
   ok(/le falta: foto\(\)/.test(err3('modelo("x")\nmision("foto")\ndespegar()\nir_a()\nmantener(2)')), "un plan sin foto(): le falta foto()");
   ok(/primero despegar/.test(err3('modelo("x")\nmision("foto")\nir_a()')), "ir_a() sin despegar: error");
@@ -407,6 +408,41 @@ ok(salida.join("|") === "0 a|1 b|[[1, 3], [2, 4]] True False [2, 1]", "enumerate
   ESC.aprobar(px, "b", "linea"); ESC.aprobar(px, "b", "foto_fija");
   ok(!ESC.esBase(px, "b") && ESC.aprobar(px, "b", "video_ruta") === true && ESC.modeloBase(px) === "b" && ESC.desdePara(px, ES3, "carrera") === "b", "aprobar E1-E4 + E6 = ⭐ modelo base (y desde ahí se parte de él)");
   ok(ESC.iaPuede(pn, ES3, "foto") && !ESC.puedeEntrenar(pn, ES3, "foto") && !ESC.iaPuede(pn, ES3, "grabar"), "con Ir a un punto la IA hace fotos fáciles (pero entrenar fotos pide el simulador Foto)");
+}
+
+// ---- el programa de cada simulador (pbdmm.json escenarios_codigo) y los premios por simulador (premios_modo) ----
+{
+  const ESJ = JSON.parse(readFileSync(new URL("./data/escenarios.json", import.meta.url))).escenarios;
+  const planes = Object.fromEntries(ESJ.map((e) => [e.mision, e.plan]));
+  const modosPremios = Object.fromEntries(ESJ.map((e) => [e.mision, e.premios_modo || "libre"]));
+  const DE = { ...D, planes, modosPremios, drones: ["estandar"] };
+  const prog = (id) => data.escenarios_codigo[id].replaceAll("{nom}", "m_" + id).replaceAll("{desde}", "cero").replaceAll("{dron}", "estandar");
+  const malos = [], lista = ESJ.filter((e) => e.num);
+  for (const e of lista) {
+    const src = prog(e.id);
+    if (!src) { malos.push(e.id + ": no tiene programa"); continue; }
+    const obl = e.premios_modo === "obligatorio";
+    try { compilar(src, DE); if (obl) malos.push(e.id + ": corre sin premios"); }
+    catch (err) { if (!obl || !/premios|castigos/.test(err.message)) malos.push(e.id + ": " + err.message); }
+    if (obl) {
+      try {
+        const c = compilar(src + "\npremios(meta=4)\ncastigos(chocar=4)\n", DE).cfg;
+        if (c.premiosFinal.film !== 0 || c.premiosFinal.goal !== 10) malos.push(e.id + ": lo que no escribe no queda en 0");
+      } catch (err) { malos.push(e.id + " (con premios): " + err.message); }
+    }
+  }
+  const EN = JSON.parse(readFileSync(new URL("./data/en/pbdmm.json", import.meta.url))).escenarios_codigo;
+  for (const e of lista) {
+    const src = (EN[e.id] || "").replaceAll("{nom}", "en_" + e.id).replaceAll("{desde}", "zero").replaceAll("{dron}", "standard");
+    try { compilar(src + (e.premios_modo === "obligatorio" ? "\nrewards(goal=4)\npenalties(crash=4)\n" : ""), DE); }
+    catch (err) { malos.push(e.id + " (en): " + err.message); }
+  }
+  ok(!malos.length, `los ${lista.length} programas de los simuladores compilan (y en inglés); desde E6 piden premios y castigos ${malos.join(" · ")}`);
+  const libre = compilar(prog("despegar"), DE).cfg;
+  ok(libre.premiosFinal.crash === ent.misiones.find((m) => m.id === "despegar").premios.crash, "E1 sin premios: van los de la misión");
+  let msg = "";
+  try { compilar(prog("video_ruta") + "\npremios(grabar=0)\ncastigos(chocar=4)\n", DE); } catch (err) { msg = err.message; }
+  ok(/en 0/.test(msg), "obligatorio con todos los premios en 0: error que lo explica");
 }
 
 console.log(fallas ? `\n${fallas} pruebas fallaron.` : "\nTodas las pruebas pasan.");

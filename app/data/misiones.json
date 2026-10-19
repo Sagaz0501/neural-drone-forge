@@ -63,7 +63,7 @@
       "entrenar": {
         "nivel": 11,
         "viento": 0,
-        "nota": "Grabar (tomas con ruta) con tu dron, sin viento."
+        "nota": "E6 · Video con ruta, con tu dron y sin viento."
       },
       "historia": "Doña Marta vende la casa de su mamá y no tiene plata para un fotógrafo. Tú tienes un dron de madera y muchas ganas."
     },
@@ -90,7 +90,7 @@
       "entrenar": {
         "nivel": 11,
         "viento": 2.5,
-        "nota": "Grabar con viento: nivel 11 con viento 2,5 m/s. Sin viento en el entrenamiento, la IA no sabe compensar las ráfagas."
+        "nota": "E8 · Video con viento (2,5 m/s). Sin viento en el entrenamiento, la IA no sabe compensar las ráfagas."
       },
       "tomas": [
         {
@@ -147,7 +147,7 @@
       "entrenar": {
         "nivel": 12,
         "viento": 0.8,
-        "nota": "Grabar entre postes (nivel 12) con tu dron. Para que la IA vea los postes, ponle los sensores ToF."
+        "nota": "E9 · Entre postes, con tu dron. Para que la IA vea los postes, ponle los sensores ToF."
       },
       "tomas": [
         {

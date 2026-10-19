@@ -17,7 +17,11 @@ Laboratorio de IA (pantalla del juego) <-> Blender, a través de este servidor:
   GET  /api/lab            lo que dicen Blender (models/lab_estado.json: estado esperando|iniciando|entrenando|
                            deteniendo|error, último error, pedido) y el entrenador (models/entrenando.json)
   POST /api/abrir_blender  abre blender/laboratorio.blend con el Drone Lab cargado
-  POST /api/partida        copia de la partida del navegador en partida.json (para revisarla desde afuera)
+  POST /api/partida        guarda la partida: partidas/<id>.json (+ la copia de siempre en partida.json)
+  GET  /api/partidas       {"partidas": [{id, nombre, modo, plata, rep, dia, pedidos, drones, modelos, creada, guardada}]}
+  GET  /api/partida?id=    {"ok", "partida"}
+  POST /api/partida_borrar {"id", "modelos": true} -> partidas/_papelera/ (+ las IA que solo usaba ella)
+                           La carpeta: $DRONMAKER_DATOS/partidas (la app de escritorio) o <proyecto>/partidas
 
 UN MODELO POR DRON (el hangar): models/drones/<slug>/ tiene modelo.zip, modelo.json, modelo_web.json (+ entrenando.json
 y entrenando.log si entrena en el fondo). slug = [a-z0-9_-], 1-40, sin "_" al inicio. "base" = models/modelo.zip etc.
@@ -27,7 +31,7 @@ y entrenando.log si entrena en el fondo). slug = [a-z0-9_-], 1-40, sin "_" al in
                  models/modelo.zip(+json+web) o el de ese dron; "cero" = red nueva. Nunca toca el original.
       "donde": "blender" (def.: lab_pedido.json, ahora con "modelo": <ruta del zip>, "modelo_slug")
                | "fondo": este servidor lanza live_train.py sin Blender (--speed rapido, puertos UDP libres de
-                 DRONMAKER_FONDO_PORTS="9031,9032;9041,9042"; máx. 2, uno por modelo; log en entrenando.log).
+                 DRONMAKER_FONDO_PORTS="9031,9032;9041,9042"; máx. 1: al iniciar otro, el anterior guarda y se detiene; log en entrenando.log).
                  pausar ("pausa": bool opcional; si no, alterna) / detener (guarda) / ajustar (premios, viento,
                  velocidad) van por el puerto de control. "iniciar" con otro nivel/dron/n.º de drones = detener,
                  guardar y relanzar.
@@ -79,6 +83,14 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
+# LOS DATOS (lo que se escribe: models/, drones/ del jugador, stl/, partidas/, partida.json): en el proyecto, o en la
+# carpeta del usuario con la app instalada (DRONMAKER_DATOS; ahí ROOT es el código, adentro de la app: solo lectura)
+def datos():
+    return Path(os.environ["DRONMAKER_DATOS"]) if os.environ.get("DRONMAKER_DATOS") else ROOT
+
+
+def instalada():
+    return datos() != ROOT
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 
@@ -89,7 +101,7 @@ _lock = threading.Lock()
 def fresh_web_model(quiet=True, folder=None):
     """Si el modelo.zip de la carpeta (por defecto models/, el "base") es más nuevo que su modelo_web.json, lo exporta."""
     with _lock:
-        _fresh_web_model(quiet, Path(folder) if folder else ROOT / "models")
+        _fresh_web_model(quiet, Path(folder) if folder else datos() / "models")
 
 
 def _fresh_web_model(quiet, folder):
@@ -112,7 +124,24 @@ def _fresh_web_model(quiet, folder):
     print("Exportado:", npz_to_web(npz, web, meta))
 
 
-BLENDER = os.environ.get("BLENDER", "/Applications/Blender.app/Contents/MacOS/Blender")
+def _buscar_blender():
+    """Blender instalado (el del sistema): $BLENDER, la carpeta de Aplicaciones (también la del usuario) o, en Windows, la
+    más nueva de Program Files\Blender Foundation."""
+    if os.environ.get("BLENDER"):
+        return os.environ["BLENDER"]
+    if os.name == "nt":
+        import glob
+        pf = os.environ.get("ProgramFiles", r"C:\Program Files")
+        cands = sorted(glob.glob(os.path.join(pf, "Blender Foundation", "Blender*", "blender.exe")), reverse=True)
+        return cands[0] if cands else os.path.join(pf, "Blender Foundation", "Blender", "blender.exe")
+    for d in ("/Applications", os.path.expanduser("~/Applications")):
+        f = os.path.join(d, "Blender.app", "Contents", "MacOS", "Blender")
+        if os.path.isfile(f):
+            return f
+    return "/Applications/Blender.app/Contents/MacOS/Blender"
+
+
+BLENDER = _buscar_blender()
 REWARD_KEYS = ("progress", "goal", "crash", "time", "smooth", "tilt", "near", "clearance", "danger", "speed",
                "stability", "heading", "film",
                "framing", "settle", "altitude", "pan", "overspeed", "energy")    # Fase 1b (= drone_rl/env.py DEFAULT_REWARD)
@@ -128,6 +157,7 @@ def read_json(path):
 
 def write_json(path, obj):
     tmp = path.with_name(path.stem + "_guardando.json")
+    path.parent.mkdir(parents=True, exist_ok=True)       # la carpeta de datos de la app instalada empieza vacía
     tmp.write_text(json.dumps(obj, ensure_ascii=False, indent=1), encoding="utf-8")
     os.replace(tmp, path)
 
@@ -150,8 +180,8 @@ def other_trainers():
 
 def lab_state(fondo=True):
     now = time.time()
-    lab = read_json(ROOT / "models" / "lab_estado.json") or {}
-    tr = read_json(ROOT / "models" / "entrenando.json") or {}
+    lab = read_json(datos() / "models" / "lab_estado.json") or {}
+    tr = read_json(datos() / "models" / "entrenando.json") or {}
     out = {"blender": dict(lab, abierto=now - float(lab.get("vivo", 0)) < 4.0),
            "entrenador": dict(tr, activo=bool(tr) and now - float(tr.get("t", 0)) < 6.0 and tr.get("phase") != "stopped"),
            "otros": other_trainers(), "ahora": now}
@@ -228,8 +258,8 @@ def lab_request(body):
         if not (1.0 < fis["twr"] < 20 and 0.05 < fis["mass"] < 10):
             return False, "física del dron fuera de rango"
         out = {"nombre": nombre, "piezas": d.get("piezas", {}), "fisica": fis, "juego": d.get("juego", {})}
-        (ROOT / "drones").mkdir(exist_ok=True)
-        write_json(ROOT / "drones" / f"{nombre}.json", out)
+        (datos() / "drones").mkdir(parents=True, exist_ok=True)
+        write_json(datos() / "drones" / f"{nombre}.json", out)
         req["dron"] = nombre
     lab_request.extra = {"modelo": slug, "donde": donde}
     if acc == "iniciar":
@@ -240,9 +270,7 @@ def lab_request(body):
             if donde == "fondo":
                 if slug == "base":
                     return False, "el modelo base se entrena en Blender (elige el modelo de un dron)"
-                vivos = fondo_procs()
-                if slug not in vivos and len(vivos) >= MAX_FONDO:
-                    return False, f"ya hay {MAX_FONDO} entrenamientos en el fondo: detén uno"
+            lab_request.extra["detenidos"] = solo_uno(slug, donde, req["id"])
             lab_request.extra["modelo_txt"] = ensure_model(slug, body.get("base_de", "base"), capas)
             if slug != "base":
                 write_info(slug, tarea=req.get("tarea"))        # la simulación (Simular prueba) usa la misma tarea
@@ -269,7 +297,7 @@ def lab_request(body):
         b, corriendo = blender_model()
         if corriendo and b == slug:              # al entrenador de Blender, por su puerto de control
             send_ctrl(blender_ctrl_port(), {k: req[k] for k in ("lr", "ent", "watch") if k in req})
-    write_json(ROOT / "models" / "lab_pedido.json", req)
+    write_json(datos() / "models" / "lab_pedido.json", req)
     lab_request.last_id = req["id"]
     return True, "pedido enviado a Blender"
 
@@ -298,11 +326,11 @@ def check_slug(slug, allow_base=True):
 
 
 def drones_dir():
-    return ROOT / "models" / "drones"
+    return datos() / "models" / "drones"
 
 
 def model_dir(slug):
-    return ROOT / "models" if slug == "base" else drones_dir() / check_slug(slug)
+    return datos() / "models" if slug == "base" else drones_dir() / check_slug(slug)
 
 
 def model_zip(slug):
@@ -378,7 +406,7 @@ def evaluar_modelo(slug, nivel=None, n=20):
         fresh_web_model(folder=d if slug != "base" else None)
     except Exception as e:                       # sin PyTorch: el modelo_web.json que haya
         print("No pude exportar el modelo:", e, flush=True)
-    web = (d if slug != "base" else ROOT / "models") / "modelo_web.json"
+    web = (d if slug != "base" else datos() / "models") / "modelo_web.json"
     if not web.exists():
         return None, f"{slug} todavía no tiene un modelo guardado"
     clave = (slug, nivel, n, web.stat().st_mtime)
@@ -426,7 +454,7 @@ def red_vivo(slug):
         b, corriendo = blender_model()
         if not (corriendo and b == slug):
             return None
-        p = ROOT / "models" / "entrenando_red.json"
+        p = datos() / "models" / "entrenando_red.json"
     red = read_json(p)
     if not red or time.time() - float(red.get("t", 0)) > 30:      # viejo: ese entrenamiento ya no escribe
         return None
@@ -506,7 +534,7 @@ def model_request(body):
             pap.mkdir(parents=True, exist_ok=True)
             dst = pap / f"{slug}_{time.strftime('%Y%m%d_%H%M%S')}"
             os.replace(model_dir(slug), dst)
-            return True, f"{slug} a la papelera", {"papelera": str(dst.relative_to(ROOT))}
+            return True, f"{slug} a la papelera", {"papelera": str(dst.relative_to(datos()))}
         nuevo = body.get("nuevo")
         if nuevo and nuevo != slug:
             check_slug(nuevo, allow_base=False)
@@ -522,7 +550,7 @@ def model_request(body):
 # ---------------- entrenar en el fondo (sin Blender) ----------------
 _fondo = {}                       # slug -> {"proc", "pid", "ctrl", "port", "cfg"}: los que lanzó este servidor
 _fondo_lock = threading.RLock()
-MAX_FONDO = 2
+MAX_FONDO = 1                     # un entrenamiento a la vez en todo el juego (solo_uno)
 
 
 def fondo_ports():
@@ -599,10 +627,16 @@ def fondo_cfg(req):
     return int(req.get("nivel") or 0), req.get("dron") or "ESTANDAR", int(req.get("drones") or 50), json.dumps(req.get("tarea") or {}, sort_keys=True)
 
 
+def dron_json(nombre):
+    """El drones/<nombre>.json: el del jugador (datos) o uno del juego (código)."""
+    f = datos() / "drones" / f"{nombre}.json"
+    return f if f.exists() or not (ROOT / "drones" / f"{nombre}.json").exists() else ROOT / "drones" / f"{nombre}.json"
+
+
 def fondo_cmd(slug, req, port, ctrl):
     d = model_dir(slug)
     py = ROOT / ".venv" / "bin" / "python"
-    cmd = [str(py) if py.exists() else sys.executable, "-u", str(ROOT / "scripts" / "live_train.py"),
+    cmd = [str(py) if py.exists() and not getattr(sys, "frozen", False) else sys.executable, "-u", str(ROOT / "scripts" / "live_train.py"),
            "--model", str(d / "modelo.zip"), "--estado", str(d / "entrenando.json"), "--speed", "rapido",
            "--stage", str(req.get("nivel", 0)), "--drones", str(req.get("drones", 50)),
            "--port", str(port), "--ctrl-port", str(ctrl)]
@@ -620,7 +654,7 @@ def fondo_cmd(slug, req, port, ctrl):
     if dron == "AZAR":
         cmd += ["--dron", "azar"]
     elif dron and dron != "ESTANDAR":
-        cmd += ["--dron", str(ROOT / "drones" / f"{dron}.json")]
+        cmd += ["--dron", str(dron_json(dron))]
     return cmd
 
 
@@ -640,31 +674,54 @@ def fondo_start(slug, req):
     d.mkdir(parents=True, exist_ok=True)
     cmd = fondo_cmd(slug, req, *par)
     log = open(d / "entrenando.log", "w")
-    proc = subprocess.Popen(cmd, cwd=str(ROOT), stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+    sin_ventana = {"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {}    # Windows: sin consola negra
+    proc = subprocess.Popen(cmd, cwd=str(ROOT), stdout=log, stderr=subprocess.STDOUT, start_new_session=True, **sin_ventana)
     log.close()
     cfg = fondo_cfg(req)
     _fondo[slug] = {"proc": proc, "pid": proc.pid, "port": par[0], "ctrl": par[1], "cfg": cfg}
     return True, f"entrenando {slug} en el fondo (puertos {par[0]}/{par[1]})", proc.pid
 
 
-def _restart_later(slug, req, pid):
-    """Cambio de nivel/dron: esperar a que el anterior guarde y salga, y relanzar."""
+def _vivo(pid):
+    with _fondo_lock:
+        for f in _fondo.values():
+            if f["pid"] == pid:
+                return f["proc"].poll() is None
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+
+
+def _restart_later(slug, req, pids):
+    """Esperar a que los entrenadores (pids) guarden y salgan, y lanzar slug: cambio de nivel/dron o solo_uno()."""
+    pids = [pids] if isinstance(pids, int) else pids
     t0 = time.time()
-    while time.time() - t0 < 300:
-        try:
-            os.kill(pid, 0)
-        except OSError:
-            break
-        with _fondo_lock:
-            f = _fondo.get(slug)
-            if f and f["pid"] == pid and f["proc"].poll() is not None:
-                break
+    while time.time() - t0 < 300 and any(_vivo(p) for p in pids):
         time.sleep(0.5)
     with _fondo_lock:
         fondo_procs()
         ok, msg, _ = fondo_start(slug, req)
         if not ok:
             print("Fondo:", msg, flush=True)
+
+
+def solo_uno(slug, donde, pid_id):
+    """Un entrenamiento a la vez (pedido de Santiago, 19-10-2026): al iniciar slug, los demás guardan y se detienen.
+    Devuelve los slugs detenidos."""
+    detenidos = []
+    for s2, f in fondo_procs().items():
+        if s2 != slug:
+            send_ctrl(f["ctrl"], {"stop": True})
+            detenidos.append(s2)
+    if donde == "fondo":                         # si va a Blender, Blender cambia de modelo solo
+        b, corriendo = blender_model()
+        if corriendo and b != slug:
+            write_json(datos() / "models" / "lab_pedido.json",
+                       {"id": pid_id - 1, "t": time.time(), "accion": "detener", "python": sys.executable})
+            detenidos.append(b)
+    return detenidos
 
 
 def fondo_live(req):
@@ -688,6 +745,10 @@ def fondo_request(slug, acc, req, body):
         vivos = fondo_procs()
         f = vivos.get(slug)
         if acc == "iniciar":
+            otros = [o["pid"] for s2, o in vivos.items() if s2 != slug]
+            if f is None and otros:                          # solo_uno() ya les pidió parar: esperar a que guarden
+                threading.Thread(target=_restart_later, args=(slug, req, otros), daemon=True).start()
+                return True, "deteniendo el otro entrenamiento (guarda) y empezando este…", {"pid": None}
             if f is None:
                 ok, msg, pid = fondo_start(slug, req)
                 return ok, msg, {"pid": pid}
@@ -738,6 +799,85 @@ def fondo_state(now=None):
     return out
 
 
+# ---------------- las partidas del jugador (archivos) ----------------
+# Una partida = partidas/<id>.json (la partida tal cual: id "p_…", nombre, modo, plata, hangar, sus programas en
+# "pbdmm"…). La carpeta: DRONMAKER_DATOS/partidas (la app de escritorio usa la carpeta de datos del usuario) o
+# <proyecto>/partidas. Borrar = mover a partidas/_papelera/ (y sus IA a models/drones/_papelera/).
+PARTIDA_RE = re.compile(r"p_[a-z0-9]{6,32}")
+_partidas_lock = threading.Lock()
+
+
+def partidas_dir():
+    return datos() / "partidas"
+
+
+def check_partida(pid):
+    if not isinstance(pid, str) or not PARTIDA_RE.fullmatch(pid):
+        raise ValueError(f"partida inválida: {pid!r}")
+    return pid
+
+
+def partida_resumen(p):
+    """Lo que muestra la lista de partidas (sin leer todo el hangar en el juego)."""
+    drones = [d.get("nombre", "") for d in p.get("drones") or [] if isinstance(d, dict)]
+    return {"id": p.get("id"), "nombre": p.get("nombre") or "", "modo": p.get("modo") or "normal",
+            "plata": p.get("plata", 0), "rep": p.get("rep", 0), "dia": (p.get("negocio") or {}).get("dia"),
+            "pedidos": len(p.get("hechos") or {}), "drones": drones, "modelos": list(p.get("modelos") or []),
+            "creada": p.get("creada"), "guardada": p.get("guardada")}
+
+
+def partidas_lista():
+    d = partidas_dir()
+    out = []
+    for f in d.glob("p_*.json") if d.is_dir() else []:
+        p = read_json(f)
+        if isinstance(p, dict) and PARTIDA_RE.fullmatch(f.stem) and p.get("id") == f.stem:
+            out.append(partida_resumen(p))
+    return sorted(out, key=lambda r: r.get("guardada") or 0, reverse=True)
+
+
+def partida_leer(pid):
+    return read_json(partidas_dir() / f"{check_partida(pid)}.json")
+
+
+def partida_guardar(p):
+    """POST /api/partida: la copia de siempre en partida.json y, si trae id, su archivo en partidas/."""
+    if not isinstance(p, dict) or p.get("v") not in (1, 2, 3):
+        raise ValueError("no es una partida")
+    write_json(datos() / "partida.json", p)
+    if p.get("id") is None:
+        return "guardada"
+    pid = check_partida(p["id"])
+    with _partidas_lock:
+        partidas_dir().mkdir(parents=True, exist_ok=True)
+        if (partidas_dir() / "_papelera" / f"{pid}.json").exists():
+            return "esa partida está en la papelera"      # un guardado que llegó tarde no la revive
+        write_json(partidas_dir() / f"{pid}.json", p)
+    return "guardada"
+
+
+def partida_borrar(pid, con_modelos=True):
+    """A la papelera: la partida y (si con_modelos) las IA que entrenó ella y ninguna otra partida usa."""
+    pid = check_partida(pid)
+    with _partidas_lock:
+        f = partidas_dir() / f"{pid}.json"
+        p = read_json(f)
+        if p is None:
+            return False, "no existe esa partida", {}
+        otras = {m for r in partidas_lista() if r["id"] != pid for m in r["modelos"]}
+        pap = partidas_dir() / "_papelera"
+        pap.mkdir(parents=True, exist_ok=True)
+        os.replace(f, pap / f"{pid}.json")
+    borrados, quedan = [], []
+    for slug in (p.get("modelos") or []) if con_modelos else []:
+        if not isinstance(slug, str) or not SLUG_RE.fullmatch(slug) or slug in otras or bloqueado(slug) \
+                or not model_dir(slug).is_dir():
+            continue
+        ok, msg, _ = model_request({"accion": "borrar", "slug": slug})
+        (borrados if ok else quedan).append(slug)
+    return True, "partida a la papelera", {"modelos_borrados": borrados, "modelos_quedan": quedan}
+
+
 # ---------------- STL del jugador ----------------
 STL_TIPOS = ("chasis", "canopy", "controladora", "camara", "bateria", "otro")
 STL_MAX = 25 * 1024 * 1024
@@ -745,7 +885,7 @@ _stl_lock = threading.Lock()
 
 
 def stl_dir():
-    return ROOT / "stl"
+    return datos() / "stl"
 
 
 def stl_index():
@@ -801,13 +941,18 @@ def open_blender():
     if lab_state()["blender"]["abierto"]:
         return True, "Blender ya está abierto"
     if not os.path.isfile(BLENDER):
-        return False, f"No encuentro Blender en {BLENDER}"
+        return False, ("Para ver a tus drones aprender en 3D instala Blender (es gratis: blender.org) y vuelve a tocar «Abrir Blender». "
+                       "Mientras tanto, entrena en segundo plano.")
     env = dict(os.environ, DRONMAKER_ROOT=str(ROOT))
     # desligado del servidor (un sh que lo lanza y se va: el padre de Blender pasa a ser el sistema): si el servidor se
     # cierra o se reinicia, Blender y su entrenamiento siguen
-    subprocess.Popen(["/bin/sh", "-c", '"$@" >/dev/null 2>&1 &', "sh", BLENDER, str(ROOT / "blender" / "laboratorio.blend"),
-                      "--python", str(ROOT / "blender" / "drone_lab.py")],
-                     cwd=str(ROOT), env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True).wait()
+    args = [BLENDER, str(ROOT / "blender" / "laboratorio.blend"), "--python", str(ROOT / "blender" / "drone_lab.py")]
+    if os.name == "nt":                                # Windows: un proceso aparte, sin consola
+        subprocess.Popen(args, cwd=str(ROOT), env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP)
+    else:
+        subprocess.Popen(["/bin/sh", "-c", '"$@" >/dev/null 2>&1 &', "sh", *args],
+                         cwd=str(ROOT), env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True).wait()
     return True, "Abriendo Blender…"
 
 
@@ -857,8 +1002,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 rep, msg = simular_prueba(check_slug(body.get("modelo") or "base"))
                 return self.send_json(dict(rep, ok=True) if rep else {"ok": False, "msg": msg}, 200 if rep else 400)
             elif path == "/api/partida":
-                write_json(ROOT / "partida.json", body)
-                ok, msg = True, "guardada"
+                ok, msg = True, partida_guardar(body)
+            elif path == "/api/partida_borrar":
+                ok, msg, extra = partida_borrar(body.get("id"), body.get("modelos", True) is not False)
+                return self.send_json(dict(extra, ok=ok, msg=msg), 200 if ok else 400)
             else:
                 return self.send_json({"ok": False, "msg": "no existe"}, 404)
         except (ValueError, TypeError, OSError) as e:
@@ -873,6 +1020,15 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return self.send_json({"modelos": list_models()})
         if path == "/api/stl":
             return self.send_json({"stl": stl_index()})
+        if path == "/api/partidas":
+            return self.send_json({"partidas": partidas_lista(), "carpeta": str(partidas_dir())})
+        if path == "/api/partida":
+            q = parse_qs(urlparse(self.path).query)
+            try:
+                p = partida_leer((q.get("id") or [""])[0])
+            except ValueError as e:
+                return self.send_json({"ok": False, "msg": str(e)}, 400)
+            return self.send_json({"ok": True, "partida": p} if p else {"ok": False, "msg": "no existe"}, 200 if p else 404)
         if path == "/api/avance":
             q = parse_qs(urlparse(self.path).query)
             try:
@@ -907,6 +1063,17 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 print("No pude exportar el modelo:", e, flush=True)
         super().do_GET()
 
+    def translate_path(self, path):
+        """El código (app/, game/…) desde ROOT; models/, stl/, drones/ desde los datos (drones: si no está, el del juego)."""
+        p = super().translate_path(path)
+        if instalada():
+            rel = Path(p).relative_to(ROOT) if Path(p).is_relative_to(ROOT) else None
+            if rel and rel.parts and rel.parts[0] in ("models", "stl", "drones", "partida.json"):
+                d = datos() / rel
+                if d.exists() or rel.parts[0] != "drones":
+                    return str(d)
+        return p
+
     def end_headers(self):
         self.send_header("Cache-Control", "no-store")         # siempre el modelo más nuevo
         super().end_headers()
@@ -918,7 +1085,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 def modelo_inicial():
     """Un clon nuevo del repo no trae models/modelo.zip (vive en tu máquina y cambia al entrenar): copia la IA
     publicada (models/publico/) para que el juego tenga con qué volar. Si ya tienes la tuya, no hace nada."""
-    m, pub = ROOT / "models", ROOT / "models" / "publico"
+    m, pub = datos() / "models", ROOT / "models" / "publico"
+    m.mkdir(parents=True, exist_ok=True)
+    for slug in ("corredor", "cazador"):               # los rivales del freestyle (models/publico/rivales: van con la app)
+        src, dst = ROOT / "models" / "publico" / "rivales" / slug, drones_dir() / slug
+        if instalada() and (src / "modelo_web.json").exists() and not (dst / "modelo_web.json").exists():
+            shutil.copytree(src, dst, dirs_exist_ok=True)
     if (m / "modelo.zip").exists() or not (pub / "modelo.zip").exists():
         return
     for f in MODEL_FILES:

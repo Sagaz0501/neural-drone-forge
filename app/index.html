@@ -384,6 +384,7 @@
   /* la mesa de trabajo (mesa.js) */
   #mesa { position: fixed; inset: 0; z-index: 3; background: #1b1d1c; }
   #mesa-c { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  .mesa-vineta { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 70% 65% at 50% 45%, transparent 45%, rgba(8,6,4,.72) 100%); }
   #mesa-top { position: absolute; left: 12px; right: 12px; top: 12px; display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 14px; flex-wrap: wrap; }
   #mesa-top b { font-size: 17px; } #mesa-placas:empty { display: none; }
   #mesa-lista { position: absolute; left: 12px; top: 74px; max-height: calc(100vh - 190px); overflow-y: auto; width: 230px; margin: 0; padding: 6px; list-style: none; border-radius: 14px; }
@@ -508,7 +509,18 @@
   }
   @media (prefers-reduced-motion: reduce) { #toast { transition: none; } .stat .bar i { transition: none; } }
   /* ---------------- modo nuevo + estudio PBDMM ---------------- */
-  #modo-nuevo { display: flex; flex-direction: column; gap: 10px; }
+  #modo-nuevo, #partidas { display: flex; flex-direction: column; gap: 10px; }
+  #partidas-lista { display: flex; flex-direction: column; gap: 8px; max-height: 46vh; overflow: auto; }
+  .partida { display: flex; flex-direction: column; gap: 4px; background: rgba(234,242,239,0.06); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; }
+  .partida.actual { border-color: var(--prop); }
+  .partida > b { font-size: 16px; } .partida .det { font-size: 12.5px; color: var(--muted); line-height: 1.45; border: 0; padding: 0; background: none; }
+  .partida .acc { display: flex; gap: 6px; margin-top: 4px; }
+  .partida .acc button { min-width: 38px; } .partida .acc button:first-child { flex: 1; }
+  .taller-salir { display: flex; gap: 6px; padding: 0 12px 12px; }
+  .taller-salir .btn { flex: 1; }
+  #salida { position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center; background: var(--bg, #0f1714); text-align: center; }
+  #salida.hidden { display: none; }
+  .partidas-pie { display: flex; justify-content: space-between; gap: 8px; }
   .modo { text-align: left; background: rgba(234,242,239,0.06); color: var(--text); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; cursor: pointer; font-family: var(--font); display: flex; flex-direction: column; gap: 4px; }
   .modo b { font-size: 18px; } .modo span { font-size: 13.5px; color: var(--muted); line-height: 1.4; }
   .modo:hover { border-color: var(--prop); } .modo.dev:hover { border-color: var(--next); }
@@ -698,13 +710,20 @@
   <div class="col">
     <button class="btn main" id="b-continuar">Continuar</button>
     <button class="btn ghost" id="b-nueva">Nueva partida</button>
+    <button class="btn ghost hidden" id="b-partidas">📂 Partidas</button>
     <a class="btn ghost" id="b-freestyle" href="./freestyle.html" style="text-align:center">🏁 Freestyle: vuela con tu control</a>
+    <button class="btn ghost" id="b-salir">🚪 Salir al escritorio</button>
   </div>
   <div id="modo-nuevo" class="hidden">
     <p class="muted" style="margin:0">¿Cómo quieres jugar?</p>
     <button class="modo" id="b-modo-normal"><b>Modo normal</b><span>La campaña: empiezas con $150 en un garaje, compras piezas, armas drones en el banco, grabas videos para clientes y entrenas su IA en el laboratorio.</span></button>
     <button class="modo dev" id="b-modo-dev"><b>Modo desarrollador</b><span>Creas los modelos de IA con código: el lenguaje <b>PBDMM</b> (con cara de Python), una terminal y una gráfica en vivo. Entrena en segundo plano o en Blender. Empieza igual que el normal (el regalo de mamá) y suma las herramientas de programar.</span></button>
     <button class="btn ghost small" id="b-modo-volver">Volver</button>
+  </div>
+  <div id="partidas" class="hidden">
+    <p class="muted" style="margin:0">Tus partidas (se guardan solas en tu computador)</p>
+    <div id="partidas-lista"></div>
+    <div class="partidas-pie"><button class="btn ghost small" id="b-partidas-volver">Volver</button><button class="btn ghost small" id="b-importar">📥 Importar</button><input type="file" id="f-importar" accept=".json,application/json" hidden></div>
   </div>
   <div class="row"><span class="muted">Calidad gráfica</span>
     <div class="seg" id="quality"><button data-q="baja">Baja</button><button data-q="media">Media</button><button data-q="alta">Alta</button></div></div>
@@ -713,12 +732,18 @@
   <div id="modelo-ini">Buscando el modelo de IA…</div>
 </section>
 
+<!-- ============ SALIR (en el navegador: la pestaña no se puede cerrar sola) ============ -->
+<section id="salida" class="hidden" aria-label="Salir">
+  <div><h2>✓ Partida guardada</h2><p class="muted">Ya puedes cerrar esta pestaña.</p><button class="btn ghost" id="b-salida-volver">Volver al juego</button></div>
+</section>
+
 <!-- ============ TALLER ============ -->
 <aside id="taller-izq" class="panel hidden" aria-label="Taller">
   <header><h2 id="empresa">El garaje</h2><div class="wallet"><span>Plata <b class="money" id="plata">$0</b></span><span>Reputación <b id="rep">0</b></span><span class="muted" id="etapa">Etapa 1</span></div></header>
   <div class="taller-acc"><button class="btn main" id="b-computador">💻 Computador<span class="badge hidden" id="pc-badge"></span></button><button class="btn ghost" id="b-estante">🗄️ Estante</button></div>
   <div id="ranuras"></div>
   <footer id="taller-pie"></footer>
+  <div class="taller-salir"><button class="btn ghost small" id="b-menu2" title="Menú principal">☰ Menú</button><button class="btn ghost small" id="b-salir2" title="Guardar y cerrar el juego">🚪 Salir</button></div>
 </aside>
 <div id="taller-top" class="hidden"><button class="btn main small" id="b-celular">📱 Celular<span class="badge hidden" id="cel-badge"></span></button><button class="btn ghost small" id="b-pedidos">Campaña</button><button class="btn ghost small" id="b-tienda">Tienda</button><button class="btn ghost small" id="b-inventario">Inventario</button><button class="btn ai small" id="b-lab">Laboratorio de IA</button><button class="btn ai small hidden" id="b-estudio">Estudio PBDMM</button><button class="btn ghost small" id="b-videos">Videos</button><button class="btn ghost small" id="b-controles">Controles</button><button class="btn ghost small" id="b-menu">Menú</button></div>
 <aside id="taller-der" class="panel hidden" aria-label="Tu dron"><h3 id="dron-nombre">Tu dron</h3><div id="stats"></div><div id="errores"></div></aside>
@@ -787,7 +812,8 @@
     <button class="btn ghost small" id="es-ordenar" title="Ordenar las ventanas" aria-label="Ordenar las ventanas">⊞</button>
     <button class="btn ai small" id="es-blender">Blender</button>
     <button class="btn ghost small" id="es-volver" title="Volver al hangar">🛠️ Hangar</button>
-    <button class="btn ghost small" id="es-menu" title="Menú principal" aria-label="Menú principal">⏻</button>
+    <button class="btn ghost small" id="es-menu" title="Menú principal" aria-label="Menú principal">☰</button>
+    <button class="btn ghost small" id="es-salir" title="Guardar y cerrar el juego" aria-label="Guardar y cerrar el juego">⏻</button>
     <span id="es-reloj" class="muted"></span>
   </footer>
 </section>
@@ -944,6 +970,7 @@
 <!-- ============ LA MESA DE TRABAJO (mesa.js): abrir cajas, montar, atornillar, soldar ============ -->
 <section id="mesa" class="hidden" aria-label="Mesa de trabajo">
   <canvas id="mesa-c"></canvas>
+  <div class="mesa-vineta"></div>
   <header id="mesa-top" class="panel">
     <b>🔧 <span id="mesa-dron"></span></b>
     <div class="seg" id="mesa-modos"><button data-m="armar">🔩 Armar</button><button data-m="soldar">🔥 Soldar</button></div>

@@ -47,6 +47,8 @@ export function modeloBase(p) {
   const bs = Object.keys(p?.examenes || {}).filter((s) => esBase(p, s));
   return bs.sort((a, b) => aprobados(p, b).length - aprobados(p, a).length)[0] || null;
 }
+/** ¿Ese modelo aprobó el examen de un escenario que le enseña esa misión (el suyo o uno que la cubre: "tambien")? */
+export const aprobo = (p, E, slug, mision) => cubren(E, mision).some((e) => aprobados(p, slug).includes(e.id));
 /** Los modelos que aprobaron este escenario. */
 export const aprobaron = (p, id) => Object.keys(p?.examenes || {}).filter((s) => aprobados(p, s).includes(id));
 /**

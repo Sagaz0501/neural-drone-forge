@@ -8,7 +8,6 @@
 // =====================================================================
 import * as NG from "./negocio.js";
 import * as REQ from "./requisitos.js";
-import * as ESC from "./escenarios.js";
 import { MisionSim, TOMA_OK } from "./mision_sim.js";
 import { t } from "./i18n.js";
 
@@ -18,8 +17,7 @@ export function porQueNo(ctx, d, vol) {
   if (!a || !a.stats.ok) return t("no está armado");
   if (ctx.PT.rotas(p, d).length) return t("tiene piezas rotas");
   if (!ctx.estadoDe(d).listo) return t("falta terminarlo en el banco");
-  const mis = vol.entrenar?.mision;
-  if (mis && ctx.escenarios && !ESC.iaPuede(ctx.P(), ctx.escenarios, mis)) return t("su IA no tiene el simulador «{e}»", { e: ESC.deMision(ctx.escenarios, mis)?.nombre || mis });
+  // sin el simulador del trabajo su IA igual sale a intentarlo: si falla, pierdes reputación y el dron vuelve con daños
   const duros = REQ.cumple(vol.requisitos || {}, a.stats, {}).duros;
   if (duros.length) return t("el cliente no acepta sin: {lista}", { lista: duros.map((x) => x[1].split(":")[0].toLowerCase()).join(", ") });
   return null;

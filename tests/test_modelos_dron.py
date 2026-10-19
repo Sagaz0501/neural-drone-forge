@@ -260,3 +260,53 @@ def test_reservados_no_se_tocan(root, monkeypatch):
         assert not jugar.model_request(body)[0]
     monkeypatch.setenv("DRONMAKER_INTERNO", "1")                      # Santiago sí los entrena
     assert jugar.lab_request({"accion": "iniciar", "nivel": 16, "modelo": "corredor"})[0]
+
+
+def test_un_entrenamiento_a_la_vez(root, monkeypatch):
+    """Al iniciar un modelo, los demás del fondo guardan y se detienen; si va al fondo, también el de Blender."""
+    enviados = []
+    monkeypatch.setattr(jugar, "fondo_procs", lambda: {"viejo": {"pid": 1, "ctrl": 9032, "port": 9031, "cfg": None}})
+    monkeypatch.setattr(jugar, "send_ctrl", lambda port, msg: enviados.append((port, msg)))
+    monkeypatch.setattr(jugar, "blender_model", lambda state=None: ("sagaz", True))
+    assert jugar.solo_uno("nuevo", "blender", 10) == ["viejo"]
+    assert enviados == [(9032, {"stop": True})]
+    assert not (root / "models" / "lab_pedido.json").exists()        # Blender cambia de modelo solo
+    assert jugar.solo_uno("nuevo", "fondo", 10) == ["viejo", "sagaz"]
+    assert jugar.read_json(root / "models" / "lab_pedido.json")["accion"] == "detener"
+    assert jugar.solo_uno("viejo", "fondo", 10) == ["sagaz"]          # el mismo modelo no se detiene
+
+
+def test_partidas_en_archivos(root, monkeypatch):
+    """Cada partida en partidas/<id>.json; borrar = papelera + las IA que solo usaba ella."""
+    monkeypatch.delenv("DRONMAKER_DATOS", raising=False)
+    a = {"v": 3, "id": "p_aaaaaa", "nombre": "Uno", "modo": "dev", "plata": 90, "rep": 2, "hechos": {"x": 1},
+         "drones": [{"nombre": "Madera"}], "modelos": ["solo_a", "comun"], "guardada": 20}
+    b = {"v": 3, "id": "p_bbbbbb", "nombre": "Dos", "plata": 150, "modelos": ["comun"], "guardada": 10}
+    for p in (a, b):
+        assert jugar.partida_guardar(p) == "guardada"
+    assert jugar.read_json(root / "partida.json")["id"] == "p_bbbbbb"        # la copia de siempre sigue
+    jugar.partida_guardar({"v": 3, "plata": 1})                              # sin id: solo la copia
+    lista = jugar.partidas_lista()
+    assert [r["id"] for r in lista] == ["p_aaaaaa", "p_bbbbbb"]              # la más reciente primero
+    assert lista[0]["drones"] == ["Madera"] and lista[0]["pedidos"] == 1 and lista[0]["modo"] == "dev"
+    assert jugar.partida_leer("p_bbbbbb")["nombre"] == "Dos"
+    for m in ("solo_a", "comun"):
+        jugar.ensure_model(m, "base")
+    ok, _, extra = jugar.partida_borrar("p_aaaaaa")
+    assert ok and extra["modelos_borrados"] == ["solo_a"]                    # "comun" lo usa la otra partida
+    assert not jugar.model_dir("solo_a").exists() and jugar.model_dir("comun").exists()
+    assert (root / "partidas" / "_papelera" / "p_aaaaaa.json").exists()
+    assert [r["id"] for r in jugar.partidas_lista()] == ["p_bbbbbb"]
+    assert jugar.partida_guardar(a) != "guardada"                            # un guardado tardío no la revive
+    assert not jugar.partida_borrar("p_aaaaaa")[0]
+    for malo in ("../x", "p_A", "", None):
+        with pytest.raises(ValueError):
+            jugar.partida_leer(malo)
+    with pytest.raises(ValueError):
+        jugar.partida_guardar({"id": "p_cccccc"})                            # sin versión: no es una partida
+
+
+def test_partidas_carpeta_de_datos(root, monkeypatch, tmp_path):
+    monkeypatch.setenv("DRONMAKER_DATOS", str(tmp_path / "datos"))
+    jugar.partida_guardar({"v": 3, "id": "p_dddddd"})
+    assert (tmp_path / "datos" / "partidas" / "p_dddddd.json").exists()

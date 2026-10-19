@@ -130,23 +130,36 @@ export function paraVolar(p, D, pe) {
     entrenar: entrenarPara(D, pe),
     id: pe.id, negocio: true, tipo: pe.tipo, dif: pe.dif, cliente: `${C.avatar} ${C.nombre} (${C.quien})`, clienteId: pe.cliente,
     titulo: pe.titulo, lugar: pe.lugar, tomas: pe.tomas, pago: pe.pago, estrellas: pe.estrellas, requisitos: pe.requisitos,
-    viento_ms: pe.viento, fijo: pe.tutorial, historia: "",
+    viento_ms: pe.viento_real ?? pe.viento, viento_dicho: pe.viento, fijo: pe.tutorial, historia: "",
   };
 }
 
 /**
- * Qué misión del Laboratorio le enseña a la IA este trabajo (Fase 1b): fotos e inspecciones -> Foto (nivel 13) o
- * Set de fotos (14); un video -> lo que diga su pedido de la campaña (misiones.json "entrenar").
+ * Qué misión del Laboratorio le enseña a la IA este trabajo (Fase 1b): fotos e inspecciones -> E2/E4 (niveles 20/13 de
+ * Python) o E5 Set de fotos (14); un video -> lo que diga su pedido de la campaña (misiones.json "entrenar").
  */
 export function entrenarPara(D, pe) {
   if (pe.tipo === "foto" || pe.tipo === "inspeccion") {
     const set = pe.n > 1;
     return { nivel: set ? 14 : 13, mision: set ? "set_fotos" : "foto", viento: pe.viento || 0,
-      nota: set ? t("Set de fotos (nivel 14) con tu dron: llegar a cada punto, frenar y quedarse quieto, y pasar al siguiente.")
-        : t("Foto (nivel 13) con tu dron: llegar, frenar y quedarse quieto con el sujeto al centro.") };
+      nota: set ? t("E5 · Set de fotos con tu dron: llegar a cada punto, frenar y quedarse quieto, y pasar al siguiente. Apruébalo con el 🎓 examen en Simuladores.")
+        : t("E2 · Ir a un punto (o E4 · Foto) con tu dron: llegar, frenar y quedarse quieto mirando al sujeto. Apruébalo con el 🎓 examen en Simuladores.") };
   }
   const T = trabajo(D, pe.plantilla), base = T && D.misiones.pedidos.find((x) => x.id === T.tomas_de);
   return base?.entrenar ? { ...base.entrenar, viento: pe.viento || 0 } : null;
+}
+
+// ---------------- qué te pueden pedir ----------------
+/** ¿La partida tiene ese simulador? (como escenarios.js tiene(): sin p.escenarios = los dos gratis) */
+const sabe = (p, id) => (p.escenarios || ["despegar", "punto"]).includes(id);
+/**
+ * Los clientes piden lo que tu taller ya puede hacer (pedido de Santiago, 19-10-2026): mientras solo tienes fotos, llegan
+ * fotos; el video llega cuando ya puedes comprar E6 (tienes E5), la inspección del techo con E4 y los sets de fotos con E5.
+ */
+export function posible(p, T) {
+  if (T.tipo === "video") return sabe(p, "set_fotos") || sabe(p, "video_ruta");
+  if (T.tipo === "inspeccion") return sabe(p, "foto_fija");
+  return true;
 }
 
 // ---------------- el día ----------------
@@ -206,15 +219,28 @@ export function nuevoDia(p, D, { primero = false } = {}) {
     const C = rng.uno(activos);
     const dmin = C.dif[0], dmax = Math.max(dmin, Math.min(C.dif[1], difMax));
     const dif = rng() < 0.55 ? dmin + Math.floor(rng() * 0.6 * (dmax - dmin + 1)) : rng.int(dmin, dmax);   // más fáciles que difíciles
-    const posibles = C.trabajos.filter((id) => { const T = trabajo(D, id); return T && dif >= T.dif[0] && dif <= T.dif[1]; });
+    const posibles = C.trabajos.filter((id) => { const T = trabajo(D, id); return T && dif >= T.dif[0] && dif <= T.dif[1] && posible(p, T); });
     if (!posibles.length) continue;
     const primeraVez = !N.contactos.includes(C.id);
-    const pe = crearPedido(p, D, C.id, rng.uno(posibles), dif, rng);
+    const T = trabajo(D, rng.uno(posibles));
+    const pe = crearPedido(p, D, C.id, T.id, dif, rng, T.tipo === "foto" && !sabe(p, "set_fotos") ? { n: 1 } : {});   // sin E5: una foto
+    mentir(p, D, pe, rng);
     const plant = primeraVez ? C.msgs.hola[0] : rng.uno(C.msgs.pedido[pe.tipo] || C.msgs.pedido.foto);
-    escribir(p, C.id, "ella", rellenar(plant, vars(D, pe)), { pedido: pe.id });
+    escribir(p, C.id, "ella", rellenar(plant, vars(D, pe)) + (pe.mentira ? " " + rng.uno(D.trabajos.mentiras.dice) : ""), { pedido: pe.id });
     out.nuevos.push(pe);
   }
   return out;
+}
+
+/**
+ * Clientes que mienten (o no saben): dicen "sin viento" y en el lugar sopla. El pedido muestra lo que dijo el cliente
+ * (pe.viento, los requisitos salen de eso) y el vuelo usa pe.viento_real: lo descubres volando (el HUD marca el viento).
+ */
+function mentir(p, D, pe, rng) {
+  const M = D.trabajos.mentiras;
+  if (!M || pe.tipo === "video" || p.negocio.dia < M.desde_dia || rng() >= M.prob) return;
+  pe.viento_real = Math.round((pe.viento + rng.entre(...M.viento)) * 10) / 10;
+  pe.mentira = true;
 }
 
 /** Los pedidos de la campaña que ya se abrieron (reputación) y todavía no se ofrecieron: llegan por el chat. */
@@ -223,7 +249,9 @@ export function especiales(p, D) {
   for (const pe of D.misiones.pedidos) {
     const cid = D.clientes.especiales[pe.id];
     if (!cid || N.ofrecidos.includes(pe.id) || !pe.lugar || !pe.tomas || p.rep < (pe.rep_min || 0) || p.hechos?.[pe.id] !== undefined) continue;
-    if (pe.id === "casa_venta" && N.tutorial < 2) continue;      // llega después de la primera foto
+    // los especiales son videos de la campaña: llegan cuando ya puedes comprar E6 (tienes E5); antes, fotos para juntar la
+    // plata de los simuladores. El de la casa, además, después de la primera foto (antes llegaba el de la finca sin esto)
+    if (!posible(p, { tipo: "video" }) || (pe.id === "casa_venta" && N.tutorial < 2)) continue;
     N.ofrecidos.push(pe.id);
     const primero = N.tutorial >= 99 && D.clientes.especial_msg_primero?.[pe.id];        // sin tutorial: no hubo una foto antes
     escribir(p, cid, "ella", rellenar(primero || D.clientes.especial_msg[pe.id] || "⭐ {titulo}", { pago: pe.pago, titulo: pe.titulo }), { especial: pe.id });
@@ -268,6 +296,7 @@ export function entregar(p, D, id, r) {
   const rel = Math.max(0, Math.min(R.max, antes + (e >= 2 ? 1 : e === 0 ? -1 : 0)));
   delete pe.flota;
   escribir(p, pe.cliente, "yo", pe.tipo === "video" ? t("¡Listo! Aquí está el video 🎬") : nombreTipo(pe.tipo, pe.n) === t("1 foto") ? t("¡Listo! Aquí está la foto 📷") : t("¡Listo! Aquí están las fotos 📷"), { entrega: id, fotos: r.fotos || 0, estrellas: e });
+  if (pe.mentira) escribir(p, pe.cliente, "ella", rngDe(N_(p) + 3).uno(D.trabajos.mentiras.despues));   // ¿viento? 😅
   const texto = rngDe(N_(p) + e).uno(C.msgs.gracias[e]);
   escribir(p, pe.cliente, "ella", texto);
   if (r.piloto === "ia" && e >= 1 && C.msgs.ia) escribir(p, pe.cliente, "ella", C.msgs.ia);

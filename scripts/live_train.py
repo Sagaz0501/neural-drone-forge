@@ -97,7 +97,8 @@ def load_drone(arg):
 def model_slug(model_path):
     """'base' si es models/modelo.zip; si no, el nombre de su carpeta (models/drones/<slug>/modelo.zip)."""
     p = Path(model_path).resolve()
-    if p.parent == (ROOT / "models").resolve():
+    datos = Path(os.environ.get("DRONMAKER_DATOS") or ROOT)       # la app instalada: los modelos en la carpeta del usuario
+    if p.parent in ((ROOT / "models").resolve(), (datos / "models").resolve()):
         return "base"
     return p.parent.name
 
@@ -630,10 +631,11 @@ def main():
     ap.add_argument("--drones", type=int, default=50)
     ap.add_argument("--stage", type=int, default=0, choices=list(STAGES))
     ap.add_argument("--level", type=str, default=None, help="nivel JSON (todos los drones en el mismo nivel)")
-    ap.add_argument("--model", type=str, default=str(ROOT / "models" / "modelo.zip"),
+    datos = Path(os.environ.get("DRONMAKER_DATOS") or ROOT)       # la app instalada: los datos en la carpeta del usuario
+    ap.add_argument("--model", type=str, default=str(datos / "models" / "modelo.zip"),
                     help="el modelo (models/modelo.zip = 'base', models/drones/<slug>/modelo.zip = el de un dron): "
                          "si existe se continúa, si no se crea uno nuevo. Todo lo demás se guarda en su carpeta")
-    ap.add_argument("--estado", type=str, default=str(ROOT / "models" / "entrenando.json"),
+    ap.add_argument("--estado", type=str, default=str(datos / "models" / "entrenando.json"),
                     help="dónde escribir el progreso en vivo (JSON) que lee el juego")
     ap.add_argument("--lr", type=float, default=3e-4)
     ap.add_argument("--ent", type=float, default=0.0)

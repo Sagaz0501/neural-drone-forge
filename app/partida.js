@@ -2,7 +2,8 @@
 // LA PARTIDA: plata, reputación, el INVENTARIO (cada pieza comprada es una unidad con su vida: si compras
 // 3 juegos de motores tienes 3 unidades), el HANGAR (varios drones, cada uno con nombre, propósito, sus
 // piezas, su estado en el banco de armado y SU modelo de IA) y los pedidos hechos.
-// Se guarda en localStorage (y una copia en partida.json). Toda la economía está aquí (números en app/data/).
+// Se guarda en un ARCHIVO por partida (scripts/jugar.py: partidas/<id>.json; varias partidas, se cargan y se borran
+// en el inicio) y la que juegas, también en localStorage (para arrancar al tiro). Toda la economía está aquí (números en app/data/).
 //
 // Versión 3. Las partidas v1/v2 (un solo dron) se migran: cada pieza que tenías es una unidad y tu dron
 // pasa a ser el primero del hangar, ya armado, cableado y programado, con la IA base (models/modelo.zip).
@@ -28,8 +29,11 @@ export const VENTA = 0.4;
 export const REIMPRIMIR = 0.3;
 
 // ---------------- crear y migrar ----------------
+/** Un id para el archivo de la partida: p_<tiempo><azar> (= jugar.py PARTIDA_RE). */
+export const nuevoId = () => "p_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
 export function nuevaPartida() {
-  const p = { v: 3, plata: PLATA_INICIAL, rep: 0, inventario: [], sig: 1, drones: [], activo: null, hechos: {}, vuelos: 0,
+  const p = { v: 3, id: nuevoId(), nombre: "", plata: PLATA_INICIAL, rep: 0, inventario: [], sig: 1, drones: [], activo: null, hechos: {}, vuelos: 0,
     creada: Date.now(), herramientas: [], empresa: "Garaje Films", insumos: {}, escenarios: ["despegar", "punto"], software: ["apps", "dronmarket"],   // software.js: lo demás se compra en 🛍️ Apps
     modelos: [] };                                     // LOS MODELOS DE ESTA PARTIDA: empieza en cero (ver modelosVisibles)
   // lo que venía con el garaje: un ESC viejo y tornillos (la radio ESP-NOW viene en el ESP32: es gratis)
@@ -122,20 +126,85 @@ export function cargar() {
     if (!s) return null;
     const p = JSON.parse(s);
     if (p && p.v < 3) localStorage.setItem(`${CLAVE}_v${p.v}`, s);     // respaldo de la partida de antes de migrar
-    return p && [1, 2, 3].includes(p.v) ? asegurarTaller(migrar(p)) : null;
+    return p && [1, 2, 3].includes(p.v) ? preparar(p) : null;
   } catch { return null; }
 }
 
+/** Migrar + el taller + un id (las partidas de antes de los archivos no tenían). */
+function preparar(p) {
+  p = asegurarTaller(migrar(p));
+  if (!p.id) p.id = nuevoId();
+  if (p.nombre === undefined) p.nombre = "";
+  return p;
+}
+
 export function guardar(p) {
+  p.guardada = Date.now();
   try { localStorage.setItem(CLAVE, JSON.stringify(p)); } catch { /* sin almacenamiento: se juega igual */ }
-  // copia en partida.json (scripts/jugar.py), para poder revisarla desde afuera del navegador
+  // su archivo (scripts/jugar.py partidas/<id>.json) + la copia en partida.json
   if (typeof fetch !== "function") return;
   clearTimeout(guardar.t);                     // varios guardados seguidos: se manda solo el último
-  guardar.t = setTimeout(() => fetch("/api/partida", { method: "POST", body: JSON.stringify(p) }).catch(() => {}), 400);
+  guardar.t = setTimeout(() => fetch("/api/partida", { method: "POST", body: JSON.stringify(p) }).then((r) => r.json())
+    .then((r) => { if (/papelera/.test(r?.msg || "")) dispatchEvent(new CustomEvent("partida-papelera")); })   // la borraste en otra ventana
+    .catch(() => {}), 400);
+}
+
+/** La que se juega en este navegador (localStorage), sin mandarla al servidor. */
+export function activar(p) {
+  try { localStorage.setItem(CLAVE, JSON.stringify(p)); } catch { /* nada */ }
+}
+
+/** Ya, sin esperar (antes de cambiar de partida). local = false: una partida que no es la que juegas (renombrar, importar). */
+export async function guardarYa(p, local = true) {
+  if (local) clearTimeout(guardar.t);
+  p.guardada = Date.now();
+  if (local) activar(p);
+  try { await fetch("/api/partida", { method: "POST", body: JSON.stringify(p) }); } catch { /* sin servidor */ }
 }
 
 export function borrar() {
   try { localStorage.removeItem(CLAVE); } catch { /* nada */ }
+}
+
+// ---------------- las partidas en archivos (scripts/jugar.py) ----------------
+async function pedir(url, body) {
+  const r = await fetch(url, body ? { method: "POST", body: JSON.stringify(body) } : undefined);
+  return r.json();
+}
+/** [{id, nombre, modo, plata, rep, dia, pedidos, drones, modelos, creada, guardada}], la más reciente primero; null sin servidor. */
+export async function listar() {
+  try { return (await pedir("/api/partidas")).partidas || []; } catch { return null; }
+}
+/** La partida de ese archivo, lista para jugar (migrada), o null. */
+export async function leer(id) {
+  try { const r = await pedir("/api/partida?id=" + encodeURIComponent(id)); return r.ok && r.partida ? preparar(r.partida) : null; } catch { return null; }
+}
+/** A la papelera (con las IA que solo usaba ella). Si es la que estás jugando, también sale de localStorage. */
+export async function borrarArchivo(id, modelos = true) {
+  try {
+    const r = await pedir("/api/partida_borrar", { id, modelos });
+    if (r.ok && cargar()?.id === id) borrar();
+    return r;
+  } catch { return { ok: false, msg: "sin servidor" }; }
+}
+/** Al abrir el juego: la partida de localStorage o, si no hay (otro navegador, la app con otro puerto), la última
+ * del disco. Si el archivo es más nuevo que la copia local (la jugaste en otro lado), gana el archivo. */
+export async function sincronizar(local) {
+  const lista = await listar();
+  if (!lista) return local;
+  if (!local) return lista[0] ? leer(lista[0].id) : null;
+  const f = lista.find((r) => r.id === local.id);
+  if (f && (f.guardada || 0) > (local.guardada || 0)) return (await leer(local.id)) || local;
+  if (!f) guardar(local);                      // una partida de antes de los archivos: se escribe su archivo
+  return local;
+}
+/** Una partida exportada (archivo .json) -> una partida nueva (id nuevo: no pisa ninguna). */
+export function importar(texto) {
+  const p = JSON.parse(texto);
+  if (!p || ![1, 2, 3].includes(p.v)) throw new Error(t("Ese archivo no es una partida de Neural Drone Forge."));
+  const q = preparar(p);
+  q.id = nuevoId();
+  return q;
 }
 
 /** Hasta qué etapa de la tienda llegas con tu reputación. */
@@ -181,8 +250,9 @@ export function asegurarTaller(p) {
   return p;
 }
 export const insumo = (p, k) => +(p.insumos?.[k] || 0);
-/** Gastar un insumo: si no alcanza, no gasta nada y devuelve false. */
+/** Gastar un insumo: si no alcanza, no gasta nada y devuelve false. Armando el primer dron (tutorial) no se gasta nada. */
 export function gastar(p, k, n) {
+  if (["regalo", "nombre", "armar"].includes(p.tuto?.etapa)) return true;
   if (insumo(p, k) + 1e-9 < n) return false;
   p.insumos[k] = Math.max(0, +(insumo(p, k) - n).toFixed(3));
   return true;

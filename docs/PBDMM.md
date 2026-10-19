@@ -58,7 +58,7 @@ Todo nombre del lenguaje tiene su equivalente en inglés, y **los dos funcionan 
 | valores: `"cero"`, `"fondo"`, `"rapido"`, `"estandar"`, `"azar"`, `"despegar"`, `"punto"`, `"linea"`, `"grabar"`, `"grabar_viento"`, `"grabar_postes"`, `"repaso_metas"`, `"repaso_columnas"`, `"foto"`, `"set_fotos"`, `"carrera"`, `"entrega"`, `"persecucion"` | `"zero"`, `"background"`, `"fast"`, `"standard"`, `"random"`, `"takeoff"`, `"point"`, `"line"`, `"film"`, `"film_wind"`, `"film_poles"`, `"review_goals"`, `"review_columns"`, `"photo"`, `"photo_set"`, `"race"`, `"delivery"`, `"chase"` |
 | premios y castigos: `grabar=`, `mirar=`, `acercarse=`, `meta=`, `cerca=`, `rapidez=`, `chocar=`, `sacudidas=`, `brusco=`, `pegado=`, `peligro=`, `inclinar=`, `tiempo=`, `encuadre=`, `quieto=`, `altura=`, `paneo=`, `exceso_velocidad=`, `gas=` | `film=`, `heading=`, `progress=`, `goal=`, `near=`, `speed=`, `crash=`, `stability=`, `smooth=`, `clearance=`, `danger=`, `tilt=`, `time=`, `framing=`, `settle=`, `altitude=`, `pan=`, `overspeed=`, `energy=` |
 | funciones especiales: `def al_empezar(e)`, `def cada_generacion(e)`, `def al_terminar(e)` | `def on_start(e)`, `def every_generation(e)`, `def on_end(e)` |
-| lo que trae e: `e.generacion`, `e.generaciones_sesion`, `e.exito`, `e.choque`, `e.premio`, `e.calidad`, `e.mejor_exito`, `e.historia_exito`, `e.pasos`, `e.minutos`, `e.nivel`, `e.pausado`, `e.exploracion`, `e.ruido`, `e.viento`, `e.premios`, `e.cambio`, `e.diagnosticos` | `e.generation`, `e.session_generations`, `e.success`, `e.crash`, `e.reward`, `e.quality`, `e.best_success`, `e.success_history`, `e.steps`, `e.minutes`, `e.level`, `e.paused`, `e.exploration`, `e.noise`, `e.wind`, `e.rewards`, `e.change`, `e.diagnostics` |
+| lo que trae e: `e.generacion`, `e.generaciones_sesion`, `e.exito`, `e.choque`, `e.premio`, `e.calidad`, `e.mejor_exito`, `e.examen`, `e.historia_exito`, `e.pasos`, `e.minutos`, `e.nivel`, `e.pausado`, `e.exploracion`, `e.ruido`, `e.viento`, `e.premios`, `e.cambio`, `e.diagnosticos` | `e.generation`, `e.session_generations`, `e.success`, `e.crash`, `e.reward`, `e.quality`, `e.best_success`, `e.exam`, `e.success_history`, `e.steps`, `e.minutes`, `e.level`, `e.paused`, `e.exploration`, `e.noise`, `e.wind`, `e.rewards`, `e.change`, `e.diagnostics` |
 | comandos: `ayuda`, `correr`, `revisar`, `parar`, `estado`, `modelos`, `pausar`, `seguir`, `detener`, `guardar`, `copiar`, `renombrar`, `borrar`, `archivos`, `nuevo`, `abrir`, `eliminar`, `ejemplo`, `cargar`, `volar`, `avance`, `simular`, `limpiar`, `traducir`, `info`, `blender` | `help`, `run`, `check`, `detach`, `status`, `models`, `pause`, `resume`, `stop`, `save`, `copy`, `rename`, `delete`, `files`, `new`, `open`, `remove`, `example`, `load`, `fly`, `progress`, `simulate`, `clear`, `translate`, `info`, `blender` |
 
 ## Funciones
@@ -142,7 +142,7 @@ drones(50)
 
 #### `entrenar_en(donde)`
 
-*Arriba del archivo.* "fondo": entrena en tu compu sin ventana (hasta 2 a la vez). "blender": lo ves en el Drone Lab de Blender (los drones volando, el cerebro, las curvas). Blender tiene que estar abierto con blender/laboratorio.blend (en la terminal: blender).
+*Arriba del archivo.* "fondo": entrena en tu compu sin ventana (uno a la vez: si empiezas otro, el anterior guarda y se detiene). "blender": lo ves en el Drone Lab de Blender (los drones volando, el cerebro, las curvas). Blender tiene que estar abierto con blender/laboratorio.blend (en la terminal: blender).
 
 - `donde`: "fondo" o "blender"
 
@@ -557,6 +557,7 @@ Con `nivel(n)`: 0 Hover (quedarse quieto) · 1 Meta fija · 2 Metas al azar · 3
 - `e.premio`: el premio promedio de un intento (sube si aprende lo que pagas)
 - `e.calidad`: de 0 a 1: la calidad de imagen al grabar (misiones de grabar)
 - `e.mejor_exito`: el mejor éxito desde que corriste el programa
+- `e.examen`: de 0 a 1: la nota SIN ruido (20 intentos fijos, como el 🎓 examen), cada 3 min; None al principio. En la foto e.exito sale mucho más bajo por el ruido con el que explora: para decidir, usa esta
 - `e.historia_exito`: lista con el éxito de las últimas 20 generaciones
 - `e.pasos`: cuántos pasos de simulación lleva en total
 - `e.minutos`: minutos desde que corriste el programa
@@ -666,10 +667,10 @@ def cada_generacion(e):
 ### foto_fija
 
 ```python
-# Foto fija: tu primer modelo de IA.
-# Le dices al dron qué hacer y el entrenamiento aprende a hacerlo.
+# E4 · Foto fija: fotos con la casa al centro (las difíciles: ★★ y más, inspecciones).
+# La de Doña Marta ya la hace un modelo que aprobó E2 · Ir a un punto.
 
-modelo("mi_fotografo", desde="cero")   # el nombre de tu IA · "cero" = empieza sin saber nada
+modelo("mi_fotografo", desde="mi_piloto")   # parte de lo que ya sabe tu IA de E2
 mision("foto")
 dron("estandar")           # ← cambia "estandar" por el nombre de TU dron
 entrenar_en("fondo")       # entrena aquí, sin Blender

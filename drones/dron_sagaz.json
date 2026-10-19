@@ -1,42 +1,38 @@
 {
  "nombre": "dron_sagaz",
  "piezas": {
-  "extras": [
-   "gancho",
-   "luces",
-   "tof"
-  ],
+  "extras": [],
   "estilo": {
-   "color": "#2a2c30",
-   "acento": "#e8e8e8",
+   "color": "#b07a45",
+   "acento": "#ff7a1a",
    "forma": "x"
   },
   "canopy": null,
   "visuales": {},
-  "chasis": "carbono5",
-  "motores": "m2207",
-  "helices": "h3",
-  "esc": "esc55",
-  "bateria": "b4s3000",
-  "controladora": "fc_ia",
-  "radio": "rx_elrs900",
-  "camara": "cam_gimbal",
-  "montaje": "mt_tpu"
+  "chasis": "madera",
+  "motores": "m1806",
+  "helices": "h5",
+  "esc": "esc20",
+  "bateria": "b3s1300",
+  "controladora": "fc_baro",
+  "radio": "rx_espnow",
+  "camara": "cam_juguete",
+  "montaje": "mt_tornillos"
  },
  "fisica": {
-  "mass": 0.916,
-  "twr": 1.6703,
-  "drag": 0.038,
+  "mass": 0.629,
+  "twr": 1.9078,
+  "drag": 0.05,
   "max_angle_deg": 35.0,
-  "yaw_rate_deg": 169.2,
-  "att_resp": 9.35,
-  "crash_speed": 5.0,
-  "radius": 0.15
+  "yaw_rate_deg": 125.79,
+  "att_resp": 6.9885,
+  "crash_speed": 3.0,
+  "radius": 0.2
  },
  "juego": {
-  "masa_g": 916,
-  "minutos": 9.42,
-  "precio": 1262,
-  "dron": "Sagaz"
+  "masa_g": 629,
+  "minutos": 4.4,
+  "precio": 119,
+  "dron": "Dron_1"
  }
 }

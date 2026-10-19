@@ -12,7 +12,7 @@
       "nombre": "Go to a point",
       "para": "Arrive and look (the basis of a photo)",
       "desc": "A random point on the map (4-12 m): go there, brake and hold for 3 s LOOKING where it's told. It's a photo without the house: with this it can already take Doña Marta's photo.",
-      "exito": "Done = 3 s in a row at the point with the nose on the subject (less than 30° off)."
+      "exito": "Done = 3 s in a row at the point with the nose on the subject (less than 10° off)."
     },
     {
       "id": "linea",

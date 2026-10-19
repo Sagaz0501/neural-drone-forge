@@ -1,5 +1,24 @@
 # Cambios
 
+## v3.1 · Demo: el instalador de Mac (19-10-2026)
+
+- **Instalador para Mac** (`.dmg`, chip Apple): se instala como cualquier app, sin Python ni terminal. Trae adentro el
+  servidor y PyTorch (`desktop/empaquetar.sh`: PyInstaller + electron-builder). Las partidas, las IA y los STL van en la
+  carpeta del usuario. **Blender** sigue funcionando con la app instalada (el del jugador, si lo tiene). Windows: el
+  workflow `Instaladores` de GitHub Actions.
+- **Partidas en archivos:** varias partidas (📂 Partidas: jugar, renombrar, exportar, importar, borrar a la papelera con
+  sus IA). Los programas `.pbd` son de cada partida. Botón **🚪 Salir al escritorio** y **☰ Menú** en el garaje.
+- **Piezas 3D hechas en Blender por script:** el chasis de contrachapado del kit, el ESC 4 en 1 (se suelda en sus pads
+  de verdad), los 6 motores, las 6 baterías y la ESP32-CAM; hélices con forma. Arreglado: en la mesa, mover un motor
+  arrastraba a 3 y no dejaba seguir.
+- **Gráficos:** el garaje con reflejos, foco y contraluz sobre el dron, bloom y viñeta, polvo en la luz, la ventana, el
+  portátil, la estación de soldar y herramientas de verdad; la mesa de trabajo más sobria; el vuelo con sol de tarde.
+- **Pedidos según lo que sabes hacer:** mientras solo tienes fotos llegan fotos (3 por día, de varios tipos); los videos
+  cuando ya puedes comprar E6. **Clientes que mienten** sobre el viento.
+- **Arreglado:** la primera IA de una partida nueva nacía como copia de la IA base (3.500 generaciones); ahora parte de
+  cero. Un solo entrenamiento a la vez en todo el juego. Los entrenamientos de la app no se frenan cuando su ventana
+  queda atrás (App Nap).
+
 ## v3.0 · La app y el aprendizaje paso a paso (18-10-2026)
 
 - **App de escritorio** (`desktop/`, Electron): el juego en su propia ventana, sin navegador; arranca el servidor solo

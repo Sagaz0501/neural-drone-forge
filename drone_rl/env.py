@@ -66,8 +66,9 @@ RACE_STAGE, DELIVERY_STAGE, CHASE_STAGE = 16, 17, 18     # carrera (portales lej
                                                          # entre edificios), persecución (alcanzar a la liebre)
 TAKEOFF_STAGE, POINT_STAGE, LINE_STAGE = 19, 20, 21       # los escenarios básicos (E1-E3 del juego)
 HOLD_SECONDS = 3.0            # 19-20: cuánto quieto en el punto
-FACING_COS = float(np.cos(np.radians(30)))   # 20: mirando al sujeto con menos de 30° de error
+FACING_COS = float(np.cos(np.radians(10)))   # 20: mirando al sujeto con menos de 10° de error (como en una foto)
 LINE_OFF = 1.5                # 21: m que se puede alejar de la línea
+FOTO_CLIC = 0.5               # 13-14: la foto se califica con el último medio segundo quieto (app/mision_sim.js igual)
 BIG_BOUNDS = 60.0             # m: las pruebas 16-18 usan un campo más grande que el de siempre (30 m)
 FILM_OK = 0.5            # grabar: calidad media de la toma para que cuente como lograda (sensing.film_quality)
 FILM_TOMAS = ("fija", "orbita", "revelar")
@@ -497,8 +498,9 @@ class DroneEnv(gym.Env):
             self.film_q = fq["q"]
             if recording:                                    # solo cuenta lo que se graba
                 reward += rw.get("film", 0.0) * fq["q"] * self.dt
-                self.film_sum += fq["q"]
-                self.film_n += 1
+                if self.stage not in PHOTO_STAGES or self.shot.t >= self.shot.dur - FOTO_CLIC:
+                    self.film_sum += fq["q"]                 # una foto vale lo que sale en el clic (el último medio
+                    self.film_n += 1                         # segundo), no mientras frena y se acomoda
                 self.film_good += self.dt
             near = (self.shot.phase == "ir" or started) and float(np.linalg.norm(self.shot.start() - pos)) < APPROACH_R
             if recording or near:                            # Fase 1b: encuadre y altura, grabando o llegando

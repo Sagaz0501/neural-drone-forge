@@ -293,5 +293,12 @@
  "«{m}» sacó {x} % en «{e}» (necesita {meta} %): sigue entrenando.": "«{m}» scored {x} % in «{e}» (needs {meta} %): keep training.",
  "🎓 ¡«{m}» aprobó «{e}» con {x} %!": "🎓 «{m}» passed «{e}» with {x} %!",
  "⭐ ¡Tienes un modelo base!": "⭐ You have a base model!",
- "«{m}» ya despega, va a un punto, sigue una línea, toma fotos y graba. <b>Es tu modelo base</b>: úsalo como punto de partida (desde=\"{m}\") y tus próximos modelos van a aprender mucho más rápido que desde cero.": "«{m}» already takes off, goes to a point, follows a line, takes photos and films. <b>It's your base model</b>: use it as the starting point (start_from=\"{m}\") and your next models will learn much faster than from zero."
+ "«{m}» ya despega, va a un punto, sigue una línea, toma fotos y graba. <b>Es tu modelo base</b>: úsalo como punto de partida (desde=\"{m}\") y tus próximos modelos van a aprender mucho más rápido que desde cero.": "«{m}» already takes off, goes to a point, follows a line, takes photos and films. <b>It's your base model</b>: use it as the starting point (start_from=\"{m}\") and your next models will learn much faster than from zero.",
+ "premios y castigos: los tuyos (lo que no escribiste queda en 0)": "rewards and penalties: yours (anything you didn't write is 0)",
+ "premios y castigos: no escribiste ninguno, van los de la misión": "rewards and penalties: you didn't write any, the mission's are used",
+ "premios y castigos: los tuyos + los de la misión en lo que no escribiste": "rewards and penalties: yours + the mission's for anything you didn't write",
+ "Premios y castigos: los escribes tú (lo que falte queda en 0)": "Rewards and penalties: you write them (anything missing is 0)",
+ "Premios y castigos: el programa te los muestra (opcionales)": "Rewards and penalties: the program shows them to you (optional)",
+ "examen sin ruido (gen {g}): {p}": "exam without noise (gen {g}): {p}",
+ "Un entrenamiento a la vez: {m} guardó y se detuvo.": "One training at a time: {m} saved and stopped."
 }

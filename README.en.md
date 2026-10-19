@@ -58,6 +58,14 @@ with PPO (reinforcement learning) from the rewards and penalties you choose. Wha
 
 ## Download and play
 
+**Mac (Apple chip, M1 or newer):** download the installer
+[**Neural-Drone-Forge-mac.dmg**](https://github.com/Sagaz0501/neural-drone-forge/releases/latest/download/Neural-Drone-Forge-mac.dmg)
+(~300 MB), open it and drag the app to Applications. The first time: **right-click the app → Open** (it isn't signed
+yet). You don't need Python or anything else. Blender is optional and free ([blender.org](https://www.blender.org)): with
+it you watch your drones learn in 3D. **Windows:** coming soon.
+
+**From the code** (for developers):
+
 You need **Python 3.11+** (tested with 3.13) and **Node.js 18+** (for the app). **Blender** is optional (tested with
 5.2): it lets you *watch* the training in 3D, and the game recommends it.
 

@@ -184,7 +184,7 @@ tiempo. Teclas: **Espacio** pausa, **← →** 2 segundos, **C** cambia la cáma
    **📷 Foto** (nivel 13: llegar, frenar y quedarse quieto), **🖼️ Set de fotos** (nivel 14: 2-4 fotos seguidas) y los
    repasos (ir a metas, esquivar columnas). Cada pedido dice qué misión le sirve (*Entrenar la IA* en el briefing ya
    la deja elegida).
-3. **Dónde entrena:** en Blender (lo ves) o en segundo plano (sin ventana, hasta 2 a la vez).
+3. **Dónde entrena:** en Blender (lo ves) o en segundo plano (sin ventana). Uno a la vez: si empiezas otro, el anterior guarda y se detiene.
 4. **Premios y castigos, de 0 a 10** (4 = lo normal), agrupados: 🎯 la misión, 🛩️ vuelo, 🎥 cámara, 🛡️ seguridad y
    🔋 energía. Toca el nombre (ⓘ) para ver qué paga o cobra. Los que no sirven para esa misión quedan plegados abajo.
    *Valores recomendados* los pone como la misión los sugiere. Se pueden cambiar en vivo mientras entrena.

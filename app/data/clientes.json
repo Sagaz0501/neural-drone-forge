@@ -10,6 +10,8 @@
       "rep_min": 0,
       "trabajos": [
         "foto_casa",
+        "foto_fachada",
+        "foto_lejos",
         "video_casa",
         "inspeccion_casa"
       ],
@@ -136,6 +138,8 @@
       "rep_min": 4,
       "trabajos": [
         "foto_casa",
+        "foto_fachada",
+        "foto_lejos",
         "video_casa",
         "inspeccion_casa"
       ],

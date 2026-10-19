@@ -19,7 +19,7 @@ Cómo se conectan las piezas de **Neural Drone Forge**. Para la base de la que n
                  │ POST /api/modelo, /api/stl, /api/partida                          │ /api/modelos, modelo_web.json
  ┌───────────────▼──────────────────────────────────────────────────────────────┴─────────────────────┐
  │ scripts/jugar.py   servidor local (127.0.0.1:8765): sirve el juego y es el "puente" con el entrenador │
- │                    · en segundo plano: lanza live_train.py (máx. 2, puertos UDP propios)              │
+ │                    · en segundo plano: lanza live_train.py (máx. 1, puertos UDP propios)              │
  │                    · en Blender: escribe models/lab_pedido.json y Blender lo toma                     │
  └───────┬──────────────────────────────────────────────────────────────────────────┬─────────────────┘
          │ lanza (fondo)                                                              │ lab_pedido.json

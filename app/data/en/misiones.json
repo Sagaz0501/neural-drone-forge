@@ -9,7 +9,7 @@
         { "nombre": "Half orbit", "desc": "Go around one side of the house without losing it from the center." },
         { "nombre": "Reveal from the garden", "desc": "Start low and close, then rise while pulling away: the whole house comes into view." }
       ],
-      "entrenar": { "nota": "Filming (shots with a route) with your drone, no wind." },
+      "entrenar": { "nota": "E6 · Video on a path, with your drone and no wind." },
       "historia": "Doña Marta is selling her mother's house and can't afford a photographer. You've got a wooden drone and plenty of drive."
     },
     {
@@ -17,7 +17,7 @@
       "cliente": "Don Ernesto (El Roble farm)",
       "titulo": "Video of El Roble farm",
       "historia": "Don Ernesto saw the house video and wants one of his farm to sell milk to a supermarket. Up there the wind always blows.",
-      "entrenar": { "nota": "Filming in the wind: level 11 with 2.5 m/s wind. Without wind in training, the AI can't compensate for gusts." },
+      "entrenar": { "nota": "E8 · Video in the wind (2.5 m/s). Without wind in training, the AI can't compensate for gusts." },
       "tomas": [
         { "nombre": "Reveal the barn", "desc": "From the barn door, rise while pulling away until the whole farm is in view." },
         { "nombre": "Wide orbit", "desc": "A big, high loop around the barn (with the silo behind it)." },
@@ -29,7 +29,7 @@
       "cliente": "Doña Lucía (La Brasa restaurant)",
       "titulo": "La Brasa restaurant for social media",
       "historia": "You have a shop now and clients who pay for real. Doña Lucía wants a video for Instagram, but there are people eating on the terrace and poles on the sidewalk.",
-      "entrenar": { "nota": "Filming between poles (level 12) with your drone. For the AI to see the poles, give it the ToF sensors." },
+      "entrenar": { "nota": "E9 · Between poles, with your drone. For the AI to see the poles, give it the ToF sensors." },
       "tomas": [
         { "nombre": "The facade", "desc": "Hold still in front of the restaurant, at the height of the sign." },
         { "nombre": "Between the poles", "desc": "Half a loop along the sidewalk, passing between the poles and the wall." },

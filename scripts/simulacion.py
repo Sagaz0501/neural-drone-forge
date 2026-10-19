@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import sys
 import time
 from pathlib import Path
@@ -80,7 +81,8 @@ def cargar_dron(nombre):
     if nombre in ("al azar", "azar", "AZAR"):
         r = json.loads((ROOT / "drones" / "rango_juego.json").read_text(encoding="utf-8"))
         return None, {k: v for k, v in r.items() if not k.startswith("_")}
-    for p in (ROOT / "drones" / f"{nombre}.json", Path(nombre)):
+    datos = Path(os.environ.get("DRONMAKER_DATOS") or ROOT)       # el dron del jugador (la app instalada: en sus datos)
+    for p in (datos / "drones" / f"{nombre}.json", ROOT / "drones" / f"{nombre}.json", Path(nombre)):
         if p.is_file():
             return QuadParams.from_dict(json.loads(p.read_text(encoding="utf-8"))), None
     return None, None

@@ -96,6 +96,18 @@ Cada plantilla tiene **4 niveles de dificultad**:
   barómetro; distancia de 40 m → radio de 40 m o más; gente cerca → protectores. Así un mismo trabajo ★ lo hace
   tu dron de madera, y el ★★★★ te obliga a comprar o armar otro.
 
+## Qué te piden según lo que tienes (19-10-2026, pedido de Santiago)
+
+Los clientes solo piden lo que tu taller ya puede hacer (`negocio.js posible()`): con E1-E2 llegan **fotos de 1**
+(la casa, la fachada de cerca, la casa con el jardín: `foto_casa`, `foto_fachada`, `foto_lejos`); la inspección del techo
+llega con E4; los sets de fotos y los **videos** (y el video especial de la casa) cuando tienes E5 y ya puedes comprar E6.
+Son 3 pedidos por día desde el principio, para juntar la plata de los simuladores.
+
+**Clientes que mienten** (`trabajos.json "mentiras"`): desde el día 3, 1 de cada 5 pedidos de fotos dice "sin viento"
+y en el lugar sopla 1-2,5 m/s más. La tarjeta y el briefing muestran lo que dijo el cliente (`pe.viento`, y de eso salen
+los requisitos); el vuelo usa `pe.viento_real` (el HUD lo marca). Al entregar, el cliente lo reconoce. Enseña a entrenar
+con algo de viento aunque el pedido diga que no.
+
 ## Los clientes
 
 `app/data/clientes.json`: cada cliente tiene nombre, foto, forma de escribir, qué tipos de trabajo pide, de qué

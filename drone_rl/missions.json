@@ -155,7 +155,7 @@
     "nombre": "Ir a un punto",
     "tiempo": 20,
     "objetivo": "Volar a un punto al azar del mapa (4-12 m, de 1 a 4 m de alto) y quedarse ahí MIRANDO hacia donde se pide (como para una foto).",
-    "exito": "Estar 3 segundos SEGUIDOS dentro del aro (radio 0.5 m) con la nariz hacia el sujeto (menos de 30° de error).",
+    "exito": "Estar 3 segundos SEGUIDOS dentro del aro (radio 0.5 m) con la nariz hacia el sujeto (menos de 10° de error).",
     "falla": "chocar con el piso a más de 4 m/s, salir del área de 30 m, o que se acabe el tiempo",
     "premio": "+ por acercarse, + de frente al punto (lejos) y al sujeto (cerca), + quieto, +10 al completar los 3 s, -10 al chocar"
   },

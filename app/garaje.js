@@ -4,6 +4,7 @@
 // =====================================================================
 import * as THREE from "three";
 import { buildDrone, popIn, tickPop, disposeDrone } from "./dron3d.js";
+import { modelo } from "./modelos3d.js";
 import { t } from "./i18n.js";
 
 function canvasTex(w, h, paint, repeat = [1, 1]) {
@@ -40,18 +41,21 @@ export class Garaje {
       for (let i = 0; i < 2500; i++) { g.fillStyle = `rgba(${r() < 0.5 ? "40,38,34" : "150,146,138"},${0.08 + r() * 0.12})`; g.fillRect(r() * w, r() * h, 1 + r() * 3, 1 + r() * 3); }
       g.strokeStyle = "rgba(30,28,25,0.35)"; g.lineWidth = 2; g.strokeRect(0, 0, w, h);
     }, [6, 6]);
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshStandardMaterial({ map: concrete, roughness: 0.92 }));
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshStandardMaterial({ map: concrete, roughness: 0.78 }));
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     S.add(floor);
     const brick = canvasTex(256, 256, (g, w, h) => {
-      g.fillStyle = "#5a5049"; g.fillRect(0, 0, w, h);
+      g.fillStyle = "#6b625a"; g.fillRect(0, 0, w, h);
       const bh = 32, bw = 64;
       for (let y = 0; y < h; y += bh) for (let x = -bw; x < w; x += bw) {
-        const off = (y / bh) % 2 ? bw / 2 : 0, v = 0.85 + r() * 0.3;
-        g.fillStyle = `rgb(${Math.round(138 * v)},${Math.round(82 * v)},${Math.round(62 * v)})`;
+        const off = (y / bh) % 2 ? bw / 2 : 0, v = 0.7 + r() * 0.35;
+        g.fillStyle = `rgb(${Math.round(118 * v)},${Math.round(66 * v)},${Math.round(50 * v)})`;
         g.fillRect(x + off + 2, y + 2, bw - 4, bh - 4);
+        for (let i = 0; i < 18; i++) { g.fillStyle = `rgba(${r() < 0.5 ? "30,20,16" : "190,150,120"},${0.08 + r() * 0.1})`; g.fillRect(x + off + 3 + r() * (bw - 8), y + 3 + r() * (bh - 8), 1 + r() * 3, 1 + r() * 2); }
       }
+      const sucio = g.createLinearGradient(0, 0, 0, h); sucio.addColorStop(0, "rgba(0,0,0,0)"); sucio.addColorStop(1, "rgba(20,14,10,0.25)");
+      g.fillStyle = sucio; g.fillRect(0, 0, w, h);
     }, [5, 2]);
     const wallMat = new THREE.MeshStandardMaterial({ map: brick, roughness: 0.95 });
     const back = new THREE.Mesh(new THREE.PlaneGeometry(20, 6), wallMat);
@@ -65,11 +69,13 @@ export class Garaje {
     S.add(side);
 
     // ---- mesa de trabajo ----
-    const woodTop = canvasTex(256, 64, (g, w, h) => {
-      g.fillStyle = "#8a5a32"; g.fillRect(0, 0, w, h);
-      for (let i = 0; i < 26; i++) { g.strokeStyle = `rgba(${r() < 0.5 ? "70,40,18" : "170,120,70"},0.45)`; g.lineWidth = 1 + r() * 2; g.beginPath(); const y = r() * h; g.moveTo(0, y); g.bezierCurveTo(w * 0.3, y + 6 * (r() - 0.5), w * 0.6, y - 6 * (r() - 0.5), w, y); g.stroke(); }
+    const woodTop = canvasTex(1024, 256, (g, w, h) => {
+      g.fillStyle = "#6e4526"; g.fillRect(0, 0, w, h);
+      for (let i = 0; i < 120; i++) { g.strokeStyle = `rgba(${r() < 0.5 ? "52,28,12" : "150,98,56"},${0.18 + r() * 0.3})`; g.lineWidth = 0.6 + r() * 2.4; g.beginPath(); const y = r() * h; g.moveTo(0, y); g.bezierCurveTo(w * 0.3, y + 10 * (r() - 0.5), w * 0.6, y - 10 * (r() - 0.5), w, y + 4 * (r() - 0.5)); g.stroke(); }
+      for (let x = 0; x < w; x += 256) { g.fillStyle = "rgba(30,16,6,0.55)"; g.fillRect(x, 0, 2, h); }                         // las tablas
+      for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(20,12,6,${0.1 + r() * 0.2})`; g.beginPath(); g.arc(r() * w, r() * h, 1 + r() * 4, 0, 7); g.fill(); }   // manchas y quemones de cautín
     });
-    const top = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.08, 1.3), new THREE.MeshStandardMaterial({ map: woodTop, roughness: 0.8 }));
+    const top = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.08, 1.3), new THREE.MeshPhysicalMaterial({ map: woodTop, roughness: 0.62, clearcoat: 0.35, clearcoatRoughness: 0.35 }));
     top.position.set(0, 0.92, -1.9);
     top.castShadow = top.receiveShadow = true;
     S.add(top);
@@ -86,7 +92,7 @@ export class Garaje {
     this.turn.position.set(0, 0.96, -1.85);
     const plate = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.44, 0.03, 48), new THREE.MeshStandardMaterial({ color: 0x1d2326, roughness: 0.5 }));
     plate.receiveShadow = true;
-    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.43, 0.008, 8, 64), new THREE.MeshStandardMaterial({ color: 0xff7a1a, emissive: 0xff7a1a, emissiveIntensity: 1.2 }));
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.43, 0.008, 8, 64), new THREE.MeshStandardMaterial({ color: 0xff7a1a, emissive: 0xff7a1a, emissiveIntensity: 2.2 }));
     rim.rotation.x = Math.PI / 2; rim.position.y = 0.016;
     S.add(this.turn);
     const base = new THREE.Group();
@@ -97,19 +103,27 @@ export class Garaje {
     // ---- herramientas y cosas sobre la mesa ----
     const toolMat = (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.5, metalness: 0.3 });
     const add = (geo, mat, x, y, z, ry = 0, rz = 0) => { const o = new THREE.Mesh(geo, mat); o.position.set(x, y, z); o.rotation.set(0, ry, rz); o.castShadow = true; S.add(o); return o; };
-    add(new THREE.CylinderGeometry(0.035, 0.04, 0.12, 16), toolMat(0xc7302a), 1.05, 1.02, -1.75);            // cautín (soldador)
-    add(new THREE.CylinderGeometry(0.004, 0.004, 0.18, 8), toolMat(0x999999), 1.05, 1.1, -1.75, 0, 0.5);
+    this.cautinSimple = [add(new THREE.CylinderGeometry(0.035, 0.04, 0.12, 16), toolMat(0xc7302a), 1.05, 1.02, -1.75),            // cautín (soldador)
+      add(new THREE.CylinderGeometry(0.004, 0.004, 0.18, 8), toolMat(0x999999), 1.05, 1.1, -1.75, 0, 0.5)];
     add(new THREE.BoxGeometry(0.26, 0.05, 0.18), toolMat(0x2b5fa8), -1.0, 0.985, -1.6, 0.3);                  // caja de tornillos
-    add(new THREE.BoxGeometry(0.18, 0.11, 0.12), toolMat(0xf2b705), 0.7, 1.015, -2.25, -0.2);                 // multímetro
-    add(new THREE.BoxGeometry(0.05, 0.03, 0.03), toolMat(0x111111), 0.7, 1.08, -2.18, -0.2);
+    // el multímetro: acostado, con la pantalla y la perilla dibujadas arriba
+    const caraMulti = canvasTex(128, 192, (g, w, h) => {
+      g.fillStyle = "#f2b705"; g.fillRect(0, 0, w, h);
+      g.fillStyle = "#1b1d20"; g.fillRect(10, 10, w - 20, h - 20);
+      g.fillStyle = "#9fb59a"; g.fillRect(20, 20, w - 40, 46); g.fillStyle = "#1d2a1c"; g.font = "bold 30px monospace"; g.fillText("0.00", 26, 56);
+      g.fillStyle = "#3a3d42"; g.beginPath(); g.arc(w / 2, 118, 30, 0, 7); g.fill(); g.fillStyle = "#e8e8e8"; g.fillRect(w / 2 - 3, 90, 6, 26);
+      ["#c7302a", "#111", "#111"].forEach((col, i) => { g.fillStyle = col; g.beginPath(); g.arc(30 + i * 34, 168, 7, 0, 7); g.fill(); });
+    });
+    const multi = add(new THREE.BoxGeometry(0.1, 0.035, 0.16), [toolMat(0xf2b705), toolMat(0xf2b705), new THREE.MeshStandardMaterial({ map: caraMulti, roughness: 0.5 }), toolMat(0xf2b705), toolMat(0xf2b705), toolMat(0xf2b705)], 0.72, 0.9775, -2.2, -0.35);
+    multi.receiveShadow = true;
     for (let i = 0; i < 3; i++) add(new THREE.BoxGeometry(0.12, 0.03, 0.04), toolMat(0x15161a), -1.25 + i * 0.16, 0.975, -2.3, 0.1 * i);   // baterías
     add(new THREE.TorusGeometry(0.05, 0.015, 8, 20), toolMat(0xe04020), -0.62, 0.975, -2.25, 0, Math.PI / 2);    // rollo de cinta
     // hélices sueltas
-    for (let i = 0; i < 4; i++) add(new THREE.BoxGeometry(0.12, 0.003, 0.012), toolMat(i % 2 ? 0xff7a1a : 0x3c4046), -0.55 + i * 0.05, 0.962, -1.45, 0.4 + i * 0.7);
+    for (let i = 0; i < 4; i++) { const h = heliceSuelta(i % 2 ? 0xff7a1a : 0x3c4046); h.position.set(-0.55 + i * 0.06, 0.961 + i * 0.0035, -1.45 + (i % 2) * 0.03); h.rotation.y = 0.4 + i * 0.9; S.add(h); }
 
     // ---- tablero de herramientas en la pared ----
     const peg = canvasTex(256, 128, (g, w, h) => {
-      g.fillStyle = "#c9b48a"; g.fillRect(0, 0, w, h);
+      g.fillStyle = "#a8936c"; g.fillRect(0, 0, w, h);
       g.fillStyle = "rgba(60,45,25,0.6)";
       for (let y = 6; y < h; y += 12) for (let x = 6; x < w; x += 12) { g.beginPath(); g.arc(x, y, 1.6, 0, 7); g.fill(); }
     });
@@ -118,7 +132,21 @@ export class Garaje {
     board.receiveShadow = true;
     S.add(board);
     const hang = [[-1.0, 0x3a3a3a, 0.36, 0.05], [-0.7, 0xc7302a, 0.3, 0.04], [-0.42, 0x2b5fa8, 0.4, 0.03], [-0.1, 0x777777, 0.5, 0.06], [0.3, 0xf2b705, 0.28, 0.05], [0.65, 0x3a3a3a, 0.42, 0.035], [1.0, 0x2a8a4a, 0.34, 0.05]];
-    for (const [x, c, l, w] of hang) add(new THREE.BoxGeometry(w, l, 0.025), toolMat(c), x, 1.85, -3.11, 0, (x * 7) % 0.3);
+    // destornilladores y alicates colgados: mango de color con su vástago de acero
+    const acero = new THREE.MeshStandardMaterial({ color: 0xc8ccd2, metalness: 1, roughness: 0.25 });
+    for (const [i, [x, c, l, w]] of hang.entries()) {
+      const h = new THREE.Group(); h.position.set(x, 2.08, -3.1); h.rotation.z = ((x * 7) % 0.3) * 0.5;
+      const gancho = new THREE.Mesh(new THREE.TorusGeometry(0.018, 0.003, 6, 12, Math.PI), acero); gancho.position.y = 0.02; h.add(gancho);
+      if (i % 3 === 2) {                               // alicate: dos mangos abiertos y la punta
+        for (const sgn of [-1, 1]) { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.009, l * 0.6, 10), toolMat(c)); m.position.set(sgn * 0.02, -l * 0.55, 0); m.rotation.z = sgn * 0.12; m.castShadow = true; h.add(m); }
+        const punta = new THREE.Mesh(new THREE.BoxGeometry(0.03, l * 0.3, 0.014), acero); punta.position.y = -0.04; h.add(punta);
+      } else {                                         // destornillador
+        const mango = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.45, w * 0.38, l * 0.42, 14), toolMat(c)); mango.position.y = -l * 0.21; mango.castShadow = true;
+        const vastago = new THREE.Mesh(new THREE.CylinderGeometry(0.0035, 0.0035, l * 0.55, 8), acero); vastago.position.y = -l * 0.42 - l * 0.275;
+        h.add(mango, vastago);
+      }
+      S.add(h);
+    }
     // repisa con cajas de piezas
     const sh = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.04, 0.35), new THREE.MeshStandardMaterial({ color: 0x5e4a36, roughness: 0.9 }));
     sh.position.set(-3.4, 1.6, -2.95); S.add(sh);
@@ -131,8 +159,8 @@ export class Garaje {
     old.material = new THREE.MeshStandardMaterial({ color: 0xe8e8e8, roughness: 0.6 });
 
     // ---- luz: lámpara colgante cálida + ventana fría ----
-    S.add(new THREE.HemisphereLight(0xbfd2e6, 0x3a2e24, 0.55));
-    const lamp = new THREE.SpotLight(0xffd9a8, 38, 9, 0.75, 0.5, 1.6);
+    S.add(new THREE.HemisphereLight(0xbfd2e6, 0x3a2e24, 0.28));
+    const lamp = new THREE.SpotLight(0xffc98a, 24, 9, 0.8, 0.65, 1.6);
     lamp.position.set(0.2, 3.1, -1.4);
     lamp.target.position.set(0, 0.9, -1.9);
     lamp.castShadow = true;
@@ -144,18 +172,54 @@ export class Garaje {
     const shade = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.22, 24, 1, true), new THREE.MeshStandardMaterial({ color: 0x2f5d50, side: THREE.DoubleSide, roughness: 0.6 }));
     shade.position.set(0.2, 3.15, -1.4);
     S.add(shade);
-    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 8), new THREE.MeshBasicMaterial({ color: 0xfff1d6 }));
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(0xfff1d6).multiplyScalar(4) }));   // brilla (bloom)
     bulb.position.set(0.2, 3.05, -1.4);
     S.add(bulb);
     const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 2, 6), new THREE.MeshBasicMaterial({ color: 0x111111 }));
     cord.position.set(0.2, 4.25, -1.4);
     S.add(cord);
-    const win = new THREE.DirectionalLight(0x9fc4ff, 1.1);
+    const win = new THREE.DirectionalLight(0x9fc4ff, 0.7);
     win.position.set(-4, 4, 3);
     S.add(win);
-    const fill = new THREE.PointLight(0xff9a5a, 3, 6, 2);
+    const fill = new THREE.PointLight(0xff9a5a, 2.2, 6, 2);
     fill.position.set(2.2, 1.6, -0.6);
     S.add(fill);
+    // el foco del plato: luz blanca de estudio sobre el dron (es el protagonista) y un contraluz frío que le marca el borde
+    const foco = new THREE.SpotLight(0xfff4e6, 5, 4, 0.34, 0.6, 1.4);
+    foco.position.set(0.9, 2.5, -0.5);
+    foco.target.position.set(0, 0.98, -1.85);
+    foco.castShadow = quality !== "baja";
+    foco.shadow.mapSize.set(sz, sz);
+    foco.shadow.bias = -0.0002; foco.shadow.normalBias = 0.004;
+    foco.shadow.camera.near = 0.5; foco.shadow.camera.far = 4;
+    S.add(foco, foco.target);
+    const contra = new THREE.SpotLight(0x8fb8ff, 10, 5, 0.4, 0.6, 1.2);
+    contra.position.set(-0.6, 1.9, -3.0);
+    contra.target.position.set(0, 0.98, -1.85);
+    S.add(contra, contra.target);
+    // la ventana de atrás a la izquierda: vidrio que brilla (azul de noche) con su marco
+    const vidrio = canvasTex(128, 96, (g, w, h) => {
+      const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, "#5d86c4"); gr.addColorStop(1, "#1b2c4a");
+      g.fillStyle = gr; g.fillRect(0, 0, w, h);
+      g.fillStyle = "rgba(10,14,22,0.9)"; for (let x = 0; x < w; x += 9) { const hh = 14 + r() * 30; g.fillRect(x, h - hh, 8, hh); }   // techos de las casas
+    });
+    const ventana = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.9), new THREE.MeshBasicMaterial({ map: vidrio, color: new THREE.Color(1.6, 1.6, 1.6) }));
+    ventana.position.set(-3.1, 2.25, -3.18);
+    S.add(ventana);
+    const marco = new THREE.MeshStandardMaterial({ color: 0x2a2724, roughness: 0.7 });
+    for (const [w, h, x, y] of [[1.42, 0.06, 0, 0.48], [1.42, 0.08, 0, -0.48], [0.06, 1.0, -0.68, 0], [0.06, 1.0, 0.68, 0], [0.04, 0.9, 0, 0], [1.3, 0.04, 0, 0]]) {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.05), marco); b.position.set(-3.1 + x, 2.25 + y, -3.15); S.add(b);
+    }
+    // polvo flotando en la luz de la lámpara (solo con calidad media/alta)
+    if (quality !== "baja") {
+      const n = 260, P = new Float32Array(n * 3);
+      for (let i = 0; i < n; i++) { const a = r() * 6.28, rr = Math.sqrt(r()) * 0.9, y = 1.05 + r() * 1.9; P.set([Math.cos(a) * rr * (y / 3), y, Math.sin(a) * rr * (y / 3)], i * 3); }
+      const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.BufferAttribute(P, 3));
+      const punto = canvasTex(32, 32, (g) => { const gr = g.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, "rgba(255,230,190,1)"); gr.addColorStop(1, "rgba(255,230,190,0)"); g.fillStyle = gr; g.fillRect(0, 0, 32, 32); });
+      this.motas = new THREE.Points(geo, new THREE.PointsMaterial({ map: punto, size: 0.012, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending }));
+      this.motas.position.set(0.2, 0, -1.4);
+      S.add(this.motas);
+    }
 
     // ---- impresora 3D (atrás a la derecha) y portátil con el configurador (a la izquierda) ----
     this.impresora = makeImpresora();
@@ -183,6 +247,31 @@ export class Garaje {
     const cola = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.012, 0.025), fm);
     cola.position.set(0.455, 0.03, 0);
     this.turn.add(punta, cola);
+  }
+
+  /** Lo que viene de Blender (cuando ya cargó): la estación de soldar del kit (soldador.py) en vez del cilindro rojo. */
+  usarModelos() {
+    const sol = !this.soldador && modelo("soldador");
+    if (!sol) return;
+    sol.scale.setScalar(1.7); sol.position.set(0.98, 0.96, -1.62); sol.rotation.y = -0.5;
+    this.scene.add(sol); this.soldador = sol;
+    for (const o of this.cautinSimple) o.visible = false;
+  }
+
+  /** Los reflejos (scene.environment): los metales del dron (motores, tornillos, el ESC) reflejan el garaje.
+   *  Se hace una vez con el renderer (PMREM de un cuarto de paneles, como en la mesa). */
+  ambiente(renderer) {
+    const env = new THREE.Scene(); env.background = new THREE.Color(0x2a221d);
+    const panel = (c, k, pos, w, h) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(c).multiplyScalar(k), side: THREE.DoubleSide })); m.position.set(...pos); m.lookAt(0, 0, 0); env.add(m); };
+    panel(0xffd2a0, 7, [0.4, 5, 0.6], 2.2, 2.2);        // la lámpara
+    panel(0x8fb4ff, 2.2, [-6, 2.5, -4], 3, 2);          // la ventana
+    panel(0xfff2e0, 3, [3, 4, 4], 2.5, 2.5);            // el foco del plato
+    panel(0x7a4632, 0.6, [0, 1, -6], 12, 6);            // ladrillo
+    panel(0x4a4440, 0.5, [0, -4, 0], 12, 12);           // el piso
+    const pm = new THREE.PMREMGenerator(renderer);
+    this.scene.environment = pm.fromScene(env, 0.04).texture;
+    this.scene.environmentIntensity = 0.6;
+    pm.dispose();
   }
 
   /** Pone el dron como lo ve el piloto: la nariz hacia adentro de la pantalla, su derecha a tu derecha. */
@@ -381,6 +470,7 @@ export class Garaje {
 
   update(dt) {
     this.t += dt;
+    if (this.motas) { this.motas.rotation.y += dt * 0.02; this.motas.position.y = Math.sin(this.t * 0.15) * 0.03; }
     if (this.view === "banco") this.turn.rotation.y += (this.yaw - this.turn.rotation.y) * Math.min(1, dt * 8);
     else { this.turn.rotation.y += dt * 0.45; this.yaw = this.turn.rotation.y; }
     for (const a of [...this.anims]) {
@@ -449,15 +539,57 @@ function makeImpresora() {
 }
 
 function makePortatil() {
-  const g = new THREE.Group(), body = new THREE.MeshStandardMaterial({ color: 0x8a9096, metalness: 0.6, roughness: 0.35 });
-  const base = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.015, 0.24), body); base.position.y = 0.0075; base.castShadow = true; g.add(base);
-  const c = document.createElement("canvas"); c.width = 256; c.height = 160;
-  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
-  const lid = new THREE.Group(); lid.position.set(0, 0.015, -0.12); lid.rotation.x = -0.25; g.add(lid);
-  const back = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.22, 0.01), body); back.position.y = 0.11; lid.add(back);
-  const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.31, 0.19), new THREE.MeshBasicMaterial({ map: tex })); scr.position.set(0, 0.11, 0.0055); lid.add(scr);
-  g.userData.screen = { ctx: c.getContext("2d"), tex };
-  const ctx = c.getContext("2d"); ctx.fillStyle = "#0e1a16"; ctx.fillRect(0, 0, 256, 160); ctx.fillStyle = "#47f08a"; ctx.font = "12px monospace"; ctx.fillText(t("Dron Maker · configurador"), 10, 80); tex.needsUpdate = true;
+  // un portátil gris espacial: teclado dibujado, trackpad, bisel negro y la pantalla que brilla un poco (bloom)
+  const g = new THREE.Group(), body = new THREE.MeshStandardMaterial({ color: 0x4a4e55, metalness: 0.75, roughness: 0.32 });
+  const base = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.012, 0.235), body); base.position.y = 0.006; base.castShadow = base.receiveShadow = true; g.add(base);
+  const kc = document.createElement("canvas"); kc.width = 512; kc.height = 200;
+  const k = kc.getContext("2d"); k.fillStyle = "#2b2e33"; k.fillRect(0, 0, 512, 200);
+  const filas = [14, 14, 13, 12, 11];
+  filas.forEach((n, f) => { const w = 480 / n; for (let i = 0; i < n; i++) { k.fillStyle = "#16181b"; k.fillRect(16 + i * w + 2, 10 + f * 30 + 2, w - 4, 26); } });
+  k.fillStyle = "#16181b"; k.fillRect(150, 160, 212, 26);                        // la barra espaciadora
+  const kt = new THREE.CanvasTexture(kc); kt.colorSpace = THREE.SRGBColorSpace; kt.anisotropy = 4;
+  const teclado = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.117), new THREE.MeshStandardMaterial({ map: kt, roughness: 0.7 }));
+  teclado.rotation.x = -Math.PI / 2; teclado.position.set(0, 0.0121, -0.04); g.add(teclado);
+  const pad = new THREE.Mesh(new THREE.PlaneGeometry(0.11, 0.065), new THREE.MeshStandardMaterial({ color: 0x3f4349, metalness: 0.5, roughness: 0.25 }));
+  pad.rotation.x = -Math.PI / 2; pad.position.set(0, 0.0121, 0.07); g.add(pad);
+  // la pantalla: canvas de 512 x 320 dibujado en coordenadas de 256 x 160 (pantalla() de siempre)
+  const c = document.createElement("canvas"); c.width = 512; c.height = 320;
+  const ctx = c.getContext("2d"); ctx.scale(2, 2);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  const lid = new THREE.Group(); lid.position.set(0, 0.012, -0.115); lid.rotation.x = -0.28; g.add(lid);
+  const back = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.225, 0.007), body); back.position.set(0, 0.1125, -0.0035); back.castShadow = true; lid.add(back);
+  const bisel = new THREE.Mesh(new THREE.PlaneGeometry(0.334, 0.219), new THREE.MeshStandardMaterial({ color: 0x0b0c0e, roughness: 0.25, metalness: 0.2 }));
+  bisel.position.set(0, 0.1125, 0.0002); lid.add(bisel);
+  const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.316, 0.1975), new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(1.25, 1.25, 1.25), toneMapped: false }));
+  scr.position.set(0, 0.115, 0.0006); lid.add(scr);
+  const brillo = new THREE.PointLight(0x7fd0ff, 0.06, 0.35, 2); brillo.position.set(0, 0.12, 0.1); lid.add(brillo);   // la luz de la pantalla en el teclado
+  g.userData.screen = { ctx, tex };
+  // el escritorio: fondo con degradé, el logo y la barra de tareas
+  const gr = ctx.createLinearGradient(0, 0, 256, 160); gr.addColorStop(0, "#0f2a3a"); gr.addColorStop(1, "#1a1030");
+  ctx.fillStyle = gr; ctx.fillRect(0, 0, 256, 160);
+  ctx.strokeStyle = "rgba(60,203,255,0.18)"; ctx.lineWidth = 0.6;
+  for (let i = 0; i < 9; i++) { ctx.beginPath(); ctx.arc(128, 70, 14 + i * 9, 0, Math.PI * 2); ctx.stroke(); }
+  ctx.fillStyle = "#ff7a1a"; ctx.font = "bold 15px sans-serif"; ctx.textAlign = "center"; ctx.fillText("Neural Drone Forge", 128, 74);
+  ctx.fillStyle = "#9fd8ee"; ctx.font = "8px sans-serif"; ctx.fillText(t("Dron Maker · configurador"), 128, 88); ctx.textAlign = "left";
+  ctx.fillStyle = "rgba(10,14,20,0.85)"; ctx.fillRect(0, 148, 256, 12);
+  ["#ff7a1a", "#3ccbff", "#47f08a", "#ffd23f"].forEach((col, i) => { ctx.fillStyle = col; ctx.fillRect(8 + i * 14, 151, 9, 6); });
+  tex.needsUpdate = true;
+  return g;
+}
+
+/** Una hélice de 2 palas (forma con el borde de ataque redondeado), plana: para dejar sueltas en la mesa. */
+function heliceSuelta(color, largo = 0.13) {
+  const sh = new THREE.Shape(), L = largo / 2, a = largo * 0.07;
+  sh.moveTo(0, -a * 0.45);
+  sh.bezierCurveTo(L * 0.35, -a * 1.1, L * 0.85, -a * 0.9, L, -a * 0.15);
+  sh.bezierCurveTo(L * 1.02, a * 0.4, L * 0.7, a * 0.55, 0, a * 0.45);
+  sh.bezierCurveTo(-L * 0.7, -a * 0.55, -L * 1.02, -a * 0.4, -L, a * 0.15);
+  sh.bezierCurveTo(-L * 0.85, a * 0.9, -L * 0.35, a * 1.1, 0, -a * 0.45);
+  const geo = new THREE.ExtrudeGeometry(sh, { depth: 0.0025, bevelEnabled: true, bevelThickness: 0.0006, bevelSize: 0.0006, bevelSegments: 1, curveSegments: 10 });
+  geo.rotateX(-Math.PI / 2);
+  const m = new THREE.Mesh(geo, new THREE.MeshPhysicalMaterial({ color, roughness: 0.35, clearcoat: 0.5 }));
+  const cubo = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, 0.007, 16), m.material); cubo.position.y = 0.002;
+  const g = new THREE.Group(); g.add(m, cubo); m.castShadow = cubo.castShadow = true;
   return g;
 }
 
