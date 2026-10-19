@@ -2,7 +2,8 @@
 
 ## v3.1.4 · El reloj del negocio (19-10-2026)
 
-- **Un día dura 30 minutos jugando** (de 7:00 a 23:00). La hora se ve en el garaje, el computador y el celular.
+- **Un día dura 30 minutos jugando** (de 7:00 a 23:00). Un relojito con agujas arriba de la ficha del dron (y arriba al
+  centro cuando vuelas): ☀️ de día, 🌙 de noche y «a dormir pronto» desde las 22:00. La hora también sale en el computador y el celular.
 - **Los pedidos llegan a lo largo del día** (entre las 8:00 y las 19:00), con aviso y la hora en cada mensaje.
 - **Plazos con hora:** un pedido vence a las 23:00 de su último día («Vence hoy a las 23:00 · quedan 3 h 20 min»).
 - **A las 23:00 te vas a dormir solo:** vuela la flota y empieza el día siguiente. También puedes 😴 dormir antes.

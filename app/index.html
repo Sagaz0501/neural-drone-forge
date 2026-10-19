@@ -73,6 +73,20 @@
   #taller-izq footer .btn.main { flex: 1 1 100%; }
   #taller-der { position: fixed; right: 18px; bottom: 18px; width: min(330px, calc(100vw - 36px)); border-radius: 18px; padding: 14px 16px; }
   #taller-der h3 { margin: 0 0 8px; font-size: 17px; }
+  /* el relojito del día (NG.tick): arriba de la ficha del dron en el garaje, arriba al centro volando */
+  #reloj-mini { position: fixed; z-index: 30; display: flex; align-items: center; gap: 10px; padding: 7px 14px 7px 8px; border-radius: 999px;
+    background: rgba(12,20,17,.88); border: 1px solid rgba(234,242,239,.14); box-shadow: 0 10px 30px rgba(0,0,0,.45); color: var(--text, #eaf2ef); pointer-events: none; backdrop-filter: blur(6px); }
+  #reloj-mini svg { width: 38px; height: 38px; }
+  #reloj-mini .rm-cara { fill: #f4efe4; stroke: #2b2f33; stroke-width: 2; }
+  #reloj-mini .rm-marcas line { stroke: #6b6f73; stroke-width: 1.4; stroke-linecap: round; }
+  #reloj-mini .rm-hh { stroke: #1b1d20; stroke-width: 3; stroke-linecap: round; }
+  #reloj-mini .rm-mm { stroke: #ff7a1a; stroke-width: 2; stroke-linecap: round; }
+  #reloj-mini .rm-c { fill: #1b1d20; }
+  #reloj-mini .rm-t { display: flex; flex-direction: column; line-height: 1.05; }
+  #reloj-mini .rm-t b { font-size: 21px; font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+  #reloj-mini .rm-t small { font-size: 12px; opacity: .7; }
+  #reloj-mini .rm-sol { font-size: 20px; }
+  #reloj-mini.tarde { border-color: rgba(255,90,74,.55); }
   .stat { display: grid; grid-template-columns: 112px 1fr auto; gap: 8px; align-items: center; font-size: 14px; margin: 5px 0; }
   .stat .bar { height: 7px; border-radius: 4px; background: rgba(234,242,239,0.1); overflow: hidden; position: relative; }
   .stat .bar i { position: absolute; inset: 0 auto 0 0; background: var(--prop); border-radius: 4px; transition: width .25s; }
@@ -741,13 +755,14 @@
 
 <!-- ============ TALLER ============ -->
 <aside id="taller-izq" class="panel hidden" aria-label="Taller">
-  <header><h2 id="empresa">El garaje</h2><div class="wallet"><span>Plata <b class="money" id="plata">$0</b></span><span>Reputación <b id="rep">0</b></span><span class="muted" id="etapa">Etapa 1</span><span class="hidden" id="hora-taller"></span></div></header>
+  <header><h2 id="empresa">El garaje</h2><div class="wallet"><span>Plata <b class="money" id="plata">$0</b></span><span>Reputación <b id="rep">0</b></span><span class="muted" id="etapa">Etapa 1</span></div></header>
   <div class="taller-acc"><button class="btn main" id="b-computador">💻 Computador<span class="badge hidden" id="pc-badge"></span></button><button class="btn ghost" id="b-estante">🗄️ Estante</button></div>
   <div id="ranuras"></div>
   <footer id="taller-pie"></footer>
   <div class="taller-salir"><button class="btn ghost small" id="b-menu2" title="Menú principal">☰ Menú</button><button class="btn ghost small" id="b-salir2" title="Guardar y cerrar el juego">🚪 Salir</button></div>
 </aside>
 <div id="taller-top" class="hidden"><button class="btn main small" id="b-celular">📱 Celular<span class="badge hidden" id="cel-badge"></span></button><button class="btn ghost small" id="b-pedidos">Campaña</button><button class="btn ghost small" id="b-tienda">Tienda</button><button class="btn ghost small" id="b-inventario">Inventario</button><button class="btn ai small" id="b-lab">Laboratorio de IA</button><button class="btn ai small hidden" id="b-estudio">Estudio PBDMM</button><button class="btn ghost small" id="b-videos">Videos</button><button class="btn ghost small" id="b-controles">Controles</button><button class="btn ghost small" id="b-menu">Menú</button></div>
+<div id="reloj-mini" class="hidden" aria-label="La hora del juego"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" class="rm-cara"/><g class="rm-marcas"></g><line id="rm-h" x1="20" y1="20" x2="20" y2="10" class="rm-hh"/><line id="rm-m" x1="20" y1="20" x2="20" y2="6" class="rm-mm"/><circle cx="20" cy="20" r="2" class="rm-c"/></svg><span class="rm-t"><b id="rm-hora">7:00</b><small id="rm-dia">Día 1</small></span><span id="rm-sol" class="rm-sol">☀️</span></div>
 <aside id="taller-der" class="panel hidden" aria-label="Tu dron"><h3 id="dron-nombre">Tu dron</h3><div id="stats"></div><div id="errores"></div></aside>
 
 <!-- ============ ESTUDIO PBDMM (modo desarrollador) ============ -->

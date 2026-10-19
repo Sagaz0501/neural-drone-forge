@@ -743,15 +743,27 @@ setInterval(notasTutorial, 500);
 // Corre mientras juegas (no en el inicio, ni en pausa, ni con la ventana minimizada). Los pedidos llegan a su hora y a
 // las 23:00 el día se termina solo (vuela la flota, empieza el siguiente); si estás volando, espera a que aterrices.
 let relojN = 0;
+{ const g = document.querySelector("#reloj-mini .rm-marcas");          // las 12 marcas de la carátula
+  for (let i = 0; i < 12; i++) { const a = (i / 12) * 2 * Math.PI, r0 = i % 3 ? 15 : 13.5; g.insertAdjacentHTML("beforeend", `<line x1="${20 + Math.sin(a) * r0}" y1="${20 - Math.cos(a) * r0}" x2="${20 + Math.sin(a) * 16.5}" y2="${20 - Math.cos(a) * 16.5}"/>`); } }
+/** El relojito: arriba de la ficha del dron en el garaje y arriba al centro volando. */
 function pintarReloj() {
-  const p = P(), corre = NG.relojCorre(p), el = $("hora-taller");
-  el.classList.toggle("hidden", !corre);
-  if (corre) el.innerHTML = `🕒 <b>${NG.fmtHora(NG.hora(p, ND))}</b> · ${t("Día {n}", { n: p.negocio.dia })}`;
+  const p = P(), el = $("reloj-mini"), ver = NG.relojCorre(p) && (G.screen === "taller" || G.screen === "vuelo");
+  el.classList.toggle("hidden", !ver);
   celular.pintarHora();
+  if (!ver) return;
+  const h = NG.hora(p, ND), R = NG.reloj(ND);
+  $("rm-hora").textContent = NG.fmtHora(h);
+  $("rm-dia").textContent = t("Día {n}", { n: p.negocio.dia }) + (h >= R.duerme - 1 ? " · " + t("a dormir pronto") : "");
+  $("rm-sol").textContent = h < 18 ? "☀️" : h < 20 ? "🌇" : "🌙";
+  el.classList.toggle("tarde", h >= R.duerme - 1);
+  $("rm-h").setAttribute("transform", `rotate(${((h % 12) / 12) * 360} 20 20)`);
+  $("rm-m").setAttribute("transform", `rotate(${(h % 1) * 360} 20 20)`);
+  if (G.screen === "vuelo") Object.assign(el.style, { left: "50%", transform: "translateX(-50%)", top: "14px", right: "auto", bottom: "auto" });
+  else { const r = $("taller-der").getBoundingClientRect(); Object.assign(el.style, { left: "auto", transform: "none", top: "auto", right: `${innerWidth - r.right}px`, bottom: `${innerHeight - r.top + 10}px` }); }
 }
 setInterval(() => {
   const p = P();
-  if (!p?.negocio || document.hidden || G.screen === "inicio" || !$("pausa").classList.contains("hidden") || G.durmiendo) return;
+  if (!p?.negocio || document.hidden || G.screen === "inicio" || !$("pausa").classList.contains("hidden") || G.durmiendo) { $("reloj-mini").classList.add("hidden"); return; }
   const r = NG.tick(p, ND, 1);
   if (!r) return;
   pintarReloj();
