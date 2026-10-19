@@ -126,6 +126,7 @@ nav .btn{padding:10px 18px;font-size:14px}
 .shots{position:relative}
 .shots .main{border-radius:var(--r);border:1px solid var(--line);overflow:hidden;box-shadow:0 30px 80px -30px rgba(0,0,0,.8)}
 .shots .main img,.shots .main video{width:100%}
+.shots .float img,.shots .float video{width:100%;display:block}
 .shots .float{position:absolute;width:46%;right:-5%;bottom:-12%;border-radius:14px;overflow:hidden;border:1px solid var(--line);box-shadow:0 20px 60px -10px rgba(0,0,0,.9);rotate:2deg}
 .step:nth-child(even) .shots .float{right:auto;left:-5%;rotate:-2deg}
 @media (max-width:900px){
@@ -195,7 +196,7 @@ nav .btn{padding:10px 18px;font-size:14px}
 /* freestyle */
 .free{overflow:hidden}
 .free-box{position:relative;border-radius:28px;overflow:hidden;border:1px solid var(--line);min-height:520px;display:flex;align-items:flex-end;background:#000}
-.free-box img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.7}
+.free-box img,.free-box>video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.7}
 .free-box::before{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(11,13,16,.97) 10%,rgba(11,13,16,.2) 70%),linear-gradient(90deg,rgba(11,13,16,.85),transparent 70%);z-index:1}
 .fs-thumbs{position:absolute;right:28px;bottom:28px;z-index:2;display:grid;gap:12px;width:min(30%,300px)}
 .fs-thumbs img{position:static;opacity:1;width:100%;height:auto;border-radius:12px;border:1px solid rgba(255,255,255,.15);box-shadow:0 16px 40px rgba(0,0,0,.6);aspect-ratio:16/10;object-fit:cover}
@@ -258,7 +259,7 @@ footer a:hover{color:var(--text)}
   <canvas id="net"></canvas>
   <div class="wrap">
     <div class="hero-copy">
-      <div class="badge"><span class="dot"></span><span data-en="v3.0 · free & open source · Mac · Windows · Linux">v3.0 · gratis y de código abierto · Mac · Windows · Linux</span></div>
+      <div class="badge"><span class="dot"></span><span data-en="v3.1.1 · free demo for Mac · open source · auto-updates">v3.1.1 · demo gratis para Mac · código abierto · se actualiza sola</span></div>
       <h1>
         <span data-en="Build the drone.">Arma el dron.</span>
         <span class="g" data-en="Train its brain.">Entrena su cerebro.</span>
@@ -289,11 +290,11 @@ footer a:hover{color:var(--text)}
 <section class="showreel" id="aprende-video">
   <div class="wrap">
     <div class="frame rv">
-      <video src="media/entrenamiento.mp4" poster="media/entrenamiento.jpg" autoplay muted loop playsinline></video>
-      <div class="tag"><b></b><span data-en="LIVE TRAINING · BLENDER">ENTRENANDO EN VIVO · BLENDER</span></div>
+      <video src="media/reel_v31.mp4" poster="media/reel_v31.jpg" autoplay muted loop playsinline></video>
+      <div class="tag"><b></b><span data-en="GAMEPLAY · v3.1.1">GAMEPLAY · v3.1.1</span></div>
     </div>
-    <p class="caption rv" data-en="<b>25 drones learning at once.</b> Each camera's cone turns from red to green when the shot is good. Nobody programmed how to fly: they figured it out.">
-      <b>25 drones aprendiendo a la vez.</b> El cono de cada cámara pasa de rojo a verde cuando la toma sale bien. Nadie les programó cómo volar: lo descubrieron solos.</p>
+    <p class="caption rv" data-en="<b>Build it, solder it, train it, race it.</b> Generation 3 gets lost; generation 766 nails the target: same neural network, about 10 million practice steps later.">
+      <b>Ármalo, suéldalo, entrénalo y corre contra él.</b> La generación 3 se pierde; la 766 llega al punto: la misma red neuronal, unos 10 millones de pasos de práctica después.</p>
 
     <div class="stats rv">
       <div class="stat"><b data-count="38">0</b><span data-en="sensors the AI feels">sensores que siente la IA</span></div>
@@ -343,8 +344,8 @@ footer a:hover{color:var(--text)}
           </ul>
         </div>
         <div class="shots">
-          <div class="main"><img src="img/monitor_red.webp" alt="El monitor de entrenamiento con la red neuronal en vivo" loading="lazy"></div>
-          <div class="float"><img src="img/avance_modelo.webp" alt="El avance del modelo" loading="lazy"></div>
+          <div class="main"><img src="img/computador_ia.webp" alt="El computador: el programa, la curva de aprendizaje y la red neuronal en vivo" loading="lazy"></div>
+          <div class="float"><video src="media/entrenamiento.mp4" poster="media/entrenamiento.jpg" autoplay muted loop playsinline aria-label="25 drones entrenando a la vez en Blender"></video></div>
         </div>
       </div>
 
@@ -361,7 +362,7 @@ footer a:hover{color:var(--text)}
         </div>
         <div class="shots">
           <div class="main"><img src="img/vuelo.webp" alt="Grabando una casa con el dron" loading="lazy"></div>
-          <div class="float"><img src="img/tienda.webp" alt="La tienda de piezas" loading="lazy"></div>
+          <div class="float"><img src="img/tienda_v31.webp" alt="La tienda de piezas" loading="lazy"></div>
         </div>
       </div>
     </div>
@@ -441,15 +442,16 @@ footer a:hover{color:var(--text)}
       <h2 data-en="Inside the workshop">Dentro del taller</h2>
     </div>
     <div class="gallery rv">
+      <figure class="w2"><img src="img/garaje.webp" alt="" loading="lazy"><figcaption data-en="The garage: your wooden drone on the pad, the soldering station and the laptop.">El garaje: tu dron de madera en el plato, la estación de soldar y el portátil.</figcaption></figure>
       <figure class="w2"><img src="img/montar.webp" alt="" loading="lazy"><figcaption data-en="The workbench: each part with its procedure. Flip the drone, screws from below, standoffs…">La mesa de trabajo: cada pieza con su procedimiento. Voltear el dron, tornillos por abajo, separadores…</figcaption></figure>
       <figure><img src="img/regalo.webp" alt="" loading="lazy"><figcaption data-en="Mom's gift. That's how it all starts: $150 and a wooden drone in boxes.">El regalo de mamá. Así empieza todo: $150 y un dron de madera en cajas.</figcaption></figure>
-      <figure><img src="img/soldar_esp32.webp" alt="" loading="lazy"><figcaption data-en="Soldering the ESP32. Iron, flux, solder.">Soldar la ESP32. Cautín, flux, estaño.</figcaption></figure>
+      <figure><img src="img/soldar_esc.webp" alt="" loading="lazy"><figcaption data-en="Soldering the battery to the 4-in-1 ESC. Iron, flux, solder.">Soldar la batería al ESC 4 en 1. Cautín, flux, estaño.</figcaption></figure>
       <figure><img src="img/prueba_motores.webp" alt="" loading="lazy"><figcaption data-en="Motor test: each motor ✓ or ✗, and the fix it needs.">Prueba de motores: cada motor ✓ o ✗, y el arreglo que toca.</figcaption></figure>
       <figure><img src="img/ide_tutorial.webp" alt="" loading="lazy"><figcaption data-en="Your first AI: the tutorial points to the line to change (👉).">Tu primera IA: el tutorial te señala la línea que cambia (👉).</figcaption></figure>
-      <figure><img src="img/hangar.webp" alt="" loading="lazy"><figcaption data-en="The hangar: several drones, each with its own AI.">El hangar: varios drones, cada uno con su propia IA.</figcaption></figure>
-      <figure><img src="img/red_neuronal.webp" alt="" loading="lazy"><figcaption data-en="The neural network of the drone you're watching, live.">La red neuronal del dron que miras, en vivo.</figcaption></figure>
-      <figure class="w2"><img src="img/monitor_red.webp" alt="" loading="lazy"><figcaption data-en="The computer: IDE, monitor and the network learning.">El computador: IDE, monitor y la red aprendiendo.</figcaption></figure>
-      <figure><img src="img/avance_modelo.webp" alt="" loading="lazy"><figcaption data-en="Model progress: its best and worst attempt.">Avance del modelo: su mejor y su peor intento.</figcaption></figure>
+      <figure class="w2"><img src="img/computador_ia.webp" alt="" loading="lazy"><figcaption data-en="The computer: your program, the real learning curve (take off, then reach a point) and the network firing live.">El computador: tu programa, la curva de aprendizaje real (despegar y después ir a un punto) y la red encendiéndose en vivo.</figcaption></figure>
+      <figure><img src="img/avance_red.webp" alt="" loading="lazy"><figcaption data-en="Model progress: replay any attempt and see what the network was thinking.">Avance del modelo: repite cualquier intento y mira qué pensaba la red.</figcaption></figure>
+      <figure><img src="img/tienda_v31.webp" alt="" loading="lazy"><figcaption data-en="DronMarket: frames, motors, ESCs, batteries… each part drawn in 3D.">DronMarket: chasis, motores, ESC, baterías… cada pieza dibujada en 3D.</figcaption></figure>
+      <figure><img src="img/inicio.webp" alt="" loading="lazy"><figcaption data-en="The garage at night, with the soldering station and the 3D printer.">El garaje de noche, con la estación de soldar y la impresora 3D.</figcaption></figure>
       <figure><img src="img/atornillar.webp" alt="" loading="lazy"><figcaption data-en="Screw until it clicks.">Atornillar hasta el clic.</figcaption></figure>
     </div>
   </div>
@@ -459,7 +461,7 @@ footer a:hover{color:var(--text)}
 <section class="free">
   <div class="wrap">
     <div class="free-box rv">
-      <img src="img/fs_estadio.webp" alt="El estadio de noche del freestyle" loading="lazy">
+      <video src="media/freestyle_ia.mp4" poster="img/fs_estadio_v31.webp" autoplay muted loop playsinline aria-label="Drones de IA corriendo de noche en el estadio"></video>
       <div class="fs-thumbs"><img src="img/fs_carrera.webp" alt="Carrera contra la IA en FPV" loading="lazy"><img src="img/fs_canon.webp" alt="El cañón" loading="lazy"></div>
       <div class="free-copy">
         <span class="eyebrow" data-en="Bonus · Freestyle">Bonus · Freestyle</span>
@@ -539,7 +541,7 @@ footer a:hover{color:var(--text)}
       </a>
       <a class="btn btn-ghost" href="https://github.com/Sagaz0501/neural-drone-forge/releases/latest" target="_blank" rel="noopener" data-en="Windows: coming soon">Windows: muy pronto</a>
     </div>
-    <p class="req rv" data-en="Mac with Apple chip (M1 or newer), about 300 MB. The first time: right-click the app → Open (it isn't signed yet). Blender is optional and free (blender.org): with it you watch your drones learn in 3D.">Mac con chip Apple (M1 o más nuevo), unos 300 MB. La primera vez: clic derecho en la app → Abrir (todavía no está firmada). Blender es opcional y gratis (blender.org): con él ves a tus drones aprender en 3D.</p>
+    <p class="req rv" data-en="Mac with Apple chip (M1 or newer), about 300 MB. The first time macOS blocks it (it isn't signed by Apple yet): on macOS 15, System Settings → Privacy &amp; Security → <b>Open Anyway</b>; on macOS 14 or older, right-click the app → Open. From then on it updates itself. Blender is optional and free (blender.org): with it you watch your drones learn in 3D.">Mac con chip Apple (M1 o más nuevo), unos 300 MB. La primera vez macOS la bloquea (todavía no está firmada por Apple): en macOS 15, Ajustes del Sistema → Privacidad y seguridad → <b>Abrir de todos modos</b>; en macOS 14 o anterior, clic derecho en la app → Abrir. Después se actualiza sola. Blender es opcional y gratis (blender.org): con él ves a tus drones aprender en 3D.</p>
     <details class="rv dev"><summary data-en="For developers: run it from the code">Para desarrolladores: correrlo desde el código</summary>
     <div class="cmd">
       <div class="cmd-top"><span>terminal</span><button id="copy" data-en="copy">copiar</button></div>
