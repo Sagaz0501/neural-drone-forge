@@ -738,6 +738,28 @@ function notasTutorial() {
   estudio.marcar(TU.lineaTuto(p, s));               // 👉 en el margen del editor: la línea que hay que cambiar
 }
 setInterval(notasTutorial, 500);
+
+// ---------------- el reloj del negocio (NG.tick): un día despierto = 30 min jugando ----------------
+// Corre mientras juegas (no en el inicio, ni en pausa, ni con la ventana minimizada). Los pedidos llegan a su hora y a
+// las 23:00 el día se termina solo (vuela la flota, empieza el siguiente); si estás volando, espera a que aterrices.
+let relojN = 0;
+function pintarReloj() {
+  const p = P(), corre = NG.relojCorre(p), el = $("hora-taller");
+  el.classList.toggle("hidden", !corre);
+  if (corre) el.innerHTML = `🕒 <b>${NG.fmtHora(NG.hora(p, ND))}</b> · ${t("Día {n}", { n: p.negocio.dia })}`;
+  celular.pintarHora();
+}
+setInterval(() => {
+  const p = P();
+  if (!p?.negocio || document.hidden || G.screen === "inicio" || !$("pausa").classList.contains("hidden") || G.durmiendo) return;
+  const r = NG.tick(p, ND, 1);
+  if (!r) return;
+  pintarReloj();
+  for (const pe of r.nuevos) toast(t("💬 {cliente}: {titulo}", { cliente: NG.cliente(ND, pe.cliente).nombre, titulo: pe.titulo }), 4000);
+  if (r.nuevos.length) { if (celular.abierto()) celular.render(); guardar(); }
+  if (r.dormir && G.screen !== "vuelo") { G.durmiendo = true; celular.terminarDia(true).finally(() => { G.durmiendo = false; pintarReloj(); }); return; }
+  if (++relojN % 15 === 0) guardar();
+}, 1000);
 ctx.ent = ent; ctx.mis = mis; ctx.P = () => P(); ctx.dronParaEntrenar = (d) => dronParaEntrenar(d);
 ctx.mesa = initMesa(ctx);                   // la mesa de trabajo: abrir cajas, montar, atornillar, soldar
 ctx.abrirGuia = () => banco.abrirGuia();

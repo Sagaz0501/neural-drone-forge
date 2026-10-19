@@ -984,7 +984,7 @@ export function initEstudio(ctx) {
   function reloj() {
     const p = ctx.P();
     if (!p) return;
-    $("es-reloj").innerHTML = `<b>$${p.plata.toLocaleString(idioma())}</b> · ⭐ ${p.rep}${p.negocio ? ` · ${t("Día {n}", { n: p.negocio.dia })}` : ""}`;
+    $("es-reloj").innerHTML = `<b>$${p.plata.toLocaleString(idioma())}</b> · ⭐ ${p.rep}${p.negocio ? ` · ${t("Día {n}", { n: p.negocio.dia })}${NG.relojCorre(p) ? ` · 🕒 ${NG.fmtHora(NG.hora(p, ctx.ND))}` : ""}` : ""}`;
     if (p.negocio && ES.diaCal !== p.negocio.dia) { ES.diaCal = p.negocio.dia; if (abierta("calendario")) renderCalendario(); }
     const n = p.negocio ? NG.noLeidos(p) : 0, sinMsj = !SW.tieneApp(p, ctx.software, "mensajes");
     $("es-badge").hidden = !n; $("es-badge").textContent = n;

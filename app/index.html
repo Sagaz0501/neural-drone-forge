@@ -480,6 +480,7 @@
   .burbuja { max-width: 78%; padding: 8px 12px; border-radius: 14px; line-height: 1.4; font-size: 15px; overflow-wrap: anywhere; }
   .burbuja.ella { align-self: flex-start; background: rgba(234,242,239,0.1); border-bottom-left-radius: 4px; }
   .burbuja.yo { align-self: flex-end; background: rgba(71,240,138,0.18); border-bottom-right-radius: 4px; }
+  .burbuja .cel-h { display: block; text-align: right; font-size: 11px; opacity: .55; margin-top: 2px; }
   .burbuja.sistema { align-self: center; max-width: 92%; background: rgba(60,203,255,0.1); border: 1px solid rgba(60,203,255,0.3); font-size: 13px; text-align: center; }
   .tj-flota { color: var(--next); }
   .flota-dron { display: block; width: 100%; text-align: left; background: rgba(234,242,239,0.05); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; color: var(--text); font: inherit; cursor: pointer; }
@@ -740,7 +741,7 @@
 
 <!-- ============ TALLER ============ -->
 <aside id="taller-izq" class="panel hidden" aria-label="Taller">
-  <header><h2 id="empresa">El garaje</h2><div class="wallet"><span>Plata <b class="money" id="plata">$0</b></span><span>Reputación <b id="rep">0</b></span><span class="muted" id="etapa">Etapa 1</span></div></header>
+  <header><h2 id="empresa">El garaje</h2><div class="wallet"><span>Plata <b class="money" id="plata">$0</b></span><span>Reputación <b id="rep">0</b></span><span class="muted" id="etapa">Etapa 1</span><span class="hidden" id="hora-taller"></span></div></header>
   <div class="taller-acc"><button class="btn main" id="b-computador">💻 Computador<span class="badge hidden" id="pc-badge"></span></button><button class="btn ghost" id="b-estante">🗄️ Estante</button></div>
   <div id="ranuras"></div>
   <footer id="taller-pie"></footer>

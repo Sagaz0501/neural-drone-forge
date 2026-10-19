@@ -40,10 +40,12 @@ export function initCelular(ctx) {
     ctx.guardar();
     $("cel").classList.toggle("en-chat", !!C.chat || !!C.reporte);
     const fl = NG.flota(p).length;
-    $("cel-dia-fin").innerHTML = fl ? t("Terminar el día 🌙 · la flota vuela {n}", { n: fl }) : t("Terminar el día 🌙");
+    const corre = NG.relojCorre(p);
+    $("cel-dia-fin").innerHTML = corre ? (fl ? t("😴 Dormir hasta mañana · la flota vuela {n}", { n: fl }) : t("😴 Dormir hasta mañana"))
+      : fl ? t("Terminar el día 🌙 · la flota vuela {n}", { n: fl }) : t("Terminar el día 🌙");
     // ---- la lista de chats ----
     const pend = NG.pendientes(p);
-    $("cel-dia").innerHTML = t("Día {n}", { n: N.dia }) + (N.hoy ? ` · <span class="muted">${N.hoy === 1 ? t("1 trabajo hoy") : t("{n} trabajos hoy", { n: N.hoy })}</span>` : "");
+    $("cel-dia").innerHTML = t("Día {n}", { n: N.dia }) + (corre ? ` · <b id="cel-hora">${NG.fmtHora(NG.hora(p, ctx.ND))}</b>` : "") + (N.hoy ? ` · <span class="muted">${N.hoy === 1 ? t("1 trabajo hoy") : t("{n} trabajos hoy", { n: N.hoy })}</span>` : "");
     const lista = $("cel-lista");
     lista.innerHTML = "";
     for (const cid of [...N.contactos].sort((a, b) => ultimo(p, b) - ultimo(p, a))) {
@@ -54,7 +56,7 @@ export function initCelular(ctx) {
       b.onclick = () => { C.chat = cid; C.falta = null; render(); };
       lista.appendChild(b);
     }
-    $("cel-pend").innerHTML = pend.length ? pend.map((x) => `<span class="chip ${x.estado === "aceptado" ? "warn" : ""}">${x.flota ? "🤖 " : ""}${ICONO[x.tipo]} ${esc(NG.cliente(ctx.ND, x.cliente).nombre)} · ${x.quedan <= 1 ? t("vence hoy") : t("{n} días", { n: x.quedan })}</span>`).join("") : `<span class="muted">${t("Nada pendiente.")}</span>`;
+    $("cel-pend").innerHTML = pend.length ? pend.map((x) => `<span class="chip ${x.estado === "aceptado" ? "warn" : ""}">${x.flota ? "🤖 " : ""}${ICONO[x.tipo]} ${esc(NG.cliente(ctx.ND, x.cliente).nombre)} · ${plazo(x, true)}</span>`).join("") : `<span class="muted">${t("Nada pendiente.")}</span>`;
     // ---- la conversación ----
     const conv = $("cel-msgs");
     conv.innerHTML = "";
@@ -68,7 +70,7 @@ export function initCelular(ctx) {
       if (m.dia !== dia) { dia = m.dia; conv.insertAdjacentHTML("beforeend", `<div class="cel-diah">${t("Día {n}", { n: dia })}</div>`); }
       const el = document.createElement("div");
       el.className = "burbuja " + (m.de === "yo" ? "yo" : m.de === "sistema" ? "sistema" : "ella");
-      el.innerHTML = esc(m.txt).replace(/\n/g, "<br>");
+      el.innerHTML = esc(m.txt).replace(/\n/g, "<br>") + (m.hora != null ? `<small class="cel-h">${NG.fmtHora(m.hora)}</small>` : "");
       if (m.entrega && ctx.fotos[m.entrega]?.length) {
         el.insertAdjacentHTML("beforeend", `<div class="cel-fotos">${ctx.fotos[m.entrega].map((f) => `<img src="${f.url}" alt="${esc(f.nombre)}">`).join("")}</div>`);
       }
@@ -83,11 +85,20 @@ export function initCelular(ctx) {
   const ultimo = (p, cid) => { const m = (p.negocio.chats[cid] || []).at(-1); return m ? m.dia * 1000 + (p.negocio.chats[cid].length) : 0; };
   const recortar = (s) => (s.length > 46 ? s.slice(0, 44) + "…" : s);
 
+  /** Cuánto le queda a un pedido: con el reloj, en horas el último día ("vence hoy a las 23:00 · quedan 3 h"). */
+  function plazo(pe, corto = false) {
+    const p = ctx.P(), q = NG.queda(p, ctx.ND, pe);
+    if (!NG.relojCorre(p)) return q.dias <= 0 ? (corto ? t("vence hoy") : `<b class="bad">${t("Vence hoy")}</b>`) : corto ? t("{n} días", { n: q.dias + 1 }) : t("Quedan {n} días", { n: q.dias + 1 });
+    if (q.dias > 0) return corto ? t("{n} días", { n: q.dias + 1 }) : t("Quedan {n} días (vence a las 23:00)", { n: q.dias + 1 });
+    const h = Math.floor(q.horas), m = Math.floor((q.horas - h) * 60), txt = h ? t("{h} h {m} min", { h, m }) : t("{m} min", { m });
+    return corto ? t("quedan {t}", { t: txt }) : `<b class="${q.horas < 3 ? "bad" : "warn"}">${t("Vence hoy a las 23:00 · quedan {t}", { t: txt })}</b>`;
+  }
+
   /** La tarjeta de un pedido del negocio. */
   function tarjeta(pe) {
     const el = document.createElement("div");
     if (!pe) return el;
-    const p = ctx.P(), N = p.negocio, quedan = pe.limite - N.dia + 1;
+    const p = ctx.P(), N = p.negocio;
     el.className = "tarjeta " + pe.estado;
     const titulo = `<span>${ICONO[pe.tipo]} ${pe.tutorial ? `<span class="chip">${t("Nivel {n}", { n: 0 })}</span> ` : ""}<b>${esc(pe.titulo)}</b></span>`;
     const det = [TIPO[pe.tipo]() + (pe.tipo === "video" ? "" : ` · ${pe.n}`), LUGAR[pe.lugar]?.() || pe.lugar,
@@ -96,7 +107,7 @@ export function initCelular(ctx) {
       vencido: `<span class="chip bad">${t("Vencido")}</span>`, rechazado: `<span class="chip">${t("Rechazado")}</span>` }[pe.estado];
     el.innerHTML = `<div class="tj-h">${titulo}<span class="money">$${pe.pago}</span></div>` +
       `<div class="tj-d"><span class="dif" title="${t("Dificultad")}">${estrellas(pe.dif)}</span> ${det}</div>` +
-      `<div class="tj-d">${(pe.estado === "nuevo" || pe.estado === "aceptado") ? (quedan <= 1 ? `<b class="bad">${t("Vence hoy")}</b>` : t("Quedan {n} días", { n: quedan })) : ""} ${estado}</div>` +
+      `<div class="tj-d">${(pe.estado === "nuevo" || pe.estado === "aceptado") ? plazo(pe) : ""} ${estado}</div>` +
       reqResumen(pe) + flotaLinea(pe) + `<div class="tj-falta"></div><div class="tj-b"></div>`;
     const bx = el.querySelector(".tj-b");
     const btn = (txt, cls, fn) => { const b = document.createElement("button"); b.className = "btn small " + cls; b.innerHTML = txt; b.onclick = fn; bx.appendChild(b); };
@@ -202,10 +213,12 @@ export function initCelular(ctx) {
     return el;
   }
 
-  async function terminarDia() {
+  /** Terminar el día (o dormir, con el reloj). auto = son las 23:00: sin preguntar, y si la flota voló se abre el reporte. */
+  async function terminarDia(auto = false) {
     const p = ctx.P(), pend = NG.pendientes(p).filter((x) => x.limite <= p.negocio.dia && !x.flota);
     if (C.reporte?.volando) return;
-    if (pend.length && !(await confirmar(t("Hay {n} pedidos que vencen hoy. ¿Terminar el día igual?", { n: pend.length }), { si: t("Terminar el día") }))) return;
+    if (auto) ctx.toast(t("🌙 Son las 23:00: a dormir."), 3000);
+    if (!auto && pend.length && !(await confirmar(t("Hay {n} pedidos que vencen hoy. ¿Terminar el día igual?", { n: pend.length }), { si: t("Terminar el día") }))) return;
     // primero sale la flota (con los pedidos de hoy), después empieza el día siguiente
     let filas = [];
     const antes = { plata: p.plata, rep: p.rep };
@@ -223,7 +236,7 @@ export function initCelular(ctx) {
     if (r.vencidos.length) partes.push(r.vencidos.length === 1 ? t("1 pedido venció") : t("{n} pedidos vencieron", { n: r.vencidos.length }));
     if (r.arriendo) partes.push(t("arriendo −${n}", { n: r.arriendo }));
     if (r.llegaron) { partes.push(r.llegaron === 1 ? t("📦 llegó 1 pieza") : t("📦 llegaron {n} piezas", { n: r.llegaron })); ctx.garaje?.paquete?.(); }
-    if (filas.length) C.reporte = { filas, dia: partes.join(" · "), plata: p.plata - antes.plata + (r.arriendo || 0), rep: p.rep - antes.rep };
+    if (filas.length) { C.reporte = { filas, dia: partes.join(" · "), plata: p.plata - antes.plata + (r.arriendo || 0), rep: p.rep - antes.rep }; if (auto && !abierto()) abrir(); }
     else { ctx.toast(partes.join(" · "), 4000); C.chat = null; }
     render();
     ctx.renderTaller();
@@ -266,7 +279,11 @@ export function initCelular(ctx) {
     conv.scrollTop = 0;
   }
 
-  $("cel-dia-fin").onclick = terminarDia;
+  $("cel-dia-fin").onclick = () => terminarDia(false);
   $("cel-cerrar").onclick = () => { ctx.modal("celular", false); ctx.renderTaller(); };
-  return { abrir, render };
+  /** ¿Se ve el celular? (solo o adentro del computador) */
+  const abierto = () => !!$("cel")?.offsetParent;
+  /** Cada segundo: la hora del encabezado (sin volver a pintar todo). */
+  function pintarHora() { const e = $("cel-hora"); if (e) e.textContent = NG.fmtHora(NG.hora(ctx.P(), ctx.ND)); }
+  return { abrir, render, terminarDia, abierto, pintarHora };
 }

@@ -320,6 +320,9 @@ Node v22 está en `/opt/homebrew/bin/node`. Blender 5.2 en `/Applications/Blende
   "obligatorio" (sin premios()/castigos() no corre y lo que no escribe = 0; compilar() en pbdmm.js). `e.examen` = la nota
   sin ruido (el estudio pide /api/evaluar cada 3 min): el éxito con ruido miente en la foto. `aprendizaje()` se abre en E4.
   "Que grabe la IA" y la flota ya no se bloquean si falta el simulador (solo avisan). Tiempos: docs/ENTRENAMIENTO_PROBADO.md.
+- **El reloj del negocio (19-10-2026, v3.1.4):** un día despierto (7:00-23:00) = 30 min jugando; los pedidos llegan a su hora
+  (negocio.agenda), vencen a las 23:00, a las 23:00 se duerme solo (flota + día nuevo). `NG.tick` cada 1 s en main.js; sin
+  reloj (las pruebas) todo llega al tiro. Con 1 ★ la relación sube (si no, solo Doña Marta). docs/NEGOCIO.md «Los días».
 - **Lo siguiente (docs/ROADMAP.md):** Fase 1b parte 2 (la física del dron en el entrenamiento), encargos de armado,
   pruebas de drones (QA), a mano, entregas. Decidido: el tutorial es el modo desarrollador (la demo grabada);
   imágenes y rendimiento se mejoran sobre la marcha.

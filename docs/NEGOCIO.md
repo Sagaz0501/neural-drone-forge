@@ -53,6 +53,16 @@ propósito. Así nace la pregunta *"¿y si lo hace mi dron solo?"*.
   reputación.
 - El día termina cuando lo decides (**Terminar el día**) o al hacer 3 trabajos. Los drones que entrenan en el fondo
   siguen entrenando entre días: el tiempo de juego no frena el entrenamiento real.
+- **El reloj (19-10-2026, pedido de Santiago):** el día despierto va de 7:00 a 23:00 y dura **30 minutos jugando**
+  (1 hora del juego ≈ 1 min 52 s; `trabajos.json` → `reloj`: `minutos`, `despierta`, `duerme`, `llegan`). Los pedidos
+  del día quedan en una agenda (`negocio.agenda`) y **llegan a su hora**, entre las 8:00 y las 19:00 (mensaje con hora +
+  aviso). Un pedido vence a las 23:00 de su último día: la tarjeta dice «Vence hoy a las 23:00 · quedan 3 h 20 min».
+  A las 23:00 te vas a dormir solo (vuela la flota y empieza el día siguiente; si estás volando, espera a que aterrices);
+  también puedes **😴 Dormir hasta mañana** antes (los pedidos que faltaban llegan al despertar). El reloj corre solo
+  mientras juegas (no en el inicio, en pausa ni con la ventana minimizada) y arranca después del tutorial.
+  `NG.tick(p, D, seg)` cada segundo (main.js), `NG.queda()`, `NG.fmtHora()`. Sin reloj (las pruebas) todo llega al tiro.
+- Con 1 ★ el cliente también te vuelve a escribir: la relación sube con cualquier entrega (antes solo con 2 ★ y una
+  IA que sacaba 1 ★ te dejaba solo con Doña Marta, sin reputación ni plata).
 - No hay gastos fijos en el capítulo 1. Desde el capítulo 2 pagas el **arriendo del local** (semanal, bajo), para
   que los trabajos repetidos tengan sentido.
 

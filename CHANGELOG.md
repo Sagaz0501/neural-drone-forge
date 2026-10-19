@@ -1,5 +1,14 @@
 # Cambios
 
+## v3.1.4 · El reloj del negocio (19-10-2026)
+
+- **Un día dura 30 minutos jugando** (de 7:00 a 23:00). La hora se ve en el garaje, el computador y el celular.
+- **Los pedidos llegan a lo largo del día** (entre las 8:00 y las 19:00), con aviso y la hora en cada mensaje.
+- **Plazos con hora:** un pedido vence a las 23:00 de su último día («Vence hoy a las 23:00 · quedan 3 h 20 min»).
+- **A las 23:00 te vas a dormir solo:** vuela la flota y empieza el día siguiente. También puedes 😴 dormir antes.
+- **Balance:** con 1 ★ la relación con el cliente también sube, así que Doña Marta te recomienda a Ernesto. Antes, una
+  IA que sacaba 1 ★ te dejaba solo con ella, sin reputación ni plata.
+
 ## v3.1.3 · La flota vuela con la última IA (19-10-2026)
 
 - **Arreglado:** la flota (y «Que grabe la IA») volaba con la IA que el juego tenía en memoria desde que la cargó la

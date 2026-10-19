@@ -66,7 +66,7 @@ function contacto(p, cid) {
 /** Un mensaje en el chat de un cliente. de = "ella" (el cliente) · "yo" · "sistema". */
 export function escribir(p, cid, de, txt, extra = {}) {
   contacto(p, cid);
-  const m = { de, txt, dia: p.negocio.dia, ...extra };
+  const m = { de, txt, dia: p.negocio.dia, ...(p.negocio.reloj ? { hora: Math.round(p.negocio.hora * 60) / 60 } : {}), ...extra };
   p.negocio.chats[cid].push(m);
   if (p.negocio.chats[cid].length > 80) p.negocio.chats[cid].splice(0, p.negocio.chats[cid].length - 80);
   return m;
@@ -186,9 +186,11 @@ export function primerCliente(p, D) {
  */
 export function nuevoDia(p, D, { primero = false } = {}) {
   const N = p.negocio, out = { vencidos: [], nuevos: [], arriendo: 0, especiales: [], llegaron: 0 };
+  if (N.agenda?.length) out.nuevos.push(...llegan(p, D, Infinity));   // los de ayer que no alcanzaron a llegar: llegan ya
   if (!primero) {
     N.dia++;
     N.hoy = 0;
+    if (N.reloj) N.hora = reloj(D).despierta;
     for (const pe of N.pedidos) {
       if ((pe.estado === "nuevo" || pe.estado === "aceptado") && N.dia > pe.limite) {
         pe.estado = "vencido";
@@ -214,22 +216,72 @@ export function nuevoDia(p, D, { primero = false } = {}) {
   out.especiales = especiales(p, D);
   const rng = rngDe(N.semilla * 31 + N.dia * 7919);
   const cuantos = tabla(D.trabajos.pedidos_por_dia, p.rep), difMax = tabla(D.trabajos.dificultad_por_rep, p.rep);
-  const activos = clientesActivos(p, D);
+  const activos = clientesActivos(p, D), R = reloj(D);
   for (let k = 0; k < cuantos && activos.length; k++) {
     const C = rng.uno(activos);
     const dmin = C.dif[0], dmax = Math.max(dmin, Math.min(C.dif[1], difMax));
     const dif = rng() < 0.55 ? dmin + Math.floor(rng() * 0.6 * (dmax - dmin + 1)) : rng.int(dmin, dmax);   // más fáciles que difíciles
     const posibles = C.trabajos.filter((id) => { const T = trabajo(D, id); return T && dif >= T.dif[0] && dif <= T.dif[1] && posible(p, T); });
     if (!posibles.length) continue;
-    const primeraVez = !N.contactos.includes(C.id);
-    const T = trabajo(D, rng.uno(posibles));
-    const pe = crearPedido(p, D, C.id, T.id, dif, rng, T.tipo === "foto" && !sabe(p, "set_fotos") ? { n: 1 } : {});   // sin E5: una foto
-    mentir(p, D, pe, rng);
-    const plant = primeraVez ? C.msgs.hola[0] : rng.uno(C.msgs.pedido[pe.tipo] || C.msgs.pedido.foto);
-    escribir(p, C.id, "ella", rellenar(plant, vars(D, pe)) + (pe.mentira ? " " + rng.uno(D.trabajos.mentiras.dice) : ""), { pedido: pe.id });
-    out.nuevos.push(pe);
+    const tid = rng.uno(posibles);
+    // con el reloj: cada pedido llega a su hora (la agenda del día); sin él (las pruebas, el día del tutorial), ya
+    if (N.reloj) N.agenda = [...(N.agenda || []), { h: R.llegan[0] + rng() * (R.llegan[1] - R.llegan[0]), cid: C.id, tid, dif, k }];
+    else out.nuevos.push(llega(p, D, { cid: C.id, tid, dif }, rng));
+  }
+  if (N.agenda) N.agenda.sort((x, y) => x.h - y.h);
+  return out;
+}
+
+/** Un pedido que llega: se arma y el cliente escribe. */
+function llega(p, D, a, rng) {
+  const N = p.negocio, C = cliente(D, a.cid), T = trabajo(D, a.tid);
+  const primeraVez = !N.contactos.includes(C.id);
+  const pe = crearPedido(p, D, C.id, T.id, a.dif, rng, T.tipo === "foto" && !sabe(p, "set_fotos") ? { n: 1 } : {});   // sin E5: una foto
+  mentir(p, D, pe, rng);
+  const plant = primeraVez ? C.msgs.hola[0] : rng.uno(C.msgs.pedido[pe.tipo] || C.msgs.pedido.foto);
+  escribir(p, C.id, "ella", rellenar(plant, vars(D, pe)) + (pe.mentira ? " " + rng.uno(D.trabajos.mentiras.dice) : ""), { pedido: pe.id });
+  return pe;
+}
+
+// ---------------- el reloj (pedido de Santiago, 19-10-2026) ----------------
+// El día despierto (despierta → duerme, 7:00 a 23:00) dura `minutos` reales (30): 1 hora del juego ≈ 1 min 52 s. Los
+// pedidos llegan a lo largo del día (llegan: 8:00 a 19:00) y vencen a las 23:00 de su último día. A las 23:00 te vas a
+// dormir: vuela la flota y empieza el día siguiente. El reloj corre solo mientras juegas y arranca después del tutorial.
+const RELOJ = { minutos: 30, despierta: 7, duerme: 23, llegan: [8, 19] };
+export const reloj = (D) => ({ ...RELOJ, ...(D.trabajos.reloj || {}) });
+/** ¿Corre el reloj? (no durante el tutorial: el primer pedido de Doña Marta sin apuro) */
+export const relojCorre = (p) => !!p?.negocio && !p.negocio.espera && p.negocio.tutorial >= 2;
+/** 14.42 -> "14:25". */
+export function fmtHora(h) { const m = Math.floor(h * 60 + 1e-6); return `${Math.floor(m / 60) % 24}:${String(m % 60).padStart(2, "0")}`; }
+/** La hora de ahora (sin reloj todavía: la hora en que despiertas). */
+export const hora = (p, D) => p.negocio.hora ?? reloj(D).despierta;
+
+/**
+ * Pasaron `seg` segundos reales jugando: avanza la hora y llegan los pedidos de la agenda. Devuelve
+ * { nuevos: [pedidos que llegaron], dormir: true si ya son las 23:00 } o null si el reloj no corre.
+ */
+export function tick(p, D, seg) {
+  if (!relojCorre(p)) return null;
+  const N = p.negocio, R = reloj(D);
+  if (!N.reloj) { N.reloj = true; N.hora = N.hora ?? R.despierta + 2; N.agenda = N.agenda || []; }   // una partida de antes: empieza a las 9:00
+  N.hora = Math.min(R.duerme, N.hora + (seg * (R.duerme - R.despierta)) / (R.minutos * 60));
+  return { nuevos: llegan(p, D), dormir: N.hora >= R.duerme };
+}
+
+/** Los pedidos de la agenda que ya tienen que llegar (hasta = Infinity: todos, p. ej. al dormir). */
+export function llegan(p, D, hasta = p.negocio.hora) {
+  const N = p.negocio, out = [];
+  while (N.agenda?.length && N.agenda[0].h <= hasta) {
+    const a = N.agenda.shift();
+    out.push(llega(p, D, a, rngDe(N.semilla * 31 + N.dia * 7919 + a.k * 613 + 17)));
   }
   return out;
+}
+
+/** Cuánto le queda a un pedido: { dias, horas } (horas del día despierto hasta las 23:00 de su último día). */
+export function queda(p, D, pe) {
+  const N = p.negocio, R = reloj(D), dias = pe.limite - N.dia;
+  return { dias, horas: dias * (R.duerme - R.despierta) + (R.duerme - hora(p, D)) };
 }
 
 /**
@@ -293,7 +345,7 @@ export function entregar(p, D, id, r) {
   const pago = Math.round(pe.pago * M.pago_por_estrellas[e]);
   const rep = M.reputacion_por_estrellas[e];
   const antes = N.relacion[pe.cliente] || 0;
-  const rel = Math.max(0, Math.min(R.max, antes + (e >= 2 ? 1 : e === 0 ? -1 : 0)));
+  const rel = Math.max(0, Math.min(R.max, antes + (e >= 1 ? 1 : -1)));   // entregaste: el cliente vuelve (con 1 ★ también; antes no subía y quedabas solo con Doña Marta)
   delete pe.flota;
   escribir(p, pe.cliente, "yo", pe.tipo === "video" ? t("¡Listo! Aquí está el video 🎬") : nombreTipo(pe.tipo, pe.n) === t("1 foto") ? t("¡Listo! Aquí está la foto 📷") : t("¡Listo! Aquí están las fotos 📷"), { entrega: id, fotos: r.fotos || 0, estrellas: e });
   if (pe.mentira) escribir(p, pe.cliente, "ella", rngDe(N_(p) + 3).uno(D.trabajos.mentiras.despues));   // ¿viento? 😅

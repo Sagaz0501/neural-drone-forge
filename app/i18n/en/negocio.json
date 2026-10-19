@@ -152,5 +152,14 @@
  "💬 Te escribieron. Abre el <b>💻 Computador</b> (a la izquierda) → <b>Mensajes</b> y lee el mensaje de Doña Marta.": "💬 Someone wrote to you. Open the <b>💻 Computer</b> (on the left) → <b>Messages</b> and read Doña Marta's message.",
  "🚁 ¡Listo! En el <b>💻 Computador → Mensajes</b>, abre el pedido de Doña Marta y vuela: llega al aro y quédate quieto para la foto.": "🚁 Ready! In <b>💻 Computer → Messages</b>, open Doña Marta's order and fly: reach the ring and hold still for the photo.",
  "🛒 Necesitas un dron: en el <b>💻 Computador → Tienda → 🎁 Kits</b> compra el <b>Kit del garaje</b>: llegan las piezas de tu primer dron.": "🛒 You need a drone: in <b>💻 Computer → Shop → 🎁 Kits</b> buy the <b>Garage kit</b>: the parts for your first drone arrive.",
- "Nivel {n}": "Level {n}"
+ "Nivel {n}": "Level {n}",
+ "😴 Dormir hasta mañana · la flota vuela {n}": "😴 Sleep until tomorrow · the fleet flies {n}",
+ "😴 Dormir hasta mañana": "😴 Sleep until tomorrow",
+ "Quedan {n} días (vence a las 23:00)": "{n} days left (due at 11 PM)",
+ "{h} h {m} min": "{h} h {m} min",
+ "{m} min": "{m} min",
+ "quedan {t}": "{t} left",
+ "Vence hoy a las 23:00 · quedan {t}": "Due today at 11 PM · {t} left",
+ "🌙 Son las 23:00: a dormir.": "🌙 It's 11 PM: time to sleep.",
+ "💬 {cliente}: {titulo}": "💬 {cliente}: {titulo}"
 }

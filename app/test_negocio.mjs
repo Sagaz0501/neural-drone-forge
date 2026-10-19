@@ -247,6 +247,41 @@ const e2 = NG.paraVolar(fl, D, NG.crearPedido(fl, D, "marta", "inspeccion_casa",
 const e3 = NG.paraVolar(fl, D, NG.crearPedido(fl, D, "marta", "video_casa", 1, rngFijo)).entrenar;
 ok(e1.nivel === 13 && e1.mision === "foto" && e2.nivel === 14 && e2.mision === "set_fotos" && e3.nivel === 11, "entrenarPara: 1 foto -> Foto (13), varias -> Set de fotos (14), video -> Grabar (11)");
 
+// 3b) el reloj: un día despierto (7:00-23:00) = 30 min reales; los pedidos llegan a su hora y vencen a las 23:00
+{
+  const r = partida(); NG.asegurar(r, D);
+  ok(NG.tick(r, D, 60) === null && r.negocio.hora === undefined, "reloj: no corre durante el tutorial");
+  r.negocio.tutorial = 2;
+  const t0 = NG.tick(r, D, 0);
+  ok(r.negocio.reloj && Math.abs(r.negocio.hora - 9) < 1e-9 && t0.nuevos.length === 0 && !t0.dormir, "reloj: una partida de antes arranca a las 9:00");
+  NG.nuevoDia(r, D);
+  const ag = r.negocio.agenda.length, antes = r.negocio.pedidos.length;
+  ok(r.negocio.hora === 7 && ag > 0 && r.negocio.agenda.every((x) => x.h >= 8 && x.h <= 19), `reloj: el día empieza a las 7:00 con ${ag} pedidos en la agenda (8:00-19:00)`);
+  ok(r.negocio.pedidos.length === antes, "reloj: a las 7:00 todavía no llegó ninguno");
+  const R = NG.reloj(D), segHora = (R.minutos * 60) / (R.duerme - R.despierta);
+  let llegaron = 0, dormir = false, seg = 0;
+  while (!dormir && seg < 4000) { const x = NG.tick(r, D, 5); llegaron += x.nuevos.length; dormir = x.dormir; seg += 5; }
+  ok(llegaron === ag && r.negocio.agenda.length === 0, "reloj: llegan todos a lo largo del día");
+  ok(Math.abs(seg - 16 * segHora) <= 5 && r.negocio.hora === 23, `reloj: de 7:00 a 23:00 en ${Math.round(seg / 60)} min reales`);
+  const m = r.negocio.chats[r.negocio.pedidos.at(-1).cliente].at(-1);
+  ok(typeof m.hora === "number" && m.hora >= 8, "reloj: el mensaje lleva su hora");
+  ok(NG.fmtHora(14.42) === "14:25" && NG.fmtHora(7) === "7:00", "reloj: 14,42 -> 14:25");
+  const pe = r.negocio.pedidos.at(-1), q = NG.queda(r, D, pe);
+  ok(q.dias === pe.limite - r.negocio.dia && q.horas === q.dias * 16, "reloj: queda() en días y horas (a las 23:00 del último día)");
+  // dormir con pedidos sin llegar: llegan al despertar
+  NG.nuevoDia(r, D); NG.tick(r, D, 1);
+  const pendientes = r.negocio.agenda.length, nPed = r.negocio.pedidos.length;
+  const d3 = NG.nuevoDia(r, D);
+  ok(r.negocio.pedidos.length >= nPed + pendientes && d3.nuevos.length >= pendientes, "reloj: si duermes temprano, los pedidos que faltaban llegan igual");
+}
+// con 1 estrella la relación también sube (si no, quedabas solo con Doña Marta)
+{
+  const r = partida(); NG.asegurar(r, D); r.negocio.tutorial = 2;
+  const pe = NG.crearPedido(r, D, "marta", "foto_casa", 1, rngFijo);
+  NG.entregar(r, D, pe.id, { estrellas: 1 });
+  ok(r.negocio.relacion.marta === 1, "1 estrella: la relación con el cliente sube");
+}
+
 // 4) requisitos
 const st = { twr: 1.9, calidad: 30, alcance_m: 20, minutos: 4, ayudas: [], nitidez: 0.7 };
 const L = REQ.requisitos({ twr_min: 2.2, barometro: true, protectores: true, calidad_min: 50 }, st, { segundos: 20, viento: 2.5, alcance: 25 });

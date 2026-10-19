@@ -6,6 +6,7 @@
     { "n": 3, "viento": 2.5, "az": 125, "estrellas": [45, 62, 78], "pago": 2.5, "plazo": 3 },
     { "n": 4, "viento": 3.5, "az": 170, "estrellas": [55, 70, 85], "pago": 4, "plazo": 2, "calidad_min": 50 }
   ],
+  "reloj": { "_nota": "El día despierto (despierta -> duerme) dura `minutos` jugando; los pedidos llegan entre llegan[0] y llegan[1] (horas)", "minutos": 30, "despierta": 7, "duerme": 23, "llegan": [8, 19] },
   "pedidos_por_dia": [[0, 3], [5, 3], [12, 3]],
   "dificultad_por_rep": [[0, 1], [2, 2], [6, 3], [14, 4]],
   "arriendo": { "desde_rep": 6, "cada": 7, "monto": 60 },
