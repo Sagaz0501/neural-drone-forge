@@ -2,7 +2,7 @@
   "_nota": "Pedidos del tablero. Balancear = editar números. Un pedido de video es una LISTA DE TOMAS (como un guion): cada toma es una ruta de cámara (game/sim.js Toma, igual que drone_rl/tomas.py). Ángulos en grados, relativos al frente del sujeto (el lado que mira a la base). 'mundo' = escena que existe hoy; 'lugar' = la escena propia que tendrá después. Calificación y pago: docs/PLAN_JUEGO.md, sección 8.",
   "pago_por_estrellas": [
     0,
-    0.5,
+    0.7,
     1.0,
     1.3
   ],

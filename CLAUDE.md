@@ -12,6 +12,7 @@ Claude Code lee este archivo solo al abrir una sesión en esta carpeta. Es el re
 | **cómo funciona la base que ya existe** (modelo, Blender, juego web) | [`docs/PROYECTO.md`](docs/PROYECTO.md) |
 | la historia día a día del proyecto base (bitácora, experimentos) | [`docs/README_drone-rl.md`](docs/README_drone-rl.md) |
 | **el lenguaje PBDMM** del modo desarrollador: la API (se genera desde `app/data/pbdmm.json`) · la documentación completa (tutorial, referencia, gramática, biblioteca, errores; a mano: si cambias `pbdmm.js`, actualízala) · el plan de PBDMM 2 | [`docs/PBDMM.md`](docs/PBDMM.md) · [`docs/pbdmm/`](docs/pbdmm/README.md) · [`docs/PBDMM2_PLAN.md`](docs/PBDMM2_PLAN.md) |
+| **la plata**: de dónde sale y a dónde va, los precios, el camino de la demo con su libro de caja (`node app/test_economia.mjs`) | [`docs/ECONOMIA.md`](docs/ECONOMIA.md) |
 | **el negocio**: clientes que escriben al celular, trabajos repetibles ★–★★★★, tipos de trabajo, tutorial del día 1 | [`docs/NEGOCIO.md`](docs/NEGOCIO.md) |
 | **la carrera del taller**: todo desde el computador, personas, pedidos chicos y misiones grandes, entregas, retos, ventas, calendario, misiones manuales; modelos reales | [`docs/PLAN_CARRERA.md`](docs/PLAN_CARRERA.md) |
 | **cuánto tarda cada escenario E1-E12 y qué premios funcionan** (entrenado y medido; de aquí salen las pistas ⏱️ de los programas) | [`docs/ENTRENAMIENTO_PROBADO.md`](docs/ENTRENAMIENTO_PROBADO.md) |
@@ -188,6 +189,7 @@ node app/test_banco.mjs                # banco de armado + partida v3 (migra la 
 node app/test_pbdmm.mjs                # el lenguaje PBDMM (intérprete, errores, ejemplos, PBDMM 2, la ruta)
 node app/test_taller.mjs               # el oficio: envíos, tornillos, soldar, cómo cuenta cada junta en el cableado
 node app/test_negocio.mjs              # el negocio (clientes, días, pedidos, tutorial, flota) y requisitos.js
+node app/test_economia.mjs [-v]        # la plata de la demo: E3-E6 + el 2.º dron en ≤ 5 días con 1 ★ (40 partidas); -v = libro de caja
 node --import ./app/three_node.mjs app/test_flota.mjs   # la flota y el vuelo sin pantalla (vuelos de verdad con la IA base)
 node app/test_i18n.mjs                 # las traducciones (cada t() con su inglés, el HTML, las capas de datos)
 node app/test_modulos.mjs              # que nada importado quede tapado por una variable local

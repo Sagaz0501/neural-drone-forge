@@ -63,3 +63,4 @@ partidas/
 # los drones que exporta cada partida para entrenar (de cada jugador)
 drones/dron_*.json
 blender/Untitled.blend
+.claude/worktrees/

@@ -375,7 +375,7 @@ ok(salida.join("|") === "0 a|1 b|[[1, 3], [2, 4]] True False [2, 1]", "enumerate
   ok(P4.cfg.tarea.fotos === 3 && P4.cfg.drones === 20, "un for con 3 fotos = un set de 3 (y con el simulador, drones() ya se puede)");
   ok(pedidoDe(compilar(data.ejemplos.curriculum, D, host).cfg, () => null).tarea === undefined, "sin simuladores (programas de antes): nada cambia");
   const pp = { plata: 100, escenarios: HASTA_FOTO };
-  ok(ESC.comprar(pp, ES3, "video_ruta") && ESC.comprar(pp, ES3, "set_fotos") === null && pp.plata === 20 && ESC.estado(pp, ES3, "video_ruta") === "comprable", "comprar en orden: Set de fotos ($80) abre Video con ruta");
+  ok(ESC.comprar(pp, ES3, "video_ruta") && ESC.comprar(pp, ES3, "set_fotos") === null && pp.plata === 100 - ESC.escenario(ES3, "set_fotos").precio && ESC.estado(pp, ES3, "video_ruta") === "comprable", "comprar en orden: Set de fotos abre Video con ruta");
   // las pruebas nuevas (niveles 16-18): con todos los simuladores, cada misión compila y entrena su nivel
   const todos = { escenarios: ES3.escenarios.map((e) => e.id) }, dT = ESC.disponibles(todos, ES3);
   const DT = { ...D, misionesDisponibles: dT.misiones, nivelesDisponibles: dT.niveles, bloqueadas: dT.bloqueadas, planes: dT.planes };

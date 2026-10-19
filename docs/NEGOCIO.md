@@ -182,15 +182,8 @@ Cada paso enseña una sola cosa: el celular, aceptar, el banco, volar, disparar,
 
 ## Números iniciales (para balancear editando el JSON)
 
-| | |
-|---|---|
-| Foto ★ | $20 (+ $10 por estrella) |
-| Video ★ | $45 |
-| Inspección ★★ | $60 |
-| Encargo de armado | costo de las piezas + 40 % |
-| Prueba de dron | $50–$150 según la falla |
-| Arriendo del local (desde el cap. 2) | $60 por semana |
-| Pedidos por día | 1 (rep 0) · 2 (rep 5) · 3 (rep 12) |
+Los precios, los pagos y el camino de la demo con su libro de caja están en **[ECONOMIA.md](ECONOMIA.md)** (la prueba
+`node app/test_economia.mjs` falla si el camino se traba). Pedidos por día: 3; el primero siempre es fácil.
 
 ## Que la IA aprenda los trabajos (Fase 1b, 16-10-2026)
 

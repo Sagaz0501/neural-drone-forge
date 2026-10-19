@@ -447,7 +447,7 @@ function kitFaltan(p = P()) {
   for (const [k, id, min] of [["estano", "estano", 3], ["flux", "flux", 1.5], ["cable", "cables", 2]]) if (PT.insumo(p, k) < min) out.push({ ranura: "soldadura", id, n: 1 });
   return out;
 }
-const kitCosto = () => kitFaltan().reduce((s, x) => s + (pieza(cat, x.ranura, x.id)?.precio || 0) * x.n, 0);
+const kitCosto = () => kitFaltan().reduce((s, x) => s + PT.precioDe(P(), pieza(cat, x.ranura, x.id)) * x.n, 0);   // lo mismo que cobra comprarCarrito (con impresora, el chasis sale más barato)
 /** El regalo de mamá: el kit del garaje gratis (llega en cajas a la mesa) en un dron nuevo. */
 const regaloMama = () => armarKit({ regalo: true });
 function armarKit({ regalo = false } = {}) {

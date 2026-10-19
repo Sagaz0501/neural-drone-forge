@@ -71,13 +71,14 @@ ok(pm2.every((x) => x.pos === x.espera), "con el remap quedan en su lugar");
 const q = PT.nuevaPartida();
 q.plata = 1000;
 ok(!PT.comprarCarrito(q, cat, [{ ranura: "motores", id: "m2204", n: 2 }, { ranura: "chasis", id: "madera", n: 2 }]), "carrito: 2 motores + 2 chasis");
-ok(PT.unidades(q, "m2204").length === 2 && q.plata === 1000 - 90 - 30, "plata y unidades bien");
+const $m = cat.motores.find((x) => x.id === "m2204").precio, $c = cat.chasis.find((x) => x.id === "madera").precio;
+ok(PT.unidades(q, "m2204").length === 2 && q.plata === 1000 - 2 * $m - 2 * $c, "plata y unidades bien");
 const d1 = PT.nuevoDron(q, "Casero"), d2 = PT.nuevoDron(q, "Otro");
 ok(!PT.instalar(q, d1, "motores", "m2204") && !PT.instalar(q, d2, "motores", "m2204"), "cada dron toma su juego de motores");
 ok(PT.instalar(q, PT.nuevoDron(q, "Tercero"), "motores", "m2204"), "no hay un tercero libre");
 ok(typeof PT.vender(q, cat, d1.slots.motores) === "string", "no se vende lo que está puesto");
 PT.quitar(q, d1, "motores");
-ok(PT.vender(q, cat, PT.unidades(q, "m2204").find((u) => !PT.dronDe(q, u.uid)).uid) === 18, "vender usado: 40 %");
+ok(PT.vender(q, cat, PT.unidades(q, "m2204").find((u) => !PT.dronDe(q, u.uid)).uid) === Math.round($m * PT.VENTA), "vender usado: 40 %");
 
 // 5) modo desarrollador: dos drones armados y listos para volar, todo abierto
 {

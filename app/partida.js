@@ -286,7 +286,9 @@ export function anotar(p, monto, txt) {
 export function comprar(p, cat, ranura, id, n = 1, { envio = false, regalo = false } = {}) {
   const err = puedeComprar(p, cat, ranura, id);
   if (err) return err;
-  const pz = pieza(cat, ranura, id), total = regalo ? 0 : precioDe(p, pz) * n;
+  const pz = pieza(cat, ranura, id);
+  if (esHerramienta(ranura, pz)) n = 1;                // una herramienta se tiene o no: se cobra una vez
+  const total = regalo ? 0 : precioDe(p, pz) * n;
   if (p.plata < total) return t("Te faltan ${n}.", { n: total - p.plata });
   p.plata -= total;
   if (total) anotar(p, -total, n > 1 ? `${pz.nombre} × ${n}` : pz.nombre);
@@ -307,7 +309,8 @@ export function comprarCarrito(p, cat, items, opts = {}) {
   for (const it of items) {
     const err = puedeComprar(p, cat, it.ranura, it.id);
     if (err) return `${pieza(cat, it.ranura, it.id)?.nombre}: ${err}`;
-    total += precioDe(p, pieza(cat, it.ranura, it.id)) * it.n;
+    const pz = pieza(cat, it.ranura, it.id);
+    total += opts.regalo ? 0 : precioDe(p, pz) * (esHerramienta(it.ranura, pz) ? 1 : it.n);   // el regalo no se cobra (antes pedía tener la plata)
   }
   if (p.plata < total) return t("Te faltan ${n}.", { n: total - p.plata });
   for (const it of items) comprar(p, cat, it.ranura, it.id, it.n, opts);

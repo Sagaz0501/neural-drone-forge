@@ -217,10 +217,14 @@ export function nuevoDia(p, D, { primero = false } = {}) {
   const rng = rngDe(N.semilla * 31 + N.dia * 7919);
   const cuantos = tabla(D.trabajos.pedidos_por_dia, p.rep), difMax = tabla(D.trabajos.dificultad_por_rep, p.rep);
   const activos = clientesActivos(p, D), R = reloj(D);
+  // el primero del día es fácil (dificultad 1, sin viento) si algún cliente los pide: desde $0, con el dron de madera,
+  // siempre hay algo que hacer (docs/ECONOMIA.md)
+  const faciles = activos.filter((c) => c.dif[0] === 1);
   for (let k = 0; k < cuantos && activos.length; k++) {
-    const C = rng.uno(activos);
+    const facil = k === 0 && faciles.length > 0;
+    const C = rng.uno(facil ? faciles : activos);
     const dmin = C.dif[0], dmax = Math.max(dmin, Math.min(C.dif[1], difMax));
-    const dif = rng() < 0.55 ? dmin + Math.floor(rng() * 0.6 * (dmax - dmin + 1)) : rng.int(dmin, dmax);   // más fáciles que difíciles
+    const dif = facil ? 1 : rng() < 0.55 ? dmin + Math.floor(rng() * 0.6 * (dmax - dmin + 1)) : rng.int(dmin, dmax);   // más fáciles que difíciles
     const posibles = C.trabajos.filter((id) => { const T = trabajo(D, id); return T && dif >= T.dif[0] && dif <= T.dif[1] && posible(p, T); });
     if (!posibles.length) continue;
     const tid = rng.uno(posibles);
