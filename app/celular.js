@@ -128,10 +128,12 @@ export function initCelular(ctx) {
   };
 
   /** 🤖 A la flota: elegir qué dron lo vuela (uno por dron). Los que no pueden dicen por qué. */
-  function verFlota(el, pe) {
+  async function verFlota(el, pe) {
     const box = el.querySelector(".tj-falta"), p = ctx.P();
     if (box.dataset.v === "flota") { box.innerHTML = ""; box.dataset.v = ""; return; }
     box.dataset.v = "flota";
+    await ctx.loadModelos?.();                        // la generación de hoy (no la de cuando abriste el juego)
+    if (box.dataset.v !== "flota") return;
     if (!p.drones.length) { box.innerHTML = `<p class="bad">${t("No tienes drones todavía: arma el Kit del garaje en el hangar.")}</p>`; return; }
     const vol = NG.paraVolar(p, ctx.ND, pe), M = mundoLugar(vol.lugar, vol);
     const c = { segundos: M.shots.reduce((a, s) => a + s.dur, 0), viento: M.wind, alcance: alcanceNecesario(M.shots) };

@@ -1,5 +1,11 @@
 # Cambios
 
+## v3.1.3 · La flota vuela con la última IA (19-10-2026)
+
+- **Arreglado:** la flota (y «Que grabe la IA») volaba con la IA que el juego tenía en memoria desde que la cargó la
+  primera vez (p. ej. la generación 80) aunque ya fuera la 143, y le volvía a anotar esa generación vieja al dron.
+  Ahora la carga del disco justo antes de volar. El celular y el hangar muestran la generación de hoy.
+
 ## v3.1.2 · La versión a la vista (19-10-2026)
 
 - **La versión del juego en el inicio** (abajo, en chiquito): la del código que corre, también después de una

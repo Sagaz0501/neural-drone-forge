@@ -322,7 +322,7 @@ async function empezar(dev) {
 }
 $("b-modo-dev").onclick = () => empezar(true);
 $("b-modo-normal").onclick = () => empezar(false);
-function irTaller() { show("taller"); G.izq = "hangar"; verDron(); renderTaller(); }
+function irTaller() { show("taller"); G.izq = "hangar"; verDron(); renderTaller(); loadModelos().then(() => G.screen === "taller" && renderTaller()); }   // las generaciones de hoy
 
 /** Una pantalla de historia (inicio de capítulo). opts: { boton, alCerrar } */
 function historia(titulo, html, opts = {}) {
@@ -647,7 +647,7 @@ function cargarIAenDron(d) {
 
 /** La IA con la que sale un dron de la flota (flota.js): la suya o la base, cargada en el dron sin avisar. */
 async function iaDe(d) {
-  if (d.modelo && G.ias[d.modelo] === undefined) await loadModel(d.modelo);
+  if (d.modelo) await loadModel(d.modelo);          // siempre la última: la de memoria puede ser de hace 60 generaciones
   if (G.ias.base === undefined && !PT.enCero(P())) await loadModel("base");
   const slug = slugIA(d), I = G.ias[slug];
   if (!I) return null;
@@ -892,7 +892,7 @@ async function openBrief(pe, mismaRuta = false) {
   $("b-volar").disabled = $("b-volar-ia").disabled = duro.length > 0 || !st?.ok;
   // la IA: una tarjeta con su estado (✓ / ! / ✗) y qué entrenar
   const ia = $("br-ia"), tipos = tiposDe(pe, shots);
-  const mod = d?.modelo, I = mod ? (G.ias[mod] === undefined ? await loadModel(mod) : G.ias[mod]) : null;
+  const mod = d?.modelo, I = mod ? await loadModel(mod) : null;     // la última generación (sigue entrenando mientras juegas)
   const IB = !I && !PT.enCero(P()) ? (G.ias.base === undefined ? await loadModel("base") : G.ias.base) : null;
   const lineas = [];
   let titulo;
