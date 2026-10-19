@@ -195,6 +195,13 @@ function renderInicio() {
   document.querySelectorAll("#quality button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.q === G.quality)));
   PT.listar().then((l) => { G.partidas = l; $("b-partidas").classList.toggle("hidden", !l?.length); });
 }
+/** La versión del juego en el inicio: la del código que corre (la app instalada o su actualización: version.json);
+ *  desde el proyecto, la de desktop/package.json. */
+(async () => {
+  const leer = (u) => fetch(u, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  const v = await leer("/version.json"), dev = !v && (await leer("/desktop/package.json"));
+  if (v?.version || dev?.version) $("version").textContent = `Neural Drone Forge v${v?.version || dev.version}${dev ? " · " + t("desde el código") : ""}`;
+})();
 $("b-continuar").onclick = () => irTaller();
 const modoNuevo = (on) => { $("modo-nuevo").classList.toggle("hidden", !on); document.querySelector("#inicio .col").classList.toggle("hidden", on); };
 $("b-nueva").onclick = () => modoNuevo(true);

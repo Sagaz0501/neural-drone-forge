@@ -1,5 +1,10 @@
 # Cambios
 
+## v3.1.2 · La versión a la vista (19-10-2026)
+
+- **La versión del juego en el inicio** (abajo, en chiquito): la del código que corre, también después de una
+  actualización. Es la primera versión que llega sola con «Actualizar ahora».
+
 ## v3.1.1 · Actualizaciones sin reinstalar (19-10-2026)
 
 - **La app se actualiza sola:** al abrir mira el último release de GitHub; si hay código nuevo del juego (~11 MB) pregunta

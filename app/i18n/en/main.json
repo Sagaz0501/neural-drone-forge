@@ -541,5 +541,6 @@
  "¿Salir del juego? Tu partida queda guardada.": "Quit the game? Your save is kept.",
  "Salir": "Quit",
  "Esta partida la borraste (está en la papelera): lo que hagas aquí ya no se guarda. Ve a 📂 Partidas y juega otra.": "You deleted this game (it's in the trash): nothing you do here is saved anymore. Go to 📂 Games and play another one.",
- "{n} IA entrenadas en tu partida": "{n} AIs trained in your game"
+ "{n} IA entrenadas en tu partida": "{n} AIs trained in your game",
+ "desde el código": "from source"
 }
