@@ -90,7 +90,7 @@
       "entrenar": {
         "nivel": 11,
         "viento": 2.5,
-        "nota": "E8 · Video con viento (2,5 m/s). Sin viento en el entrenamiento, la IA no sabe compensar las ráfagas."
+        "nota": "E6 · Video con ruta, con viento de 2,5 m/s (o E8 · Video con viento en el juego completo). Sin viento en el entrenamiento, la IA no sabe compensar las ráfagas."
       },
       "tomas": [
         {
