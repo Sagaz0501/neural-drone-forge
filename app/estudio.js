@@ -19,6 +19,7 @@ import * as NG from "./negocio.js";
 import * as ESC from "./escenarios.js";
 import * as SW from "./software.js";
 import { sfx } from "./garaje.js";
+import { initCasino } from "./casino_ui.js";
 const numero = (x) => (Number.isInteger(x) ? String(x) : num(x, 1));       // 4,5 / 4.5 según el idioma
 
 const ARCH = "dronmaker.pbdmm.archivos", ABIERTO = "dronmaker.pbdmm.abierto";
@@ -925,12 +926,13 @@ export function initEstudio(ctx) {
     banco: { x: 0.38, y: 0.06, w: 0.3, h: 0.8, open: false }, escenarios: { x: 0.2, y: 0.03, w: 0.58, h: 0.92, open: false }, calendario: { x: 0.36, y: 0.04, w: 0.42, h: 0.86, open: false },
     campana: { x: 0.16, y: 0.03, w: 0.66, h: 0.92, open: false }, lab: { x: 0.13, y: 0.02, w: 0.74, h: 0.95, open: false },
     videos: { x: 0.2, y: 0.05, w: 0.6, h: 0.86, open: false }, ajustes: { x: 0.3, y: 0.08, w: 0.42, h: 0.8, open: false },
-    apps: { x: 0.22, y: 0.04, w: 0.56, h: 0.9, open: false }, fondos: { x: 0.3, y: 0.1, w: 0.4, h: 0.62, open: false } };
+    apps: { x: 0.22, y: 0.04, w: 0.56, h: 0.9, open: false }, fondos: { x: 0.3, y: 0.1, w: 0.4, h: 0.62, open: false },
+    casino: { x: 0.2, y: 0.03, w: 0.6, h: 0.92, open: false } };
   /** Las apps: ícono y nombre (función: t() corre después de cargar el idioma). */
   const APPS = () => ({ ide: ["💻", "IDE"], docs: ["📖", t("Documentación")], mensajes: ["💬", t("Mensajes")], tienda: ["🛒", t("Tienda")],
     inventario: ["📦", t("Inventario")], sim: ["📈", t("Monitor")], banco: ["🏦", t("Finanzas")], calendario: ["📅", t("Calendario")], escenarios: ["🎮", t("Simuladores")],
     campana: ["⭐", t("Campaña")], lab: ["🧠", t("Laboratorio")], videos: ["🎬", t("Videos")], ajustes: ["⚙️", t("Ajustes")],
-    apps: ["🛍️", t("Apps")], fondos: ["🖼️", t("Fondos")] });
+    apps: ["🛍️", t("Apps")], fondos: ["🖼️", t("Fondos")], casino: ["🎰", "Casino"] });
   const SOLO_DEV = new Set(["ide", "docs", "sim"]), SOLO_NORMAL = new Set(["lab"]);
   const esDev = () => ctx.P()?.modo === "dev";
   const FUERA = new Set(["inventario"]);              // el inventario es el estante del garaje (main.js), no una app
@@ -1006,6 +1008,7 @@ export function initEstudio(ctx) {
     if (w === "escenarios" && quiere) { renderEscenarios(); cargarModelos().then(() => renderEscenarios()); }   // el examen elige entre tus modelos
     if (w === "apps" && quiere) renderApps();
     if (w === "fondos" && quiere) renderFondos();
+    if (w === "casino" && quiere) casino.render();
     if (w === "ide" && quiere) $("es-src").focus();
   }
   /** Mete la pantalla del juego (el celular, la tienda…) en su ventana; si el juego la cierra, la ventana se cierra. */
@@ -1289,6 +1292,9 @@ export function initEstudio(ctx) {
     }
     box.querySelector(".foco")?.scrollIntoView({ block: "nearest" });
   }
+  // ---------------- 🎰 Casino (casino_ui.js) ----------------
+  const casino = initCasino({ P: ctx.P, guardar: () => ctx.guardar(), toast, onPlata: () => reloj() });
+
   // ---------------- 🖼️ Fondos de pantalla ----------------
   const fondoDe = (id) => (ctx.software?.fondos || []).find((f) => f.id === id) || null;
   function ponerFondo() { const f = fondoDe(ctx.P()?.fondo); $("estudio").style.background = f ? f.css : ""; }

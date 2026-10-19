@@ -221,6 +221,45 @@
   #es-fondos { align-content: start; display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
   .fondo-b { height: 78px; border-radius: 12px; border: 2px solid var(--line); cursor: pointer; display: flex; align-items: flex-end; padding: 6px 8px; color: #fff; font: 13px var(--font); text-shadow: 0 1px 3px #000; }
   .fondo-b[aria-pressed="true"] { border-color: #ffd23f; }
+  /* la app 🎰 Casino (casino_ui.js): un paño verde con cartas */
+  #es-casino { height: 100%; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px;
+    background: radial-gradient(ellipse at 50% 35%, #1f6a43 0%, #12452c 60%, #0b2c1c 100%); }
+  .cas-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .cas-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .cas-tabs button { background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.18); color: #f3efe2; border-radius: 999px; padding: 6px 12px; font: 600 13.5px var(--font); cursor: pointer; }
+  .cas-tabs button[aria-selected="true"] { background: #ffd23f; color: #1d1a10; border-color: #ffd23f; }
+  .cas-plata { font-size: 14px; color: #f3efe2; }
+  .cas-mesa { flex: 1; display: flex; flex-direction: column; gap: 12px; justify-content: center; min-height: 230px; color: #f3efe2; }
+  .cas-intro { margin: 0; text-align: center; font-size: 13.5px; color: rgba(243,239,226,.85); }
+  .cas-fila { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+  .cas-quien { font-size: 13.5px; }
+  .cartas { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .carta { position: relative; width: 64px; height: 92px; border-radius: 9px; background: linear-gradient(160deg, #fffdf7, #efe9da); color: #1b1d20;
+    box-shadow: 0 6px 14px rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; font-family: Georgia, serif; animation: cartaEntra .25s ease-out; }
+  .carta.roja { color: #c8202a; }
+  .carta i { font-style: normal; font-size: 34px; line-height: 1; }
+  .carta b { position: absolute; top: 5px; left: 7px; font-size: 16px; }
+  .carta b.ab { top: auto; left: auto; bottom: 5px; right: 7px; transform: rotate(180deg); }
+  .carta.tapada { background: repeating-linear-gradient(45deg, #b3262f 0 6px, #8e1b23 6px 12px); border: 4px solid #fffdf7; }
+  .carta.guardada { outline: 3px solid #ffd23f; transform: translateY(-8px); }
+  @keyframes cartaEntra { from { transform: translateY(-14px) rotate(-4deg); opacity: 0; } to { transform: none; opacity: 1; } }
+  .carta-b { background: none; border: 0; padding: 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; color: #ffd23f; font: 700 11px var(--font); }
+  .carta-b:disabled { cursor: default; }
+  .cas-vp { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; }
+  .cas-tabla { border-collapse: collapse; font-size: 12.5px; background: rgba(0,0,0,.25); border-radius: 8px; overflow: hidden; }
+  .cas-tabla td { padding: 3px 10px; } .cas-tabla td:last-child { text-align: right; color: #ffd23f; }
+  .cas-tabla tr.gana { background: #ffd23f; } .cas-tabla tr.gana td { color: #1d1a10; font-weight: 700; }
+  .cas-res { margin: 0; text-align: center; font: 700 17px var(--font); }
+  .cas-res.ok { color: #7dffb2; } .cas-res.bad { color: #ffb0a6; }
+  .cas-apuesta { display: flex; gap: 6px; align-items: center; justify-content: center; flex-wrap: wrap; color: #f3efe2; font-size: 13.5px; }
+  .cas-apuesta[hidden] { display: none; }
+  .ficha { width: 46px; height: 46px; border-radius: 50%; border: 4px dashed rgba(255,255,255,.75); color: #fff; font: 700 13px var(--font); cursor: pointer; box-shadow: 0 3px 8px rgba(0,0,0,.45); }
+  .ficha.f1 { background: #6b7280; } .ficha.f5 { background: #c8202a; } .ficha.f10 { background: #2563eb; } .ficha.f25 { background: #16a34a; } .ficha.f50 { background: #111; }
+  .ficha[aria-pressed="true"] { outline: 3px solid #ffd23f; transform: scale(1.08); }
+  .ficha:disabled { opacity: .3; cursor: not-allowed; }
+  .cas-botones { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .cas-aviso { margin: 0; text-align: center; font-size: 11.5px; color: rgba(243,239,226,.6); }
+  @media (max-width: 700px) { .cas-vp { grid-template-columns: 1fr; } .carta { width: 52px; height: 76px; } .carta i { font-size: 26px; } }
   .esc-c .ic { font-size: 34px; text-align: center; } .esc-c h4 { margin: 0 0 2px; font-size: 16px; } .esc-c p { margin: 4px 0; font-size: 13.5px; color: var(--muted); line-height: 1.4; }
   .esc-plan { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 6px 0 2px; font-size: 12.5px; }
   .esc-plan code { background: rgba(60,203,255,.12); color: var(--next); padding: 1px 7px; border-radius: 6px; font-family: ui-monospace, Menlo, monospace; }
@@ -767,6 +806,7 @@
       <button class="es-icono" data-w="banco"><i>🏦</i><span>Finanzas</span></button>
       <button class="es-icono" data-w="videos"><i>🎬</i><span>Videos</span></button>
       <button class="es-icono" data-w="fondos"><i>🖼️</i><span>Fondos</span></button>
+      <button class="es-icono" data-w="casino"><i>🎰</i><span>Casino</span></button>
     </nav>
     <div id="es-archivo-m" class="es-pop-menu" hidden>
       <h4>Tus programas</h4><div id="es-archivos"></div>
@@ -799,6 +839,8 @@
     <div class="es-win es-host" data-w="ajustes" aria-label="Ajustes"><div class="es-wbar"><span>⚙️ Ajustes</span><span class="es-wsub"></span><button class="es-wx" data-x="ajustes" aria-label="Cerrar">×</button></div><div class="es-wbody"></div><div class="es-wtam"></div></div>
     <div class="es-win" data-w="apps" aria-label="Apps"><div class="es-wbar"><span>🛍️ Apps</span><span class="es-wsub"></span><button class="es-wx" data-x="apps" aria-label="Cerrar">×</button></div>
       <div class="es-wbody"><div id="es-apps"></div></div><div class="es-wtam"></div></div>
+    <div class="es-win" data-w="casino" aria-label="Casino"><div class="es-wbar"><span>🎰 Casino</span><span class="es-wsub"></span><button class="es-wx" data-x="casino" aria-label="Cerrar">×</button></div>
+      <div class="es-wbody"><div id="es-casino"></div></div><div class="es-wtam"></div></div>
     <div class="es-win" data-w="fondos" aria-label="Fondos"><div class="es-wbar"><span>🖼️ Fondos</span><span class="es-wsub"></span><button class="es-wx" data-x="fondos" aria-label="Cerrar">×</button></div>
       <div class="es-wbody"><div id="es-fondos"></div></div><div class="es-wtam"></div></div>
     <div class="es-win" data-w="banco" aria-label="Finanzas"><div class="es-wbar"><span>🏦 Finanzas</span><span class="es-wsub"></span><button class="es-wx" data-x="banco" aria-label="Cerrar">×</button></div>

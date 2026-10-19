@@ -9,7 +9,8 @@
     { "id": "finanzas", "nombre": "Finances", "desc": "Every peso in and out." },
     { "id": "campana", "nombre": "Campaign", "desc": "The story's big jobs." },
     { "id": "videos", "nombre": "Videos", "desc": "Your videos and photos." },
-    { "id": "fondos", "nombre": "Wallpapers", "desc": "Change the computer's background." }
+    { "id": "fondos", "nombre": "Wallpapers", "desc": "Change the computer's background." },
+    { "id": "casino", "nombre": "Casino", "desc": "Blackjack, video poker and high or low. Free: bet wisely." }
   ],
   "fondos": [
     { "id": "taller", "nombre": "Workshop" },

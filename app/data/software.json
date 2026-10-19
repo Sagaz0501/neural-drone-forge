@@ -10,7 +10,8 @@
     { "id": "finanzas", "icono": "🏦", "nombre": "Finanzas", "desc": "Cada peso que entra y sale.", "precio": 10, "apps": ["banco"] },
     { "id": "campana", "icono": "⭐", "nombre": "Campaña", "desc": "Los pedidos grandes de la historia.", "precio": 15, "apps": ["campana"] },
     { "id": "videos", "icono": "🎬", "nombre": "Videos", "desc": "Tus videos y fotos.", "precio": 10, "apps": ["videos"] },
-    { "id": "fondos", "icono": "🖼️", "nombre": "Fondos de pantalla", "desc": "Cambia el fondo del computador.", "precio": 15, "apps": ["fondos"] }
+    { "id": "fondos", "icono": "🖼️", "nombre": "Fondos de pantalla", "desc": "Cambia el fondo del computador.", "precio": 15, "apps": ["fondos"] },
+    { "id": "casino", "icono": "🎰", "nombre": "Casino", "desc": "Blackjack, video póker y mayor o menor. Gratis: apuesta con cabeza.", "precio": 0, "apps": ["casino"] }
   ],
   "fondos": [
     { "id": "taller", "nombre": "Taller", "css": "radial-gradient(ellipse at 70% 30%, #1a2e27 0%, #0b1210 75%)" },
