@@ -46,7 +46,7 @@ export function initSim(ctx) {
     if (slug) return slug;
     const s = await api("/api/lab");
     const b = s.blender || {};
-    if (s.blender_modelo && b.abierto && (b.corriendo || s.entrenador?.activo)) return s.blender_modelo;
+    if (s.blender_modelo && ((b.abierto && b.corriendo) || s.entrenador?.activo)) return s.blender_modelo;
     const f = (s.fondo || []).find((x) => x.activo);
     return f ? f.modelo : "base";
   }

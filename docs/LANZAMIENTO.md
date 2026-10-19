@@ -20,8 +20,13 @@ al lado de Claude Code. `- [x]` = hecho, `- [ ]` = falta, `- [~]` = en eso.
 - [x] Día 4-5 · Instalador Mac (.dmg, Apple Silicon, sin firmar, 291 MB): Electron + servidor Python empaquetado (PyInstaller, con PyTorch CPU) · `cd desktop && npm run dist` · probado: abre limpio, entrena en segundo plano desde cero (6.400 pasos/s, sin App Nap), examen, y **el laboratorio 3D con el Blender del jugador** (si lo tiene instalado; si no, le dice que es gratis en blender.org)
 - [~] Día 5 · Instalador Windows (.exe): el mismo, construido en GitHub Actions (`.github/workflows/instaladores.yml`, listo; falta subirlo y correrlo)
 - [x] Pedidos según lo que tienes (solo fotos hasta E5, 3 por día, clientes que mienten sobre el viento) · el primer modelo parte de cero (no de la IA base)
+- [x] Actualizaciones sin reinstalar (v3.1.1): la app baja el código nuevo del release (~11 MB) · probado en local: instala, usa la nueva, y si viene rota vuelve sola
 - [ ] Día 6 · Prueba completa de los dos modos en un computador limpio (tutorial → Doña Marta → 1.er pedido de la campaña)
-- [ ] Día 7 · Release v3.1 demo en GitHub + enlace de descarga en la web + reel del demo
+- [x] Release v3.1.0 en GitHub con el .dmg (firma ad-hoc) + botón «Descargar para Mac» en la web + README/CHANGELOG (19-10)
+- [ ] Reel del demo
+- [x] Kit de Steam (19-10): cápsulas en los 7 tamaños, 7 capturas, 4 GIFs, textos EN/ES, tags · `marketing/README.md`
+- [ ] Steamworks: cuenta + Steam Direct (US$100) + página «Próximamente» (Santiago)
+- [x] Novedades en la web: cada release sale sola de CHANGELOG.md (`site/novedades.py`)
 
 ## 📸 Instagram
 - [x] Pasar a cuenta de creador (Gaming)
@@ -31,6 +36,11 @@ al lado de Claude Code. `- [x]` = hecho, `- [ ]` = falta, `- [~]` = en eso.
 - [x] Seguir cuentas del público (FPV, simuladores, indie games): 10 el 18-10
 - [ ] Seguir ~10 más por día (sin pasarse: Instagram limita)
 - [ ] Conexión para publicar (app de Meta)
+
+## 𝕏 X (Twitter)
+- [ ] Crear la cuenta (@NeuralDroneGame: @neuraldroneforge no cabe, máx. 15 letras) con el correo del juego
+- [ ] Los primeros 6 posts (GIFs listos en marketing/steam/gifs; textos en marketing/README.md)
+- [ ] 3-4 posts por semana
 
 ## 🎵 TikTok
 - [ ] Crear @neuraldroneforge con el correo del juego

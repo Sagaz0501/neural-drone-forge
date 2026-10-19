@@ -200,6 +200,10 @@ cd desktop && npm run dist             # EL INSTALADOR: desktop/empaquetar.sh = 
                                        # (.exe: GitHub Actions "Instaladores"). Instalada: código en los recursos (solo lectura),
                                        # datos (models/, drones/ del jugador, stl/, partidas/) en la carpeta del usuario: jugar.py datos()
                                        # Blender: el del jugador (jugar.py _buscar_blender) abre recursos/juego/blender; drone_lab.py datos_de()
+cd desktop && sh actualizacion.sh      # LA ACTUALIZACIÓN sin reinstalar: el código (codigo.sh) -> dist/juego-<v>.tar.gz + actualizacion.json
+                                       # (instaladores.yml los sube al release con el tag v<package.json version>). La app (actualizar.js)
+                                       # los baja a <datos>/actualizaciones/<v>/ si "motor" coincide: cambiaste Electron/Python -> sube "motor"
+node desktop/test_actualizar.js        # elegir qué código usar, limpiar, descartar una actualización mala
 ```
 
 Node v22 está en `/opt/homebrew/bin/node`. Blender 5.2 en `/Applications/Blender.app`.

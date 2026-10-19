@@ -242,6 +242,7 @@ footer a:hover{color:var(--text)}
       <a href="#ciclo" data-en="How it works">Cómo funciona</a>
       <a href="#aprende" data-en="Watch it learn">Míralo aprender</a>
       <a href="#escenarios" data-en="Scenarios">Escenarios</a>
+      <a href="#novedades" data-en="What's new">Novedades</a>
       <a href="#descargar" data-en="Download">Descargar</a>
     </div>
     <button class="lang" id="lang" aria-label="Idioma / Language"><b>ES</b> · EN</button>
@@ -475,6 +476,56 @@ footer a:hover{color:var(--text)}
   </div>
 </section>
 
+<!-- ============ NOVEDADES (site/novedades.py, desde CHANGELOG.md) ============ -->
+<!-- novedades -->
+<style>
+.novs{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.nov{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:24px;display:flex;flex-direction:column;gap:12px;transition:transform .2s,border-color .2s}
+.nov:hover{transform:translateY(-4px);border-color:#3a4652}
+.nov-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-family:var(--mono);font-size:12.5px;color:var(--dim)}
+.nov-h .vn{color:var(--orange);font-weight:600;font-size:14px}
+.nov-h .nueva{color:var(--green);border:1px solid rgba(62,224,138,.4);border-radius:999px;padding:2px 9px}
+.nov h3{font-size:21px}
+.nov ul{list-style:none;display:grid;gap:7px;font-size:14.5px;color:var(--muted)}
+.nov li{display:flex;gap:10px}
+.nov li::before{content:"";flex:none;width:6px;height:6px;margin-top:9px;border-radius:2px;background:var(--orange);rotate:45deg}
+.nov .mas{margin-top:auto;font-size:14px;color:var(--orange2)}
+.nov .mas:hover{color:var(--text)}
+.novs-cta{display:flex;justify-content:center;margin-top:36px}
+@media (max-width:900px){.novs{grid-template-columns:1fr}}
+</style>
+<section id="novedades">
+  <div class="wrap">
+  <div class="sec-head center">
+    <span class="eyebrow rv" data-en="Devlog">Diario de desarrollo</span>
+    <h2 class="rv" data-en="What's new">Novedades</h2>
+    <p class="lead rv" data-en="Every release, what changed and why. Release notes are in Spanish.">Cada versión, qué cambió y por qué.</p>
+  </div>
+  <div class="novs">
+    <div class="nov rv">
+      <div class="nov-h"><span class="vn">v3.1.1</span><span class="nueva" data-en="Latest">La última</span><span><span data-en="Oct 19, 2026">19 oct 2026</span></span></div>
+      <h3>Actualizaciones sin reinstalar</h3>
+      <ul><li><span>La app se actualiza sola</span></li><li><span>Gráficos</span></li><li><span><b>Arreglado:</b> En el IDE, el programa del tutorial «dejaba de entrenar» a las…</span></li></ul>
+      <a class="mas" href="novedades.html#v3-1-1" data-en="Read more →">Leer todo →</a>
+    </div>
+    <div class="nov rv">
+      <div class="nov-h"><span class="vn">v3.1</span><span><span data-en="Oct 19, 2026">19 oct 2026</span></span></div>
+      <h3>Demo: el instalador de Mac</h3>
+      <ul><li><span>Instalador para Mac</span></li><li><span>Partidas en archivos</span></li><li><span>Piezas 3D hechas en Blender por script</span></li><li><span>Gráficos</span></li></ul>
+      <a class="mas" href="novedades.html#v3-1" data-en="Read more →">Leer todo →</a>
+    </div>
+    <div class="nov rv">
+      <div class="nov-h"><span class="vn">v3.0</span><span><span data-en="Oct 18, 2026">18 oct 2026</span></span></div>
+      <h3>La app y el aprendizaje paso a paso</h3>
+      <ul><li><span>App de escritorio</span></li><li><span>La partida empieza en cero</span></li><li><span>Escenarios E1-E12</span></li><li><span>Examen 🎓</span></li></ul>
+      <a class="mas" href="novedades.html#v3-0" data-en="Read more →">Leer todo →</a>
+    </div>
+  </div>
+  <div class="novs-cta rv"><a class="btn btn-ghost" href="novedades.html" data-en="See every release (9)">Ver todas las versiones (9)</a></div>
+  </div>
+</section>
+<!-- /novedades -->
+
 <!-- ============ DESCARGAR ============ -->
 <section class="dl" id="descargar">
   <div class="wrap">
@@ -516,7 +567,7 @@ pip install -r requirements.txt
     <div class="fl">
       <a href="https://github.com/Sagaz0501/neural-drone-forge" target="_blank" rel="noopener">GitHub</a>
       <a href="https://github.com/Sagaz0501/neural-drone-forge/blob/main/docs/ROADMAP.md" target="_blank" rel="noopener">Roadmap</a>
-      <a href="https://github.com/Sagaz0501/neural-drone-forge/blob/main/CHANGELOG.md" target="_blank" rel="noopener" data-en="Changelog">Cambios</a>
+      <a href="novedades.html" data-en="What's new">Novedades</a>
       <a href="https://www.instagram.com/neuraldroneforge/" target="_blank" rel="noopener">Instagram</a>
     </div>
     <span data-en="Made by Santiago Bernal · MIT">Hecho por Santiago Bernal · MIT</span>

@@ -1,5 +1,17 @@
 # Cambios
 
+## v3.1.1 · Actualizaciones sin reinstalar (19-10-2026)
+
+- **La app se actualiza sola:** al abrir mira el último release de GitHub; si hay código nuevo del juego (~11 MB) pregunta
+  «Actualizar ahora», lo baja, revisa su sha256 y lo deja en la carpeta de datos (`actualizaciones/<versión>`). Las
+  partidas y las IA no se tocan, y si la actualización no arranca vuelve sola al código de la app. Solo hay que
+  reinstalar cuando cambia el motor (Electron o el Python). La versión del código va en el título de la ventana.
+  **Quien tiene la 3.1.0 instala la 3.1.1 una vez a mano**; de ahí en adelante, solo.
+- **Gráficos:** las hélices mate (el foco del garaje las quemaba con el bloom) y el humo al soldar como nube (era un
+  cuadrado gris). Freestyle: modo espectador para grabar a la IA (videos y tráiler).
+- **Arreglado:** en el IDE, el programa del tutorial «dejaba de entrenar» a las pocas generaciones aunque Blender seguía
+  entrenando (un sondeo sin noticias de Blender bastaba; ahora cuenta el progreso del entrenador y espera 15 s).
+
 ## v3.1 · Demo: el instalador de Mac (19-10-2026)
 
 - **Instalador para Mac** (`.dmg`, chip Apple): se instala como cualquier app, sin Python ni terminal. Trae adentro el

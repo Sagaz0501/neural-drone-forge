@@ -1,0 +1,223 @@
+<!doctype html>
+<!-- GENERADO por site/novedades.py desde CHANGELOG.md: no lo edites a mano -->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Novedades · Neural Drone Forge</title>
+<meta name="description" content="Todas las versiones de Neural Drone Forge: qué cambió en cada release.">
+<meta name="theme-color" content="#0b0d10">
+<link rel="icon" href="img/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://sagaz0501.github.io/neural-drone-forge/novedades.html">
+<meta property="og:title" content="Neural Drone Forge — Arma el dron. Entrena su cerebro. Míralo aprender a volar.">
+<meta property="og:description" content="Armas un dron de madera, lo sueldas cable por cable y le enseñas a volar con una IA que aprende frente a ti. Gratis y open source.">
+<meta property="og:image" content="https://sagaz0501.github.io/neural-drone-forge/img/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://sagaz0501.github.io/neural-drone-forge/img/og.jpg">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg:#0b0d10; --bg2:#11151a; --panel:#151a20; --line:#232b34;
+  --text:#eef1f4; --muted:#9aa6b2; --dim:#66727e;
+  --orange:#ff7a1a; --orange2:#ffb066; --cyan:#35c6f4; --green:#3ee08a; --red:#ff4d5e; --wood:#c98a4b;
+  --r:18px;
+  --display:"Bricolage Grotesque",system-ui,sans-serif;
+  --body:"Inter",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;overflow-x:hidden}
+body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:17px;line-height:1.6;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+img,video{display:block;max-width:100%}
+.wrap{width:min(1180px,100% - 32px);margin-inline:auto}
+h1,h2,h3{font-family:var(--display);line-height:1.05;letter-spacing:-.02em}
+h2{font-size:clamp(34px,5vw,58px);font-weight:800}
+h3{font-size:22px;font-weight:700}
+.eyebrow{font-family:var(--mono);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--orange)}
+.lead{color:var(--muted);font-size:clamp(17px,1.6vw,20px);max-width:640px}
+section{padding:120px 0;position:relative}
+.sec-head{display:grid;gap:16px;margin-bottom:56px}
+.sec-head.center{text-align:center;justify-items:center}
+
+/* botones */
+.btn{display:inline-flex;align-items:center;gap:10px;padding:15px 24px;border-radius:999px;font-weight:600;font-size:16px;transition:transform .15s,box-shadow .2s,background .2s;cursor:pointer;border:0;font-family:var(--body)}
+.btn:hover{transform:translateY(-2px)}
+.btn-main{background:var(--orange);color:#1a0d02;box-shadow:0 10px 40px -10px rgba(255,122,26,.7)}
+.btn-main:hover{box-shadow:0 14px 50px -8px rgba(255,122,26,.9)}
+.btn-ghost{background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--line)}
+.btn-ghost:hover{background:rgba(255,255,255,.1)}
+.btn svg{width:20px;height:20px}
+
+/* nav */
+nav{position:fixed;inset:0 0 auto;z-index:50;transition:background .3s,border-color .3s;border-bottom:1px solid transparent}
+nav.solid{background:rgba(11,13,16,.82);backdrop-filter:blur(14px);border-color:var(--line)}
+nav .wrap{display:flex;align-items:center;gap:24px;height:68px}
+.logo{display:flex;align-items:center;gap:10px;white-space:nowrap;font-family:var(--display);font-weight:800;font-size:19px}
+.logo img{width:34px;height:34px}
+nav .links{display:flex;gap:26px;margin-left:auto;font-size:15px;color:var(--muted)}
+nav .links a:hover{color:var(--text)}
+.lang{white-space:nowrap;font-family:var(--mono);font-size:13px;border:1px solid var(--line);border-radius:999px;padding:6px 12px;background:none;color:var(--muted);cursor:pointer}
+.lang b{color:var(--text)}
+nav .btn{padding:10px 18px;font-size:14px}
+@media (max-width:860px){nav .links{display:none} nav .lang{margin-left:auto}}
+@media (max-width:480px){nav .btn span{display:none} nav .btn{padding:10px 12px} nav .wrap{gap:12px} .logo{font-size:16px} .badge{border-radius:14px}}
+
+footer{border-top:1px solid var(--line);padding:44px 0 60px;color:var(--muted);font-size:14.5px}
+footer .wrap{display:flex;flex-wrap:wrap;gap:20px 40px;align-items:center;justify-content:space-between}
+footer .fl{display:flex;gap:22px;flex-wrap:wrap}
+footer a:hover{color:var(--text)}
+
+/* aparecer al bajar */
+.rv{opacity:0;translate:0 28px;transition:opacity .8s ease,translate .8s cubic-bezier(.2,.7,.2,1)}
+.rv.in{opacity:1;translate:0 0}
+@media (prefers-reduced-motion:reduce){.rv{opacity:1;translate:none;transition:none}*{animation:none!important}}
+
+nav .links a.on{color:var(--text)}
+.top{padding:150px 0 40px;background:radial-gradient(700px 320px at 50% 0%,rgba(255,122,26,.12),transparent)}
+.top h1{font-size:clamp(44px,6vw,76px);font-weight:800;margin:14px 0 18px}
+.indice{display:flex;flex-wrap:wrap;gap:8px;margin-top:28px}
+.indice a{font-family:var(--mono);font-size:13px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.indice a:hover{color:var(--text);border-color:#3a4652}
+.vers{display:grid;gap:22px;padding:30px 0 110px;max-width:860px}
+.ver{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:30px 32px;scroll-margin-top:90px}
+.ver-h{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-family:var(--mono);font-size:13px;color:var(--dim);margin-bottom:10px}
+.ver-h .vn{color:var(--orange);font-weight:600;font-size:15px}
+.ver-h .nueva{color:var(--green);border:1px solid rgba(62,224,138,.4);border-radius:999px;padding:2px 10px}
+.ver-h .nota{font-style:italic}
+.ver-h .rel{margin-left:auto;color:var(--orange2)}
+.ver-h .rel:hover{color:var(--text)}
+.ver h3{font-size:clamp(24px,3vw,32px);font-weight:800;margin-bottom:16px}
+.ver h4{font-family:var(--mono);font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--cyan);margin:18px 0 8px}
+.ver p{color:var(--muted);margin:8px 0}
+.ver ul{list-style:none;display:grid;gap:10px}
+.ver li{display:flex;gap:12px;font-size:15.5px;color:var(--muted)}
+.ver li>span,.ver h3,.ver p{min-width:0;overflow-wrap:anywhere}
+.ver li::before{content:"";flex:none;width:7px;height:7px;margin-top:10px;border-radius:2px;background:var(--orange);rotate:45deg}
+.ver b{color:var(--text);font-weight:600}
+.ver a:not(.rel){color:var(--cyan)}
+.ver code{font-family:var(--mono);font-size:.86em;background:#0d1116;border:1px solid var(--line);border-radius:6px;padding:1px 6px;overflow-wrap:anywhere}
+@media (max-width:600px){.ver{padding:22px 18px} .ver-h .rel{margin-left:0;flex-basis:100%}}
+</style>
+</head>
+<body>
+
+<nav id="nav">
+  <div class="wrap">
+    <a class="logo" href="index.html"><img src="img/logo.svg" alt="" width="34" height="34">Neural Drone Forge</a>
+    <div class="links">
+      <a href="index.html#ciclo" data-en="How it works">Cómo funciona</a>
+      <a href="index.html#aprende" data-en="Watch it learn">Míralo aprender</a>
+      <a href="index.html#escenarios" data-en="Scenarios">Escenarios</a>
+      <a class="on" href="#" data-en="What's new">Novedades</a>
+      <a href="index.html#descargar" data-en="Download">Descargar</a>
+    </div>
+    <button class="lang" id="lang" aria-label="Idioma / Language"><b>ES</b> · EN</button>
+    <a class="btn btn-ghost" href="https://github.com/Sagaz0501/neural-drone-forge" target="_blank" rel="noopener">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      <span>GitHub</span>
+    </a>
+  </div>
+</nav>
+
+<header class="top">
+  <div class="wrap">
+    <span class="eyebrow" data-en="Devlog">Diario de desarrollo</span>
+    <h1 data-en="What's new">Novedades</h1>
+    <p class="lead" data-en="Every release of Neural Drone Forge, newest first. The notes are in Spanish (the game is made in Spanish first).">Cada versión de Neural Drone Forge, de la más nueva a la primera.</p>
+    <div class="indice"><a href="#v3-1-1">v3.1.1</a><a href="#v3-1">v3.1</a><a href="#v3-0">v3.0</a><a href="#v2-1">v2.1</a><a href="#v2-0">v2.0</a><a href="#v1-0">v1.0</a><a href="#v0-3">v0.3</a><a href="#v0-2">v0.2</a><a href="#v0-1">v0.1</a></div>
+  </div>
+</header>
+
+<main class="wrap"><div class="vers">
+<article class="ver rv" id="v3-1-1">
+  <div class="ver-h"><span class="vn">v3.1.1</span><span class="nueva" data-en="Latest">La última</span><time><span data-en="Oct 19, 2026">19 oct 2026</span></time></div>
+  <h3>Actualizaciones sin reinstalar</h3>
+  <ul><li><span><b>La app se actualiza sola:</b> al abrir mira el último release de GitHub; si hay código nuevo del juego (~11 MB) pregunta «Actualizar ahora», lo baja, revisa su sha256 y lo deja en la carpeta de datos (<code>actualizaciones/&lt;versión&gt;</code>). Las partidas y las IA no se tocan, y si la actualización no arranca vuelve sola al código de la app. Solo hay que reinstalar cuando cambia el motor (Electron o el Python). La versión del código va en el título de la ventana. <b>Quien tiene la 3.1.0 instala la 3.1.1 una vez a mano</b>; de ahí en adelante, solo.</span></li><li><span><b>Gráficos:</b> las hélices mate (el foco del garaje las quemaba con el bloom) y el humo al soldar como nube (era un cuadrado gris). Freestyle: modo espectador para grabar a la IA (videos y tráiler).</span></li><li><span><b>Arreglado:</b> en el IDE, el programa del tutorial «dejaba de entrenar» a las pocas generaciones aunque Blender seguía entrenando (un sondeo sin noticias de Blender bastaba; ahora cuenta el progreso del entrenador y espera 15 s).</span></li></ul>
+</article>
+<article class="ver rv" id="v3-1">
+  <div class="ver-h"><span class="vn">v3.1</span><time><span data-en="Oct 19, 2026">19 oct 2026</span></time><a class="rel" href="https://github.com/Sagaz0501/neural-drone-forge/releases/tag/v3.1.0" target="_blank" rel="noopener"><span data-en="Release on GitHub">Release en GitHub</span> ↗</a></div>
+  <h3>Demo: el instalador de Mac</h3>
+  <ul><li><span><b>Instalador para Mac</b> (<code>.dmg</code>, chip Apple): se instala como cualquier app, sin Python ni terminal. Trae adentro el servidor y PyTorch (<code>desktop/empaquetar.sh</code>: PyInstaller + electron-builder). Las partidas, las IA y los STL van en la carpeta del usuario. <b>Blender</b> sigue funcionando con la app instalada (el del jugador, si lo tiene). Windows: el workflow <code>Instaladores</code> de GitHub Actions.</span></li><li><span><b>Partidas en archivos:</b> varias partidas (📂 Partidas: jugar, renombrar, exportar, importar, borrar a la papelera con sus IA). Los programas <code>.pbd</code> son de cada partida. Botón <b>🚪 Salir al escritorio</b> y <b>☰ Menú</b> en el garaje.</span></li><li><span><b>Piezas 3D hechas en Blender por script:</b> el chasis de contrachapado del kit, el ESC 4 en 1 (se suelda en sus pads de verdad), los 6 motores, las 6 baterías y la ESP32-CAM; hélices con forma. Arreglado: en la mesa, mover un motor arrastraba a 3 y no dejaba seguir.</span></li><li><span><b>Gráficos:</b> el garaje con reflejos, foco y contraluz sobre el dron, bloom y viñeta, polvo en la luz, la ventana, el portátil, la estación de soldar y herramientas de verdad; la mesa de trabajo más sobria; el vuelo con sol de tarde.</span></li><li><span><b>Pedidos según lo que sabes hacer:</b> mientras solo tienes fotos llegan fotos (3 por día, de varios tipos); los videos cuando ya puedes comprar E6. <b>Clientes que mienten</b> sobre el viento.</span></li><li><span><b>Arreglado:</b> la primera IA de una partida nueva nacía como copia de la IA base (3.500 generaciones); ahora parte de cero. Un solo entrenamiento a la vez en todo el juego. Los entrenamientos de la app no se frenan cuando su ventana queda atrás (App Nap).</span></li></ul>
+</article>
+<article class="ver rv" id="v3-0">
+  <div class="ver-h"><span class="vn">v3.0</span><time><span data-en="Oct 18, 2026">18 oct 2026</span></time><a class="rel" href="https://github.com/Sagaz0501/neural-drone-forge/releases/tag/v3.0.0" target="_blank" rel="noopener"><span data-en="Release on GitHub">Release en GitHub</span> ↗</a></div>
+  <h3>La app y el aprendizaje paso a paso</h3>
+  <ul><li><span><b>App de escritorio</b> (<code>desktop/</code>, Electron): el juego en su propia ventana, sin navegador; arranca el servidor solo y lo cierra al salir. <code>cd desktop &amp;&amp; npm install &amp;&amp; npm start</code>. Arreglado: la app se caía al esperar al servidor (<code>AssertionError: assert(!this.paused)</code>).</span></li><li><span><b>La partida empieza en cero:</b> sin la IA base ni programas; los modelos del juego (corredor, cazador…) quedan reservados. Todo lo entrena el jugador.</span></li><li><span><b>Escenarios E1-E12:</b> de lo básico a lo difícil. Nuevos: <b>E1 Despegar y quedarse</b> (nivel 19), <b>E2 Ir a un punto</b> mirando al sujeto (nivel 20; también hace las fotos fáciles) y <b>E3 Seguir una línea</b> (nivel 21). Un piloto automático los pasa al 100 % (pytest).</span></li><li><span><b>Examen 🎓</b> por escenario (20 intentos sin ruido, ≥ 80 %), <b>⭐ modelo base</b> (aprueba E1-E4 + E6), cada escenario parte del modelo que aprobó el anterior y <b>repasa</b> lo aprendido (el 20 % de los intentos: <code>tarea.repaso</code>).</span></li><li><span><b>Tutorial nuevo:</b> el <b>nivel 0</b> (la foto de Doña Marta) se gana con la primera IA en dos pasos, E1 y E2. En el modo desarrollador, paso a paso en el IDE: abrir el ejemplo, la línea que cambia (👉), ▶ Correr. La primera vez pregunta si tienes Blender (recomendado). Los pedidos de la campaña ahora dicen su nivel.</span></li><li><span><b>Prueba de motores en un botón:</b> cada motor ✓ o ✗ y el arreglo que toca (programar el orden, el sentido o volver a soldar).</span></li><li><span><b>La mesa:</b> los pads chicos (la ESP32) se tocan aunque no les atines exacto (el flux no entraba); fuera del tutorial la placa ya no dice qué cable va en cada pin; tres máquinas caras de nivel avanzado: 🤖 auto-atornillador, auto-conectores y auto-soldador.</span></li><li><span>README nuevo con capturas de la app.</span></li></ul>
+</article>
+<article class="ver rv" id="v2-1">
+  <div class="ver-h"><span class="vn">v2.1</span><time></time><span class="nota">sale dentro de la v3.0</span></div>
+  <h3>Freestyle</h3>
+  <ul><li><span><b>Freestyle</b> (🏁 en el inicio): 3 mapas (la fábrica abandonada, el cañón, el estadio de noche con neón), control PS5/Xbox o teclado, cámara FPV, vuelo <b>Estable</b> (la física de la IA) o <b>Acro</b> (rate mode con flips, solo aquí). Modos: libre, <b>carrera contra la IA</b> (1-3 rivales con un modelo entrenado), <b>contrarreloj</b> (con el fantasma de tu mejor vuelta) y <b>persecución</b> (drones con IA te persiguen: 60 s, 3 vidas). Tus drones del hangar también vuelan. El control vibra al chocar. Bloom de verdad en el estadio (<code>game/vendor/postprocessing</code>, three.js r169).</span></li><li><span><b>Tres pruebas nuevas para la IA:</b> nivel <b>16 Carrera</b> (portales lejos, rápido), <b>17 Entrega</b> (plataforma lejos entre edificios, quedarse 1 s encima) y <b>18 Persecución</b> (alcanzar a la liebre). En el juego: simuladores 📦 🏁 🐇 después de <i>Entre postes</i>, con su misión en el Laboratorio y en PBDMM.</span></li><li><span><b>Modelos nuevos</b> entrenados con esas pruebas: <i>corredor</i> (el rival: 95 % de las pistas a 10 m/s, el doble de rápido que la IA base) y <i>cazador</i> (alcanza a la liebre a 10 m/s el 95 % de las veces).</span></li><li><span><b>Plan maestro</b> ([<code>docs/PLAN_MAESTRO.md</code>](docs/PLAN_MAESTRO.md)): fases hasta Steam, la historia completa en 5 actos, misiones y recompensas, gráficos y la app de escritorio. Prototipo de la app en <code>desktop/</code> (Electron).</span></li><li><span><b>Arreglado:</b> PBDMM dejaba pedir <code>foto(calidad=0.9)</code>, que ni un piloto automático perfecto alcanza (saca ~0,56): la IA nunca tenía un éxito y no aprendía. Ahora va de 0,3 a 0,7.</span></li></ul>
+</article>
+<article class="ver rv" id="v2-0">
+  <div class="ver-h"><span class="vn">v2.0</span><time><span data-en="Oct 16, 2026">16 oct 2026</span></time><a class="rel" href="https://github.com/Sagaz0501/neural-drone-forge/releases/tag/v2.0.0" target="_blank" rel="noopener"><span data-en="Release on GitHub">Release en GitHub</span> ↗</a></div>
+  <h3>El taller de verdad</h3>
+  <ul><li><span><b>El regalo de mamá</b> y un <b>tutorial obligatorio</b> (los dos modos): ponerle nombre al dron, armarlo con el computador apagado, el tour del computador y la primera IA; al 80 % en la foto escribe Doña Marta.</span></li><li><span><b>La mesa de trabajo 3D:</b> cajas que llegan, montar cada pieza con su procedimiento, atornillar hasta el clic, <b>soldar</b> con estación, cautín, estaño y flux (juntas frías, puentes, pads levantados que la mesa no avisa).</span></li><li><span><b>El computador es el centro del juego</b>, con apps en ventanas; <b>simuladores</b> que se compran en orden y abren misiones de la IA; <b>PBDMM 3</b> (el plan de vuelo); <b>la flota</b>; niveles <b>13 Foto</b> y <b>14 Set de fotos</b>.</span></li><li><span>Diálogos del juego en vez de los del navegador.</span></li></ul>
+</article>
+<article class="ver rv" id="v1-0">
+  <div class="ver-h"><span class="vn">v1.0</span><time><span data-en="Oct 16, 2026">16 oct 2026</span></time><a class="rel" href="https://github.com/Sagaz0501/neural-drone-forge/releases/tag/v1.0.0" target="_blank" rel="noopener"><span data-en="Release on GitHub">Release en GitHub</span> ↗</a></div>
+  <h3>El negocio</h3>
+  <ul><li><span>Los clientes escriben al 📱 celular; trabajos repetibles ★-★★★★; relación y recomendaciones; arriendo; PBDMM 2.0.</span></li></ul>
+</article>
+<article class="ver rv" id="v0-3">
+  <div class="ver-h"><span class="vn">v0.3</span><time></time></div>
+  <h3>English</h3>
+  <ul><li><span><b>PBDMM bilingüe:</b> todo nombre se escribe en español o en inglés, siempre (<code>model(&quot;x&quot;, start_from=&quot;zero&quot;)</code>, <code>mission(&quot;film&quot;)</code>, <code>rewards(film=6)</code>, <code>def every_generation(e): if e.success &gt; 0.9: stop()</code>…); se pueden mezclar y un programa guardado en español sigue funcionando. En inglés, la ayuda, el autocompletado, los ejemplos y los comandos (<code>run</code>, <code>check</code>, <code>load</code>, <code>models</code>…) salen en inglés. Comando nuevo <code>translate</code> / <code>traducir</code>.</span></li><li><span><b>Arreglado (Blender):</b> al cerrar Blender, su entrenador seguía corriendo sin ventana y el Blender nuevo no podía entrenar ("Address already in use"). Ahora el entrenador lanzado por Blender guarda y termina solo si Blender se cierra (<code>live_train.py --salir-sin-padre</code>), y si al empezar el puerto está ocupado, Blender le pide al huérfano que guarde y se detenga (<code>liberar_ctrl</code>).</span></li><li><span><b>El juego en inglés:</b> la primera vez pregunta Español / English; se cambia en el inicio. 1.200 textos traducidos (<code>app/i18n/en/</code>), los datos con una capa en inglés (<code>app/data/en/</code>), el HTML fijo traducido al cargar. <code>node app/test_i18n.mjs</code> revisa que no falte nada. <code>README.en.md</code>. Plan y glosario: <code>docs/I18N.md</code>.</span></li><li><span>**<code>cargar [modelo] [dron]</code>** en la terminal del Estudio: guarda la generación de ahora (si entrena) y la sube al dron con una animación de "subida".</span></li></ul>
+</article>
+<article class="ver rv" id="v0-2">
+  <div class="ver-h"><span class="vn">v0.2</span><time></time></div>
+  <h3>Fase 1, primera parte</h3>
+  <ul><li><span><b>Blender = la pantalla del entrenamiento:</b> el panel Drone Lab ya no tiene controles; muestra qué entrena y tiene <b>Modo video</b> (sin menús, grilla ni gizmos, a pantalla completa) para grabar. El panel viejo: <code>DRONMAKER_LAB_AVANZADO=1</code>.</span></li><li><span><b>Avance del modelo:</b> el entrenador guarda solo el mejor y el peor intento de cada nivel (<code>avance.json</code>).</span></li><li><span><b>Simular prueba:</b> una prueba al azar como las del entrenamiento, con la última generación, sin detenerlo y sin tocar la partida (<code>POST /api/simular</code>).</span></li><li><span><b>Visor de simulaciones:</b> recorrido, ruta de la cámara, tres cámaras, red neuronal en cada instante, gráficas y línea de tiempo.</span></li><li><span><b>Pedidos al azar:</b> cada intento las tomas cambian (dentro de rangos como los del entrenamiento y sin chocar).</span></li><li><span><b>Aviso antes de que vuele una IA que no está lista</b> (nunca bloquea).</span></li><li><span><b>Avance completo:</b> primer intento, peor, mejor, último (cada minuto) y "Ahora"; los botones preguntan con qué IA (cada modelo con su generación guardada). Un dron sin IA propia ya no cae en la IA base.</span></li><li><span><b>El primer video:</b> 25 drones aprendiendo en Blender (GIF en el README, MP4 en <code>docs/media/</code>).</span></li><li><span>Arreglado: la red neuronal en vivo del Estudio no se dibujaba (un nombre repetido la tapaba) y, al recargar la página, no sabía qué modelo mirar: ahora muestra sola el que está entrenando y tiene un selector de modelo.</span></li></ul>
+</article>
+<article class="ver rv" id="v0-1">
+  <div class="ver-h"><span class="vn">v0.1</span><time><span data-en="octubre de 2026">octubre de 2026</span></time></div>
+  <h3>La demo</h3>
+  <h4>El juego</h4><ul><li><span>Nombre: <b>Neural Drone Forge</b> ("Dron Maker" queda como el taller dentro del juego).</span></li><li><span>Dos modos al empezar: <b>normal</b> (la campaña, con el Laboratorio de IA) y <b>desarrollador</b> (el Estudio PBDMM: todo desbloqueado). Cada modo tiene solo su herramienta.</span></li><li><span>Garaje 3D con hangar de varios drones; tienda por categorías con carrito; inventario por unidades (vender usado).</span></li><li><span>Banco de armado: imprimir el chasis (formas o tu STL, carcasas, descargar STL), armar con animaciones, mesa de cableado con pines reales (ESP32, STM32, ExpressLRS, GPS, ToF, LED) y fallas (cortos, polaridad, voltajes, TX con TX), prueba de humo, firmware, configurar, motores (orden y sentido de Betaflight, vista del piloto, diagrama), hélices y prueba atada.</span></li><li><span>Campaña: la casa, la finca con viento y el restaurante entre postes; tomas con ruta calificadas, video <code>.webm</code>.</span></li></ul><h4>La IA</h4><ul><li><span>Un modelo por dron (<code>models/drones/&lt;nombre&gt;/</code>), desde la base, otro modelo o cero; entrenable en Blender o en segundo plano (2 a la vez).</span></li><li><span>"Que grabe la IA" siempre disponible: carga sola la última versión; si no entrega el video, −2 de reputación.</span></li><li><span>Premios y castigos de 0 a 10 en todo el juego (el entrenador recibe los valores reales).</span></li><li><span>La red neuronal en vivo de cualquiera de los drones que entrenan (<code>entrenando_red.json</code>, <code>GET /api/red</code>).</span></li></ul><p><b>PBDMM</b> (Python Base Dron Model Maker)</p><ul><li><span>Lenguaje con cara de Python interpretado en el navegador: variables, listas, diccionarios, tuplas, <code>if/for/def</code>, comprensiones, f-strings, <code>*lista</code>/<code>**dicc</code>; sin <code>import</code> ni <code>while</code>.</span></li><li><span><code>modelo</code>, <code>red</code>, <code>mision</code>/<code>nivel</code>, <code>dron</code>, <code>drones</code>, <code>entrenar_en</code>, <code>velocidad</code>, <code>viento</code>, <code>aprendizaje</code>, <code>premios</code>, <code>castigos</code>, y <code>al_empezar</code> / <code>cada_generacion</code> / <code>al_terminar</code>.</span></li><li><span>Estudio: editor con colores y autocompletado (conoce tus drones, modelos y variables), terminal, ayuda, 7 lecciones, 6 ejemplos, gráficas.</span></li></ul><h4>Proyecto</h4><ul><li><span>README, guía del jugador, referencia de PBDMM, arquitectura, roadmap. Pruebas en GitHub Actions.</span></li><li><span><code>models/publico/</code>: la IA base viene con el repo.</span></li></ul>
+</article>
+</div></main>
+
+<footer>
+  <div class="wrap">
+    <a class="logo" href="index.html"><img src="img/logo.svg" alt="" width="34" height="34">Neural Drone Forge</a>
+    <div class="fl">
+      <a href="https://github.com/Sagaz0501/neural-drone-forge" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/Sagaz0501/neural-drone-forge/blob/main/docs/ROADMAP.md" target="_blank" rel="noopener">Roadmap</a>
+      <a href="novedades.html" data-en="What's new">Novedades</a>
+      <a href="https://www.instagram.com/neuraldroneforge/" target="_blank" rel="noopener">Instagram</a>
+    </div>
+    <span data-en="Made by Santiago Bernal · MIT">Hecho por Santiago Bernal · MIT</span>
+  </div>
+</footer>
+
+<script>
+let lang = "es";
+try { lang = localStorage.getItem("ndf.lang") || (navigator.language || "es").slice(0, 2); } catch (e) {}
+const pedido = new URLSearchParams(location.search).get("lang");
+if (pedido) lang = pedido;
+if (lang !== "en") lang = "es";
+const ES = new Map();
+function setLang(l) {
+  lang = l; document.documentElement.lang = l;
+  document.querySelectorAll("[data-en]").forEach(el => { if (!ES.has(el)) ES.set(el, el.innerHTML); el.innerHTML = l === "en" ? el.dataset.en : ES.get(el); });
+  document.getElementById("lang").innerHTML = l === "en" ? "ES · <b>EN</b>" : "<b>ES</b> · EN";
+  try { localStorage.setItem("ndf.lang", l); } catch (e) {}
+}
+document.getElementById("lang").onclick = () => setLang(lang === "es" ? "en" : "es");
+const nav = document.getElementById("nav");
+addEventListener("scroll", () => nav.classList.toggle("solid", scrollY > 30), { passive: true });
+nav.classList.add("solid");
+const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { threshold: .05 });
+document.querySelectorAll(".rv").forEach(el => io.observe(el));
+setTimeout(() => document.querySelectorAll(".rv").forEach(el => { if (el.getBoundingClientRect().top < innerHeight) el.classList.add("in"); }), 100);
+setLang(lang);
+</script>
+</body>
+</html>

@@ -33,6 +33,16 @@ const NOMBRE = () => ({ chasis: t("Chasis"), motores: t("Motores"), esc: t("ESC 
   montaje: t("Montaje de la cámara"), camara: t("Cámara"), bateria: t("Batería"), extras: t("Extras") });
 /** Dónde van los pads de la ESP32 DevKitC (el GLB de blender/piezas) para cada pin de banco.js. */
 const PAD_ESP32 = { "5v": "pad_5V", "3v3": "pad_3V3", gnd1: "pad_GND_1", gnd2: "pad_GND_2", tx2: "pad_GPIO17", rx2: "pad_GPIO16", tx1: "pad_GPIO27", rx1: "pad_GPIO26", sda: "pad_GPIO21", scl: "pad_GPIO22", led: "pad_GPIO4" };
+/** Una nubecita redonda y difusa para el humo (sin textura el sprite se veía como un cuadrado gris). */
+function texNube() {
+  if (typeof document === "undefined") return null;
+  const c = document.createElement("canvas"); c.width = c.height = 64;
+  const g = c.getContext("2d"), r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  r.addColorStop(0, "rgba(255,255,255,1)"); r.addColorStop(0.45, "rgba(255,255,255,0.45)"); r.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = r; g.fillRect(0, 0, 64, 64);
+  const tx = new THREE.CanvasTexture(c); tx.colorSpace = THREE.SRGBColorSpace;
+  return tx;
+}
 const MAT = {
   carton: new THREE.MeshStandardMaterial({ color: 0xb08a5a, roughness: 0.95 }),
   cinta: new THREE.MeshStandardMaterial({ color: 0xc9a36a, roughness: 0.4, transparent: true, opacity: 0.92 }),
@@ -52,7 +62,7 @@ const MAT = {
   flux: new THREE.MeshStandardMaterial({ color: 0xd99a2b, roughness: 0.05, transparent: true, opacity: 0.55 }),
   chip: new THREE.MeshStandardMaterial({ color: 0x18191c, roughness: 0.4 }),
   jst: new THREE.MeshStandardMaterial({ color: 0xf1ede2, roughness: 0.6 }),
-  humo: new THREE.SpriteMaterial({ color: 0xdedede, transparent: true, opacity: 0.35, depthWrite: false }),
+  humo: new THREE.SpriteMaterial({ color: 0xdedede, map: texNube(), transparent: true, opacity: 0.35, depthWrite: false }),
 };
 const VISTA_SOLDAR = { x: 0.012, y: 0.112 };            // la cámara de soldar, desde arriba (corrida a la derecha: la bandeja)
 const lerp = (a, b, k) => a + (b - a) * k;
@@ -1489,7 +1499,7 @@ export function initMesa(ctx) {
   function humo(pos) {
     const s = new THREE.Sprite(MAT.humo.clone());
     s.position.copy(pos).add(new THREE.Vector3((Math.random() - 0.5) * 0.002, 0.002, (Math.random() - 0.5) * 0.002));
-    s.scale.setScalar(0.003); s.userData.v = 0;
+    s.scale.setScalar(0.003); s.userData.v = 0; s.material.rotation = Math.random() * Math.PI * 2;
     scene.add(s); M.humo.push(s);
   }
 

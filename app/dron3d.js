@@ -184,7 +184,7 @@ export function buildDrone(build, cat) {
       const front = Math.cos(c.a) > 0;
       const acc = est.acento || "#ff7a1a";
       const blade = new THREE.Mesh(geoHelice(L, 0.011 + he.pulgadas * 0.001),
-        m(front ? "propF_" + acc : "propB", { color: front ? acc : 0x3c4046, roughness: 0.4 }));
+        m(front ? "propF_" + acc : "propB", { color: front ? acc : 0x3c4046, roughness: 0.75 }));   // mate: con 0,4 el foco del garaje las quemaba (bloom)
       blade.castShadow = true; blade.userData.compartida = true;
       p.add(blade);
       const disc = new THREE.Mesh(new THREE.CylinderGeometry(L / 2, L / 2, 0.001, 32),

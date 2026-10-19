@@ -768,7 +768,9 @@ export function initEstudio(ctx) {
     const f = (s.fondo || []).find((x) => x.modelo === slug);
     if (f && f.activo) return { tr: f, activo: true };
     const b = s.blender || {}, tr = s.entrenador || {};
-    if (s.blender_modelo === slug && b.abierto && (b.corriendo || tr.activo)) return { tr, activo: true };
+    // el entrenador de Blender escribe su progreso solo: si está al día, entrena aunque Blender tarde en escribir su estado
+    // (macOS frena a Blender cuando queda detrás de la ventana del juego)
+    if (s.blender_modelo === slug && ((b.abierto && b.corriendo) || tr.activo)) return { tr, activo: true };
     if (f) return { tr: f, activo: false };
     if (tr.modelo === slug) return { tr, activo: false };
     return { tr: null, activo: false };
@@ -786,7 +788,7 @@ export function initEstudio(ctx) {
   function entrenandoAhora(s) {
     const out = [];
     const b = s.blender || {};
-    if (s.blender_modelo && b.abierto && (b.corriendo || s.entrenador?.activo)) out.push({ slug: s.blender_modelo, donde: "Blender" });
+    if (s.blender_modelo && ((b.abierto && b.corriendo) || s.entrenador?.activo)) out.push({ slug: s.blender_modelo, donde: "Blender" });
     for (const f of s.fondo || []) if (f.activo && !out.some((x) => x.slug === f.modelo)) out.push({ slug: f.modelo, donde: "fondo" });
     return out;
   }
@@ -814,6 +816,7 @@ export function initEstudio(ctx) {
     const R = ES.run;
     if (R) {
       const { tr, activo } = trDe(s, R.cfg.modelo);
+      if (activo && tr) R.quieto = null;
       if (activo && tr) {
         if (!R.empezo) {
           R.empezo = true; R.ses.gen0 = tr.gen ?? 0; R.ultGen = tr.gen ?? 0;
@@ -829,6 +832,8 @@ export function initEstudio(ctx) {
           for (const l of R.prog.narrar(e, R.ses)) linea(l, l.includes("💡") ? "warn" : "muted");
           RUTA.alGenerar(ctx.P(), R.cfg, e, avisoRuta, acc);
         }
+      } else if (R.empezo && Date.now() - (R.quieto ??= Date.now()) < 15000) {
+        // un sondeo sin noticias no es que paró (el estado se está guardando, Blender frenado…): 15 s de gracia
       } else if (R.empezo) {
         linea("■ " + t('"{m}" dejó de entrenar (generación {gen}).', { m: R.cfg.modelo, gen: tr?.gen ?? R.ultGen }), "warn");
         llamarHook(R, "al_terminar", estadoE(tr || {}, R.ses, ctx.ent.escala_premios));

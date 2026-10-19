@@ -1,10 +1,16 @@
 name: Página web
 
 # Publica site/ en GitHub Pages: https://sagaz0501.github.io/neural-drone-forge/
+# Antes, site/novedades.py arma las Novedades desde CHANGELOG.md (con el enlace al release de cada tag v*). También
+# corre al terminar "Instaladores" (un tag nuevo = su release ya existe: aparece el enlace); desde main, que es la rama
+# que el entorno github-pages deja publicar.
 on:
   push:
     branches: [main]
-    paths: ["site/**", ".github/workflows/pagina.yml"]
+    paths: ["site/**", "CHANGELOG.md", ".github/workflows/pagina.yml"]
+  workflow_run:
+    workflows: ["Instaladores"]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -24,6 +30,10 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0                       # los tags: cada versión enlaza a su release
+      - name: Novedades (desde CHANGELOG.md)
+        run: python3 site/novedades.py && rm -f site/novedades.py
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

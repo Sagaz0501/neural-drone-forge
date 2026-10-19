@@ -609,6 +609,7 @@ function camara(dt, pos, q, yaw) {
     camera.lookAt(V(M.spawn[0] * 0.3, M.spawn[1] * 0.3, 4));
     return;
   }
+  if (S.camaraTV) { S.camaraTV(camera, V(...pos), dt); return; }   // para videos: una cámara propia (S.camaraTV(camera, pos, dt))
   const p = V(...pos);
   if (S.camNueva) { S.camNueva = false; camPos.copy(V(pos[0] - Math.cos(yaw) * 3, pos[1] - Math.sin(yaw) * 3, pos[2] + 1.5)); }
   if (cfg.cam === "fpv") {
@@ -732,6 +733,8 @@ function cuadro(now) {
     fantasma.visible = conF && iF < F.p.length;
     if (fantasma.visible) { const m = F.p[iF]; fantasma.position.copy(V(m[0], m[1], m[2])); aThree(m.slice(3), fantasma.quaternion); }
     yaw = P.s.yaw;
+    const ia = S.espectar && S.ias.find((r) => r.muerto <= 0);
+    if (ia) { pos = ia.pos.slice(); yaw = ia.s.yaw; dron.visible = false; }   // espectador: la cámara sigue a la IA (videos y tráiler)
     const spin = (8 + 40 * P.thr) * 2 * Math.PI * dt;
     for (const pr of dron.userData.props) { pr.rotation.y += spin * pr.userData.dir; pr.userData.disc.visible = P.thr > 0.05; pr.userData.blade.visible = P.thr < 0.3; }
     for (const r of S.ias) {

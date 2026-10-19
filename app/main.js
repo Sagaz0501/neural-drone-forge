@@ -1541,6 +1541,6 @@ document.querySelectorAll("#idioma [data-l], #idioma-sel [data-l]").forEach((b) 
 });
 loadModelos();
 window.__gameReady = true;
-window.__dm = { G, PT, BA, cat, mis, mundoLugar, t, garaje: () => garaje, abrirBanco, abrirPC, irTaller, mesa: ctx.mesa, estudio };   // para probar desde la consola del navegador
+window.__dm = { G, PT, BA, cat, mis, mundoLugar, t, garaje: () => garaje, abrirBanco, abrirPC, irTaller, mesa: ctx.mesa, estudio, sim };   // para probar desde la consola del navegador
 requestAnimationFrame(frame);
 if (sessionStorage.getItem("dronmaker.alTaller") && G.partida) { sessionStorage.removeItem("dronmaker.alTaller"); irTaller(); }   // venías de 📂 Partidas
