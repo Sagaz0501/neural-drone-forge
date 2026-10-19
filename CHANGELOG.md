@@ -7,6 +7,8 @@
 - **Los pedidos llegan a lo largo del día** (entre las 8:00 y las 19:00), con aviso y la hora en cada mensaje.
 - **Plazos con hora:** un pedido vence a las 23:00 de su último día («Vence hoy a las 23:00 · quedan 3 h 20 min»).
 - **A las 23:00 te vas a dormir solo:** vuela la flota y empieza el día siguiente. También puedes 😴 dormir antes.
+- **Arreglado:** con Simuladores (o 🛍️ Apps) abierto, el botón de comprar se quedaba gris aunque ya te alcanzara la plata:
+  ahora se habilita apenas cobras.
 - **Balance:** con 1 ★ la relación con el cliente también sube, así que Doña Marta te recomienda a Ernesto. Antes, una
   IA que sacaba 1 ★ te dejaba solo con ella, sin reputación ni plata.
 

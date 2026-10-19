@@ -986,6 +986,11 @@ export function initEstudio(ctx) {
     if (!p) return;
     $("es-reloj").innerHTML = `<b>$${p.plata.toLocaleString(idioma())}</b> · ⭐ ${p.rep}${p.negocio ? ` · ${t("Día {n}", { n: p.negocio.dia })}${NG.relojCorre(p) ? ` · 🕒 ${NG.fmtHora(NG.hora(p, ctx.ND))}` : ""}` : ""}`;
     if (p.negocio && ES.diaCal !== p.negocio.dia) { ES.diaCal = p.negocio.dia; if (abierta("calendario")) renderCalendario(); }
+    if (ES.plataVista !== p.plata) {                 // cobraste o gastaste: los botones de comprar se vuelven a habilitar
+      ES.plataVista = p.plata;
+      if (abierta("escenarios")) renderEscenarios();
+      if (abierta("apps")) renderApps();
+    }
     const n = p.negocio ? NG.noLeidos(p) : 0, sinMsj = !SW.tieneApp(p, ctx.software, "mensajes");
     $("es-badge").hidden = !n; $("es-badge").textContent = n;
     $("es-apps-badge").hidden = !(n && sinMsj); $("es-apps-badge").textContent = n;     // te escribieron y no tienes Mensajes
