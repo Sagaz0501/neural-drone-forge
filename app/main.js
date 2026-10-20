@@ -1595,7 +1595,7 @@ function hud(dt) {
 }
 
 // ---------------- bucle ----------------
-let last = performance.now(), fpsN = 0, fpsT = 0;
+let last = performance.now(), fpsN = 0, fpsT = 0, ultimoGaraje = 0;
 function frame(now) {
   requestAnimationFrame(frame);
   if (window.__fsAbierto) { last = now; return; }     // 🎮 volando en el freestyle (volar.js): el garaje no se dibuja
@@ -1613,6 +1613,10 @@ function frame(now) {
     G.vuelo.render(dt, now);
     hud(dt);
   } else {
+    // la ventana atrás (otra app al frente): el garaje a 10 fps, que la CPU quede para entrenar (docs/WINDOWS.md: sin GPU
+    // el garaje dibujado con la CPU bajaba el entrenamiento de ~2.000 a ~100 pasos/s)
+    if (!document.hasFocus() && now - ultimoGaraje < 100) return;
+    ultimoGaraje = now;
     garaje.update(dt);
     renderer.setViewport(0, 0, innerWidth, innerHeight);
     dibujarGaraje();

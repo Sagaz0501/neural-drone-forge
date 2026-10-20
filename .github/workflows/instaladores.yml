@@ -68,8 +68,7 @@ jobs:
           T="${{ github.ref_name }}"
           gh release view "$T" >/dev/null 2>&1 || gh release create "$T" --title "Neural Drone Forge $T" --notes "Ver CHANGELOG.md"
           gh release upload "$T" desktop/dist/Neural-Drone-Forge-mac.dmg desktop/dist/juego-*.tar.gz desktop/dist/actualizacion.json --clobber
-      # ⏸ PENDIENTE DE APROBACIÓN DE SANTIAGO (docs/WINDOWS.md): el .exe al release. No toca los pasos de Mac. Los dos jobs
-      # corren a la vez: el que llegue primero crea el release y el otro, si su "create" choca, vuelve a mirar y sube.
+      # El .exe al release. Los dos jobs corren a la vez: el que llegue primero crea el release y el otro, si su "create" choca, vuelve a mirar y sube.
       - name: Subir el .exe al release
         if: startsWith(github.ref, 'refs/tags/v') && runner.os == 'Windows'
         shell: bash

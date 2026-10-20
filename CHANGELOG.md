@@ -1,5 +1,15 @@
 # Cambios
 
+## v3.3.1 · Windows (20-10-2026)
+
+- **Instalador para Windows 10/11** (`Neural-Drone-Forge-windows.exe`, ~230 MB, sin permisos de administrador). Probado
+  en un Windows de GitHub Actions: instala, abre en ~5 s, entrena en el fondo, examen, actualizar sin reinstalar y cerrar
+  sin dejar procesos. Todavía sin firmar: «Windows protegió su PC» → Más información → Ejecutar de todas formas.
+- **Arreglos para Windows:** revisar si un entrenamiento seguía vivo lo cerraba; los acentos de los archivos (UTF-8);
+  guardar el modelo con el archivo abierto tumbaba el entrenamiento; la pantalla vacía si Windows no reconocía los .js;
+  el `tar` de las actualizaciones; Blender (la versión más nueva y el de Steam).
+- **Con la ventana atrás, el garaje se dibuja a 10 fps:** la CPU queda para entrenar.
+
 ## v3.3.0 · Freestyle nuevo: pistas, gráficos, mando y volar mientras entrenas (20-10-2026)
 
 - **🎮 Volar mientras entrena:** un botón en el Laboratorio y en la barra del computador (cuando hay un entrenamiento)

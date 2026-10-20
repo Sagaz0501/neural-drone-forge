@@ -85,7 +85,6 @@ el entrenamiento, y una esquina te dice en qué generación va y cuánto logra.
 firmada). No necesitas Python ni nada más. Blender es opcional y gratis ([blender.org](https://www.blender.org)): con él
 ves a tus drones aprender en 3D.
 
-<!-- ⏸ PENDIENTE DE APROBACIÓN DE SANTIAGO (docs/WINDOWS.md): Windows. Publicar cuando el release traiga el .exe -->
 **Windows 10/11 (64 bits):** baja
 [**Neural-Drone-Forge-windows.exe**](https://github.com/Sagaz0501/neural-drone-forge/releases/latest/download/Neural-Drone-Forge-windows.exe)
 (~230 MB; instalada ocupa ~830 MB) y ábrelo. Como todavía no está firmada, Windows avisa «Windows protegió su PC»:
