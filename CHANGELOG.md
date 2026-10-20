@@ -1,5 +1,19 @@
 # Cambios
 
+## v3.4.0 · El banco de trabajo: impresoras 3D, STEP y el escritorio (20-10-2026)
+
+- **🖨️ Impresoras 3D Forja3D** en la tienda: **Mini** ($90, cama de 180 mm), **Pro + Carrusel 4** ($230, 256 mm,
+  multicolor) y **X cerrada** ($480, CoreXY, imprime ASA). El chasis para imprimir pide impresora (la madera no).
+  Filamento por gramos: PLA, PETG, TPU y ASA. Cada impresión gasta gramos y horas del reloj del negocio (un marco X en
+  PLA en la Mini = 170 g y ~3 h) y sigue de noche. Puede fallar: la primera capa, warping o spaghetti.
+- **📐 Importar STEP** (.step/.stp) además de STL, con **🔍 Analizar**: vista 3D, las piezas del ensamble, el peso en
+  PLA/PETG/TPU, si cabe en cada cama, paredes finas y los motores encontrados por los agujeros de las bases.
+- **🖥️ Escritorio nuevo en el garaje:** 3 monitores en vivo (tu dron en alambre, los planos con medidas y las
+  estadísticas + la curva de la IA cuando entrena), lámpara, teclado, repisas con cable, tablero de herramientas.
+- **🔧 El multímetro de verdad en la mesa (T):** la punta roja sigue al ratón y un clic deja la negra. Continuidad
+  (pita con un puente de estaño), ohmios y voltios después de la prueba de humo. La mesa ya no marca qué junta salió mal:
+  hay que medir.
+
 ## v3.3.1 · Windows (20-10-2026)
 
 - **Instalador para Windows 10/11** (`Neural-Drone-Forge-windows.exe`, ~230 MB, sin permisos de administrador). Probado
