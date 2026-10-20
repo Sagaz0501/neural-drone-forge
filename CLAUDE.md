@@ -120,6 +120,11 @@ app/               EL JUEGO (Dron Maker): usa los módulos de game/
                    estaño: Espacio; bomba: Espacio chupa; malla; esponja = limpiar; atajos F/E/X/M/C; M.mano2), enchufar el
                    arnés, multímetro (T); NO avisa
                    si una junta salió mal. Gasta p.insumos (estaño, flux, cable, malla: PT.gastar); el cautín = PT.cautinDe
+  escritorio.js    el escritorio del garaje (lo pone garaje.js): 3 monitores (el dron en alambre = render a textura, los planos,
+                   las estadísticas + la curva de GET /api/lab cada 3 s) a 2 cuadros/s, lámpara, regleta, cables, tapete,
+                   repisas; lo quieto se junta en una malla por material (Lote). equipo({multimetro, nombre}) desde main verDron
+  multimetro.js    el multímetro 3D (GLB de blender/piezas/multimetro.py): pantalla = canvas, perilla, puntas, pitido(); la mesa
+                   lo usa de verdad (T: punta roja = ratón, clic = punta negra; continuidad / Ω / V si pasó la prueba de humo)
   modelos3d.js     las piezas hechas en Blender (blender/piezas/*.py -> app/modelos/*.glb: ESP32, ESC 4 en 1, ESP32-CAM,
                    motores, baterías, el chasis de madera del kit con su tapa): precargar() al abrir; dron3d/mesa/tienda piden modelo(nombre) y si es null dibujan cajas
   miniaturas.js    las fotos de la tienda: cada pieza dibujada una vez en 3D (dron3d.js, los GLB de Blender), en cola

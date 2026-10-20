@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { buildDrone, popIn, tickPop, disposeDrone } from "./dron3d.js";
 import { modelo, hay } from "./modelos3d.js";
 import { t } from "./i18n.js";
+import { Escritorio } from "./escritorio.js";
 
 function canvasTex(w, h, paint, repeat = [1, 1]) {
   const c = document.createElement("canvas");
@@ -106,20 +107,10 @@ export class Garaje {
     this.cautinSimple = [add(new THREE.CylinderGeometry(0.035, 0.04, 0.12, 16), toolMat(0xc7302a), 1.05, 1.02, -1.75),            // cautín (soldador)
       add(new THREE.CylinderGeometry(0.004, 0.004, 0.18, 8), toolMat(0x999999), 1.05, 1.1, -1.75, 0, 0.5)];
     add(new THREE.BoxGeometry(0.26, 0.05, 0.18), toolMat(0x2b5fa8), -1.0, 0.985, -1.6, 0.3);                  // caja de tornillos
-    // el multímetro: acostado, con la pantalla y la perilla dibujadas arriba
-    const caraMulti = canvasTex(128, 192, (g, w, h) => {
-      g.fillStyle = "#f2b705"; g.fillRect(0, 0, w, h);
-      g.fillStyle = "#1b1d20"; g.fillRect(10, 10, w - 20, h - 20);
-      g.fillStyle = "#9fb59a"; g.fillRect(20, 20, w - 40, 46); g.fillStyle = "#1d2a1c"; g.font = "bold 30px monospace"; g.fillText("0.00", 26, 56);
-      g.fillStyle = "#3a3d42"; g.beginPath(); g.arc(w / 2, 118, 30, 0, 7); g.fill(); g.fillStyle = "#e8e8e8"; g.fillRect(w / 2 - 3, 90, 6, 26);
-      ["#c7302a", "#111", "#111"].forEach((col, i) => { g.fillStyle = col; g.beginPath(); g.arc(30 + i * 34, 168, 7, 0, 7); g.fill(); });
-    });
-    const multi = add(new THREE.BoxGeometry(0.1, 0.035, 0.16), [toolMat(0xf2b705), toolMat(0xf2b705), new THREE.MeshStandardMaterial({ map: caraMulti, roughness: 0.5 }), toolMat(0xf2b705), toolMat(0xf2b705), toolMat(0xf2b705)], 0.72, 0.9775, -2.2, -0.35);
-    multi.receiveShadow = true;
-    for (let i = 0; i < 3; i++) add(new THREE.BoxGeometry(0.12, 0.03, 0.04), toolMat(0x15161a), -1.25 + i * 0.16, 0.975, -2.3, 0.1 * i);   // baterías
+    for (let i = 0; i < 3; i++) add(new THREE.BoxGeometry(0.12, 0.03, 0.04), toolMat(0x15161a), -1.42 + i * 0.15, 0.975, -1.98, 0.1 * i);   // baterías
     add(new THREE.TorusGeometry(0.05, 0.015, 8, 20), toolMat(0xe04020), -0.62, 0.975, -2.25, 0, Math.PI / 2);    // rollo de cinta
     // hélices sueltas
-    for (let i = 0; i < 4; i++) { const h = heliceSuelta(i % 2 ? 0xff7a1a : 0x3c4046); h.position.set(-0.55 + i * 0.06, 0.961 + i * 0.0035, -1.45 + (i % 2) * 0.03); h.rotation.y = 0.4 + i * 0.9; S.add(h); }
+    for (let i = 0; i < 4; i++) { const h = heliceSuelta(i % 2 ? 0xff7a1a : 0x3c4046); h.position.set(0.42 + i * 0.06, 0.961 + i * 0.0035, -1.36 + (i % 2) * 0.03); h.rotation.y = 0.4 + i * 0.9; S.add(h); }
 
     // ---- tablero de herramientas en la pared ----
     const peg = canvasTex(256, 128, (g, w, h) => {
@@ -128,14 +119,14 @@ export class Garaje {
       for (let y = 6; y < h; y += 12) for (let x = 6; x < w; x += 12) { g.beginPath(); g.arc(x, y, 1.6, 0, 7); g.fill(); }
     });
     const board = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.1, 0.03), new THREE.MeshStandardMaterial({ map: peg, roughness: 0.9 }));
-    board.position.set(0, 1.85, -3.15);
+    board.position.set(0, 2.25, -3.15);          // arriba: abajo van los monitores
     board.receiveShadow = true;
     S.add(board);
     const hang = [[-1.0, 0x3a3a3a, 0.36, 0.05], [-0.7, 0xc7302a, 0.3, 0.04], [-0.42, 0x2b5fa8, 0.4, 0.03], [-0.1, 0x777777, 0.5, 0.06], [0.3, 0xf2b705, 0.28, 0.05], [0.65, 0x3a3a3a, 0.42, 0.035], [1.0, 0x2a8a4a, 0.34, 0.05]];
     // destornilladores y alicates colgados: mango de color con su vástago de acero
     const acero = new THREE.MeshStandardMaterial({ color: 0xc8ccd2, metalness: 1, roughness: 0.25 });
     for (const [i, [x, c, l, w]] of hang.entries()) {
-      const h = new THREE.Group(); h.position.set(x, 2.08, -3.1); h.rotation.z = ((x * 7) % 0.3) * 0.5;
+      const h = new THREE.Group(); h.position.set(x, 2.48, -3.1); h.rotation.z = ((x * 7) % 0.3) * 0.5;
       const gancho = new THREE.Mesh(new THREE.TorusGeometry(0.018, 0.003, 6, 12, Math.PI), acero); gancho.position.y = 0.02; h.add(gancho);
       if (i % 3 === 2) {                               // alicate: dos mangos abiertos y la punta
         for (const sgn of [-1, 1]) { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.009, l * 0.6, 10), toolMat(c)); m.position.set(sgn * 0.02, -l * 0.55, 0); m.rotation.z = sgn * 0.12; m.castShadow = true; h.add(m); }
@@ -233,6 +224,8 @@ export class Garaje {
     this.portatil.position.set(-0.78, 0.96, -2.1);
     this.portatil.rotation.y = 0.45;
     S.add(this.portatil);
+    // el escritorio (escritorio.js): los monitores con el dron, los planos y las estadísticas; lámpara, regleta, cables…
+    this.escritorio = new Escritorio(S, quality);
     this.usb = null;
 
     this.drone = null;
@@ -254,9 +247,10 @@ export class Garaje {
 
   /** Lo que viene de Blender (cuando ya cargó): la estación de soldar del kit (soldador.py) en vez del cilindro rojo. */
   usarModelos() {
+    this.escritorio.usarModelos();
     const sol = !this.soldador && modelo("soldador");
     if (!sol) return;
-    sol.scale.setScalar(1.7); sol.position.set(0.98, 0.96, -1.62); sol.rotation.y = -0.5;
+    sol.scale.setScalar(1.7); sol.position.set(0.98, 0.963, -1.62);   // sobre el tapete de silicona sol.rotation.y = -0.5;
     this.scene.add(sol); this.soldador = sol;
     for (const o of this.cautinSimple) o.visible = false;
   }
@@ -264,6 +258,7 @@ export class Garaje {
   /** Los reflejos (scene.environment): los metales del dron (motores, tornillos, el ESC) reflejan el garaje.
    *  Se hace una vez con el renderer (PMREM de un cuarto de paneles, como en la mesa). */
   ambiente(renderer) {
+    this.renderer = renderer;                          // las pantallas del escritorio se dibujan con él
     const env = new THREE.Scene(); env.background = new THREE.Color(0x2a221d);
     const panel = (c, k, pos, w, h) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(c).multiplyScalar(k), side: THREE.DoubleSide })); m.position.set(...pos); m.lookAt(0, 0, 0); env.add(m); };
     panel(0xffd2a0, 7, [0.4, 5, 0.6], 2.2, 2.2);        // la lámpara
@@ -523,7 +518,11 @@ export class Garaje {
     this.turn.add(this.drone);
     if (changed) popIn(this.drone, changed);
     this.build = { ...build };
+    this.escritorio.setBuild(build, cat, this.drone);
   }
+
+  /** Lo que se ve en el escritorio según la partida: el multímetro (si lo tienes) y el nombre del dron. */
+  equipo(o) { this.escritorio.equipo(o); }
 
   resize(w, h) {
     this.camera.aspect = w / h;
@@ -533,6 +532,7 @@ export class Garaje {
 
   update(dt) {
     this.t += dt;
+    this.escritorio.update(dt, this.renderer);
     if (this.motas) { this.motas.rotation.y += dt * 0.02; this.motas.position.y = Math.sin(this.t * 0.15) * 0.03; }
     this._tickImpresora(dt);
     if (this.view === "banco") this.turn.rotation.y += (this.yaw - this.turn.rotation.y) * Math.min(1, dt * 8);

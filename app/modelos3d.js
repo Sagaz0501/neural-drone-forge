@@ -7,7 +7,7 @@ const CACHE = new Map();
 const MOTORES = ["m1806", "m2204", "m1404", "m2306", "m2207", "m2806"];
 const BATERIAS = ["b2s1000", "b3s1300", "b3s2200", "b4s1500", "b4s2200", "b4s3000"];
 const IMPRESORAS = ["impresora_mini", "impresora_pro", "impresora_x"];        // las Forja3D (blender/piezas/impresora.py)
-export const LISTA = ["esp32_devkitc", "esc_4en1", "esp32_cam", "chasis_madera", "soldador", ...MOTORES.map((m) => "motor_" + m), ...BATERIAS.map((b) => "bateria_" + b), ...IMPRESORAS];
+export const LISTA = ["esp32_devkitc", "esc_4en1", "esp32_cam", "chasis_madera", "soldador", "multimetro", ...MOTORES.map((m) => "motor_" + m), ...BATERIAS.map((b) => "bateria_" + b), ...IMPRESORAS];
 
 let cargando = null;
 /** Carga todos (una vez). Devuelve cuántos cargaron. */
@@ -22,8 +22,9 @@ export function precargar(nombres = LISTA) {
   return cargando;
 }
 
-/** ¿Ya cargó ese modelo? */
+/** ¿Ya cargó ese modelo? (sin hacer una copia) */
 export const hay = (nombre) => CACHE.has(nombre);
+export const cargado = hay;
 
 /** Una copia lista para poner en la escena (sombras puestas), o null si no está. La geometría es compartida:
  * disposeDrone no la libera (userData.compartida). */

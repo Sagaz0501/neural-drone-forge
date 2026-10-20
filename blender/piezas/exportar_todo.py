@@ -21,6 +21,7 @@ import lib_piezas as L  # noqa: E402
 PIEZAS = {
     "esp32_devkitc": ("esp32_devkit", (-30, 42, 1.05)),
     "soldador": ("soldador", (-24, 32, 1.5)),
+    "multimetro": ("multimetro", (-28, 48, 1.15)),
     "esc_4en1": ("esc_4en1", (-30, 48, 1.1)),
     "esp32_cam": ("esp32_cam", (125, 20, 0.85)),
     "chasis_madera": ("chasis_madera", (-30, 38, 1.05)),

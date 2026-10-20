@@ -22,6 +22,9 @@ import { sfx } from "./garaje.js";
 import * as TA from "./taller.js";
 import { CHIP, manual } from "./banco.js";
 import { t, num } from "./i18n.js";
+import { multimetro3d, pitido } from "./multimetro.js";
+import { cargado } from "./modelos3d.js";
+import { Lote } from "./escritorio.js";
 
 const COLOR_PIN = { "vbat+": "#e02020", "5v+": "#ff8a1a", "3v3+": "#ffd23f", vbat_in: "#e02020", "5v_in": "#ff8a1a", "3v3_in": "#ffd23f", gnd: "#1d1f22",
   tx: "#3ccbff", rx: "#3c8bff", sda: "#c07bff", scl: "#9a5bff", led_out: "#47f08a", led_in: "#47f08a", m_out: "#2ad8b0", m_in: "#2ad8b0",
@@ -134,6 +137,7 @@ export function initMesa(ctx) {
     scene.environment = pm.fromScene(envS, 0.04).texture;
     scene.environmentIntensity = 0.7;
     mundo = new THREE.Group(); scene.add(mundo);
+    desorden();
     herramientas();
     new ResizeObserver(tam).observe(cv);
     tam();
@@ -185,6 +189,57 @@ export function initMesa(ctx) {
     H.halo = new THREE.Mesh(new THREE.RingGeometry(0.0024, 0.0029, 32), new THREE.MeshBasicMaterial({ color: 0x3ccbff, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthTest: false }));
     H.halo.rotation.x = -Math.PI / 2; H.halo.renderOrder = 5; H.halo.visible = false; scene.add(H.halo);
   }
+  /** Lo que hay tirado en el tapete (solo se ve, no hace nada): cables de silicona sueltos, termorretráctil, bridas, el
+   *  pelacables, la tercera mano con lupa y el carrete de estaño en su soporte. Lejos de la placa y de donde caen las
+   *  piezas (PUESTOS). Todo junto en una malla por material. */
+  function desorden() {
+    const L = new Lote(), m = (c, r = 0.5, me = 0) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: me });
+    const C = { rojo: m(0xc0261c, 0.45), negro: m(0x141516, 0.5), amarillo: m(0xe0a400, 0.45), azul: m(0x2457c8, 0.45), verde: m(0x2a8a4a, 0.45),
+      blanco: m(0xe8e6df, 0.6), acero: MAT.acero, cobre: m(0xc8743a, 0.3, 0.9), metal: m(0x2a2f34, 0.4, 0.6), estano: MAT.estanoOk };
+    const mesh = (geo, mat, x, y, z, rx = 0, ry = 0, rz = 0) => { const o = new THREE.Mesh(geo, mat); o.position.set(x, y, z); o.rotation.set(rx, ry, rz); L.hornear(o); return o; };
+    const tubo = (pts, r, mat) => mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map((p) => new THREE.Vector3(...p))), 40, r, 6), mat, 0, 0, 0);
+    // cables de silicona sueltos (con la punta pelada) y un trozo enrollado
+    const cab = [[C.rojo, [[-0.06, 0.2], [-0.02, 0.17], [0.03, 0.19], [0.08, 0.165]]], [C.negro, [[-0.06, 0.207], [-0.015, 0.18], [0.035, 0.2], [0.085, 0.175]]],
+      [C.amarillo, [[0.04, 0.215], [0.07, 0.205], [0.1, 0.22]]], [C.azul, [[-0.36, -0.06], [-0.33, -0.1], [-0.3, -0.08], [-0.27, -0.12]]]];
+    for (const [mat, ps] of cab) {
+      tubo(ps.map(([x, z]) => [x, 0.0011, z]), 0.0011, mat);
+      const [x, z] = ps[ps.length - 1], [x0, z0] = ps[ps.length - 2], d = Math.hypot(x - x0, z - z0);
+      tubo([[x, 0.0011, z], [x + (x - x0) / d * 0.006, 0.0008, z + (z - z0) / d * 0.006]], 0.0006, C.cobre);
+    }
+    for (let i = 0; i < 5; i++) mesh(new THREE.TorusGeometry(0.018 + i * 0.0012, 0.0009, 6, 28), i % 2 ? C.negro : C.rojo, -0.3, 0.001 + i * 0.0003, 0.22, Math.PI / 2);
+    // termorretráctil (trocitos de colores) y bridas
+    [C.rojo, C.negro, C.negro, C.azul, C.rojo, C.amarillo].forEach((mat, i) => mesh(new THREE.CylinderGeometry(0.0022, 0.0022, 0.016 + (i % 3) * 0.005, 12, 1, true), mat, 0.355 + (i % 3) * 0.008, 0.0023, 0.125 + Math.floor(i / 3) * 0.012, 0, 0.3 * i, Math.PI / 2));
+    for (let i = 0; i < 4; i++) mesh(new THREE.BoxGeometry(0.1, 0.0009, 0.0036), i === 2 ? C.blanco : C.negro, -0.33 + i * 0.004, 0.0005 + i * 0.0009, 0.135 + i * 0.006, 0, 0.5 + i * 0.12);
+    // el pelacables
+    const pel = new THREE.Group(); pel.position.set(-0.33, 0.006, 0.03); pel.rotation.y = 0.9;
+    for (const s of [-1, 1]) { const h = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.009, 0.014), C.rojo); h.position.set(0.02, 0, s * 0.012); h.rotation.y = s * 0.09; pel.add(h); }
+    const cab2 = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.011, 0.024), C.metal); cab2.position.x = -0.05; pel.add(cab2);
+    L.hornear(pel);
+    // la tercera mano con lupa (atrás a la izquierda)
+    const tm = new THREE.Group(); tm.position.set(-0.32, 0, -0.2);
+    const pz = (geo, mat, x, y, z) => { const o = new THREE.Mesh(geo, mat); o.position.set(x, y, z); tm.add(o); return o; };
+    pz(new THREE.CylinderGeometry(0.045, 0.05, 0.016, 28), C.metal, 0, 0.008, 0);
+    pz(new THREE.CylinderGeometry(0.004, 0.004, 0.17, 12), C.acero, 0, 0.1, 0);
+    const brazo = (a, b, r = 0.0028) => { const d = new THREE.Vector3().subVectors(b, a), o = new THREE.Mesh(new THREE.CylinderGeometry(r, r, d.length(), 8), C.acero); o.position.copy(a).addScaledVector(d, 0.5); o.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); tm.add(o); };
+    const V = (x, y, z) => new THREE.Vector3(x, y, z);
+    brazo(V(0, 0.18, 0), V(0.07, 0.2, 0.06), 0.004); brazo(V(0, 0.15, 0), V(0.09, 0.09, 0.05)); brazo(V(0, 0.15, 0), V(-0.02, 0.09, 0.1));
+    pz(new THREE.BoxGeometry(0.014, 0.008, 0.024), C.rojo, 0.09, 0.087, 0.06); pz(new THREE.BoxGeometry(0.014, 0.008, 0.024), C.negro, -0.02, 0.087, 0.11);
+    const aro = pz(new THREE.TorusGeometry(0.045, 0.005, 10, 36), C.negro, 0.07, 0.2, 0.06); aro.rotation.set(1.0, 0.5, 0);
+    L.hornear(tm);
+    const lupa = new THREE.Mesh(new THREE.CircleGeometry(0.044, 32), new THREE.MeshPhysicalMaterial({ color: 0xe6f2ff, roughness: 0.03, transparent: true, opacity: 0.22, depthWrite: false }));
+    lupa.position.set(-0.32 + 0.07, 0.2, -0.2 + 0.06); lupa.rotation.set(1.0 - Math.PI / 2, 0.5, 0); scene.add(lupa);
+    // el carrete de estaño en su soporte (atrás a la derecha) con el alambre que cuelga
+    const sp = new THREE.Group(); sp.position.set(0.37, 0, -0.27);
+    const en = (o, p) => { o.position.copy(p); sp.add(o); return o; };
+    en(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.008, 0.06), C.metal), V(0, 0.004, 0));
+    for (const x of [-0.035, 0.035]) en(new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.06, 0.012), C.acero), V(x, 0.035, 0));
+    const eje = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.08, 10), C.acero); eje.position.y = 0.055; eje.rotation.z = Math.PI / 2; sp.add(eje);
+    const car = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.036, 28), C.rojo); car.position.y = 0.055; car.rotation.z = Math.PI / 2; sp.add(car);
+    const al = new THREE.Mesh(new THREE.CylinderGeometry(0.021, 0.021, 0.038, 28), C.estano); al.position.y = 0.055; al.rotation.z = Math.PI / 2; sp.add(al);
+    L.hornear(sp);
+    tubo([[0.37, 0.034, -0.25], [0.365, 0.015, -0.225], [0.35, 0.0006, -0.2], [0.32, 0.0006, -0.19]], 0.0005, C.estano);
+    L.armar(scene);
+  }
   /** Un cilindro (cable, alambre) entre dos puntos. */
   function entre(mesh, a, b) {
     const d = new THREE.Vector3().subVectors(b, a), L = d.length();
@@ -214,7 +269,7 @@ export function initMesa(ctx) {
     const p = P();
     if (M.E.on) { p.taller.punta = Math.max(0.2, M.E.limpia - 0.25); toast(t("Dejaste el cautín prendido: la punta se oxidó un poco. Apágalo (⏻) al terminar."), 4500); M.E.on = false; }
     else p.taller.punta = M.E.limpia;
-    M.abierta = false;
+    M.abierta = false; M.multi = false; pitido(false);
     cancelAnimationFrame(raf);
     guardar();
     ctx.alCerrarMesa?.();
@@ -240,6 +295,10 @@ export function initMesa(ctx) {
     M.comps = null;
     for (const k of ["destornillador", "cuter", "cautin", "estano", "halo"]) H[k].visible = false;
     M.tools = null; if (M.senalT) M.senalT.visible = false; $("mesa-etq").hidden = true;
+    if (M.mm) M.mm.g.visible = M.mm.puntas.roja.visible = M.mm.puntas.negra.visible = false;
+    pitido(false);
+    if (M.modo !== "soldar") M.multi = false;
+    for (const c of M.cablesMM || []) c.visible = false;
   }
   function construir() {
     limpiar();
@@ -668,9 +727,10 @@ export function initMesa(ctx) {
     M.fluxPads = new Map();                            // "ref#sub" -> la gota de flux que pusiste con la jeringa
     bandeja();
     // desde arriba (casi derecho), para ver todos los pines y sus nombres
-    if (M.vista !== "soldar" + M.placa) { M.vista = "soldar" + M.placa; cam.position.set(VISTA_SOLDAR.x, VISTA_SOLDAR.y, 0.022); controls.target.set(VISTA_SOLDAR.x, 0, 0.001); controls.update(); }
+    if (M.vista !== "soldar" + M.placa) { M.vista = "soldar" + M.placa; cam.position.set(VISTA_SOLDAR.x, VISTA_SOLDAR.y, 0.022); controls.target.set(VISTA_SOLDAR.x, 0, 0.001); cam.fov = 36; cam.updateProjectionMatrix(); controls.update(); }
     controls.minDistance = 0.04; controls.maxDistance = 0.3;
     pestanasPlaca(ps);
+    colocarMulti();
   }
   function pestanasPlaca(ps) {
     const box = $("mesa-placas");
@@ -920,15 +980,6 @@ export function initMesa(ctx) {
         }
       }
     }
-    if (M.multi) {                                        // el multímetro: verde bien, amarillo la lectura salta, rojo pita (corto)
-      for (const x of M.pads.values()) {
-        if (!x.medida) continue;
-        const r = new THREE.Mesh(new THREE.RingGeometry(0.0021, 0.0027, 28), new THREE.MeshBasicMaterial({ color: { ok: 0x47f08a, fria: 0xffd23f, corto: 0xff4030 }[x.medida], side: THREE.DoubleSide, depthTest: false, transparent: true, opacity: 0.9 }));
-        r.rotation.x = -Math.PI / 2; r.position.copy(x.pos).add(new THREE.Vector3(0, 0.0016, 0)); r.renderOrder = 6;
-        r.scale.setScalar(x.pad === "grande" ? 2.2 : x.pad === "medio" ? 1.1 : 0.9);
-        M.placaG.add(r); CABLES.push(r);
-      }
-    }
     hud();
   }
   const pinDe = (ref) => { const [k, id] = ref.split("."); return M.comps.find((c) => c.k === k)?.pines.find((p) => p.id === id); };
@@ -962,9 +1013,11 @@ export function initMesa(ctx) {
   }
 
   /** El puente de estaño: una lengüeta que une el pad con el de al lado. */
+  /** El pad de al lado (con el que hace puente el estaño de más). */
+  const vecinoPad = (P_) => P_.pad === "medio" ? M.pads.get(`${P_.ref}#${P_.sub < 2 ? P_.sub + 1 : P_.sub - 1}`)
+    : P_.pad === "grande" ? M.pads.get(P_.ref === "esc.bat+" ? "esc.bat-#0" : "esc.bat+#0") : M.pads.get(`${TA.vecino(M.comps, P_.ref)}#0`);
   function puenteMesh(P_) {
-    const v = P_.pad === "medio" ? M.pads.get(`${P_.ref}#${P_.sub < 2 ? P_.sub + 1 : P_.sub - 1}`)
-      : P_.pad === "grande" ? M.pads.get(P_.ref === "esc.bat+" ? "esc.bat-#0" : "esc.bat+#0") : M.pads.get(`${TA.vecino(M.comps, P_.ref)}#0`);
+    const v = vecinoPad(P_);
     if (!v) return null;
     const a = P_.pos.clone(), b = v.pos.clone(); a.y = b.y = Math.max(a.y, b.y) + 0.0004;
     const m = new THREE.Mesh(new THREE.CylinderGeometry(0.0006, 0.0006, 1, 10), MAT.estanoOk);
@@ -1194,6 +1247,11 @@ export function initMesa(ctx) {
       return;
     }
     // soldar
+    if (M.multi) {                                     // midiendo: el clic pone la punta negra (o cambia el modo del multímetro)
+      if (a?.tipo === "pad") ponerNegra(a.info);
+      else if (a?.tipo === "multi") cambiarModo();
+      return;
+    }
     if (a?.tipo === "pad") {
       if (M.enMano) return ponerCable(a.info);
       if (a.info.enchufe) { const c = cableEn(a.info); if (c) aviso(t("Ya está enchufado.")); else aviso(t("Toma el conector de la izquierda y ponlo aquí.")); return; }
@@ -1202,6 +1260,7 @@ export function initMesa(ctx) {
       empezarJunta(a.info);
       M.tocando = true;
     } else if (a?.tipo === "tool") tomar(a.k);
+    else if (a?.tipo === "multi") multimetro();          // tocar el multímetro = tomarlo
   }
   function mover(ev) {
     const hit = apuntar(ev);
@@ -1216,7 +1275,7 @@ export function initMesa(ctx) {
     if (M.modo === "soldar") {
       // la punta del cautín sigue al ratón sobre la placa (apoyada si estás soldando)
       const pl = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.002), v = new THREE.Vector3();
-      if (hit) v.copy(hit.point); else ray.ray.intersectPlane(pl, v);
+      if (hit && hit.object.userData.accion?.tipo !== "multi") v.copy(hit.point); else ray.ray.intersectPlane(pl, v);
       if (v) M.tPunta.copy(v);
     }
     etiqueta(M.hover?.tipo === "tool" ? M.hover.k : null);
@@ -1247,7 +1306,7 @@ export function initMesa(ctx) {
     else if (e.key === "m" || e.key === "M") tomar("malla");
     else if (e.key === "t" || e.key === "T") multimetro();
     else if ((e.key === "r" || e.key === "R") && M.modo === "armar") girarPieza(1);
-    else if (e.key === "Escape") { if (M.enMano) { M.enMano = null; hud(); } else if (M.mano2) { M.mano2 = null; M.espacio = false; hud(); } else if (M.proc) cancelarProc(); else cerrar(); }
+    else if (e.key === "Escape") { if (M.multi) multimetro(); else if (M.enMano) { M.enMano = null; hud(); } else if (M.mano2) { M.mano2 = null; M.espacio = false; hud(); } else if (M.proc) cancelarProc(); else cerrar(); }
   }
   /** Girar la pieza que llevas (o la última que tocaste) un cuarto de vuelta. */
   function girarPieza(dir) {
@@ -1261,14 +1320,14 @@ export function initMesa(ctx) {
   }
   /** Espacio = lo que hace la otra mano: el estaño entra (mientras lo aprietas) o la bomba chupa. */
   function espacio() {
-    if (M.modo !== "soldar") return;
+    if (M.modo !== "soldar" || M.multi) return;
     if (M.mano2 === "estano") M.espacio = true;
     else if (M.mano2 === "bomba") bomba();
     else if (!M.mano2 && M.t - M.avisoT > 1.5) { M.avisoT = M.t; aviso(t("🧵 Toma el estaño de la bandeja (derecha).")); }
   }
   /** Tomar (o devolver) una herramienta de la bandeja con la otra mano. La esponja no se toma: limpia la punta. */
   function tomar(k) {
-    if (M.modo !== "soldar" || M.hold) return;
+    if (M.modo !== "soldar" || M.hold || M.multi) return;
     if (k === "esponja") return limpiarPunta();
     if (M.mano2 === k) { M.mano2 = null; M.espacio = false; sfx("click"); hud(); return; }
     const p = P();
@@ -1288,19 +1347,155 @@ export function initMesa(ctx) {
     M.placaG.add(gota); M.fluxPads.set(key, gota);
     sfx("pop"); hud();
   }
-  /** El multímetro en continuidad: pita entre dos pads unidos por estaño (corto) y la lectura salta en una junta fría. */
+  // ---------------- el multímetro (multimetro.js: el GLB de Blender) ----------------
+  // Está en el tapete, parado en su pata detrás de la placa. Con T lo tomas: la punta ROJA sigue al ratón, un clic en un
+  // pad deja ahí la NEGRA, y la pantalla dice lo que hay entre las dos: continuidad (pita si están unidas: un puente de
+  // estaño o dos GND), ohmios, o voltios si la batería ya está conectada (pasó la prueba de humo). En una junta fría la
+  // lectura salta. Un clic en el multímetro cambia el modo (la perilla gira). No dice nada más: hay que saber medir.
+  const MM_TILT = 0.7;                                  // la pata: 40° (la pantalla mira a la cámara)
+  const MM_K = 0.6;                                     // uno de bolsillo (95 x 48 mm): el de 158 mm tapaba la placa
+  function colocarMulti() {
+    if (!PT.tieneHerramienta(P(), "multimetro")) { if (M.mm) M.mm.g.visible = false; M.multi = false; return; }
+    if (!M.mm || (!M.mm.glb && modeloListo())) {
+      if (M.mm) { scene.remove(M.mm.g, M.mm.puntas.roja, M.mm.puntas.negra); }
+      M.mm = multimetro3d();
+      for (const c of M.mm.cables) c.visible = false;  // los de reposo: aquí van los que siguen a las puntas
+      for (const k of ["roja", "negra"]) { const pz = M.mm.puntas[k]; pz.removeFromParent(); pz.rotation.set(0, 0, 0); pz.scale.setScalar(MM_K); scene.add(pz); }
+      M.mm.g.traverse((o) => { if (o.isMesh) o.userData.accion = { tipo: "multi" }; });
+      scene.add(M.mm.g);
+      M.cablesMM = [0, 1].map((i) => { const m = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshStandardMaterial({ color: i ? 0x141414 : 0xa81c14, roughness: 0.5 })); m.castShadow = true; scene.add(m); return m; });
+      M.medir = { negra: null, modo: "cont", salto: 0, txt: "OL", pita: false, tubo: 0 };
+    }
+    const g = M.mm.g, c = Math.cos(MM_TILT), s = Math.sin(MM_TILT);
+    g.rotation.set(MM_TILT, 0, 0); g.scale.setScalar(MM_K);
+    g.position.set(-0.004, s * 0.079 * MM_K, -(M.borde.z + 0.012) - c * 0.079 * MM_K);
+    g.visible = M.mm.puntas.roja.visible = M.mm.puntas.negra.visible = true;
+    g.updateMatrixWorld(true);
+    for (const o of M.cablesMM) o.visible = true;
+    g.traverse((o) => { if (o.isMesh) M.pick.push(o); });
+    if (M.multi) { M.medir.negra = null; vistaMedir(true); }
+    else descansarPuntas();
+    M.medir.tubo = 0;
+  }
+  const modeloListo = () => cargado("multimetro");
+  /** Una punta acostada en el tapete, a la izquierda del multímetro (lejos de la placa): la aguja hacia atrás. */
+  function reposo(k) {
+    const g = M.mm.g.position, pz = M.mm.puntas[k];
+    pz.position.set(g.x - (k === "roja" ? 0.036 : 0.047), 0.0045, g.z - 0.045);
+    pz.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(k === "roja" ? 0.04 : -0.02, 0.06, 1).normalize());
+  }
+  function descansarPuntas() { reposo("roja"); reposo("negra"); M.medir.tubo = 0; }
+  /** La cámara de medir: más atrás y más baja, para ver la placa y la pantalla del multímetro a la vez. */
+  function vistaMedir(ya = false) {
+    // que quepan la pantalla del multímetro y la placa: el punto medio, desde arriba y adelante
+    const D = M.mm.g.localToWorld(new THREE.Vector3(0, 0.031, -0.044)), B = new THREE.Vector3(0.006, 0, M.borde.z * 0.4), fov = 40;
+    const tg = D.clone().lerp(B, 0.5), d = (D.distanceTo(B) / 2) / Math.tan(THREE.MathUtils.degToRad(fov / 2)) * 1.65 + 0.01;
+    irCamara(tg.clone().add(new THREE.Vector3(0, 0.8, 0.6).multiplyScalar(d)), tg, fov, ya);
+  }
+  function irCamara(ps, tg, fov, ya) {
+    const p0 = cam.position.clone(), t0 = controls.target.clone(), f0 = cam.fov;
+    const paso = (k) => { const e = suave(k); cam.position.lerpVectors(p0, ps, e); controls.target.lerpVectors(t0, tg, e); cam.fov = lerp(f0, fov, e); cam.updateProjectionMatrix(); };
+    if (ya) paso(1); else tween(0.45, paso, null, false);
+  }
+  /** T: tomar o dejar el multímetro. */
   function multimetro() {
     if (M.modo !== "soldar") return;
     if (!PT.tieneHerramienta(P(), "multimetro")) return aviso(t("No tienes multímetro: está en la tienda (Herramientas)."));
+    if (!M.mm) colocarMulti();
     M.multi = !M.multi; sfx("click");
-    dibujarCables();
-    if (!M.multi) return;
-    const malas = [...M.pads.values()].filter((x) => x.medida && x.medida !== "ok");
-    const cortos = malas.filter((x) => x.medida === "corto"), frias = malas.filter((x) => x.medida === "fria");
-    aviso(cortos.length ? "📟 " + t("¡Pita! Hay continuidad entre {a} y el pad de al lado: un corto.", { a: nombrePad(cortos[0]) })
-      : frias.length ? "📟 " + t("La lectura salta en {a}: soldadura fría.", { a: nombrePad(frias[0]) }) : "📟 " + t("Nada raro: sin cortos ni juntas frías en esta placa."), !malas.length);
+    M.enMano = null; M.mano2 = null; M.espacio = false; M.tocando = false;
+    if (M.hold?.tipo === "soldar") { M.hold = null; }
+    if (M.multi) {
+      M.medir.negra = null;
+      M.medir.modo = bateriaPuesta() ? "v" : "cont";
+      M.mm.modo(M.medir.modo);
+      vistaMedir();
+      aviso("📟 " + t("Clic en un pad: ahí va la punta negra. La roja mide donde apuntes."), true);
+    } else {
+      pitido(false);
+      M.mm.modo("off"); M.mm.pantalla({ modo: "off" });
+      descansarPuntas();
+      irCamara(new THREE.Vector3(VISTA_SOLDAR.x, VISTA_SOLDAR.y, 0.022), new THREE.Vector3(VISTA_SOLDAR.x, 0, 0.001), 36);
+    }
+    hud();
   }
-  const nombrePad = (x) => `${x.pin.nombre}${x.pad === "medio" ? ` (${x.sub + 1})` : ""}`;
+  function cambiarModo() {
+    const orden = ["cont", "ohm", "v"], m = orden[(orden.indexOf(M.medir.modo) + 1) % orden.length];
+    M.medir.modo = m; M.mm.modo(m); sfx("trinquete");
+    aviso("📟 " + { cont: t("Continuidad: pita si hay contacto"), ohm: t("Ohmios"), v: t("Voltios (con la batería puesta)") }[m], true);
+  }
+  function ponerNegra(info) {
+    M.medir.negra = M.medir.negra === info ? null : info;
+    M.medir.tubo = 0; sfx("click");
+  }
+  /** ¿La batería está puesta? = pasó la prueba de humo con este cableado (banco.js). */
+  const bateriaPuesta = () => !!ctx.estadoDe(D()).pasos.find((x) => x.k === "humo")?.ok;
+  function voltaje(info) {
+    const tp = info.pin?.tipo || "";
+    if (tp === "vbat_in" || tp === "vbat+") {
+      const u = U(D().slots.bateria), ba = u && (cat.baterias || []).find((b) => b.id === u.id);
+      return (ba?.celdas || 3) * 3.95;
+    }
+    return { "5v+": 5.02, "5v_in": 5.01, "3v3+": 3.31, "3v3_in": 3.3, tx: 3.29, rx: 3.28 }[tp] || 0;
+  }
+  /** Lo que marca la pantalla con la negra en `a` y la roja en `b`. */
+  function lectura(a, b, dt) {
+    const m = M.medir.modo, fria = [a, b].some((x) => x?.medida === "fria");
+    M.medir.salto -= dt;
+    const salta = fria && a && b;
+    if (salta && M.medir.salto > 0) return { txt: M.medir.txt, pita: M.medir.pita };    // la lectura salta a saltos
+    if (salta) M.medir.salto = 0.08 + Math.random() * 0.14;
+    let txt = m === "v" ? "0.00" : "OL", pita = false;
+    if (a && b) {
+      if (m === "v") {
+        const v = bateriaPuesta() ? voltaje(b) - voltaje(a) : 0;
+        txt = (salta ? v * Math.random() : v).toFixed(2);
+      } else {
+        const unidos = a === b || (a.medida === "corto" && vecinoPad(a) === b) || (b.medida === "corto" && vecinoPad(b) === a)
+          || (a.pin?.tipo === "gnd" && b.pin?.tipo === "gnd");
+        if (salta) { const r = Math.random(); txt = r < 0.45 ? "OL" : (r * 400).toFixed(1); pita = m === "cont" && r > 0.7; }
+        else if (unidos) { txt = a === b ? "0.0" : "0.2"; pita = m === "cont"; }
+      }
+    }
+    return { txt, pita };
+  }
+  /** Cada cuadro, midiendo: las puntas, sus cables, la pantalla y el pitido. */
+  function pasoMedir(dt) {
+    const roja = M.mm.puntas.roja, negra = M.mm.puntas.negra;
+    const hv = M.hover?.tipo === "pad" ? M.hover.info : null;
+    const tip = hv ? hv.pos.clone().add(new THREE.Vector3(0, 0.0004, 0)) : M.tPunta.clone().setY(Math.max(0.003, M.tPunta.y + 0.002));
+    const dirR = new THREE.Vector3(0.8, 0.5, 0.35).normalize(), dirN = new THREE.Vector3(-0.8, 0.5, 0.35).normalize();
+    if (!roja.position.equals(tip)) M.medir.tubo = 0;
+    roja.position.lerp(tip, Math.min(1, dt * 30)); roja.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dirR);
+    const n = M.medir.negra;
+    if (n) { negra.position.copy(n.pos).add(new THREE.Vector3(0, 0.0004, 0)); negra.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dirN); }
+    else reposo("negra");
+    const l = lectura(n, hv, dt);
+    M.medir.txt = l.txt; M.medir.pita = l.pita;
+    M.mm.pantalla({ txt: l.txt, modo: M.medir.modo, pita: l.pita });
+    pitido(l.pita);
+    H.halo.material.color.set(0xff5040);
+  }
+  /** Los cables de las puntas: del borne del multímetro, caen al tapete y llegan al final del mango. */
+  function cablesPuntas(dt) {
+    if (!M.mm || !M.cablesMM) return;
+    M.medir.tubo -= dt;
+    if (M.medir.tubo > 0) return;
+    M.medir.tubo = 1 / 20;                              // como mucho 20 veces por segundo (cuando algo se movió: siempre que no esté quieto)
+    const g = M.mm.g, nrm = new THREE.Vector3(0, Math.cos(MM_TILT), Math.sin(MM_TILT));
+    [[M.mm.bornes.v, M.mm.puntas.roja], [M.mm.bornes.com, M.mm.puntas.negra]].forEach(([b, pz], i) => {
+      const J = g.localToWorld(b.clone()), dir = new THREE.Vector3(0, 1, 0).applyQuaternion(pz.quaternion), E = pz.position.clone().addScaledVector(dir, 0.124 * MM_K);
+      const piso = new THREE.Vector3((J.x + E.x) / 2 + (i ? -0.006 : 0.006), 0.0012, Math.max(J.z, E.z) + (M.multi ? 0.012 : 0.004));
+      const suelta = pz === M.mm.puntas.roja ? !M.multi : !(M.multi && M.medir.negra);
+      const pts = suelta   // en reposo: el cable baja del borne y se va a la izquierda, sin pasar por la placa
+        ? [J, J.clone().addScaledVector(nrm, 0.005), new THREE.Vector3(J.x - 0.012, 0.0015, J.z - 0.002), new THREE.Vector3(E.x + 0.006, 0.0015, E.z + 0.004), E.clone().addScaledVector(dir, 0.004), E]
+        : [J, J.clone().addScaledVector(nrm, 0.008), J.clone().addScaledVector(nrm, 0.006).setY(Math.max(0.003, J.y * 0.3)).add(new THREE.Vector3(0, 0, 0.008)), piso,
+          E.clone().addScaledVector(dir, 0.02).setY(Math.max(0.0015, E.y + 0.006)), E.clone().addScaledVector(dir, 0.005), E];
+      const m = M.cablesMM[i];
+      m.geometry.dispose();
+      m.geometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 48, 0.001, 6);
+    });
+  }
   function limpiarPunta() {
     if (M.modo !== "soldar") return;
     TA.limpiarPunta(M.E); sfx("rasgar");
@@ -1454,6 +1649,9 @@ export function initMesa(ctx) {
     entre(H.estano, fin.clone().add(new THREE.Vector3(-0.05, 0.035, -0.04)), fin);           // el estaño entra por la izquierda
     H.estano.visible = M.mano2 === "estano";
     moverTools(dt, tocando, h);
+    H.cautin.visible = !M.multi;
+    if (M.multi && M.mm) pasoMedir(dt);
+    if (M.mm?.g.visible) cablesPuntas(dt);
     // el halo del pad que apuntas
     const hv = M.hover?.tipo === "pad" ? M.hover.info : null;
     H.halo.visible = !!hv && !tocando;
@@ -1586,7 +1784,7 @@ export function initMesa(ctx) {
         lista.appendChild(li);
       }
       const E = M.E;
-      pista.textContent = M.enMano ? t("Llévalo a su pad · Esc lo suelta") : !M.cautin ? t("Necesitas un cautín") : !E.on ? t("⏻ Prende la estación") : E.temp < 280 ? t("Calentando…")
+      pista.textContent = M.multi ? t("📟 Clic en un pad = punta negra · clic en el multímetro = modo · T lo deja") : M.enMano ? t("Llévalo a su pad · Esc lo suelta") : !M.cautin ? t("Necesitas un cautín") : !E.on ? t("⏻ Prende la estación") : E.temp < 280 ? t("Calentando…")
         : ({ flux: t("💧 Toca un pad"), estano: t("🔥 Clic en el pad + Espacio"), bomba: t("🔥 Clic en la junta + Espacio = chupa"), malla: t("🔥 Clic en la junta: la malla chupa") }[M.mano2] || t("Toma algo de la bandeja →"));
       $("ms-on").setAttribute("aria-pressed", String(E.on));
       $("ms-on").classList.toggle("vacio", !M.cautin);
