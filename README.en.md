@@ -29,7 +29,7 @@ the GPU. The app starts the game server (the one that trains the AI) by itself a
 graphics as always, now as a real app.
 
 > **Mac installer** (`.dmg`, below) and **it updates itself:** on launch the app looks for a new version and offers
-> "Update now" (~10 MB; your saves and your AIs are untouched). Windows: coming soon.
+> "Update now" (~10 MB; your saves and your AIs are untouched). **Windows:** the `.exe` (below).
 
 ## What it is
 
@@ -83,7 +83,13 @@ the training, and a corner badge shows its generation and success rate.
 [**Neural-Drone-Forge-mac.dmg**](https://github.com/Sagaz0501/neural-drone-forge/releases/latest/download/Neural-Drone-Forge-mac.dmg)
 (~300 MB), open it and drag the app to Applications. The first time: **right-click the app → Open** (it isn't signed
 yet). You don't need Python or anything else. Blender is optional and free ([blender.org](https://www.blender.org)): with
-it you watch your drones learn in 3D. **Windows:** coming soon.
+it you watch your drones learn in 3D.
+
+<!-- ⏸ PENDING SANTIAGO'S APPROVAL (docs/WINDOWS.md): Windows. Publish once the release has the .exe -->
+**Windows 10/11 (64-bit):** download
+[**Neural-Drone-Forge-windows.exe**](https://github.com/Sagaz0501/neural-drone-forge/releases/latest/download/Neural-Drone-Forge-windows.exe)
+(~230 MB; ~830 MB installed) and open it. It isn't signed yet, so Windows says "Windows protected your PC":
+**More info → Run anyway**. It installs for your user (no admin rights needed) and updates itself like the Mac one.
 
 **From the code** (for developers):
 

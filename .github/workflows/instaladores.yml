@@ -4,7 +4,8 @@ name: Instaladores
 # Se corre a mano (Actions -> Instaladores -> Run workflow) o al subir un tag v*. Quedan como artefactos del run.
 # Con un tag v*: el job de Mac sube al release (lo crea si no existe) el .dmg + la actualización del juego
 # (juego-<versión>.tar.gz + actualizacion.json, desktop/actualizacion.sh): las apps instaladas se actualizan solas.
-# El .exe queda como artefacto hasta probarlo en un Windows. El tag tiene que ser la versión de desktop/package.json.
+# El job de Windows sube el .exe al mismo release (probado en Windows: probar-windows.yml, docs/WINDOWS.md).
+# El tag tiene que ser la versión de desktop/package.json.
 on:
   workflow_dispatch:
   push:
@@ -67,3 +68,19 @@ jobs:
           T="${{ github.ref_name }}"
           gh release view "$T" >/dev/null 2>&1 || gh release create "$T" --title "Neural Drone Forge $T" --notes "Ver CHANGELOG.md"
           gh release upload "$T" desktop/dist/Neural-Drone-Forge-mac.dmg desktop/dist/juego-*.tar.gz desktop/dist/actualizacion.json --clobber
+      # ⏸ PENDIENTE DE APROBACIÓN DE SANTIAGO (docs/WINDOWS.md): el .exe al release. No toca los pasos de Mac. Los dos jobs
+      # corren a la vez: el que llegue primero crea el release y el otro, si su "create" choca, vuelve a mirar y sube.
+      - name: Subir el .exe al release
+        if: startsWith(github.ref, 'refs/tags/v') && runner.os == 'Windows'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          T="${{ github.ref_name }}"
+          test "v$(node -p 'require("./desktop/package.json").version')" = "$T"
+          for i in 1 2 3 4 5 6; do
+            gh release view "$T" >/dev/null 2>&1 && break
+            gh release create "$T" --title "Neural Drone Forge $T" --notes "Ver CHANGELOG.md" && break
+            sleep 20
+          done
+          gh release upload "$T" desktop/dist/Neural-Drone-Forge-windows.exe --clobber

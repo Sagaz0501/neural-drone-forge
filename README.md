@@ -29,7 +29,7 @@ barra de direcciones, a 60 fps con la GPU. La app arranca sola el servidor del j
 cierra al salir. Los mismos gráficos de siempre, ahora como una app de verdad.
 
 > **Instalador para Mac** (`.dmg`, abajo) y **se actualiza solo:** al abrir, la app busca la versión nueva y te ofrece
-> «Actualizar ahora» (~10 MB, tus partidas y tus IA no se tocan). Windows: muy pronto.
+> «Actualizar ahora» (~10 MB, tus partidas y tus IA no se tocan). **Windows:** el `.exe` (abajo).
 
 ## Qué es
 
@@ -83,7 +83,14 @@ el entrenamiento, y una esquina te dice en qué generación va y cuánto logra.
 [**Neural-Drone-Forge-mac.dmg**](https://github.com/Sagaz0501/neural-drone-forge/releases/latest/download/Neural-Drone-Forge-mac.dmg)
 (~300 MB), ábrelo y arrastra la app a Aplicaciones. La primera vez: **clic derecho en la app → Abrir** (todavía no está
 firmada). No necesitas Python ni nada más. Blender es opcional y gratis ([blender.org](https://www.blender.org)): con él
-ves a tus drones aprender en 3D. **Windows:** muy pronto.
+ves a tus drones aprender en 3D.
+
+<!-- ⏸ PENDIENTE DE APROBACIÓN DE SANTIAGO (docs/WINDOWS.md): Windows. Publicar cuando el release traiga el .exe -->
+**Windows 10/11 (64 bits):** baja
+[**Neural-Drone-Forge-windows.exe**](https://github.com/Sagaz0501/neural-drone-forge/releases/latest/download/Neural-Drone-Forge-windows.exe)
+(~230 MB; instalada ocupa ~830 MB) y ábrelo. Como todavía no está firmada, Windows avisa «Windows protegió su PC»:
+**Más información → Ejecutar de todas formas**. Se instala para tu usuario (sin permisos de administrador) y se
+actualiza sola como la de Mac.
 
 **Desde el código** (para desarrolladores): necesitas **Python 3.11+** (probado con 3.13) y **Node.js 18+** (para la app). **Blender** es opcional (probado
 con 5.2): sirve para *ver* el entrenamiento en 3D, y el juego te lo recomienda.
