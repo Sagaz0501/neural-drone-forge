@@ -11,7 +11,8 @@ import { anotar } from "./partida.js";
 import { t } from "./i18n.js";
 
 export const INICIALES = ["apps", "dronmarket"];
-export const lista = (S, p) => (S?.software || []).filter((x) => !x.modo || x.modo === modoDe(p));
+// "oculto": true = apagado (el 🎰 Casino, 20-10-2026: Santiago no lo quiere): no sale en 🛍️ Apps ni en el escritorio
+export const lista = (S, p) => (S?.software || []).filter((x) => !x.oculto && (!x.modo || x.modo === modoDe(p)));
 const modoDe = (p) => (p?.modo === "dev" ? "dev" : "normal");
 export const programa = (S, id) => (S?.software || []).find((x) => x.id === id) || null;
 export const instalado = (p, id) => !p?.software || p.software.includes(id);
@@ -19,6 +20,7 @@ export const instalado = (p, id) => !p?.software || p.software.includes(id);
 export const deApp = (S, p, app) => lista(S, p).find((x) => x.apps.includes(app)) || null;
 /** ¿Esta app del escritorio se puede abrir? (una app que ningún programa abre está siempre: Ajustes). */
 export function tieneApp(p, S, app) {
+  if ((S?.software || []).some((x) => x.oculto && x.apps.includes(app))) return false;
   const x = deApp(S, p, app);
   return !x || instalado(p, x.id);
 }

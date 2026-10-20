@@ -140,7 +140,7 @@ app/               EL JUEGO (Dron Maker): usa los módulos de game/
                    las pantallas del juego metidas en una ventana (alojar), Simuladores, Finanzas = p.movimientos; layout en
                    localStorage "dronmaker.pbdmm.escritorio") y una barra de tareas;
                    lee GET /api/lab cada 1,5 s y llama los hooks. Programas en localStorage "dronmaker.pbdmm.archivos"
-  casino.js        EL CASINO (app gratis 🎰 de 🛍️ Apps, pedido de Santiago 19-10-2026): Blackjack, Video póker (Jacks or
+  casino.js        APAGADO (20-10-2026, Santiago no lo quiere: software.json "oculto": true) · EL CASINO (app gratis 🎰 de 🛍️ Apps, pedido de Santiago 19-10-2026): Blackjack, Video póker (Jacks or
                    Better 9/6) y Mayor o menor; lógica pura con rng inyectable, apuestas de $1 a $50 (máx. 25 % de la plata),
                    todo anotado en Finanzas. Pantalla: casino_ui.js (ventana #es-casino del computador). test: node app/test_casino.mjs
   autocompletar.js el autocompletado del editor PBDMM: contexto(texto antes del cursor) + opciones() (las fijas en
