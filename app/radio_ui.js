@@ -119,13 +119,25 @@ export function abrirRadio(ctx) {
       el.appendChild(map);
       slider(el, t("Zona muerta"), 0, 0.15, 0.01, pf.dz || 0, (v) => { pf.dz = v; guardarPerfil(pf); }, (v) => `${Math.round(v * 100)} %`);
     }
+    // ---- la sensación (Angle/Horizon/Acro): Juego (centro = flotar, se arma solo) o Real (gas absoluto, como una radio) ----
+    const sens = RA.sensacionDe(pf, cfg);
+    const fs = document.createElement("div"); fs.className = "fila";
+    const ls = document.createElement("span"); ls.className = "muted"; ls.textContent = p ? t("Sensación de este control") : t("Sensación del teclado");
+    fs.append(ls, seg([["juego", t("🎮 Juego")], ["real", t("📻 Real (gas absoluto)")]], sens, (v) => {
+      if (p) guardarPerfil({ ...pf, sensacion: v }); else { cfg.sensacionTeclado = v; guardar(); }
+      pintar();
+    }));
+    el.appendChild(fs);
+    el.insertAdjacentHTML("beforeend", `<p class="muted" style="margin:-4px 0 6px;font-size:12.5px">${sens === "juego"
+      ? t("Juego: el gas al centro flota, ya va armado, rates para una palanca corta. Lo mejor para un mando o el teclado.")
+      : t("Real: gas absoluto (tú sostienes el hover), armar con el gas abajo, rates de radio. Lo de una radio de verdad.")}</p>`);
     const fm = document.createElement("div"); fm.className = "fila";
     const lm = document.createElement("span"); lm.className = "muted"; lm.textContent = t("Palancas (mando de consola)");
     fm.append(lm, seg([[2, t("Modo 2 (gas a la izquierda)")], [1, t("Modo 1 (gas a la derecha)")]], cfg.mando, (v) => { cfg.mando = v; guardar(); }));
     el.appendChild(fm);
     // ---- rates ----
     el.insertAdjacentHTML("beforeend", `<h3>${t("Rates (qué tan rápido gira en Acro y Horizon)")}</h3>`);
-    const R = clon(cfg.ratesPropias || RA.PRESETS[cfg.rates] || RA.PRESETS.freestyle);
+    const R = clon(RA.ratesDe(cfg, sens));                      // Juego: los presets de mando; Real: los de radio
     const fr = document.createElement("div"); fr.className = "fila";
     fr.append(seg([["principiante", t("Principiante")], ["freestyle", "Freestyle"], ["carreras", t("Carreras")], ["cinematico", t("Cinemático")]],
       cfg.ratesPropias ? null : cfg.rates, (v) => { cfg.rates = v; cfg.ratesPropias = null; guardar(); pintar(); }));

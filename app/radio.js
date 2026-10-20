@@ -158,6 +158,123 @@ export function pedirGiro(modo, st, eu, rates, { angulo = 55, kAng = 7 } = {}) {
   return [ang[0] * (1 - k) + acro[0] * k, ang[1] * (1 - k) + acro[1] * k, acro[2]];
 }
 
+// ---------------- cuaterniones (ejes de la simulación: X adelante, Y izquierda, Z arriba; w, x, y, z) ----------------
+export const qMul = (a, b) => [a[0] * b[0] - a[1] * b[1] - a[2] * b[2] - a[3] * b[3], a[0] * b[1] + a[1] * b[0] + a[2] * b[3] - a[3] * b[2],
+  a[0] * b[2] - a[1] * b[3] + a[2] * b[0] + a[3] * b[1], a[0] * b[3] + a[1] * b[2] - a[2] * b[1] + a[3] * b[0]];
+export const qNorm = (q) => { const n = Math.hypot(...q) || 1; return q.map((x) => x / n); };
+export const qRot = (q, v) => { const r = qMul(qMul(q, [0, ...v]), [q[0], -q[1], -q[2], -q[3]]); return [r[1], r[2], r[3]]; };
+export const qEuler = (roll, pitch, yaw) => {                     // R = Rz(yaw) Ry(pitch) Rx(roll), como sim.js
+  const cr = Math.cos(roll / 2), sr = Math.sin(roll / 2), cp = Math.cos(pitch / 2), sp = Math.sin(pitch / 2), cy = Math.cos(yaw / 2), sy = Math.sin(yaw / 2);
+  return [cy * cp * cr + sy * sp * sr, cy * cp * sr - sy * sp * cr, cy * sp * cr + sy * cp * sr, sy * cp * cr - cy * sp * sr];
+};
+export const aEuler = (q) => {
+  const [w, x, y, z] = q;
+  return { roll: Math.atan2(2 * (w * x + y * z), 1 - 2 * (x * x + y * y)), pitch: Math.asin(clip(2 * (w * y - z * x))), yaw: Math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z)) };
+};
+
+// ---------------- la SENSACIÓN: Juego (mando y teclado) o Real (radio) ----------------
+/**
+ * Real = como una radio de verdad: gas ABSOLUTO (centro de la palanca = 50 % = el triple del hover en un dron de
+ * empuje/peso 6), armar con el gas abajo, los rates de radio. Es lo de fábrica en una radio USB.
+ * Juego = lo de fábrica en un mando (PS5/Xbox) y el teclado: la palanca del gas vuelve al centro, así que el centro
+ * FLOTA (Angle/Horizon: la palanca pide subir o bajar, en m/s; Acro: el centro da el empuje de flotar, corregido por
+ * la inclinación, y abajo del todo corta el gas para los flips), se arma solo, rates más vivos y lineales para una
+ * palanca corta (el yaw casi lineal, como Fácil), Angle inclina más y endereza más rápido, y Acro se nivela despacio
+ * si sueltas la palanca derecha (acro suave). Cada modo sigue siendo el suyo: Angle se nivela, Acro gira.
+ */
+export const SENSACIONES = ["juego", "real"];
+export function sensacionDe(perfil, cfg = {}) {
+  if (perfil?.sensacion) return perfil.sensacion;
+  if (perfil) return perfil.tipo === "radio" ? "real" : "juego";
+  return cfg.sensacionTeclado || "juego";
+}
+/** Rates para un mando (palanca corta, vuelve al centro): más RC rate y menos super rate = más lineales. */
+export const PRESETS_JUEGO = {
+  principiante: { rp: { rc: 1.3, sup: 0.3, expo: 0.1 }, yaw: { rc: 1.2, sup: 0.15, expo: 0 } },
+  freestyle: { rp: { rc: 1.6, sup: 0.4, expo: 0.1 }, yaw: { rc: 1.5, sup: 0.2, expo: 0 } },
+  carreras: { rp: { rc: 1.6, sup: 0.45, expo: 0.1 }, yaw: { rc: 1.4, sup: 0.25, expo: 0 } },
+  cinematico: { rp: { rc: 1.0, sup: 0.2, expo: 0.15 }, yaw: { rc: 0.9, sup: 0.1, expo: 0 } },
+};
+/** Los números de la sensación Juego. */
+export const JUEGO = {
+  masAngulo: 10,     // Angle/Horizon: inclina 10° más que el ángulo del menú (55 -> 65°)
+  kAng: 10,          // qué tan rápido endereza / inclina (Real: 7)
+  vzSube: 10, vzBaja: 7,   // Angle/Horizon: m/s a fondo hacia arriba / abajo (el centro se queda a la misma altura)
+  kv: 0.09,          // gas por cada m/s de error de subida
+  nivelar: 1.6,      // Acro: se endereza solo (rad/s por rad) si sueltas la palanca derecha
+  propwash: 0.5,     // el sacudón al bajar en tu aire, la mitad
+  teclado: { sube: 4, baja: 9, max: 0.8 },  // teclado: la tecla llega a fondo en 0,25 s, suelta en 0,1 s; Acro hasta el 80 %
+};
+/** Los rates de un preset según la sensación (los tuyos, si los cambiaste, mandan en las dos). */
+export function ratesDe(cfg, sens) {
+  if (cfg.ratesPropias) return cfg.ratesPropias;
+  const T = sens === "juego" ? PRESETS_JUEGO : PRESETS;
+  return T[cfg.rates] || T.freestyle;
+}
+/** Teclado: la tecla (−1, 0, 1) sube de a poco hacia la palanca (rampa), y suelta rápido. */
+export function rampa(actual, objetivo, dt, { sube = JUEGO.teclado.sube, baja = JUEGO.teclado.baja } = {}) {
+  const d = objetivo - actual;
+  const v = Math.abs(objetivo) < Math.abs(actual) || objetivo * actual < 0 ? baja : sube;
+  return Math.abs(d) <= v * dt ? objetivo : actual + Math.sign(d) * v * dt;
+}
+
+/**
+ * Un paso del dron de Angle / Horizon / Acro (cuerpo rígido; solo del freestyle, la IA nunca lo ve). Modifica c:
+ * c = { s: { pos, vel, roll, pitch, yaw, throttle }, q, w, thr, tw, p (física: mass, g, twr, drag, hover, attResp, crashSpeed) }.
+ * e = { gas 0..1, roll, pitch, yaw −1..1, armado, modo, fuerza }. o = { dt, sub, rates, gasCurva, angulo, juego }.
+ * Real: el gas es ABSOLUTO (la curva de la radio). Juego: e.gas 0,5 = flotar (ver SENSACIONES). Devuelve { suelo, golpe }.
+ */
+export function pasoRadio(c, e, { dt = 0.02, sub = 4, rates = PRESETS.freestyle, gasCurva: gc = { mid: 0.5, expo: 0 }, angulo = 55, juego = false } = {}) {
+  const s = c.s, p = c.p, h = dt / sub;
+  let suelo = false, golpe = 0;
+  const g = clip(e.gas * 2 - 1);                                   // Juego: la palanca −1..1 (centro = flotar)
+  const quieta = Math.abs(e.roll) < 0.05 && Math.abs(e.pitch) < 0.05;
+  for (let n = 0; n < sub; n++) {
+    const bz0 = qRot(c.q, [0, 0, 1]);
+    let pedido;
+    if (!e.armado) pedido = 0;
+    else if (!juego) pedido = gasCurva(e.gas, gc);
+    else if (e.modo === "acro" || bz0[2] < 0.3) {                   // acro suave (o de cabeza en Horizon): el centro = flotar
+      const hov = bz0[2] > 0.3 ? Math.min(0.9, p.hover / Math.max(0.6, bz0[2])) : p.hover;
+      pedido = g >= 0 ? hov + g * (1 - hov) : hov * (1 + g);
+    } else {                                                        // Angle / Horizon: la palanca pide subir o bajar
+      const vz = g >= 0 ? g * JUEGO.vzSube : g * JUEGO.vzBaja;
+      pedido = clip(p.hover / Math.max(0.35, bz0[2]) + JUEGO.kv * (vz - s.vel[2]), 0, 1);
+      if (s.pos[2] <= 0.01 && g <= 0.05) pedido = Math.min(pedido, p.hover * 0.5);   // en el piso sin subir: se queda
+    }
+    pedido *= e.fuerza ?? 1;
+    // los motores tardan ~35 ms en llegar; desarmado = motores apagados
+    c.thr += (pedido - c.thr) * Math.min(1, h / 0.035);
+    c.tw += h;
+    const enPiso = s.pos[2] <= 0.01 && c.thr < p.hover * 0.6;      // en el piso sin gas: no se revuelca
+    const eu = aEuler(c.q);
+    const wc = e.armado ? pedirGiro(e.modo, e, eu, rates, juego ? { angulo: Math.min(85, angulo + JUEGO.masAngulo), kAng: JUEGO.kAng } : { angulo }) : [0, 0, 0];
+    if (juego && e.armado && e.modo === "acro" && quieta && Math.abs(eu.roll) < 1.4 && Math.abs(eu.pitch) < 1.4) {
+      wc[0] -= JUEGO.nivelar * eu.roll; wc[1] -= JUEGO.nivelar * eu.pitch;   // acro suave: se endereza despacio
+    }
+    if (e.armado && s.vel[2] < -2 && c.thr > 0.12) {                // propwash: bajar en tu propio aire te sacude
+      const a = Math.min(1, (-s.vel[2] - 2) / 6) * 1.4 * (juego ? JUEGO.propwash : 1);
+      wc[0] += a * Math.sin(c.tw * 37); wc[1] += a * Math.sin(c.tw * 29 + 1.3);
+    }
+    for (let i = 0; i < 3; i++) c.w[i] = enPiso ? 0 : e.armado ? c.w[i] + (wc[i] - c.w[i]) * Math.min(1, p.attResp * h) : c.w[i] * (1 - Math.min(1, 0.4 * h));
+    if (enPiso) { const u = aEuler(c.q); c.q = qEuler(u.roll * 0.9, u.pitch * 0.9, u.yaw); }
+    c.q = qNorm(c.q.map((x, i) => x + 0.5 * qMul(c.q, [0, ...c.w])[i] * h));
+    const bz = qRot(c.q, [0, 0, 1]), T = c.thr * p.twr * p.mass * p.g, sp = Math.hypot(...s.vel);
+    for (let i = 0; i < 3; i++) s.vel[i] += ((bz[i] * T - p.drag * sp * s.vel[i] - (i === 2 ? p.mass * p.g : 0)) / p.mass) * h;
+    for (let i = 0; i < 3; i++) s.pos[i] += s.vel[i] * h;
+    if (s.pos[2] < 0) {
+      const imp = -s.vel[2];
+      s.pos[2] = 0; suelo = true;
+      if (imp > p.crashSpeed || bz[2] < 0.2 && Math.hypot(...s.vel) > 2) golpe = 99;
+      s.vel[2] = 0; s.vel[0] *= 0.8; s.vel[1] *= 0.8;
+      if (bz[2] < 0.5) c.w = [0, 0, 0];
+    }
+  }
+  const eu = aEuler(c.q);
+  s.roll = eu.roll; s.pitch = eu.pitch; s.yaw = eu.yaw; s.throttle = c.thr;
+  return { suelo, golpe };
+}
+
 /** El asistente: ¿qué eje se movió más desde `base`? (sin los ya usados) -> { i, d } (d = cuánto y hacia dónde) o null. */
 export function detectarEje(base, ahora, usados = [], minimo = 0.35) {
   let mejor = null;
