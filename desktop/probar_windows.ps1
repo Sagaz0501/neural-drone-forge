@@ -47,6 +47,18 @@ function Api([string]$ruta, $cuerpo = $null, [int]$seg = 30) {
 function Fondo {   # el entrenamiento del fondo de $SLUG según GET /api/lab
   return @((Api "/api/lab").fondo) | Where-Object { $_.modelo -eq $SLUG } | Select-Object -First 1
 }
+function CpuPorProceso {   # segundos de CPU acumulados por nombre de proceso
+  $h = @{}
+  Get-Process | ForEach-Object { if ($_.CPU) { $h[$_.ProcessName] = [double]$h[$_.ProcessName] + $_.CPU } }
+  $top = [ordered]@{}
+  foreach ($k in @("Neural Drone Forge", "servidor")) { $top[$k] = [double]$h[$k] }
+  $top["(todo)"] = [double](($h.Values | Measure-Object -Sum).Sum)
+  return $top
+}
+Add-Type -Namespace W -Name U -MemberDefinition '[DllImport("user32.dll")] public static extern bool ShowWindow(System.IntPtr h, int n);'
+function Ventana([int]$modo) {
+  Get-Process -Name $APP -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | ForEach-Object { [void][W.U]::ShowWindow($_.MainWindowHandle, $modo) }
+}
 $script:N = 0
 function Abrir([hashtable]$entorno = @{}) {
   $script:N++
@@ -118,24 +130,28 @@ try {
   # ---------- 3. entrenar unos segundos en el fondo ----------
   $r = Api "/api/lab" @{ accion = "iniciar"; modelo = $SLUG; base_de = "cero"; donde = "fondo"; nivel = 19; drones = 16 }
   Paso "POST /api/lab iniciar (fondo, nivel 19)" ([bool]$r.ok) "$($r.msg) pid=$($r.pid)"
-  $muestras = New-Object System.Collections.ArrayList
+  # la velocidad con la ventana a la vista y minimizada (el runner no tiene GPU: Chromium dibuja el garaje con la CPU)
+  $ok = Esperar { (Fondo).steps -gt 0 } 180
   $sw = [Diagnostics.Stopwatch]::StartNew()
-  while ($sw.Elapsed.TotalSeconds -lt 300) {
-    $f = Fondo
-    if ($f -and $f.steps) { [void]$muestras.Add(@($sw.Elapsed.TotalSeconds, [double]$f.steps, [int]$f.gen)) }
-    if ($f -and $f.gen -ge 3) { break }
-    Start-Sleep -Seconds 2
+  function Medir([int]$seg) {
+    $c0 = CpuPorProceso; $s0 = [double](Fondo).steps; $t0 = $sw.Elapsed.TotalSeconds
+    Start-Sleep -Seconds $seg
+    $c1 = CpuPorProceso; $s1 = [double](Fondo).steps; $t1 = $sw.Elapsed.TotalSeconds
+    $cpu = [ordered]@{}
+    foreach ($k in $c1.Keys) { $cpu[$k] = [math]::Round(($c1[$k] - [double]$c0[$k]) / ($t1 - $t0), 2) }   # núcleos usados
+    return [ordered]@{ pasos_por_s = [math]::Round(($s1 - $s0) / ($t1 - $t0)); cpu_nucleos = $cpu }
   }
+  $NUM.entreno_visible = Medir 45
+  Captura "2_entrenando"
+  Ventana 6        # SW_MINIMIZE
+  $NUM.entreno_minimizada = Medir 45
+  Ventana 9        # SW_RESTORE
+  $NUM.pasos_por_s = $NUM.entreno_visible.pasos_por_s
   $f = Fondo
-  if ($muestras.Count -ge 2) {
-    $a = $muestras[0]; $b = $muestras[$muestras.Count - 1]
-    $NUM.pasos_por_s = [math]::Round(($b[1] - $a[1]) / [math]::Max(1, $b[0] - $a[0]))
-  }
   $NUM.entreno = [ordered]@{ gen = $f.gen; steps = $f.steps; phase = $f.phase; segundos = [math]::Round($sw.Elapsed.TotalSeconds) }
-  Paso "el entrenamiento avanza" ($f -and $f.gen -ge 1) "gen $($f.gen), $($f.steps) pasos en $([math]::Round($sw.Elapsed.TotalSeconds)) s (~$($NUM.pasos_por_s) pasos/s)"
+  Paso "el entrenamiento avanza" ($f -and $f.gen -ge 1) ("gen {0}, {1} pasos; {2} pasos/s con la ventana a la vista, {3} minimizada" -f $f.gen, $f.steps, $NUM.entreno_visible.pasos_por_s, $NUM.entreno_minimizada.pasos_por_s)
   $udp = @(Get-NetUDPEndpoint -ErrorAction SilentlyContinue | Where-Object { $_.LocalPort -in 9031, 9032 } | ForEach-Object { "$($_.LocalAddress):$($_.LocalPort)" })
   $NUM.udp = $udp
-  Captura "2_entrenando"
   $r = Api "/api/lab" @{ accion = "detener"; modelo = $SLUG; donde = "fondo" }
   $ok = Esperar { -not (Fondo).activo } 120
   Paso "detener (guarda y sale)" $ok "$($r.msg)"
@@ -192,6 +208,29 @@ try {
   }
   $s = @(Servidores)
   Paso "al final: sin servidor.exe" ($s.Count -eq 0) "$($s.Count) vivos"
+
+  # ---------- 5b. el entrenador congelado SIN la app (¿lo lento es el runner o la app al lado?) ----------
+  $solo = Join-Path $env:TEMP "ndf_solo"
+  Remove-Item $solo -Recurse -Force -ErrorAction SilentlyContinue
+  New-Item -ItemType Directory -Force $solo | Out-Null
+  $juego = Join-Path $DIR "resources\juego"
+  $env:DRONMAKER_CODIGO = $juego
+  $ps = Start-Process (Join-Path $DIR "resources\servidor\servidor.exe") -PassThru -WindowStyle Hidden -RedirectStandardOutput (Join-Path $OUT "solo.log") -RedirectStandardError (Join-Path $OUT "solo_err.log") -ArgumentList @(
+    "-u", "`"$juego\scripts\live_train.py`"", "--model", "`"$solo\modelo.zip`"", "--estado", "`"$solo\e.json`"", "--speed", "rapido",
+    "--stage", "19", "--drones", "16", "--port", "9231", "--ctrl-port", "9232")
+  Remove-Item env:DRONMAKER_CODIGO
+  $ej = Join-Path $solo "e.json"
+  $leer = { try { [double]((Get-Content $ej -Raw | ConvertFrom-Json).steps) } catch { 0 } }
+  [void](Esperar { (& $leer) -gt 0 } 180)
+  $s0 = & $leer; $t0 = Get-Date
+  Start-Sleep -Seconds 45
+  $s1 = & $leer
+  $NUM.entreno_sin_app = [math]::Round(($s1 - $s0) / ((Get-Date) - $t0).TotalSeconds)
+  $u = New-Object System.Net.Sockets.UdpClient
+  $bytes = [Text.Encoding]::UTF8.GetBytes('{"stop": true}')
+  [void]$u.Send($bytes, $bytes.Length, "127.0.0.1", 9232); $u.Close()
+  $fin = $ps.WaitForExit(120000)
+  Paso "entrenador congelado solo (sin la app)" ($s1 -gt $s0 -and $fin) "$($NUM.entreno_sin_app) pasos/s; salió al pedirle stop: $fin"
 
   # ---------- 6. desinstalar ----------
   $un = Get-ChildItem $DIR -Filter "Uninstall*.exe" | Select-Object -First 1
