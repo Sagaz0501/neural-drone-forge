@@ -1,5 +1,22 @@
 # Cambios
 
+## v3.2.0 · La demo completa: plata, casino, radio y el final (19-10-2026)
+
+- **La demo tiene final:** con E6 armas un **segundo dron** (Madera se queda en el hangar) para grabar la finca de Don
+  Ernesto. Al ir a comprar E7/E8 sale «¡Lo lograste!» con tu resumen (drones, días, plata, generaciones, pedidos) y lo
+  que trae el juego completo. La partida queda guardada y puedes seguir haciendo pedidos.
+- **La plata, rebalanceada:** 1 ★ paga el 70 %, simuladores y apps más baratos (Simulador/IDE $30, E3 $30, E4 $45, E5
+  $60, E6 $90), un pedido fácil cada día y el regalo gratis de verdad (sin cobros dobles). Siempre se puede salir de $0.
+- **🎰 Casino:** app gratis del computador con Blackjack, Video póker y Mayor o menor (apuestas de $1 a $50).
+- **Freestyle como una radio:** modos Fácil, Angle, Horizon y Acro con gas absoluto, armar con interruptor (o L1/E),
+  rates de Betaflight con presets, radios USB (EdgeTX/TBS) con asistente de calibración, las palancas en pantalla y un
+  timer de batería opcional.
+- **Arreglado (jugando la demo entera):** el entrenamiento ahora se detiene al aprobar el examen (seguía y dañaba la IA);
+  después de Doña Marta llegan pedidos el mismo día; la finca pide radio de 30 m (la de 20 m no llegaba a las tomas); los
+  videos especiales llegan al comprar el simulador; el kit nuevo crea «Madera 2»; las inspecciones piden 1 foto con E4; sin
+  Blender ofrece entrenar en segundo plano; el botón 🎓 Examen al volver a Simuladores; el tutorial ya no se traba si
+  cierras antes del regalo; textos («le pago la mitad», el log del flasheo).
+
 ## v3.1.4 · El reloj del negocio (19-10-2026)
 
 - **Un día dura 30 minutos jugando** (de 7:00 a 23:00). Un relojito con agujas arriba de la ficha del dron (y arriba al
