@@ -39,7 +39,7 @@ y entrenando.log si entrena en el fondo). slug = [a-z0-9_-], 1-40, sin "_" al in
       "capas": [64, 64] la red de un modelo NUEVO (base_de "cero"): queda en info.json y live_train la usa al crearla
       "accion": "guardar" = guarda ya (fondo o Blender)
       responde {"ok", "msg", "id"} (+ "modelo", "donde", "pid" en el fondo)
-  GET  /api/lab  además: "fondo": [{modelo, activo, pid, puertos, pausado, ...entrenando.json}], "blender_modelo"
+  GET  /api/lab  además: "fondo": [{modelo, activo, pid, puertos, pausado, examen, ...entrenando.json}], "blender_modelo"
   POST /api/simular {"modelo"}  una prueba al azar del nivel que entrena, volada con su última generación (no toca nada)
                      -> la grabación (formato en scripts/simulacion.py)
   GET  /api/avance?modelo=<slug>  {"niveles": {"11": {"mejor": grabación, "peor": grabación}}} (lo guarda live_train)
@@ -209,6 +209,8 @@ def lab_state(fondo=True):
            "otros": other_trainers(), "ahora": now}
     out["blender_modelo"] = lab.get("modelo") or tr.get("modelo") or "base"
     out["entrenador"].setdefault("modelo", out["blender_modelo"])
+    e = out["entrenador"]
+    e["examen"] = examen_vivo(e["modelo"], e.get("stage"), pedir=e["activo"]) if tr else None
     if fondo:
         out["fondo"] = fondo_state(now)
     return out
@@ -441,6 +443,47 @@ def evaluar_modelo(slug, nivel=None, n=20):
     return dict(_evals[clave], modelo=slug), "ok"
 
 
+# El examen en vivo: mientras un modelo entrena, cada EXAMEN_CADA s su nota SIN ruido (20 intentos fijos, como el 🎓).
+# El éxito del entrenamiento lleva el ruido con el que explora (en E3+ marca ~0 % cuando el examen ya saca 60 %): el
+# juego muestra este como «éxito». /api/lab lo trae en el entrenador y en cada "fondo": "examen": {gen, exito, choque,
+# nivel, t, hist: [[gen, exito], …]}. Corre en un hilo: /api/lab no espera.
+EXAMEN_CADA = 90.0
+_examen_vivo = {}
+_examen_lock = threading.Lock()
+
+
+def _examinar(slug, nivel):
+    try:
+        r, _msg = evaluar_modelo(slug, nivel, 20)
+    except Exception as e:                       # noqa: BLE001 (un examen que falla no tumba el servidor)
+        r, _msg = None, str(e)
+    with _examen_lock:
+        ex = _examen_vivo[slug]
+        ex["pend"] = False
+        if not r:
+            ex["t"] = time.time() - EXAMEN_CADA + 20       # todavía no guardó: probar de nuevo en 20 s
+            return
+        if ex.get("nivel") != r["nivel"]:
+            ex["hist"] = []                                # otro nivel: otra nota
+        ex.update(gen=r["gen"], exito=r["exito"], choque=r["choque"], nivel=r["nivel"], t=time.time())
+        if not ex["hist"] or ex["hist"][-1][0] != r["gen"]:
+            ex["hist"] = (ex["hist"] + [[r["gen"], r["exito"]]])[-200:]
+
+
+def examen_vivo(slug, nivel=None, pedir=True):
+    """La última nota sin ruido de `slug` (o None si todavía no hay); con pedir, toma otra si ya pasó EXAMEN_CADA."""
+    if not slug:
+        return None
+    with _examen_lock:
+        ex = _examen_vivo.setdefault(slug, {"hist": [], "t": 0.0, "pend": False})
+        if pedir and not ex["pend"] and time.time() - ex["t"] >= EXAMEN_CADA:
+            ex["pend"], ex["t"] = True, time.time()
+            threading.Thread(target=_examinar, args=(slug, nivel), daemon=True).start()
+        if "exito" not in ex:
+            return None
+        return {k: (list(v) if k == "hist" else v) for k, v in ex.items() if k != "pend"}
+
+
 def simular_prueba(slug):
     """POST /api/simular: una prueba al azar del nivel que entrena (o entrenó) ese modelo, volada con su última
     generación guardada (modelo_web.json). No toca el entrenamiento ni la partida. -> (grabación, msg)."""
@@ -515,6 +558,7 @@ def list_models():
                     "entrenando": donde is not None, "donde": donde, "red": m.get("red"),
                     "avance": (d / "avance.json").exists(), "reservado": slug in RESERVADOS,
                     "ultimo": (m.get("historia") or [None])[-1],      # [gen, pasos, éxito, choque, nivel, calidad]
+                    "examen": examen_vivo(slug, pedir=False),      # la última nota sin ruido de esta sesión (o None)
                     "mejor_exito": max((h[2] for h in m.get("historia") or [] if len(h) > 2), default=None),
                     "recientes": recientes_por_nivel(m.get("historia") or []),
                     "web": ("/models/modelo_web.json" if slug == "base" else f"/models/drones/{slug}/modelo_web.json")})
@@ -875,7 +919,8 @@ def fondo_state(now=None):
         out.append(dict(tr, modelo=slug, activo=f is not None, pid=f["pid"] if f else None,
                         puertos=[f["port"], f["ctrl"]] if f else None,
                         pausado=bool((tr.get("params") or {}).get("paused")) if f else False,
-                        al_dia=bool(tr) and now - float(tr.get("t", 0)) < 6.0))
+                        al_dia=bool(tr) and now - float(tr.get("t", 0)) < 6.0,
+                        examen=examen_vivo(slug, tr.get("stage"), pedir=f is not None) if tr else None))
     return out
 
 

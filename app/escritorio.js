@@ -12,6 +12,7 @@ import { buildDrone, disposeDrone } from "./dron3d.js";
 import { calcular, pieza, POR_DEFECTO } from "./parts.js";
 import { multimetro3d } from "./multimetro.js";
 import { t, num } from "./i18n.js";
+import * as ESC from "./escenarios.js";
 
 const Y0 = 0.96;                                  // la cubierta de la mesa
 const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -381,10 +382,10 @@ export class Escritorio {
     try {
       const s = await (await fetch("/api/lab", { cache: "no-store" })).json();
       const f = (s.fondo || []).find((x) => x.activo) || (s.entrenador?.activo ? s.entrenador : null);
-      this.ia = f ? { modelo: f.modelo || "", gen: f.gen ?? 0, succ: f.succ || 0, crash: f.crash || 0, hist: (f.hist || []).slice(-90), pausa: !!(f.pausado || f.params?.paused) } : null;
+      this.ia = f ? { modelo: f.modelo || "", gen: f.gen ?? 0, succ: ESC.nota(f) || 0, crash: f.crash || 0, hist: ESC.conExamen((f.hist || []).slice(-90), f), pausa: !!(f.pausado || f.params?.paused) } : null;
     } catch { this.ia = null; }
     this.pidiendo = false;
-    const k = this.ia ? `${this.ia.modelo}|${this.ia.gen}|${this.ia.hist.length}|${this.ia.pausa}` : "";
+    const k = this.ia ? `${this.ia.modelo}|${this.ia.gen}|${this.ia.hist.length}|${this.ia.pausa}|${this.ia.succ}` : "";
     if (k !== this.iaClave) { this.iaClave = k; this.sucio.stats = true; }
   }
 
@@ -494,7 +495,8 @@ export class Escritorio {
     for (const f of [0.25, 0.5, 0.75]) { g.beginPath(); g.moveTo(30, y0 + hh * f); g.lineTo(W - 30, y0 + hh * f); g.stroke(); }
     if (ia && ia.hist.length > 1) {
       const h = ia.hist, X = (i) => 34 + (i / (h.length - 1)) * (W - 68), Y = (v) => y0 + hh - 6 - v * (hh - 12);
-      for (const [idx, c] of [[3, "#ff5040"], [2, "#47f08a"]]) { g.strokeStyle = c; g.lineWidth = 4; g.beginPath(); h.forEach((r, i) => (i ? g.lineTo(X(i), Y(r[idx] || 0)) : g.moveTo(X(i), Y(r[idx] || 0)))); g.stroke(); }
+      const ex = h.some((r) => typeof r[6] === "number");   // con 🎓 examen: esa es el éxito (la del entrenamiento, tenue)
+      for (const [idx, c] of [[3, "#ff5040"], [2, ex ? "rgba(71,240,138,0.25)" : "#47f08a"], ...(ex ? [[6, "#47f08a"]] : [])]) { g.strokeStyle = c; g.lineWidth = 4; g.beginPath(); h.forEach((r, i) => (i ? g.lineTo(X(i), Y(r[idx] || 0)) : g.moveTo(X(i), Y(r[idx] || 0)))); g.stroke(); }
       g.fillStyle = "#eaf2ef"; g.font = `bold 22px ${FUENTE}`;
       g.fillText(t("IA entrenando · {modelo} · gen {gen} · {pct} % logradas", { modelo: ia.modelo, gen: ia.gen, pct: Math.round(ia.succ * 100) }) + (ia.pausa ? " ⏸" : ""), 44, y0 + 30);
     } else if (ia) {

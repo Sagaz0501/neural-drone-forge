@@ -1305,30 +1305,35 @@ export function estadoE(tr, ses = {}, escala = null) {
   const h = tr.hist || [], ult = h.at(-1) || [];
   const p = tr.params || {};
   const val = (x) => (typeof x === "number" && Number.isFinite(x) ? Math.round(x * 10000) / 10000 : null);
+  // el éxito = el 🎓 examen sin ruido (jugar.py lo toma cada 90 s: tr.examen); antes del primero, el del entrenamiento
+  const ex = typeof tr.examen?.exito === "number" ? tr.examen : null;
+  const examen = ex ? ex.exito : ses.examen;
+  const exito = typeof examen === "number" ? examen : tr.succ;
   const campos = {
     generacion: tr.gen ?? 0,
     generaciones_sesion: Math.max(0, (tr.gen ?? 0) - (ses.gen0 ?? tr.gen ?? 0)),
     pasos: tr.steps ?? 0,
-    exito: val(tr.succ),
+    exito: val(exito),
     choque: val(tr.crash),
     premio: val(tr.rew),
     calidad: val(ult[5] ?? tr.film),
-    mejor_exito: val(ses.mejor ?? tr.succ),
-    examen: val(ses.examen),                 // la nota sin ruido (el estudio la pide cada 3 min); None al principio
+    mejor_exito: val(Math.max(ses.mejor ?? 0, exito ?? 0)),
+    examen: val(examen),                     // la nota sin ruido (cada 90 s); None al principio
     nivel: tr.stage ?? null,
     minutos: ses.t0 ? Math.round((Date.now() - ses.t0) / 600) / 100 : 0,
     pausado: !!p.paused,
     lr: val(p.lr), exploracion: val(p.ent), ruido: val(p.sigma), viento: val(p.wind),
     premios: Object.freeze(Object.fromEntries(Object.entries(p.reward || {}).map(([k, v]) => [k, escala ? nivelDe(k, v, escala) : v]))),
-    historia_exito: h.slice(-20).map((x) => val(x[2])),
+    historia_exito: ex?.hist?.length ? ex.hist.slice(-20).map((x) => val(x[1])) : h.slice(-20).map((x) => val(x[2])),
   };
   // PBDMM 2: e.cambio (contra la generación anterior) y e.diagnosticos (lo que se nota: diagnosticar)
   ses.hx = ses.hx || [];
   const ant = ses.hx.at(-1);
-  if (tr.gen !== undefined && (!ant || ant.gen !== tr.gen)) { ses.hx.push({ gen: tr.gen, exito: campos.exito, choque: campos.choque, premio: campos.premio }); if (ses.hx.length > 200) ses.hx.shift(); }
+  if (tr.gen !== undefined && (!ant || ant.gen !== tr.gen)) { ses.hx.push({ gen: tr.gen, exito: val(tr.succ), nota: campos.exito, choque: campos.choque, premio: campos.premio }); if (ses.hx.length > 200) ses.hx.shift(); }
   const prev = ses.hx.length > 1 ? ses.hx.at(-2) : null;
   const dif = (k) => (prev && typeof campos[k] === "number" && typeof prev[k] === "number" ? Math.round((campos[k] - prev[k]) * 10000) / 10000 : null);
-  campos.cambio = bi({ exito: dif("exito"), choque: dif("choque"), premio: dif("premio") });
+  const difNota = prev && typeof campos.exito === "number" && typeof prev.nota === "number" ? Math.round((campos.exito - prev.nota) * 10000) / 10000 : null;
+  campos.cambio = bi({ exito: difNota, choque: dif("choque"), premio: dif("premio") });
   const dg = diagnosticar(ses.hx);
   campos.diagnosticos = dg.map((x) => x.txt);
   for (const [es, en] of Object.entries(E_EN)) campos[en] = campos[es];     // e.success = e.exito …

@@ -568,5 +568,6 @@
  "Blender no está abierto. ¿Entreno <b>en segundo plano</b> (sin ventana, igual de rápido)? Con Blender ves a los drones aprender en 3D.": "Blender isn't open. Train <b>in the background</b> instead (no window, just as fast)? With Blender you watch the drones learn in 3D.",
  "Esperar a Blender": "Wait for Blender",
  "Si la IA no entrega el trabajo, <b>pierdes {n} de reputación</b>; si choca, <b>el dron se daña</b> y hay que repararlo en el taller.": "If the AI doesn't deliver the job, <b>you lose {n} reputation</b>; if it crashes, <b>the drone gets damaged</b> and has to be repaired in the workshop.",
- "🌾 La finca pide otro dron (empuje/peso ≥ 2,2 + barómetro + radio de 30 m: ESP-NOW + antena): «+ Nuevo dron». El de madera se queda.": "🌾 The farm needs another drone (thrust/weight ≥ 2.2 + barometer + 30 m radio: ESP-NOW + antenna): \"+ New drone\". Keep the wooden one."
+ "🌾 La finca pide otro dron (empuje/peso ≥ 2,2 + barómetro + radio de 30 m: ESP-NOW + antena): «+ Nuevo dron». El de madera se queda.": "🌾 The farm needs another drone (thrust/weight ≥ 2.2 + barometer + 30 m radio: ESP-NOW + antenna): \"+ New drone\". Keep the wooden one.",
+ "examen": "exam"
 }

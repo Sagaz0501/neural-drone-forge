@@ -1,7 +1,7 @@
 {
   "name": "neural-drone-forge",
   "productName": "Neural Drone Forge",
-  "version": "3.4.0",
+  "version": "3.4.1",
   "motor": 1,
   "description": "Arma el dron. Entrena su cerebro. Míralo aprender a volar.",
   "main": "main.js",

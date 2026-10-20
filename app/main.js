@@ -1256,7 +1256,7 @@ function renderLabEstado() {
   $("b-lab-volar").classList.toggle("hidden", !(tr.activo || (e?.fondo || []).some((f) => f.activo)));
   const film = misionLab().nivel >= 11;
   $("lab-gen").textContent = tr.gen ?? "–";
-  $("lab-succ").textContent = tr.gen !== undefined ? `${Math.round((tr.succ || 0) * 100)} %` : "–";
+  $("lab-succ").textContent = tr.gen !== undefined ? `${Math.round((ESC.nota(tr) || 0) * 100)} %` : "–";     // = el 🎓 examen sin ruido
   $("lab-crash").textContent = tr.gen !== undefined ? `${Math.round((tr.crash || 0) * 100)} %` : "–";
   $("lab-film").textContent = tr.gen !== undefined && (tr.stage >= 11 || film) ? `${Math.round((tr.film || 0) * 100)} %` : "–";
   $("b-lab-pausa").textContent = tr.params?.paused || tr.pausado ? t("Seguir") : t("Pausar");
@@ -1277,11 +1277,11 @@ function renderLabEstado() {
   // los entrenamientos en segundo plano (cualquier dron)
   const fb = $("lab-fondo");
   const fondo = (e?.fondo || []).filter((f) => f.activo);
-  fb.innerHTML = fondo.length ? `<h3>${t("En segundo plano")}</h3>` + fondo.map((f) => `<div class="card" style="cursor:default"><b>"${esc(f.modelo)}"</b> <span class="muted" style="font-size:12.5px">${t("gen {gen} · logradas {s} % · calidad {q} %", { gen: f.gen ?? "–", s: Math.round((f.succ || 0) * 100), q: Math.round((f.film || 0) * 100) })}${f.pausado ? " · " + t("en pausa") : ""}</span>` +
+  fb.innerHTML = fondo.length ? `<h3>${t("En segundo plano")}</h3>` + fondo.map((f) => `<div class="card" style="cursor:default"><b>"${esc(f.modelo)}"</b> <span class="muted" style="font-size:12.5px">${t("gen {gen} · logradas {s} % · calidad {q} %", { gen: f.gen ?? "–", s: Math.round((ESC.nota(f) || 0) * 100), q: Math.round((f.film || 0) * 100) })}${f.pausado ? " · " + t("en pausa") : ""}</span>` +
     `<div style="display:flex;gap:6px;margin-top:6px"><button class="btn ghost small" data-p="${esc(f.modelo)}">${f.pausado ? t("Seguir") : t("Pausar")}</button><button class="btn ghost small" data-s="${esc(f.modelo)}">${t("Detener y guardar")}</button></div></div>`).join("") : "";
   fb.querySelectorAll("[data-p]").forEach((b) => (b.onclick = () => api("/api/lab", { accion: "pausar", donde: "fondo", modelo: b.dataset.p })));
   fb.querySelectorAll("[data-s]").forEach((b) => (b.onclick = async () => { const r = await api("/api/lab", { accion: "detener", donde: "fondo", modelo: b.dataset.s }); toast(r.msg || t("Deteniendo…")); }));
-  drawLabChart(tr.hist || []);
+  drawLabChart(ESC.conExamen(tr.hist || [], tr));
 }
 
 function drawLabChart(h) {
@@ -1295,8 +1295,9 @@ function drawLabChart(h) {
     return;
   }
   const x = (i) => (i / (h.length - 1)) * (W - 10) + 5;
-  for (const [idx, col] of [[3, "#ff5040"], [2, "#47f08a"], [5, "#ffd23f"]]) {
-    g.strokeStyle = col; g.lineWidth = 3; g.beginPath();
+  const ex = h.some((r) => typeof r[6] === "number");      // con 🎓 examen: esa es la línea verde; la del entrenamiento, tenue
+  for (const [idx, col] of [[3, "#ff5040"], [2, ex ? "rgba(71,240,138,0.25)" : "#47f08a"], [5, "#ffd23f"], ...(ex ? [[6, "#47f08a"]] : [])]) {
+    g.strokeStyle = col; g.lineWidth = idx === 6 ? 4 : 3; g.beginPath();
     let pen = false;                      // la calidad (5) solo existe donde entrenó grabar: con huecos
     h.forEach((r, i) => {
       const v = r[idx];
@@ -1307,7 +1308,7 @@ function drawLabChart(h) {
     });
     g.stroke();
   }
-  g.font = "20px 'Chakra Petch'"; g.fillStyle = "#47f08a"; g.fillText(t("logradas"), 10, 24); g.fillStyle = "#ff5040"; g.fillText(t("choques"), 110, 24);
+  g.font = "20px 'Chakra Petch'"; g.fillStyle = "#47f08a"; g.fillText(ex ? "🎓 " + t("examen") : t("logradas"), 10, 24); g.fillStyle = "#ff5040"; g.fillText(t("choques"), 110, 24);
   if (h.some((r) => r[5] !== null && r[5] !== undefined)) { g.fillStyle = "#ffd23f"; g.fillText(t("calidad"), 205, 24); }
   g.fillStyle = "rgba(157,179,169,0.9)"; g.fillText(t("gen {a} → {b}", { a: h[0][0], b: h[h.length - 1][0] }), W - 190, 24);
 }

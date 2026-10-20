@@ -107,7 +107,8 @@ app/               EL JUEGO (Dron Maker): usa los módulos de game/
                    test: node app/test_freestyle.mjs revisa que la pista y la línea queden libres y que cada tramo sea lo que dice);
                    freestyle_vista.js = texturas en canvas con relieve, color por vértice (sombra abajo), cielo con nubes/estrellas,
                    mapa de entorno (PMREM), deco animada (humo, agua, público, pantalla, luces de largada), InstancedMesh, bloom;
-                   freestyle_camaras.js = la intro que vuela la pista antes de la cuenta, la cámara de atrás y la repetición
+                   freestyle_radar.js = la persecución: radar bajo el minimapa, marcas/flechas a los cazadores, borde rojo
+                   y pitido que se acelera al acercarse (test_freestyle); freestyle_camaras.js = la intro que vuela la pista antes de la cuenta, la cámara de atrás y la repetición
                    (el fantasma con cámaras de tele). 🎮 Volar mientras entrena (Laboratorio y barra del computador): volar.js
                    abre el freestyle en un iframe encima del juego (el entrenamiento sigue en el servidor; el garaje no se dibuja
                    y el reloj del negocio no corre); adentro, una insignia lee GET /api/lab (generación y éxito)
@@ -359,7 +360,9 @@ Node v22 está en `/opt/homebrew/bin/node`. Blender 5.2 en `/Applications/Blende
   `escenarios_codigo`, con capa en inglés): E1 lo mínimo y cada uno agrega pocas líneas `← NUEVO`. Premios por simulador
   (`escenarios.json` `premios_modo`): E1-E3 libres (los pone la misión), E4-E5 "pista" (el programa los muestra), E6-E12
   "obligatorio" (sin premios()/castigos() no corre y lo que no escribe = 0; compilar() en pbdmm.js). `e.examen` = la nota
-  sin ruido (el estudio pide /api/evaluar cada 3 min): el éxito con ruido miente en la foto. `aprendizaje()` se abre en E4.
+  sin ruido: el éxito con ruido miente en la foto. Desde el 20-10-2026 (pedido de Santiago) jugar.py toma ese examen SOLO cada
+  90 s mientras entrena (`examen_vivo`, hilo aparte; /api/lab "examen" en el entrenador y cada fondo) y TODO lo que dice
+  «éxito» lo muestra (`escenarios.js nota()`/`conExamen()`: Laboratorio, Monitor, escritorio, freestyle; `e.exito` = el examen). `aprendizaje()` se abre en E4.
   "Que grabe la IA" y la flota ya no se bloquean si falta el simulador (solo avisan). Tiempos: docs/ENTRENAMIENTO_PROBADO.md.
 - **El reloj del negocio (19-10-2026, v3.1.4):** un día despierto (7:00-23:00) = 30 min jugando; los pedidos llegan a su hora
   (negocio.agenda), vencen a las 23:00, a las 23:00 se duerme solo (flota + día nuevo). `NG.tick` cada 1 s en main.js; sin

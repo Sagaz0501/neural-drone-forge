@@ -27,6 +27,7 @@ const numero = (x) => (Number.isInteger(x) ? String(x) : num(x, 1));       // 4,
 const ARCH = "dronmaker.pbdmm.archivos", ABIERTO = "dronmaker.pbdmm.abierto";
 const leerLS = (k, d) => { try { const s = localStorage.getItem(k); return s ? JSON.parse(s) : d; } catch { return d; } };
 const ponerLS = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sin almacenamiento */ } };
+const nota = ESC.nota;
 const pct = (x) => (typeof x === "number" ? Math.round(x * 100) + " %" : "—");
 const chispa = (xs) => xs.map((x) => (typeof x === "number" ? "▁▂▃▄▅▆▇█"[Math.max(0, Math.min(7, Math.floor(x * 8)))] : " ")).join("");
 
@@ -637,10 +638,10 @@ export function initEstudio(ctx) {
     const s = await api("/api/lab");
     if (s.ok === false) return linea(s.msg, "bad");
     const b = s.blender || {}, tr = s.entrenador || {};
-    linea(`Blender: ${b.abierto ? `${b.estado_txt || b.estado}${b.corriendo ? " · " + t("modelo {m} · gen {gen} · éxito {exito} · choque {choque}", { m: s.blender_modelo, gen: tr.gen ?? "?", exito: pct(tr.succ), choque: pct(tr.crash) }) : ""}` : t("cerrado (comando blender para abrirlo)")}`);
+    linea(`Blender: ${b.abierto ? `${b.estado_txt || b.estado}${b.corriendo ? " · " + t("modelo {m} · gen {gen} · éxito {exito} · choque {choque}", { m: s.blender_modelo, gen: tr.gen ?? "?", exito: pct(nota(tr)), choque: pct(tr.crash) }) : ""}` : t("cerrado (comando blender para abrirlo)")}`);
     const f = (s.fondo || []).filter((x) => x.activo);
     if (!f.length) linea(t("Fondo: nada entrenando"), "muted");
-    f.forEach((x) => linea(t("Fondo: {m} · gen {gen} · éxito {exito} · choque {choque}", { m: x.modelo, gen: x.gen ?? "?", exito: pct(x.succ), choque: pct(x.crash) }) + (x.params?.paused ? " · " + t("EN PAUSA") : "")));
+    f.forEach((x) => linea(t("Fondo: {m} · gen {gen} · éxito {exito} · choque {choque}", { m: x.modelo, gen: x.gen ?? "?", exito: pct(nota(x)), choque: pct(x.crash) }) + (x.params?.paused ? " · " + t("EN PAUSA") : "")));
     if (ES.run) linea(t('Escuchando: "{m}" ({donde})', { m: ES.run.cfg.modelo, donde: ES.run.cfg.donde }), "ok");
   }
   async function control(slug, accion, extra = {}) {
@@ -800,17 +801,14 @@ export function initEstudio(ctx) {
     for (const f of s.fondo || []) if (f.activo && !out.some((x) => x.slug === f.modelo)) out.push({ slug: f.modelo, donde: "fondo" });
     return out;
   }
-  /** e.examen: cada 3 min, la nota SIN ruido del último guardado (20 intentos fijos, como el 🎓 examen). El éxito del
-   *  entrenamiento lleva el ruido con el que explora: en la foto marca ~0 % cuando el examen ya saca 90 %. */
-  function examenVivo(R) {
-    if (R.examPend || Date.now() - (R.ses.tExamen || R.t0) < 180000) return;
-    R.examPend = true; R.ses.tExamen = Date.now();
-    api(`/api/evaluar?modelo=${encodeURIComponent(R.cfg.modelo)}&nivel=${R.cfg.nivel}&n=20`).then((r) => {
-      if (r && typeof r.exito === "number") {
-        R.ses.examen = r.exito;
-        if (ES.run === R) linea("  🎓 " + t("examen sin ruido (gen {g}): {p}", { g: r.gen, p: Math.round(r.exito * 100) + " %" }), "muted");
-      }
-    }).catch(() => {}).finally(() => { R.examPend = false; });
+  /** e.examen = e.exito: la nota SIN ruido del último guardado (20 intentos fijos, como el 🎓 examen) que jugar.py toma
+   *  solo cada 90 s (tr.examen). El éxito del entrenamiento lleva el ruido con el que explora: en E3+ marca ~0 %
+   *  cuando el examen ya saca 60 %. */
+  function examenVivo(R, tr) {
+    const ex = tr?.examen;
+    if (typeof ex?.exito !== "number" || ex.t === R.ses.tExamen) return;
+    R.ses.tExamen = ex.t; R.ses.examen = ex.exito;
+    if (ES.run === R) linea("  🎓 " + t("examen sin ruido (gen {g}): {p}", { g: ex.gen, p: Math.round(ex.exito * 100) + " %" }), "muted");
   }
   async function tick() {
     const s = await api("/api/lab");
@@ -834,8 +832,8 @@ export function initEstudio(ctx) {
           llamarHook(R, "al_empezar", estadoE(tr, R.ses, ctx.ent.escala_premios));
         } else if ((tr.gen ?? 0) > R.ultGen) {
           R.ultGen = tr.gen;
-          if (typeof tr.succ === "number") R.ses.mejor = Math.max(R.ses.mejor ?? 0, tr.succ);
-          examenVivo(R);
+          examenVivo(R, tr);
+          if (typeof nota(tr) === "number") R.ses.mejor = Math.max(R.ses.mejor ?? 0, nota(tr));
           const e = estadoE(tr, R.ses, ctx.ent.escala_premios);
           const acc = ES.run === R ? llamarHook(R, "cada_generacion", e) || [] : [];
           for (const l of R.prog.narrar(e, R.ses)) linea(l, l.includes("💡") ? "warn" : "muted");
@@ -857,7 +855,7 @@ export function initEstudio(ctx) {
     const g = ES.grafSlug;
     if (g) {
       const { tr, activo } = trDe(s, g);
-      if (tr?.hist?.length && (activo || !ES.graf?.length)) ES.graf = tr.hist.slice(-120);
+      if (tr?.hist?.length && (activo || !ES.graf?.length)) ES.graf = ESC.conExamen(tr.hist.slice(-120), tr);
       ES.grafActivo = activo;
       ES.grafTr = tr;
     }
@@ -1510,7 +1508,8 @@ export function initEstudio(ctx) {
       });
       g.stroke();
     };
-    serie(3, "#ff5040"); serie(5, "#3ccbff"); serie(2, "#47f08a");
+    const ex = hs.some((h) => typeof h[6] === "number");    // con 🎓 examen: esa es el éxito; la del entrenamiento (con ruido), tenue
+    serie(3, "#ff5040"); serie(5, "#3ccbff"); serie(2, ex ? "rgba(71,240,138,.25)" : "#47f08a"); if (ex) serie(6, "#47f08a");
   }
 
   // ---------------- botones ----------------

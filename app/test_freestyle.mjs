@@ -7,8 +7,10 @@
 //    cerrada gira 90° o más
 //  · la línea de carrera (la guía que se dibuja) no atraviesa nada y no toca el piso
 //  · cruza() y orientaciones()
+//  · el radar de la persecución (freestyle_radar.js): adelante/izquierda/arriba desde tu dron y el pitido
 import { Level } from "../game/sim.js";
 import { MAPAS, ORDEN, nivelDe, orientaciones, cruza, lineaCarrera } from "./freestyle_mapas.js";
+import { relativo, cadencia } from "./freestyle_radar.js";
 
 let fallas = 0;
 const ok = (c, msg) => { console.log(`${c ? "ok  " : "MAL "}  ${msg}`); if (!c) fallas++; };
@@ -56,5 +58,14 @@ for (const id of ORDEN) {
 }
 ok(cruza([0, -2, 2], [0, 2, 2], [0.5, 0, 2.3]) && !cruza([0, -2, 2], [0, 2, 2], [2, 0, 2]), "cruza(): pasar cerca del centro sí, lejos no");
 ok(!cruza([0, -2, 2], [0, -1, 2], [0, 0, 2], 0.5), "cruza(): sin llegar al portal no cuenta");
+{
+  const cerca = (a, b) => Math.abs(a - b) < 1e-9;
+  const r0 = relativo([0, 0, 2], 0, [10, 0, 2]), r1 = relativo([0, 0, 2], Math.PI / 2, [10, 0, 5]);
+  ok(cerca(r0.adelante, 10) && cerca(r0.izq, 0) && cerca(r0.ang, 0), "radar: mirando a +X, un dron en +X está adelante");
+  ok(cerca(r1.adelante, 0) && cerca(r1.izq, -10) && cerca(r1.arriba, 3) && r1.ang < 0, "radar: girado 90° a la izquierda, ese dron queda a la derecha y 3 m arriba");
+  const r2 = relativo([0, 0, 2], 0, [-5, 0, 2]);
+  ok(Math.abs(r2.ang) > 3, "radar: uno detrás tiene ángulo ±180°");
+  ok(cadencia(30) === null && cadencia(20) > cadencia(5) && cadencia(1.3) <= 0.081, "radar: callado lejos, el pitido se acelera al acercarse");
+}
 console.log(fallas ? `\n${fallas} pruebas fallaron.` : "\nTodas las pruebas pasan.");
 process.exit(fallas ? 1 : 0);

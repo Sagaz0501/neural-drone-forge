@@ -26,6 +26,7 @@ import { paramsFisica } from "./parts.js";
 import { MAPAS, ORDEN, nivelDe, orientaciones, cruza, lineaCarrera } from "./freestyle_mapas.js";
 import { construirMapa, Portales, fondoMinimapa } from "./freestyle_vista.js";
 import { Intro, Repeticion, persecucion } from "./freestyle_camaras.js";
+import * as RD from "./freestyle_radar.js";
 
 await cargarIdioma();
 const $ = (id) => document.getElementById(id);
@@ -756,6 +757,22 @@ function hud(pos, q3) {
 }
 const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 
+/** Persecución: el radar abajo a la derecha, los cazadores marcados en la pantalla y el sensor de proximidad (el borde
+ *  rojo y un pitido que se acelera al acercarse; freestyle_radar.js). */
+function radar(g, W, H) {
+  const P = S.piloto, ahora = performance.now() / 1000, txt = { radar: t("RADAR"), detras: t("¡DETRÁS DE TI!") };
+  const proyectar = (p) => { const v = V(...p).project(camera); return { x: (v.x * 0.5 + 0.5) * W, y: (-v.y * 0.5 + 0.5) * H, detras: v.z > 1 }; };
+  RD.dibujarAmenazas(g, W, H, P.pos, P.s.yaw, S.ias, proyectar, ahora, txt);
+  const R = Math.min(80, W * 0.11), mini = $("h-mini").getBoundingClientRect();   // debajo del minimapa
+  const d = RD.dibujarRadar(g, mini.left + mini.width / 2, mini.bottom + R + 30, R, P.pos, P.s.yaw, S.ias, ahora, txt);
+  const c = S.muerto > 0 || S.t < 2 ? null : RD.cadencia(d);
+  if (c != null && ahora - (S.radarBip || 0) >= c) {
+    S.radarBip = ahora;
+    bip(d < RD.CERCA_M ? 1320 : 990, 0.05, d < RD.CERCA_M ? 0.09 : 0.05);
+    if (d < 4) vibrar(0.15, 50);
+  }
+}
+
 /** Encima del video: el horizonte (FPV) y la flecha al portal que toca. */
 function osd() {
   const c = $("osd"), W = window.innerWidth, H = window.innerHeight, dpr = Math.min(window.devicePixelRatio, 2);
@@ -783,6 +800,7 @@ function osd() {
     g.beginPath(); g.moveTo(cx - 14, cy); g.lineTo(cx - 5, cy); g.moveTo(cx + 5, cy); g.lineTo(cx + 14, cy); g.moveTo(cx, cy - 4); g.lineTo(cx, cy + 4); g.stroke();
   }
   if (cfg.modo === "libre" || S.fin) return;
+  if (cfg.modo === "persecucion" && !(S.cuenta > 0) && !S.intro) radar(g, W, H);
   const gg = S.mapa.gates[S.k % S.mapa.gates.length], v = V(...gg).project(camera);
   const detras = v.z > 1, x = (v.x * 0.5 + 0.5) * W, y = (-v.y * 0.5 + 0.5) * H;
   const dentro = !detras && x > 30 && x < W - 30 && y > 30 && y < H - 30;
@@ -920,7 +938,8 @@ async function verIA() {
     const tr = s.entrenador?.activo ? s.entrenador : (s.fondo || []).find((f) => f.activo);
     if (!tr) { el.classList.add("hidden"); return; }
     el.classList.remove("hidden");
-    const exito = typeof tr.succ === "number" ? Math.round(tr.succ * 100) : null;
+    const n = typeof tr.examen?.exito === "number" ? tr.examen.exito : tr.succ;     // el 🎓 examen sin ruido (escenarios.js nota)
+    const exito = typeof n === "number" ? Math.round(n * 100) : null;
     el.innerHTML = `<b></b><span></span><i><u style="width:${exito ?? 0}%"></u></i>`;
     el.querySelector("b").textContent = t("🧠 Tu IA «{m}» sigue entrenando", { m: tr.modelo || "base" });
     el.querySelector("span").textContent = (tr.pausado || tr.params?.paused) ? t("en pausa") : exito != null ? t("generación {g} · logra {p} %", { g: tr.gen ?? "–", p: exito }) : t("generación {g}", { g: tr.gen ?? "–" });

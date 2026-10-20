@@ -20,6 +20,17 @@ import { t } from "./i18n.js";
 export const INICIALES = ["despegar", "punto"];
 /** La nota para aprobar un examen (sin ruido, 20 intentos fijos). */
 export const APROBAR = 0.8;
+/** El «éxito» que ve el jugador de un entrenamiento (entrenando.json / GET /api/lab): la nota del 🎓 examen sin ruido que
+ *  jugar.py toma cada 90 s (tr.examen); antes del primero, el del entrenamiento (con ruido: sale más bajo). */
+export const nota = (tr) => (typeof tr?.examen?.exito === "number" ? tr.examen.exito : tr?.succ);
+/** Las filas de la historia (h = [[gen, pasos, éxito, choque, nivel, calidad], …]) con una columna más, la 6 = la nota
+ *  del último 🎓 examen hasta esa generación (null antes del primero): las gráficas la dibujan como «éxito». */
+export function conExamen(h, tr) {
+  const ex = (tr?.examen?.hist || []).filter((x) => typeof x[1] === "number");
+  if (!ex.length) return h;
+  let j = -1;
+  return h.map((r) => { while (j + 1 < ex.length && ex[j + 1][0] <= r[0]) j++; return [...r.slice(0, 6), ...Array(Math.max(0, 6 - r.length)).fill(null), j >= 0 ? ex[j][1] : null]; });
+}
 /** Lo que tiene que haber aprobado un modelo para ser ⭐ modelo base: vuela, se queda quieto, sigue, fotografía y graba. */
 export const BASE = ["despegar", "punto", "linea", "foto_fija", "video_ruta"];
 /** Las partidas de antes de los escenarios ya entrenaban fotos y videos: esos vienen de regalo. */

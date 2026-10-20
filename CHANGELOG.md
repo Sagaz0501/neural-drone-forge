@@ -1,5 +1,15 @@
 # Cambios
 
+## v3.4.1 · El éxito es el examen y el radar de la persecución (20-10-2026)
+
+- **🎓 El éxito ahora es el examen:** mientras entrenas, el juego toma solo el examen sin ruido (20 intentos fijos) cada
+  90 s y eso es lo que muestra como «éxito» en el Laboratorio, el Monitor, el escritorio del garaje y el freestyle. Antes
+  marcaba 0 % todo el rato desde E3 aunque el examen ya iba en 50-60 %. En PBDMM, `e.exito` es esa nota. En las gráficas,
+  la línea verde fuerte es el examen.
+- **📡 Radar en la persecución:** debajo del minimapa, con los cazadores alrededor tuyo (▲ arriba, ▼ abajo) y la distancia
+  al más cercano; corchetes sobre los que ves y flechas en el borde hacia los que no; un pitido que se acelera cuando se
+  acercan, el borde de la pantalla en rojo del lado por donde vienen y «¡DETRÁS DE TI!».
+
 ## v3.4.0 · El banco de trabajo: impresoras 3D, STEP y el escritorio (20-10-2026)
 
 - **🖨️ Impresoras 3D Forja3D** en la tienda: **Mini** ($90, cama de 180 mm), **Pro + Carrusel 4** ($230, 256 mm,
