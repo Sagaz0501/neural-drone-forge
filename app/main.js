@@ -37,6 +37,7 @@ import * as DM from "./demo.js";
 import { initNotas } from "./notas.js";
 import { precargar } from "./modelos3d.js";
 import { confirmar, pedirTexto } from "./dialogo.js";
+import { abrirFreestyle } from "./volar.js";
 import { t, idioma, hayIdioma, setIdioma, cargarIdioma, traducirHTML, datos, num, IDIOMAS } from "./i18n.js";
 
 await cargarIdioma();                                  // el diccionario del idioma elegido (español: nada)
@@ -813,7 +814,7 @@ function pintarReloj() {
 }
 setInterval(() => {
   const p = P();
-  if (!p?.negocio || document.hidden || G.screen === "inicio" || !$("pausa").classList.contains("hidden") || G.durmiendo) { $("reloj-mini").classList.add("hidden"); return; }
+  if (!p?.negocio || document.hidden || G.screen === "inicio" || !$("pausa").classList.contains("hidden") || G.durmiendo || window.__fsAbierto) { $("reloj-mini").classList.add("hidden"); return; }
   const r = NG.tick(p, ND, 1);
   if (!r) return;
   pintarReloj();
@@ -822,6 +823,7 @@ setInterval(() => {
   if (r.dormir && G.screen !== "vuelo") { G.durmiendo = true; celular.terminarDia(true).finally(() => { G.durmiendo = false; pintarReloj(); }); return; }
   if (++relojN % 15 === 0) guardar();
 }, 1000);
+$("b-lab-volar").onclick = () => abrirFreestyle();     // 🎮 Volar mientras entrena: el entrenamiento sigue en el servidor
 ctx.ent = ent; ctx.mis = mis; ctx.P = () => P(); ctx.dronParaEntrenar = (d) => dronParaEntrenar(d);
 ctx.mesa = initMesa(ctx);                   // la mesa de trabajo: abrir cajas, montar, atornillar, soldar
 ctx.abrirGuia = () => banco.abrirGuia();
@@ -1204,6 +1206,7 @@ function renderLabEstado() {
   dt.className = "dot" + (tr.activo ? (tr.phase === "learn" ? " wait" : " on") : "");
   dt.textContent = tr.activo ? `${tr.donde === "fondo" ? t("Segundo plano") : "Blender"}: ${tr.params?.paused || tr.pausado ? t("en pausa") : tr.phase === "learn" ? t("aprendiendo…") : t("entrenando")}` : t("Sin entrenar");
   $("b-abrir-blender").classList.toggle("hidden", !!bl.abierto);
+  $("b-lab-volar").classList.toggle("hidden", !(tr.activo || (e?.fondo || []).some((f) => f.activo)));
   const film = misionLab().nivel >= 11;
   $("lab-gen").textContent = tr.gen ?? "–";
   $("lab-succ").textContent = tr.gen !== undefined ? `${Math.round((tr.succ || 0) * 100)} %` : "–";
@@ -1595,6 +1598,7 @@ function hud(dt) {
 let last = performance.now(), fpsN = 0, fpsT = 0;
 function frame(now) {
   requestAnimationFrame(frame);
+  if (window.__fsAbierto) { last = now; return; }     // 🎮 volando en el freestyle (volar.js): el garaje no se dibuja
   const dt = Math.min((now - last) / 1000, 0.1);
   last = now;
   if (G.screen === "sim" && G.sim) {

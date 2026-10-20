@@ -92,6 +92,19 @@
   #fin-tabla td { padding: 5px 4px; border-bottom: 1px solid var(--line); }
   #fin-tabla td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
   #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); padding: 10px 16px; border-radius: 12px; font-size: 15px; transition: opacity .3s; pointer-events: none; }
+  /* la presentación de la pista, la repetición y la IA que entrena */
+  #hud.en-intro > * { visibility: hidden; }
+  #intro { position: fixed; left: 0; right: 0; bottom: 12%; text-align: center; pointer-events: none; text-shadow: 0 3px 22px rgba(0,0,0,.75); }
+  #intro-t { font-size: 46px; font-weight: 700; letter-spacing: -0.5px; min-height: 56px; }
+  #intro-sub { font-size: 17px; color: var(--muted); min-height: 22px; }
+  #intro small { display: block; margin-top: 18px; font-size: 13px; color: rgba(234,242,239,.7); }
+  #repe { position: fixed; top: 18px; left: 50%; transform: translateX(-50%); padding: 8px 16px; border-radius: 12px; font-size: 15px; display: flex; gap: 12px; align-items: center; }
+  #repe b { color: #ff5040; }
+  #ia-badge { position: fixed; left: 16px; top: 16px; padding: 8px 12px; border-radius: 12px; font-size: 13px; line-height: 1.35; max-width: 300px; z-index: 5; pointer-events: none; }
+  #ia-badge b { display: block; font-size: 13.5px; } #ia-badge span { color: var(--muted); }
+  #ia-badge i { display: block; height: 4px; border-radius: 2px; background: rgba(234,242,239,.12); margin-top: 5px; overflow: hidden; }
+  #ia-badge u { display: block; height: 100%; background: var(--gate); }
+  body:has(#menu:not(.hidden)) #ia-badge { left: auto; right: 16px; }
   @media (max-width: 700px) { .mapas { grid-template-columns: 1fr; } #menu { left: 16px; top: 16px; transform: none; } #h-teclas { display: none; } }
 </style>
 <script type="importmap">
@@ -114,6 +127,9 @@
 <section id="radio" class="panel hidden" aria-label="Radio y controles"></section>
 <section id="pausa" class="panel hidden"></section>
 <section id="fin" class="panel hidden"></section>
+<div id="intro" class="hidden"><div id="intro-t"></div><div id="intro-sub"></div><small id="intro-saltar"></small></div>
+<div id="repe" class="panel hidden"><b>●</b><span id="repe-t"></span><span class="muted" id="repe-salir"></span></div>
+<div id="ia-badge" class="panel hidden" aria-live="polite"></div>
 <div id="toast" class="panel" style="opacity:0"></div>
 <script type="module" src="./freestyle.js"></script>
 </body>

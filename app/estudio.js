@@ -17,6 +17,7 @@ import { mundoLugar, alcanceNecesario } from "./lugares.js";
 import * as RUTA from "./ruta.js";
 import * as NG from "./negocio.js";
 import * as DM from "./demo.js";
+import { abrirFreestyle } from "./volar.js";
 import * as ESC from "./escenarios.js";
 import * as SW from "./software.js";
 import { sfx } from "./garaje.js";
@@ -815,6 +816,7 @@ export function initEstudio(ctx) {
     const s = await api("/api/lab");
     if (s.ok === false) return;
     ES.entrenando = entrenandoAhora(s);
+    $("es-volar").classList.toggle("hidden", !ES.entrenando.length);   // 🎮 Volar mientras entrena (la barra de tareas)
     // sin un modelo elegido (o el elegido ya no entrena y hay otro que sí): mirar el que está entrenando
     if (ES.entrenando.length && (!ES.grafSlug || (!ES.grafFijo && !ES.entrenando.some((x) => x.slug === ES.grafSlug)))) {
       ES.grafSlug = ES.entrenando[0].slug;
@@ -1407,6 +1409,7 @@ export function initEstudio(ctx) {
     for (const [v, tx] of modelosVer) sel.add(new Option(tx, v, false, v === ES.grafSlug));
     sel.title = ES.grafSlug ? t("Mirando: {m}", { m: ES.grafSlug }) : "";
   }
+  $("es-volar").onclick = () => abrirFreestyle();
   $("es-graf-m").onchange = (ev) => { ES.grafSlug = ev.target.value; ES.grafFijo = true; ES.graf = []; ES.red = null; renderSel(); tick(); if (abierta("sim")) leerRed(); };
   const mirado = () => ES.grafSlug || ES.run?.cfg.modelo;
   $("es-avance").onclick = () => (mirado() ? comando("avance " + mirado()) : linea(t("Corre un programa o escribe info <modelo> primero."), "bad"));

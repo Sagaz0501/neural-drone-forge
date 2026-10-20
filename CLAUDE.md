@@ -93,8 +93,14 @@ app/               EL JUEGO (Dron Maker): usa los módulos de game/
                    zona muerta, Modo 1/2, rates con su curva) + las palancas en el HUD; cfg.radios[id del control] en localStorage,
                    los rivales con su red (sim.js step/buildObs/sensorRays + Policy; modelos corredor = nivel 16, cazador = 18),
                    HUD, minimapa, sonido, récords en localStorage "dronmaker.freestyle"; freestyle_mapas.js = los 3 mapas (solo
-                   datos: cajas/cilindros/esferas + portales; test: node app/test_freestyle.mjs revisa que la pista quede libre);
-                   freestyle_vista.js = texturas en canvas, piezas unidas por material, bloom (game/vendor/postprocessing)
+                   datos: cajas/cilindros/esferas + portales con TRAMOS recta/picada/splits/hueco/cerrada y M.dirs + lineaCarrera;
+                   test: node app/test_freestyle.mjs revisa que la pista y la línea queden libres y que cada tramo sea lo que dice);
+                   freestyle_vista.js = texturas en canvas con relieve, color por vértice (sombra abajo), cielo con nubes/estrellas,
+                   mapa de entorno (PMREM), deco animada (humo, agua, público, pantalla, luces de largada), InstancedMesh, bloom;
+                   freestyle_camaras.js = la intro que vuela la pista antes de la cuenta, la cámara de atrás y la repetición
+                   (el fantasma con cámaras de tele). 🎮 Volar mientras entrena (Laboratorio y barra del computador): volar.js
+                   abre el freestyle en un iframe encima del juego (el entrenamiento sigue en el servidor; el garaje no se dibuja
+                   y el reloj del negocio no corre); adentro, una insignia lee GET /api/lab (generación y éxito)
   dialogo.js       confirmar() / pedirTexto(): los diálogos del juego (NO usar confirm/prompt/alert del navegador)
   escenarios.js    LOS SIMULADORES (lógica): comprar en orden, qué misiones/funciones abren (disponibles), iaPuede
   mesa.js          LA MESA DE TRABAJO (3D, su propio canvas): abrir cajas; montar cada pieza con su PROCEDIMIENTO (taller.js:
