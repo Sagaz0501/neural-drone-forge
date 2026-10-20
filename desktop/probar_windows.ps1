@@ -106,6 +106,8 @@ try {
   $DIR = $e.DirectoryName
   $NUM.carpeta = $DIR
   $NUM.instalada_mb = [math]::Round(((Get-ChildItem $DIR -Recurse -File | Measure-Object Length -Sum).Sum) / 1MB, 1)
+  $larga = Get-ChildItem $DIR -Recurse -File | Sort-Object { $_.FullName.Length } -Descending | Select-Object -First 1
+  $NUM.ruta_mas_larga = [ordered]@{ largo = $larga.FullName.Length; sin_carpeta = $larga.FullName.Length - $DIR.Length; ruta = $larga.FullName }
   $NUM.acceso_escritorio = Test-Path (Join-Path ([Environment]::GetFolderPath("Desktop")) "$APP.lnk")
   $NUM.acceso_menu = [bool](Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs" -Recurse -Filter "$APP.lnk" -ErrorAction SilentlyContinue)
 

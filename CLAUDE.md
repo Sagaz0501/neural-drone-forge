@@ -16,6 +16,7 @@ Claude Code lee este archivo solo al abrir una sesión en esta carpeta. Es el re
 | **el negocio**: clientes que escriben al celular, trabajos repetibles ★–★★★★, tipos de trabajo, tutorial del día 1 | [`docs/NEGOCIO.md`](docs/NEGOCIO.md) |
 | **la carrera del taller**: todo desde el computador, personas, pedidos chicos y misiones grandes, entregas, retos, ventas, calendario, misiones manuales; modelos reales | [`docs/PLAN_CARRERA.md`](docs/PLAN_CARRERA.md) |
 | **cuánto tarda cada escenario E1-E12 y qué premios funcionan** (entrenado y medido; de aquí salen las pistas ⏱️ de los programas) | [`docs/ENTRENAMIENTO_PROBADO.md`](docs/ENTRENAMIENTO_PROBADO.md) |
+| **el .exe de Windows**: cómo se prueba en GitHub Actions (`probar-windows.yml`), resultados, bugs de Windows, firma y Steam | [`docs/WINDOWS.md`](docs/WINDOWS.md) |
 | **el armado de verdad** (Fase 2): la mesa, soldar con la estación, atornillar, la guía aparte, la batería; las piezas 3D hechas por script en Blender (`blender/piezas/` → `app/modelos/*.glb`) | [`docs/ARMADO_PLAN.md`](docs/ARMADO_PLAN.md) |
 
 ## La idea
