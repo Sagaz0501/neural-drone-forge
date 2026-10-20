@@ -144,5 +144,16 @@
   "No vi el interruptor de modo: muévelo o toca Saltar.": "I didn't see the mode switch: move it or tap Skip.",
   "📻 Listo: tu control quedó calibrado.": "📻 Done: your controller is calibrated.",
   "Modo": "Mode",
-  "Ejes que ya llegaron a sus extremos: {n} de {m}": "Axes that reached both ends: {n} of {m}"
+  "Ejes que ya llegaron a sus extremos: {n} de {m}": "Axes that reached both ends: {n} of {m}",
+  "Sensación": "Feel",
+  "🎮 Juego": "🎮 Game",
+  "📻 Real (gas absoluto)": "📻 Real (absolute throttle)",
+  "Angle: la palanca derecha inclina (suelta y se nivela) y la izquierda gira y sube o baja (centro = flotar). Ya va armado (L1/LB o E desarma). Teclado: WASD inclinar, flechas girar, Espacio/Shift subir y bajar.": "Angle: the right stick tilts (let go and it levels), the left one turns and climbs or descends (center = hover). It starts armed (L1/LB or E disarms). Keyboard: WASD tilt, arrows turn, Space/Shift up and down.",
+  "Horizon: como Angle, pero con la palanca derecha a fondo da la vuelta entera (flips). Centro del gas = flotar. Ya va armado.": "Horizon: like Angle, but with the right stick all the way it does full flips. Throttle center = hover. It starts armed.",
+  "Acro suave: la palanca derecha GIRA el dron y al soltarla se endereza despacio. Gas al centro = flotar; abajo del todo corta el gas para los flips. Ya va armado. Teclado: WASD gira, Espacio/Shift gas, flechas giro.": "Soft Acro: the right stick ROTATES the drone and it slowly levels when you let go. Throttle center = hover; all the way down cuts throttle for flips. It starts armed. Keyboard: WASD rotate, Space/Shift throttle, arrows yaw.",
+  "Pulsa L1/LB o la tecla E para armar": "Press L1/LB or the E key to arm",
+  "Sensación de este control": "Feel of this controller",
+  "Sensación del teclado": "Keyboard feel",
+  "Juego: el gas al centro flota, ya va armado, rates para una palanca corta. Lo mejor para un mando o el teclado.": "Game: throttle at center hovers, starts armed, rates for a short stick. Best for a gamepad or the keyboard.",
+  "Real: gas absoluto (tú sostienes el hover), armar con el gas abajo, rates de radio. Lo de una radio de verdad.": "Real: absolute throttle (you hold the hover), arm with throttle down, radio rates. What a real radio does."
 }

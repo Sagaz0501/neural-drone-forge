@@ -87,8 +87,11 @@ app/               EL JUEGO (Dron Maker): usa los módulos de game/
                    banco van en la barra de tareas (del sistema). El tutorial "pc" = comprar Mensajes + Simulador/IDE
   freestyle.html   EL FREESTYLE (página aparte, botón en el inicio): freestyle.js = modos (libre, carrera contra la IA,
                    contrarreloj, persecución), tu dron en 4 modos: Fácil (sim.js, como la IA) o Angle/Horizon/Acro como una radio
-                   (SOLO aquí: la IA nunca los ve; gas absoluto, armar con interruptor, rates Betaflight, propwash, timer de
-                   batería); radio.js = la lógica pura (rates, gas, calibración, perfiles, armar; test_radio.mjs) y radio_ui.js =
+                   (SOLO aquí: la IA nunca los ve; rates Betaflight, propwash, timer de batería) con 2 SENSACIONES por control
+                   (RA.sensacionDe, perfil.sensacion): Juego (mando/teclado por defecto: gas al centro = flotar, se arma solo,
+                   rates de mando PRESETS_JUEGO, Acro suave que se endereza, teclado en rampa) y Real (radio USB: gas absoluto,
+                   armar con el gas abajo); radio.js = la lógica pura (rates, gas, calibración, perfiles, armar, pasoRadio = el
+                   cuerpo de esos 3 modos; test_radio.mjs) y radio_ui.js =
                    🎮 Radio (radios USB EdgeTX/TBS como joystick: asistente que calibra y detecta cada canal, asignar, invertir,
                    zona muerta, Modo 1/2, rates con su curva) + las palancas en el HUD; cfg.radios[id del control] en localStorage,
                    los rivales con su red (sim.js step/buildObs/sensorRays + Policy; modelos corredor = nivel 16, cazador = 18),

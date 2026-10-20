@@ -4,8 +4,9 @@
 //   Persecución (drones con IA te persiguen: el nivel 18 · Persecución; la "liebre" eres tú).
 // Cuatro modos, como en una radio (radio.js; los controles y la calibración: radio_ui.js):
 //   Fácil   = la misma física que la IA (game/sim.js step: las palancas piden un ángulo; gas al centro = flotar).
-//   Angle · Horizon · Acro = solo del freestyle (la IA nunca los ve): un cuerpo rígido con gas ABSOLUTO (sin piloto de
-//             altura), motores que tardan en responder, propwash al bajar en tu propio aire y armar con un interruptor.
+//   Angle · Horizon · Acro = solo del freestyle (la IA nunca los ve): un cuerpo rígido (radio.js pasoRadio), motores que
+//             tardan en responder y propwash. Sensación Real (radio): gas ABSOLUTO y armar con interruptor; sensación Juego
+//             (mando y teclado, lo de fábrica): gas al centro = flotar, armado solo, rates de mando, Acro suave.
 //             Angle pide un ángulo y se nivela; Acro pide una VELOCIDAD de giro (rates de Betaflight: flips y rolls);
 //             Horizon es Angle al centro y Acro a fondo.
 // Los rivales vuelan con game/sim.js (step, buildObs, sensorRays) y su red (Policy): exactamente lo que aprendieron.
@@ -38,14 +39,21 @@ const cfg = { dron: "racer", mapa: "fabrica", modo: "libre", acro: false, rival:
 try { Object.assign(cfg, JSON.parse(localStorage.getItem(CLAVE) || "{}")); } catch { /* sin almacenamiento */ }
 if (!RA.MODOS.includes(cfg.vuelo)) cfg.vuelo = cfg.acro ? "acro" : "facil";      // antes: Estable / Acro
 const guardar = () => { try { localStorage.setItem(CLAVE, JSON.stringify(cfg)); } catch { /* sin almacenamiento */ } };
-/** Los rates que usas (un preset o los tuyos). */
-const rates = () => cfg.ratesPropias || RA.PRESETS[cfg.rates] || RA.PRESETS.freestyle;
 /** El control que usas: el elegido en 🎮 Radio, o el primero con palancas. */
 function padElegido() {
   const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
   return pads.find((p) => p.id === cfg.padId && p.axes?.length >= 4) || pads.find((p) => p.axes?.length >= 4) || null;
 }
 const perfilDe = (gp) => (gp ? cfg.radios[gp.id] || RA.perfilPorDefecto(gp) : null);
+/** La sensación del control que usas: Juego (mando, teclado) o Real (radio USB). Se guarda por control (radio.js). */
+const sensacion = () => RA.sensacionDe(perfilDe(padElegido()), cfg);
+function ponerSensacion(v) {
+  const gp = padElegido();
+  if (gp) cfg.radios[gp.id] = { ...perfilDe(gp), sensacion: v }; else cfg.sensacionTeclado = v;
+  guardar();
+}
+/** Los rates que usas: un preset (el de mando en Juego, el de radio en Real) o los tuyos. */
+const ratesActivos = () => RA.ratesDe(cfg, sensacion());
 const readGamepad = padElegido;
 let calidad = "media";
 try { calidad = JSON.parse(localStorage.getItem("dronmaker.quality") || '"media"'); } catch { /* por defecto */ }
@@ -74,19 +82,8 @@ function vibrar(fuerte, ms = 160) {
   try { readGamepad()?.vibrationActuator?.playEffect("dual-rumble", { duration: ms, strongMagnitude: fuerte, weakMagnitude: Math.min(1, fuerte + 0.2) }); } catch { /* no vibra */ }
 }
 
-// cuaterniones en ejes de la simulación (w, x, y, z): X adelante, Y izquierda, Z arriba
-const qMul = (a, b) => [a[0] * b[0] - a[1] * b[1] - a[2] * b[2] - a[3] * b[3], a[0] * b[1] + a[1] * b[0] + a[2] * b[3] - a[3] * b[2],
-  a[0] * b[2] - a[1] * b[3] + a[2] * b[0] + a[3] * b[1], a[0] * b[3] + a[1] * b[2] - a[2] * b[1] + a[3] * b[0]];
-const qNorm = (q) => { const n = Math.hypot(...q) || 1; return q.map((x) => x / n); };
-const qRot = (q, v) => { const r = qMul(qMul(q, [0, ...v]), [q[0], -q[1], -q[2], -q[3]]); return [r[1], r[2], r[3]]; };
-const qEuler = (roll, pitch, yaw) => {                     // R = Rz(yaw) Ry(pitch) Rx(roll), como sim.js
-  const cr = Math.cos(roll / 2), sr = Math.sin(roll / 2), cp = Math.cos(pitch / 2), sp = Math.sin(pitch / 2), cy = Math.cos(yaw / 2), sy = Math.sin(yaw / 2);
-  return [cy * cp * cr + sy * sp * sr, cy * cp * sr - sy * sp * cr, cy * sp * cr + sy * cp * sr, sy * cp * cr - cy * sp * sr];
-};
-const aEuler = (q) => {
-  const [w, x, y, z] = q;
-  return { roll: Math.atan2(2 * (w * x + y * z), 1 - 2 * (x * x + y * y)), pitch: Math.asin(clip(2 * (w * y - z * x))), yaw: Math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z)) };
-};
+// cuaterniones en ejes de la simulación (w, x, y, z): X adelante, Y izquierda, Z arriba (radio.js)
+const { qEuler } = RA;
 const aThree = (q, out) => out.set(q[1], q[3], -q[2], q[0]);     // los mismos ejes que V(): (x, z, -y)
 
 /** Tu dron: Fácil (sim.js, como la IA) o Angle / Horizon / Acro (un cuerpo rígido con gas absoluto, solo aquí). */
@@ -118,34 +115,8 @@ class Piloto {
       this.q = qEuler(s.roll, s.pitch, s.yaw);
       this.thr = s.throttle;
     } else {
-      // el gas es ABSOLUTO (la curva de la radio) y los motores tardan ~35 ms en llegar; desarmado = motores apagados
-      const pedido = e.armado ? RA.gasCurva(e.gas, cfg.gasCurva) * (e.fuerza ?? 1) : 0;
-      const h = DT / SUBSTEPS;
-      for (let n = 0; n < SUBSTEPS; n++) {
-        this.thr += (pedido - this.thr) * Math.min(1, h / 0.035);
-        this.tw += h;
-        const enPiso = s.pos[2] <= 0.01 && this.thr < p.hover * 0.6;      // en el piso sin gas: no se revuelca
-        const wc = e.armado ? RA.pedirGiro(e.modo, e, aEuler(this.q), rates(), { angulo: cfg.angulo }) : [0, 0, 0];
-        if (e.armado && s.vel[2] < -2 && this.thr > 0.12) {                // propwash: bajar en tu propio aire te sacude
-          const a = Math.min(1, (-s.vel[2] - 2) / 6) * 1.4;
-          wc[0] += a * Math.sin(this.tw * 37); wc[1] += a * Math.sin(this.tw * 29 + 1.3);
-        }
-        for (let i = 0; i < 3; i++) this.w[i] = enPiso ? 0 : e.armado ? this.w[i] + (wc[i] - this.w[i]) * Math.min(1, p.attResp * h) : this.w[i] * (1 - Math.min(1, 0.4 * h));
-        if (enPiso) { const eu = aEuler(this.q); this.q = qEuler(eu.roll * 0.9, eu.pitch * 0.9, eu.yaw); }
-        this.q = qNorm(this.q.map((x, i) => x + 0.5 * qMul(this.q, [0, ...this.w])[i] * h));
-        const bz = qRot(this.q, [0, 0, 1]), T = this.thr * p.twr * p.mass * p.g, sp = Math.hypot(...s.vel);
-        for (let i = 0; i < 3; i++) s.vel[i] += ((bz[i] * T - p.drag * sp * s.vel[i] - (i === 2 ? p.mass * p.g : 0)) / p.mass) * h;
-        for (let i = 0; i < 3; i++) s.pos[i] += s.vel[i] * h;
-        if (s.pos[2] < 0) {
-          const imp = -s.vel[2];
-          s.pos[2] = 0; suelo = true;
-          if (imp > p.crashSpeed || bz[2] < 0.2 && Math.hypot(...s.vel) > 2) golpe = 99;
-          s.vel[2] = 0; s.vel[0] *= 0.8; s.vel[1] *= 0.8;
-          if (bz[2] < 0.5) this.w = [0, 0, 0];
-        }
-      }
-      const eu = aEuler(this.q);
-      s.roll = eu.roll; s.pitch = eu.pitch; s.yaw = eu.yaw; s.throttle = this.thr;
+      // radio.js pasoRadio: Real = gas ABSOLUTO (la curva de la radio); Juego = el centro flota (mando y teclado)
+      ({ suelo, golpe } = RA.pasoRadio(this, e, { dt: DT, sub: SUBSTEPS, rates: e.rates || ratesActivos(), gasCurva: cfg.gasCurva, angulo: cfg.angulo, juego: e.sens === "juego" }));
     }
     return { suelo, golpe };
   }
@@ -340,6 +311,7 @@ function menu() {
     fila(t("Dron"), sel);
   }
   fila(t("Modo de vuelo"), seg("s-vuelo", [["facil", t("Fácil")], ["angle", "Angle"], ["horizon", "Horizon"], ["acro", "Acro"]], cfg.vuelo, (v) => { cfg.vuelo = v; guardar(); menu(); }));
+  if (cfg.vuelo !== "facil") fila(t("Sensación"), seg("s-sens", [["juego", t("🎮 Juego")], ["real", t("📻 Real (gas absoluto)")]], sensacion(), (v) => { ponerSensacion(v); menu(); }));
   if (cfg.vuelo !== "facil") fila(t("Rates"), seg("s-rates", [["principiante", t("Principiante")], ["freestyle", "Freestyle"], ["carreras", t("Carreras")], ["cinematico", t("Cinemático")]],
     cfg.ratesPropias ? null : cfg.rates, (v) => { cfg.rates = v; cfg.ratesPropias = null; guardar(); menu(); }));
   if (cfg.modo === "carrera" || cfg.modo === "persecucion") {
@@ -371,9 +343,15 @@ function menu() {
   const ayuda = document.createElement("p"); ayuda.className = "muted"; ayuda.style.cssText = "margin:0;font-size:12.5px;line-height:1.45";
   ayuda.textContent = {
     facil: t("Fácil: la palanca derecha inclina (suelta y se nivela), la izquierda es gas (centro = flotar) y giro. Teclado: WASD moverse, Espacio subir, Shift bajar, flechas girar."),
-    angle: t("Angle: como una radio. Primero ARMA (interruptor, L1/LB o la tecla E, con el gas abajo). El gas no se queda flotando: tú lo sostienes. La palanca derecha inclina y al soltarla se nivela."),
-    horizon: t("Horizon: se nivela solo cerca del centro y hace flips con la palanca a fondo. Arma con el gas abajo (interruptor, L1/LB o E)."),
-    acro: t("Acro: como los pilotos de FPV. La palanca derecha GIRA el dron (suelta y se queda inclinado) y el gas es tuyo. Arma con el gas abajo (interruptor, L1/LB o E). Teclado: WASD gira, Espacio/Shift gas, flechas giro."),
+    ...(sensacion() === "juego" ? {
+      angle: t("Angle: la palanca derecha inclina (suelta y se nivela) y la izquierda gira y sube o baja (centro = flotar). Ya va armado (L1/LB o E desarma). Teclado: WASD inclinar, flechas girar, Espacio/Shift subir y bajar."),
+      horizon: t("Horizon: como Angle, pero con la palanca derecha a fondo da la vuelta entera (flips). Centro del gas = flotar. Ya va armado."),
+      acro: t("Acro suave: la palanca derecha GIRA el dron y al soltarla se endereza despacio. Gas al centro = flotar; abajo del todo corta el gas para los flips. Ya va armado. Teclado: WASD gira, Espacio/Shift gas, flechas giro."),
+    } : {
+      angle: t("Angle: como una radio. Primero ARMA (interruptor, L1/LB o la tecla E, con el gas abajo). El gas no se queda flotando: tú lo sostienes. La palanca derecha inclina y al soltarla se nivela."),
+      horizon: t("Horizon: se nivela solo cerca del centro y hace flips con la palanca a fondo. Arma con el gas abajo (interruptor, L1/LB o E)."),
+      acro: t("Acro: como los pilotos de FPV. La palanca derecha GIRA el dron (suelta y se queda inclinado) y el gas es tuyo. Arma con el gas abajo (interruptor, L1/LB o E). Teclado: WASD gira, Espacio/Shift gas, flechas giro."),
+    }),
   }[cfg.vuelo];
   m.appendChild(ayuda);
   ir.focus();
@@ -406,7 +384,7 @@ async function empezar() {
   const M = S.mapa, modo = cfg.modo;
   S.piloto = new Piloto(cfg.vuelo, fisicaDe(cfg.dron));
   S.armEst = { armado: false, antes: true };                 // como Betaflight: si el interruptor ya estaba arriba, hay que bajarlo y subirlo
-  S.armSw = false; S.mando = null; S.gasTeclado = 0;
+  S.armSw = sensacion() === "juego"; S.mando = null; S.gasTeclado = 0; S.kb = null;   // Juego: ya armado
   S.ias.forEach((r) => scene.remove(r.mesh)); S.ias = [];
   if (modo === "carrera" || modo === "persecucion") {
     const slug = modo === "carrera" ? cfg.rival : cfg.cazador;
@@ -443,6 +421,7 @@ function reiniciar() {
   const M = S.mapa, modo = cfg.modo;
   const p0 = modo === "persecucion" ? [M.spawn[0], M.spawn[1], 0] : salida(S.ias.length);
   S.piloto.reset(p0, M.yaw);
+  if (cfg.vuelo !== "facil" && sensacion() === "juego") { S.armSw = true; S.kb = null; }   // Juego: reinicias ya armado
   S.ias.forEach((r, i) => {
     if (modo === "carrera") r.reset(salida(i), M.yaw);
     else r.reset(lejosDe(M.spawn, 22 + 6 * i, i), M.yaw);
@@ -488,7 +467,24 @@ function palancas() {
     S.mando = { gas: (gas + 1) / 2, roll, pitch, yaw, armado: true, modo: "facil", motivo: null };
     return [gas, roll, pitch, yaw];
   }
-  // radio: el gas del teclado se queda donde lo dejas (Espacio sube, Shift baja); el de la radio es el que marca
+  const sens = sensacion(), rt = ratesActivos();
+  if (sens === "juego") {
+    // JUEGO (mando y teclado): el centro del gas flota, se arma solo (L1/LB o E desarma), el teclado sube en rampa
+    const kb = (S.kb ||= { roll: 0, pitch: 0, yaw: 0, gas: 0 }), cap = cfg.vuelo === "acro" ? RA.JUEGO.teclado.max : 1;
+    kb.roll = RA.rampa(kb.roll, k("KeyD", "KeyA") * cap, DT); kb.pitch = RA.rampa(kb.pitch, k("KeyW", "KeyS") * cap, DT);
+    kb.yaw = RA.rampa(kb.yaw, k("ArrowLeft", "ArrowRight"), DT); kb.gas = RA.rampa(kb.gas, kg, DT);
+    const gas = (clip((r ? r.gas * 2 - 1 : 0) + kb.gas) + 1) / 2;
+    const btn = perfil?.armar?.tipo === "boton" && perfil.armar.alterna ? !!r?.botones?.[perfil.armar.i] : false;
+    if (btn && !botonArmarAntes) S.armSw = !S.armSw;
+    botonArmarAntes = btn;
+    const armado = !!(r?.armar ?? S.armSw);
+    if (armado && !S.mando?.armado) { aviso(t("ARMADO"), "#47f08a", 900); bip(1175, 0.08, 0.1); }
+    const modo = r?.modo || cfg.vuelo;
+    S.mando = { gas, roll: clip((r?.roll || 0) + kb.roll), pitch: clip((r?.pitch || 0) + kb.pitch), yaw: clip((r?.yaw || 0) + kb.yaw),
+      armado, modo, motivo: armado ? null : "juego", sens, rates: rt, fuerza: cfg.bateria && S.bat <= 0 ? BAT_BAJA : 1 };
+    return S.mando;
+  }
+  // REAL (radio): el gas del teclado se queda donde lo dejas (Espacio sube, Shift baja); el de la radio es el que marca
   S.gasTeclado = clip((S.gasTeclado || 0) + kg * DT * 0.9, 0, 1);
   if (!S.gasDe && perfil?.tipo === "radio") S.gasDe = "pad";   // una radio: su gas manda desde el principio
   if (kg) S.gasDe = "teclado";                               // manda el último que se movió
@@ -503,7 +499,7 @@ function palancas() {
   const a = RA.armado(S.armEst, !!pedido, gas);
   if (a.armado && !S.mando?.armado) { aviso(t("ARMADO"), "#47f08a", 900); bip(1175, 0.08, 0.1); }
   const modo = (r?.modo && cfg.vuelo !== "facil") ? r.modo : cfg.vuelo;
-  S.mando = { gas, roll, pitch, yaw, armado: a.armado, modo, motivo: a.motivo, fuerza: cfg.bateria && S.bat <= 0 ? BAT_BAJA : 1 };
+  S.mando = { gas, roll, pitch, yaw, armado: a.armado, modo, motivo: a.motivo, sens, rates: rt, fuerza: cfg.bateria && S.bat <= 0 ? BAT_BAJA : 1 };
   return S.mando;
 }
 function chocar(quien, pos) {
@@ -763,7 +759,7 @@ function osd() {
     g.lineWidth = 4; g.strokeStyle = "rgba(0,0,0,.7)"; g.fillStyle = "#ff5040";
     g.strokeText(t("DESARMADO"), cx, cy + H * 0.2); g.fillText(t("DESARMADO"), cx, cy + H * 0.2);
     g.font = '600 15px "Chakra Petch", system-ui'; g.fillStyle = "#fff";
-    const ayuda = md.motivo === "gas" ? t("Baja el gas del todo para armar") : t("Arma: interruptor, L1/LB o la tecla E");
+    const ayuda = md.motivo === "gas" ? t("Baja el gas del todo para armar") : md.motivo === "juego" ? t("Pulsa L1/LB o la tecla E para armar") : t("Arma: interruptor, L1/LB o la tecla E");
     g.strokeText(ayuda, cx, cy + H * 0.2 + 26); g.fillText(ayuda, cx, cy + H * 0.2 + 26);
   }
   if (cfg.bateria && S.bat <= 0 && Math.floor(performance.now() / 400) % 2) {
