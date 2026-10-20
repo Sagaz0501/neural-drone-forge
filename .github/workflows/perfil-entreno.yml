@@ -1,7 +1,10 @@
 name: Perfil del entrenador (temporal)
 # TEMPORAL (rama prueba-windows): ¿por qué el entrenamiento va tan lento en el runner de Windows? 60 s de live_train
 # (modelo de prueba desde cero, nivel 19) con cProfile, en Windows y en Linux para comparar. Se borra al terminar.
-on: workflow_dispatch
+on:
+  push:
+    branches: [prueba-windows]
+    paths: [".github/workflows/perfil-entreno.yml"]
 permissions:
   contents: read
 jobs:
