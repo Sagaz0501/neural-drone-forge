@@ -172,9 +172,10 @@ def other_trainers():
     for line in out.splitlines():
         if "live_train.py" not in line or str(ROOT / "scripts") in line:
             continue
-        m = re.search(r"(\S+)/scripts/live_train\.py", line)
+        i = line.find("/scripts/live_train.py")          # la carpeta puede tener espacios ("Application Support/Neural Drone Forge")
+        carpeta = line[line.rfind(" /", 0, i) + 1:i] if i > 0 else "?"
         st = re.search(r"--stage (\d+)", line)
-        res.append({"carpeta": m.group(1).replace(str(Path.home()), "~") if m else "?", "nivel": int(st.group(1)) if st else None})
+        res.append({"carpeta": carpeta.replace(str(Path.home()), "~"), "nivel": int(st.group(1)) if st else None})
     return res
 
 

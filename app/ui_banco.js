@@ -397,7 +397,7 @@ export function initBanco(ctx) {
       const fwNom = t(f.nombre);
       const L = [esp ? t("esptool.py v4.7 · Conectando a /dev/cu.usbserial…") : t("Reiniciando en modo DFU (botón BOOT)…"), esp ? t("Chip: ESP32-D0WD (revisión 3)") : t("Dispositivo DFU: STM32 {chip} encontrado", { chip: chip.toUpperCase() }),
         t("Descargando {fw} ({kb} KB)…", { fw: fwNom, kb: f.kb }), t("Borrando la memoria flash…")];
-      for (let k = 1; k <= 8; k++) L.push(t("Escribiendo en 0x{dir}… ({pct} %)", { dir: (esp ? 0x10000 : 0x08000000) + Math.round((k / 8) * f.kb * 1024).toString(16).padStart(6, "0"), pct: Math.round((k / 8) * 100) }));
+      for (let k = 1; k <= 8; k++) L.push(t("Escribiendo en 0x{dir}… ({pct} %)", { dir: ((esp ? 0x10000 : 0x08000000) + Math.round((k / 8) * f.kb * 1024)).toString(16).padStart(8, "0"), pct: Math.round((k / 8) * 100) }));
       L.push(t("Verificando…"));
       await correrLog(L, Math.min(9, 2 + f.kb / 220));
       const ok = f.chip === chip;

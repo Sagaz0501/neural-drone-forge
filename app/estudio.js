@@ -591,7 +591,12 @@ export function initEstudio(ctx) {
 
   async function cargarModelos() {
     const r = await api("/api/modelos");
-    if (r.modelos) { ES.todos = r.modelos; ES.modelos = ctx.PT.modelosVisibles(ctx.P(), r.modelos); ES.modelosT = Date.now(); }   // los de esta partida
+    if (r.modelos) {
+      const antes = ES.modelos.map((m) => m.slug).join();
+      ES.todos = r.modelos; ES.modelos = ctx.PT.modelosVisibles(ctx.P(), r.modelos); ES.modelosT = Date.now();   // los de esta partida
+      // Simuladores ya abierto (el escritorio recuerda las ventanas) se dibujó sin modelos: sin esto no salía el 🎓 Examen
+      if (ES.modelos.map((m) => m.slug).join() !== antes && abierta("escenarios")) renderEscenarios();
+    }
     return ES.modelos;
   }
   async function modelos(orden = "exito") {
@@ -1249,7 +1254,10 @@ export function initEstudio(ctx) {
         btn(e.precio ? t("Comprar ${n}", { n: e.precio }) : t("Gratis"), "main", () => {
           const err = ESC.comprar(p, E, e.id);
           if (err) return toast(err);
+          // los pedidos especiales (videos) que se abren con este simulador llegan ya (antes, hasta la próxima entrega o mañana)
+          const esp = p.negocio ? NG.especiales(p, ctx.ND) : [];
           ctx.guardar(); sfx("listo"); toast(t("🎮 Simulador «{e}» listo: ya puedes entrenarlo.", { e: e.nombre }), 4000);
+          if (esp.length) setTimeout(() => toast(t("⭐ Te escribieron: {titulo}", { titulo: esp.map((x) => x.titulo).join(", ") }), 5000), 4200);
           renderEscenarios(); reloj();
         }, p.plata < e.precio);
       } else acc.insertAdjacentHTML("beforeend", `<small class="muted">${t("Primero «{e}»", { e: req?.nombre || "?" })}</small>`);
@@ -1269,6 +1277,15 @@ export function initEstudio(ctx) {
     const base = ESC.aprobar(ctx.P(), slug, e.id);
     ctx.guardar(); sfx("listo"); renderEscenarios();
     toast(t("🎓 ¡«{m}» aprobó «{e}» con {x} %!", { m: slug, e: e.nombre, x }), 5000);
+    // aprobó y sigue entrenando lo mismo en segundo plano: se detiene (y guarda). Si sigue horas, se puede dañar (en la
+    // prueba de la demo: E2 al 100 % en la gen 250, entre 45 y 77 % en la 1.600) y la flota vuela con la última generación
+    if (!esDev()) {
+      const s = await api("/api/lab"), f = (s.fondo || []).find((x) => x.modelo === slug && x.activo && Number(x.stage) === Number(e.nivel));
+      if (f) {
+        await api("/api/lab", { accion: "detener", donde: "fondo", modelo: slug });
+        setTimeout(() => toast(t("⏸ Detuve el entrenamiento de «{m}»: ya aprobó, y si sigue mucho rato puede empeorar. Quedó guardado.", { m: slug }), 5500), 5200);
+      }
+    }
     if (base) ctx.historia?.(t("⭐ ¡Tienes un modelo base!"), t("«{m}» ya despega, va a un punto, sigue una línea, toma fotos y graba. <b>Es tu modelo base</b>: úsalo como punto de partida (desde=\"{m}\") y tus próximos modelos van a aprender mucho más rápido que desde cero.", { m: esc(slug) }));
   }
   // ---------------- 🛍️ Apps: la tienda de programas (software.js) ----------------

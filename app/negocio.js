@@ -215,6 +215,17 @@ export function nuevoDia(p, D, { primero = false } = {}) {
   }
   if (N.espera) return out;                                   // el tutorial: todavía no te conoce nadie
   out.especiales = especiales(p, D);
+  out.nuevos.push(...agendar(p, D, reloj(D).llegan[0]));
+  if (N.agenda) N.agenda.sort((x, y) => x.h - y.h);
+  return out;
+}
+
+/**
+ * Los pedidos del día: con el reloj van a la agenda (llegan entre `desde` y las 19:00); sin él (las pruebas), llegan ya.
+ * Devuelve los que llegaron ya.
+ */
+function agendar(p, D, desde) {
+  const N = p.negocio, nuevos = [];
   const rng = rngDe(N.semilla * 31 + N.dia * 7919);
   const cuantos = tabla(D.trabajos.pedidos_por_dia, p.rep), difMax = tabla(D.trabajos.dificultad_por_rep, p.rep);
   const activos = clientesActivos(p, D), R = reloj(D);
@@ -230,18 +241,17 @@ export function nuevoDia(p, D, { primero = false } = {}) {
     if (!posibles.length) continue;
     const tid = rng.uno(posibles);
     // con el reloj: cada pedido llega a su hora (la agenda del día); sin él (las pruebas, el día del tutorial), ya
-    if (N.reloj) N.agenda = [...(N.agenda || []), { h: R.llegan[0] + rng() * (R.llegan[1] - R.llegan[0]), cid: C.id, tid, dif, k }];
-    else out.nuevos.push(llega(p, D, { cid: C.id, tid, dif }, rng));
+    if (N.reloj) N.agenda = [...(N.agenda || []), { h: desde + rng() * Math.max(0, R.llegan[1] - desde), cid: C.id, tid, dif, k }];
+    else nuevos.push(llega(p, D, { cid: C.id, tid, dif }, rng));
   }
-  if (N.agenda) N.agenda.sort((x, y) => x.h - y.h);
-  return out;
+  return nuevos;
 }
 
 /** Un pedido que llega: se arma y el cliente escribe. */
 function llega(p, D, a, rng) {
   const N = p.negocio, C = cliente(D, a.cid), T = trabajo(D, a.tid);
   const primeraVez = !N.contactos.includes(C.id);
-  const pe = crearPedido(p, D, C.id, T.id, a.dif, rng, T.tipo === "foto" && !sabe(p, "set_fotos") ? { n: 1 } : {});   // sin E5: una foto
+  const pe = crearPedido(p, D, C.id, T.id, a.dif, rng, (T.tipo === "foto" || T.tipo === "inspeccion") && !sabe(p, "set_fotos") ? { n: 1 } : {});   // sin E5: una foto (también el techo: 2 fotos = un set, y sin E5 la IA no sabe)
   mentir(p, D, pe, rng);
   const plant = primeraVez ? C.msgs.hola[0] : rng.uno(C.msgs.pedido[pe.tipo] || C.msgs.pedido.foto);
   escribir(p, C.id, "ella", rellenar(plant, vars(D, pe)) + (pe.mentira ? " " + rng.uno(D.trabajos.mentiras.dice) : ""), { pedido: pe.id });
@@ -268,7 +278,15 @@ export const hora = (p, D) => p.negocio.hora ?? reloj(D).despierta;
 export function tick(p, D, seg) {
   if (!relojCorre(p)) return null;
   const N = p.negocio, R = reloj(D);
-  if (!N.reloj) { N.reloj = true; N.hora = N.hora ?? R.despierta + 2; N.agenda = N.agenda || []; }   // una partida de antes: empieza a las 9:00
+  if (!N.reloj) {                                    // arranca el reloj (al terminar el tutorial, o una partida de antes: a las 9:00)
+    N.reloj = true; N.hora = N.hora ?? R.despierta + 2; N.agenda = N.agenda || [];
+    // ¿hoy todavía no llegó ningún pedido (el día del tutorial)? los de hoy llegan durante lo que queda del día
+    // (antes, después de la foto de Doña Marta no llegaba nada hasta mañana: 15 minutos sin nada que hacer)
+    if (N.hora < R.llegan[1] && !N.pedidos.some((x) => x.dia === N.dia && !x.tutorial)) {
+      agendar(p, D, Math.max(R.llegan[0], N.hora + 0.25));
+      N.agenda.sort((x, y) => x.h - y.h);
+    }
+  }
   N.hora = Math.min(R.duerme, N.hora + (seg * (R.duerme - R.despierta)) / (R.minutos * 60));
   return { nuevos: llegan(p, D), dormir: N.hora >= R.duerme };
 }

@@ -345,5 +345,7 @@
  "No era: pierdes ${n}": "Wrong: you lose ${n}",
  "Otra carta": "Another card",
  "Mayor": "Higher",
- "Menor": "Lower"
+ "Menor": "Lower",
+ "⏸ Detuve el entrenamiento de «{m}»: ya aprobó, y si sigue mucho rato puede empeorar. Quedó guardado.": "⏸ I stopped training «{m}»: it passed, and if it keeps going for long it can get worse. It's saved.",
+ "⭐ Te escribieron: {titulo}": "⭐ New message: {titulo}"
 }
