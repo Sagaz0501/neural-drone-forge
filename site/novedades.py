@@ -295,6 +295,10 @@ def main():
     if "<!-- novedades -->" not in index:
         sys.exit("index.html no tiene los marcadores <!-- novedades --> … <!-- /novedades -->")
     nuevo = re.sub(r"<!-- novedades -->.*?<!-- /novedades -->", lambda _: seccion(vers, hay), index, flags=re.S)
+    # la versión de la portada (el sello del hero, la meta y "Demo lista · vX") = la última del CHANGELOG
+    ultima = tag_de(vers[0]["version"])
+    nuevo = re.sub(r'(<span class="ver">)v[\d.]+', lambda m: m.group(1) + ultima, nuevo)
+    nuevo = re.sub(r"((?:Demo lista|Demo ready)(?: \(| · ))v[\d.]+", lambda m: m.group(1) + ultima, nuevo)
     if nuevo != index:
         idx_path.write_text(nuevo, encoding="utf-8")
     (SITE / "novedades.html").write_text(pagina(vers, hay, nuevo), encoding="utf-8")

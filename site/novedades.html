@@ -3,6 +3,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
+<script type="importmap">{"imports":{"three":"./three.module.min.js"}}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Novedades · Neural Drone Forge</title>
 <meta name="description" content="Todas las versiones de Neural Drone Forge: qué cambió en cada release.">
@@ -133,13 +134,18 @@ nav .links a.on{color:var(--text)}
     <span class="eyebrow" data-en="Devlog">Diario de desarrollo</span>
     <h1 data-en="What's new">Novedades</h1>
     <p class="lead" data-en="Every release of Neural Drone Forge, newest first. The notes are in Spanish (the game is made in Spanish first).">Cada versión de Neural Drone Forge, de la más nueva a la primera.</p>
-    <div class="indice"><a href="#v3-3-1">v3.3.1</a><a href="#v3-3-0">v3.3.0</a><a href="#v3-2-0">v3.2.0</a><a href="#v3-1-4">v3.1.4</a><a href="#v3-1-3">v3.1.3</a><a href="#v3-1-2">v3.1.2</a><a href="#v3-1-1">v3.1.1</a><a href="#v3-1">v3.1</a><a href="#v3-0">v3.0</a><a href="#v2-1">v2.1</a><a href="#v2-0">v2.0</a><a href="#v1-0">v1.0</a><a href="#v0-3">v0.3</a><a href="#v0-2">v0.2</a><a href="#v0-1">v0.1</a></div>
+    <div class="indice"><a href="#v3-4-0">v3.4.0</a><a href="#v3-3-1">v3.3.1</a><a href="#v3-3-0">v3.3.0</a><a href="#v3-2-0">v3.2.0</a><a href="#v3-1-4">v3.1.4</a><a href="#v3-1-3">v3.1.3</a><a href="#v3-1-2">v3.1.2</a><a href="#v3-1-1">v3.1.1</a><a href="#v3-1">v3.1</a><a href="#v3-0">v3.0</a><a href="#v2-1">v2.1</a><a href="#v2-0">v2.0</a><a href="#v1-0">v1.0</a><a href="#v0-3">v0.3</a><a href="#v0-2">v0.2</a><a href="#v0-1">v0.1</a></div>
   </div>
 </header>
 
 <main class="wrap"><div class="vers">
+<article class="ver rv" id="v3-4-0">
+  <div class="ver-h"><span class="vn">v3.4.0</span><span class="nueva" data-en="Latest">La última</span><time><span data-en="Oct 20, 2026">20 oct 2026</span></time><a class="rel" href="https://github.com/Sagaz0501/neural-drone-forge/releases/tag/v3.4.0" target="_blank" rel="noopener"><span data-en="Release on GitHub">Release en GitHub</span> ↗</a></div>
+  <h3>El banco de trabajo: impresoras 3D, STEP y el escritorio</h3>
+  <ul><li><span><b>🖨️ Impresoras 3D Forja3D</b> en la tienda: <b>Mini</b> ($90, cama de 180 mm), <b>Pro + Carrusel 4</b> ($230, 256 mm, multicolor) y <b>X cerrada</b> ($480, CoreXY, imprime ASA). El chasis para imprimir pide impresora (la madera no). Filamento por gramos: PLA, PETG, TPU y ASA. Cada impresión gasta gramos y horas del reloj del negocio (un marco X en PLA en la Mini = 170 g y ~3 h) y sigue de noche. Puede fallar: la primera capa, warping o spaghetti.</span></li><li><span><b>📐 Importar STEP</b> (.step/.stp) además de STL, con <b>🔍 Analizar</b>: vista 3D, las piezas del ensamble, el peso en PLA/PETG/TPU, si cabe en cada cama, paredes finas y los motores encontrados por los agujeros de las bases.</span></li><li><span><b>🖥️ Escritorio nuevo en el garaje:</b> 3 monitores en vivo (tu dron en alambre, los planos con medidas y las estadísticas + la curva de la IA cuando entrena), lámpara, teclado, repisas con cable, tablero de herramientas.</span></li><li><span><b>🔧 El multímetro de verdad en la mesa (T):</b> la punta roja sigue al ratón y un clic deja la negra. Continuidad (pita con un puente de estaño), ohmios y voltios después de la prueba de humo. La mesa ya no marca qué junta salió mal: hay que medir.</span></li></ul>
+</article>
 <article class="ver rv" id="v3-3-1">
-  <div class="ver-h"><span class="vn">v3.3.1</span><span class="nueva" data-en="Latest">La última</span><time><span data-en="Oct 20, 2026">20 oct 2026</span></time><a class="rel" href="https://github.com/Sagaz0501/neural-drone-forge/releases/tag/v3.3.1" target="_blank" rel="noopener"><span data-en="Release on GitHub">Release en GitHub</span> ↗</a></div>
+  <div class="ver-h"><span class="vn">v3.3.1</span><time><span data-en="Oct 20, 2026">20 oct 2026</span></time><a class="rel" href="https://github.com/Sagaz0501/neural-drone-forge/releases/tag/v3.3.1" target="_blank" rel="noopener"><span data-en="Release on GitHub">Release en GitHub</span> ↗</a></div>
   <h3>Windows</h3>
   <ul><li><span><b>Instalador para Windows 10/11</b> (<code>Neural-Drone-Forge-windows.exe</code>, ~230 MB, sin permisos de administrador). Probado en un Windows de GitHub Actions: instala, abre en ~5 s, entrena en el fondo, examen, actualizar sin reinstalar y cerrar sin dejar procesos. Todavía sin firmar: «Windows protegió su PC» → Más información → Ejecutar de todas formas.</span></li><li><span><b>Arreglos para Windows:</b> revisar si un entrenamiento seguía vivo lo cerraba; los acentos de los archivos (UTF-8); guardar el modelo con el archivo abierto tumbaba el entrenamiento; la pantalla vacía si Windows no reconocía los .js; el <code>tar</code> de las actualizaciones; Blender (la versión más nueva y el de Steam).</span></li><li><span><b>Con la ventana atrás, el garaje se dibuja a 10 fps:</b> la CPU queda para entrenar.</span></li></ul>
 </article>
