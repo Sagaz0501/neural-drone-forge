@@ -10,7 +10,7 @@ $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 $OUT = Join-Path (Get-Location) "prueba"
 New-Item -ItemType Directory -Force $OUT | Out-Null
-$R = [ordered]@{}          # los números
+$NUM = [ordered]@{}          # los números
 $PASOS = New-Object System.Collections.ArrayList
 $APP = "Neural Drone Forge"
 $DATOS = Join-Path $env:APPDATA $APP
@@ -21,8 +21,8 @@ function Paso([string]$nombre, [bool]$ok, [string]$detalle = "") {
   Write-Host ("{0} {1}  {2}" -f ($(if ($ok) { "[OK]  " } else { "[FALLA]" })), $nombre, $detalle)
 }
 function Guardar {
-  $R.pasos = $PASOS
-  $R | ConvertTo-Json -Depth 6 | Set-Content -Encoding utf8 (Join-Path $OUT "resultados.json")
+  $NUM.pasos = $PASOS
+  $NUM | ConvertTo-Json -Depth 6 | Set-Content -Encoding utf8 (Join-Path $OUT "resultados.json")
 }
 function Servidores {   # los servidor.exe vivos (el del juego y los entrenadores), con su línea de comandos
   @(Get-CimInstance Win32_Process -Filter "Name='servidor.exe'" | ForEach-Object { [ordered]@{ pid = $_.ProcessId; cmd = $_.CommandLine } })
@@ -84,25 +84,25 @@ function Esperar([scriptblock]$cond, [int]$seg) {
 try {
   # ---------- 1. instalar ----------
   $ins = Get-Item $Instalador
-  $R.exe_mb = [math]::Round($ins.Length / 1MB, 1)
+  $NUM.exe_mb = [math]::Round($ins.Length / 1MB, 1)
   $t = Measure-Command { Start-Process $ins.FullName -ArgumentList "/S" -Wait }
-  $R.instalar_s = [math]::Round($t.TotalSeconds, 1)
+  $NUM.instalar_s = [math]::Round($t.TotalSeconds, 1)
   $e = Get-ChildItem "$env:LOCALAPPDATA\Programs", "$env:ProgramFiles" -Recurse -Filter "$APP.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
   Paso "instalar en silencio (/S)" ([bool]$e) $(if ($e) { $e.FullName } else { "no aparece $APP.exe" })
   if (-not $e) { throw "no se instaló" }
   $script:EXE = $e.FullName
   $DIR = $e.DirectoryName
-  $R.carpeta = $DIR
-  $R.instalada_mb = [math]::Round(((Get-ChildItem $DIR -Recurse -File | Measure-Object Length -Sum).Sum) / 1MB, 1)
-  $R.acceso_escritorio = Test-Path (Join-Path ([Environment]::GetFolderPath("Desktop")) "$APP.lnk")
-  $R.acceso_menu = [bool](Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs" -Recurse -Filter "$APP.lnk" -ErrorAction SilentlyContinue)
+  $NUM.carpeta = $DIR
+  $NUM.instalada_mb = [math]::Round(((Get-ChildItem $DIR -Recurse -File | Measure-Object Length -Sum).Sum) / 1MB, 1)
+  $NUM.acceso_escritorio = Test-Path (Join-Path ([Environment]::GetFolderPath("Desktop")) "$APP.lnk")
+  $NUM.acceso_menu = [bool](Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs" -Recurse -Filter "$APP.lnk" -ErrorAction SilentlyContinue)
 
   # ---------- 2. abrir (la primera vez: Windows revisa el ejecutable y carga PyTorch) ----------
   $p = Abrir
   Paso "abrir la app (1.ª vez)" ([bool]$p -and $p.puerto) $(if ($p) { "puerto $($p.puerto), $($p.segundos) s, código $($p.version)" } else { "no escribió prueba.json en 180 s" })
   if (-not $p -or -not $p.puerto) { throw "no arrancó" }
-  $R.arranque_1_s = $p.segundos
-  $R.version = $p.version
+  $NUM.arranque_1_s = $p.segundos
+  $NUM.version = $p.version
   $w = Invoke-WebRequest "http://127.0.0.1:$($p.puerto)/app/" -UseBasicParsing -TimeoutSec 20
   Paso "GET /app/" ($w.StatusCode -eq 200) "$($w.StatusCode), $($w.RawContentLength) bytes"
   $w = Invoke-WebRequest "http://127.0.0.1:$($p.puerto)/app/main.js" -UseBasicParsing -TimeoutSec 20
@@ -129,12 +129,12 @@ try {
   $f = Fondo
   if ($muestras.Count -ge 2) {
     $a = $muestras[0]; $b = $muestras[$muestras.Count - 1]
-    $R.pasos_por_s = [math]::Round(($b[1] - $a[1]) / [math]::Max(1, $b[0] - $a[0]))
+    $NUM.pasos_por_s = [math]::Round(($b[1] - $a[1]) / [math]::Max(1, $b[0] - $a[0]))
   }
-  $R.entreno = [ordered]@{ gen = $f.gen; steps = $f.steps; phase = $f.phase; segundos = [math]::Round($sw.Elapsed.TotalSeconds) }
-  Paso "el entrenamiento avanza" ($f -and $f.gen -ge 1) "gen $($f.gen), $($f.steps) pasos en $([math]::Round($sw.Elapsed.TotalSeconds)) s (~$($R.pasos_por_s) pasos/s)"
+  $NUM.entreno = [ordered]@{ gen = $f.gen; steps = $f.steps; phase = $f.phase; segundos = [math]::Round($sw.Elapsed.TotalSeconds) }
+  Paso "el entrenamiento avanza" ($f -and $f.gen -ge 1) "gen $($f.gen), $($f.steps) pasos en $([math]::Round($sw.Elapsed.TotalSeconds)) s (~$($NUM.pasos_por_s) pasos/s)"
   $udp = @(Get-NetUDPEndpoint -ErrorAction SilentlyContinue | Where-Object { $_.LocalPort -in 9031, 9032 } | ForEach-Object { "$($_.LocalAddress):$($_.LocalPort)" })
-  $R.udp = $udp
+  $NUM.udp = $udp
   Captura "2_entrenando"
   $r = Api "/api/lab" @{ accion = "detener"; modelo = $SLUG; donde = "fondo" }
   $ok = Esperar { -not (Fondo).activo } 120
@@ -153,12 +153,12 @@ try {
   Paso "entrenar otra vez" $ok "$($r.msg)"
   Cerrar "entrenando"
   $s = Servidores
-  $R.al_cerrar_entrenando = $s
+  $NUM.al_cerrar_entrenando = $s
   $quedan = @($s | Where-Object { $_.cmd -like "*live_train.py*" })
   Paso "al cerrar: el entrenador sigue (como en Mac) y el servidor no" ($quedan.Count -eq 1 -and $s.Count -eq 1) "$($s.Count) servidor.exe"
   $p = Abrir
   Paso "abrir otra vez" ([bool]$p) "$($p.segundos) s"
-  $R.arranque_2_s = $p.segundos
+  $NUM.arranque_2_s = $p.segundos
   $f = Fondo
   Paso "encuentra el entrenamiento de antes" ($f -and $f.activo) "activo=$($f.activo) pid=$($f.pid) gen=$($f.gen)"
   $r = Api "/api/lab" @{ accion = "detener"; modelo = $SLUG; donde = "fondo" }
@@ -171,7 +171,7 @@ try {
   # ---------- 5. la actualización sin reinstalar ----------
   if ($Actualizacion) {
     $man = Get-Content (Join-Path $Actualizacion "actualizacion.json") -Raw | ConvertFrom-Json
-    $R.actualizacion_mb = [math]::Round($man.bytes / 1MB, 1)
+    $NUM.actualizacion_mb = [math]::Round($man.bytes / 1MB, 1)
     $http = Start-Process python -ArgumentList "-m", "http.server", "8123", "--bind", "127.0.0.1", "--directory", "`"$Actualizacion`"" -PassThru -WindowStyle Hidden
     Start-Sleep -Seconds 3
     $p = Abrir @{ DRONMAKER_ACTUALIZACIONES = "http://127.0.0.1:8123"; DRONMAKER_ACTUALIZAR = "si" }
@@ -215,7 +215,7 @@ try {
   if ($env:GITHUB_STEP_SUMMARY) {
     $md = @("## Prueba de Windows", "", "| | paso | detalle |", "|---|---|---|")
     $md += $PASOS | ForEach-Object { "| $(if ($_.ok) { '✅' } else { '❌' }) | $($_.paso) | $($_.detalle -replace '\|', '/') |" }
-    $md += "", '```json', ($R | ConvertTo-Json -Depth 3), '```'
+    $md += "", '```json', ($NUM | ConvertTo-Json -Depth 3), '```'
     $md -join "`n" | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
   }
   if ($fallas.Count) { Write-Host "$($fallas.Count) pasos fallaron"; exit 1 }

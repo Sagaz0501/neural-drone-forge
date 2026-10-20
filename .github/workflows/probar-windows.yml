@@ -9,11 +9,17 @@ name: Probar Windows
 # Script: desktop/probar_windows.ps1. Resultados y lo que falta: docs/WINDOWS.md. NO sube nada a ningún release.
 on:
   workflow_dispatch:
+    inputs:
+      run:
+        description: "Probar el instalador de otro run de este workflow (su id) sin volver a armarlo (vacío = armarlo)"
+        required: false
+        default: ""
   push:
     branches: [prueba-windows]
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   windows:
@@ -22,27 +28,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
+        if: ${{ !inputs.run }}
         with:
           python-version: "3.13"
           cache: pip
       - uses: actions/setup-node@v4
+        if: ${{ !inputs.run }}
         with:
           node-version: "22"
       - name: Dependencias del servidor (PyTorch solo CPU) + PyInstaller
+        if: ${{ !inputs.run }}
         shell: bash
         run: |
           python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
           python -m pip install numpy gymnasium stable-baselines3 "pyinstaller>=6.10"
       - name: Electron
+        if: ${{ !inputs.run }}
         working-directory: desktop
         run: npm ci
       - name: Empaquetar (igual que instaladores.yml)
+        if: ${{ !inputs.run }}
         shell: bash
         working-directory: desktop
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
         run: PY=python sh empaquetar.sh
       - name: Una actualización de prueba (9.9.9) con actualizacion.sh
+        if: ${{ !inputs.run }}
         shell: bash
         working-directory: desktop
         run: |
@@ -51,9 +63,26 @@ jobs:
           sh actualizacion.sh
           mv ../package.json.bak package.json
           mkdir -p ../actualizacion_prueba && mv dist/juego-9.9.9.tar.gz dist/actualizacion.json ../actualizacion_prueba/
+      - name: El instalador y la actualización (de este run, para volver a probar sin armar)
+        if: ${{ !inputs.run }}
+        shell: bash
+        run: mkdir -p instalador && cp desktop/dist/*.exe instalador/ && cp -R actualizacion_prueba instalador/
+      - uses: actions/upload-artifact@v4
+        if: ${{ !inputs.run }}
+        with:
+          name: instalador-windows
+          path: instalador/
+          retention-days: 5
+      - uses: actions/download-artifact@v4
+        if: ${{ inputs.run }}
+        with:
+          name: instalador-windows
+          path: instalador
+          run-id: ${{ inputs.run }}
+          github-token: ${{ github.token }}
       - name: Instalar, abrir y probar
         shell: pwsh
-        run: ./desktop/probar_windows.ps1 -Instalador (Get-ChildItem desktop/dist/*.exe | Select-Object -First 1).FullName -Actualizacion "$PWD/actualizacion_prueba"
+        run: ./desktop/probar_windows.ps1 -Instalador (Get-ChildItem instalador/*.exe | Select-Object -First 1).FullName -Actualizacion "$PWD/instalador/actualizacion_prueba"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
