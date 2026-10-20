@@ -152,7 +152,7 @@ try {
   $ok = Esperar { (Fondo).steps -gt 0 -and (Fondo).al_dia } 180
   Paso "entrenar otra vez" $ok "$($r.msg)"
   Cerrar "entrenando"
-  $s = Servidores
+  $s = @(Servidores)
   $NUM.al_cerrar_entrenando = $s
   $quedan = @($s | Where-Object { $_.cmd -like "*live_train.py*" })
   Paso "al cerrar: el entrenador sigue (como en Mac) y el servidor no" ($quedan.Count -eq 1 -and $s.Count -eq 1) "$($s.Count) servidor.exe"
@@ -165,7 +165,7 @@ try {
   $ok = Esperar { @(Servidores | Where-Object { $_.cmd -like "*live_train.py*" }).Count -eq 0 } 120
   Paso "detenerlo desde la app nueva" $ok "$($r.msg)"
   Cerrar "sin entrenar"
-  $s = Servidores
+  $s = @(Servidores)
   Paso "sin servidor.exe huérfanos" ($s.Count -eq 0) "$($s.Count) vivos"
 
   # ---------- 5. la actualización sin reinstalar ----------
@@ -190,7 +190,7 @@ try {
     Cerrar "después de actualizar"
     Stop-Process -Id $http.Id -Force -ErrorAction SilentlyContinue
   }
-  $s = Servidores
+  $s = @(Servidores)
   Paso "al final: sin servidor.exe" ($s.Count -eq 0) "$($s.Count) vivos"
 
   # ---------- 6. desinstalar ----------
