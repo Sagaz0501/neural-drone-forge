@@ -2,9 +2,13 @@
 //  · la línea recta entre portales seguidos (y de la salida al primero, y del último al primero) queda libre a 1,2 m
 //    o más: la IA rival (nivel 16 · Carrera) sigue la pista sin que nada se le cruce
 //  · la salida y los portales están adentro del mapa y fuera de lo que choca
+//  · cada pista tiene sus 5 tipos de tramo y cada tramo es lo que dice: la recta es larga (≥ 22 m), la picada baja de golpe,
+//    el split-S baja ≥ 7 m y sale para el otro lado, el hueco pasa pegado a algo (por dentro de una estructura) y la curva
+//    cerrada gira 90° o más
+//  · la línea de carrera (la guía que se dibuja) no atraviesa nada y no toca el piso
 //  · cruza() y orientaciones()
 import { Level } from "../game/sim.js";
-import { MAPAS, ORDEN, nivelDe, orientaciones, cruza } from "./freestyle_mapas.js";
+import { MAPAS, ORDEN, nivelDe, orientaciones, cruza, lineaCarrera } from "./freestyle_mapas.js";
 
 let fallas = 0;
 const ok = (c, msg) => { console.log(`${c ? "ok  " : "MAL "}  ${msg}`); if (!c) fallas++; };
@@ -23,8 +27,32 @@ for (const id of ORDEN) {
     }
   }
   ok(!malos.length, `${id}: la pista queda libre a ${HOLGURA} m${malos.length ? ": " + malos.join(" · ") : ""}`);
-  const dirs = orientaciones(M.gates, M.spawn);
+  const dirs = orientaciones(M.gates, M.spawn, M.dirs);
   ok(dirs.every((d) => Math.abs(Math.hypot(...d) - 1) < 1e-9), `${id}: cada portal tiene una dirección`);
+  // los portales seguidos no quedan pegados (se ve uno detrás del otro) ni a más de 110 m
+  const n = M.gates.length, G = M.gates, dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  const largos = G.map((g, i) => dist(g, G[(i + 1) % n]));
+  ok(Math.min(...largos) >= 3.5 && Math.max(...largos) <= 110, `${id}: entre portales ${Math.min(...largos).toFixed(1)}-${Math.max(...largos).toFixed(1)} m`);
+  // los tramos
+  const tipos = new Set(Object.values(M.tramos).map((x) => x[0]));
+  ok(["recta", "picada", "splits", "hueco", "cerrada"].every((x) => tipos.has(x)), `${id}: tiene recta, picada, split-S, hueco y curva cerrada (${[...tipos].join(", ")})`);
+  const horiz = (a, b) => { const d = [b[0] - a[0], b[1] - a[1]], k = Math.hypot(...d) || 1; return d.map((x) => x / k); };
+  const malTramo = [];
+  for (const [i, [tipo, nombre]] of Object.entries(M.tramos)) {
+    const k = +i, g = G[k], antes = k ? G[k - 1] : G[n - 1], sig = G[(k + 1) % n], sig2 = G[(k + 2) % n];
+    let bien = true;
+    if (tipo === "recta") bien = Math.max(dist(antes, g), dist(g, sig)) >= 22;
+    else if (tipo === "picada") bien = g[2] - sig[2] >= 6 && (g[2] - sig[2]) / Math.hypot(sig[0] - g[0], sig[1] - g[1]) >= 0.5;
+    else if (tipo === "splits") { const e = horiz(antes, g), s2 = horiz(sig, sig2), dd = M.dirs[k], ds = M.dirs[(k + 1) % n];
+      bien = g[2] - sig[2] >= 7 && (dd && ds ? dd[0] * ds[0] + dd[1] * ds[1] < -0.5 : e[0] * s2[0] + e[1] * s2[1] < -0.3); }
+    else if (tipo === "hueco") bien = L.collides(g, 3.6);
+    else if (tipo === "cerrada") { const e = horiz(antes, g), s2 = horiz(g, sig); bien = e[0] * s2[0] + e[1] * s2[1] <= 0.05; }
+    else bien = false;
+    if (!bien) malTramo.push(`${k} ${tipo} (${nombre})`);
+  }
+  ok(!malTramo.length, `${id}: cada tramo es lo que dice${malTramo.length ? ": " + malTramo.join(" · ") : ""}`);
+  const linea = lineaCarrera(M, L);
+  ok(linea.length > n * 3 && linea.every((p) => p[2] > 0.5 && !L.collides(p, 0.8)), `${id}: la línea de carrera (${linea.length} puntos) queda libre`);
 }
 ok(cruza([0, -2, 2], [0, 2, 2], [0.5, 0, 2.3]) && !cruza([0, -2, 2], [0, 2, 2], [2, 0, 2]), "cruza(): pasar cerca del centro sí, lejos no");
 ok(!cruza([0, -2, 2], [0, -1, 2], [0, 0, 2], 0.5), "cruza(): sin llegar al portal no cuenta");

@@ -23,8 +23,9 @@ import { abrirRadio, dibujarPalancas } from "./radio_ui.js";
 import { t, cargarIdioma, num, datos } from "./i18n.js";
 import * as PT from "./partida.js";
 import { paramsFisica } from "./parts.js";
-import { MAPAS, ORDEN, nivelDe, orientaciones, cruza } from "./freestyle_mapas.js";
+import { MAPAS, ORDEN, nivelDe, orientaciones, cruza, lineaCarrera } from "./freestyle_mapas.js";
 import { construirMapa, Portales, fondoMinimapa } from "./freestyle_vista.js";
+import { Intro, Repeticion, persecucion } from "./freestyle_camaras.js";
 
 await cargarIdioma();
 const $ = (id) => document.getElementById(id);
@@ -242,14 +243,18 @@ function ponerMapa(id) {
   S.vista?.dispose(); S.portales?.dispose(scene);
   const M = MAPAS[id];
   S.mapa = M;
-  S.vista = construirMapa(scene, M, calidad);
-  S.dirs = orientaciones(M.gates, M.spawn);
-  S.portales = new Portales(scene, M.gates, S.dirs, M.ambiente.noche);
-  S.portales.pintar(-1);
+  S.vista = construirMapa(scene, M, calidad, renderer);
+  S.dirs = orientaciones(M.gates, M.spawn, M.dirs);
   S.nivel = new Level(nivelDe(M));
+  S.linea = lineaCarrera(M, S.nivel);
+  S.portales = new Portales(scene, M.gates, S.dirs, M.ambiente.noche, S.linea, M.gates.map((_, i) => (M.tramos[i] ? t(M.tramos[i][1]) : null)));
+  S.portales.verLinea = cfg.linea !== false;
+  S.portales.pintar(-1);
   S.mini = fondoMinimapa(M, 190);
-  bloom.strength = M.ambiente.noche ? 0.9 : 0.22;
-  bloom.threshold = M.ambiente.noche ? 0.6 : 0.88;
+  bloom.strength = M.ambiente.noche ? 0.7 : 0.18;
+  bloom.radius = M.ambiente.noche ? 0.55 : 0.4;
+  bloom.threshold = M.ambiente.noche ? 0.72 : 0.9;
+  renderer.toneMappingExposure = M.ambiente.exposicion ?? 1.05;
 }
 
 // ---------------- el menú ----------------
@@ -340,6 +345,7 @@ function menu() {
   const ir = document.createElement("button"); ir.className = "btn main"; ir.textContent = t("¡A volar!"); ir.onclick = () => empezar();
   const volver = document.createElement("a"); volver.className = "btn ghost"; volver.href = "./index.html"; volver.textContent = t("Volver al juego");
   acc.append(ir, volver); m.appendChild(acc);
+  if (EMBEBIDO) volver.onclick = (e) => { e.preventDefault(); parent.postMessage({ tipo: "freestyle-cerrar" }, location.origin); };
   const ayuda = document.createElement("p"); ayuda.className = "muted"; ayuda.style.cssText = "margin:0;font-size:12.5px;line-height:1.45";
   ayuda.textContent = {
     facil: t("Fácil: la palanca derecha inclina (suelta y se nivela), la izquierda es gas (centro = flotar) y giro. Teclado: WASD moverse, Espacio subir, Shift bajar, flechas girar."),
@@ -397,6 +403,10 @@ async function empezar() {
   $("hud").classList.remove("hidden");
   S.pantalla = "vuelo";
   reiniciar();
+  if (cfg.intro !== false) {                                  // la presentación de la pista (se salta con cualquier tecla)
+    const p = S.piloto.pos;
+    S.intro = new Intro(M, S.linea, S.nivel, { pos: [p[0], p[1], 0.3], yaw: M.yaw }, M.gates.map((_, i) => (M.tramos[i] ? t(M.tramos[i][1]) : null)), NOMBRES[M.id][0]);
+  }
 }
 // ---------------- el fantasma: tu mejor vuelta en este mapa (contrarreloj y carrera) ----------------
 const claveF = () => `dronmaker.freestyle.fantasma.${S.mapa.id}`;
@@ -427,6 +437,7 @@ function reiniciar() {
     else r.reset(lejosDe(M.spawn, 22 + 6 * i, i), M.yaw);
     r.k = 0; r.tFin = null; r.mesh.visible = true;
   });
+  S.intro = null; S.repe = null;
   Object.assign(S, { t: 0, acc: 0, cuenta: modo === "libre" ? 0 : 3.0, pausa: false, fin: false, k: 0, vueltaT0: 0, vueltas: [], vmax: 0, muerto: 0,
     vidas: 3, atrapado: 0, tFin: null, camNueva: true, bat: (cfg.bateria || 0) * 60 });
   S.portales.pintar(modo === "libre" ? -1 : 0);
@@ -616,12 +627,14 @@ function terminar() {
   }
   filas.push([t("Velocidad máxima"), `${Math.round(S.vmax)} km/h`]);
   guardar();
-  el.innerHTML = `<h2></h2><table id="fin-tabla"></table>${S.nuevoRecord ? `<p class="muted" style="margin:0">⭐ ${t("¡Nuevo récord de vuelta en este mapa!")}</p>` : ""}<div class="acciones"><button class="btn main" id="f-otra"></button><button class="btn ghost" id="f-menu"></button></div>`;
+  el.innerHTML = `<h2></h2><table id="fin-tabla"></table>${S.nuevoRecord ? `<p class="muted" style="margin:0">⭐ ${t("¡Nuevo récord de vuelta en este mapa!")}</p>` : ""}<div class="acciones"><button class="btn main" id="f-otra"></button>${S.fantasma?.p?.length > 20 ? '<button class="btn ghost" id="f-repe"></button>' : ""}<button class="btn ghost" id="f-menu"></button></div>`;
   el.querySelector("h2").textContent = h;
   const tb = el.querySelector("table");
   for (const [a, b] of filas) { const tr = tb.insertRow(); tr.insertCell().textContent = a; tr.insertCell().textContent = b; }
   el.querySelector("#f-otra").textContent = t("Otra vez"); el.querySelector("#f-otra").onclick = () => reiniciar();
   el.querySelector("#f-menu").textContent = t("Menú"); el.querySelector("#f-menu").onclick = () => menu();
+  const fr = el.querySelector("#f-repe");
+  if (fr) { fr.textContent = t("▶ Repetición de tu mejor vuelta"); fr.onclick = () => repeticion(); }
   el.classList.remove("hidden");
   el.querySelector("#f-otra").focus();
 }
@@ -668,35 +681,31 @@ function botonesPad() {
 
 // ---------------- la cámara ----------------
 const qThree = new THREE.Quaternion(), qPrev = new THREE.Quaternion(), FPV_Q = new THREE.Quaternion();
-const camPos = new THREE.Vector3();
+const camPos = { nueva: true }, camSt = {};
 function camara(dt, pos, q, yaw) {
   if (S.pantalla === "menu") {
-    const M = S.mapa, a = performance.now() / 1000 * 0.06, R = M.id === "canon" ? 70 : 48;
-    camera.fov = 60; camera.updateProjectionMatrix();
-    camera.position.copy(V(M.spawn[0] * 0.3 + Math.cos(a) * R, M.spawn[1] * 0.3 + Math.sin(a) * R, M.id === "canon" ? 34 : 20));
-    camera.lookAt(V(M.spawn[0] * 0.3, M.spawn[1] * 0.3, 4));
+    const M = S.mapa, a = performance.now() / 1000 * 0.05 + 0.6, R = Math.min(M.bounds.xy * 0.62, 75);
+    const c = M.gates.reduce((s, g) => [s[0] + g[0] / M.gates.length, s[1] + g[1] / M.gates.length], [0, 0]);
+    if (camera.fov !== 55) { camera.fov = 55; camera.updateProjectionMatrix(); }
+    camera.position.copy(V(c[0] + Math.cos(a) * R, c[1] + Math.sin(a) * R, R * 0.36 + Math.sin(a * 2.3) * 4));
+    camera.lookAt(V(c[0], c[1], 6));
     return;
   }
   if (S.camaraTV) { S.camaraTV(camera, V(...pos), dt); return; }   // para videos: una cámara propia (S.camaraTV(camera, pos, dt))
+  if (S.intro) { if (S.intro.camara(camera, dt)) return; S.intro = null; S.camNueva = true; }
+  if (S.repe) { S.repe.camara(camera, dt); return; }
   const p = V(...pos);
-  if (S.camNueva) { S.camNueva = false; camPos.copy(V(pos[0] - Math.cos(yaw) * 3, pos[1] - Math.sin(yaw) * 3, pos[2] + 1.5)); }
+  if (S.camNueva) { S.camNueva = false; camPos.nueva = true; }
   if (cfg.cam === "fpv") {
     if (camera.fov !== 110) { camera.fov = 110; camera.updateProjectionMatrix(); }
     FPV_Q.setFromEuler(new THREE.Euler((cfg.tilt * Math.PI) / 180, -Math.PI / 2, 0, "YXZ"));
     camera.position.copy(p).add(new THREE.Vector3(0.09, 0.04, 0).applyQuaternion(q));
     camera.quaternion.copy(q).multiply(FPV_Q);
   } else {
-    if (camera.fov !== 72) { camera.fov = 72; camera.updateProjectionMatrix(); }
-    const lejos = cfg.cam === "lejos";
-    let back = lejos ? 7 : 2.6, up = lejos ? 3.2 : 0.9;
-    // si una pared o una roca queda entre el dron y la cámara, la cámara se acerca (no se mete adentro)
-    const L = Math.hypot(back, up), libre = S.nivel.raycast(pos, [[-Math.cos(yaw) * back / L, -Math.sin(yaw) * back / L, up / L]], L)[0];
-    if (libre < L) { const f = Math.max((libre - 0.3) / L, 0.12); back *= f; up *= f; }
-    const want = V(pos[0] - Math.cos(yaw) * back, pos[1] - Math.sin(yaw) * back, pos[2] + up);
-    if (libre < L) camPos.copy(want);
-    camPos.lerp(want, 1 - Math.exp(-6 * dt));
-    camera.position.copy(camPos);
-    camera.lookAt(V(pos[0] + Math.cos(yaw) * 2, pos[1] + Math.sin(yaw) * 2, pos[2] + 0.3));
+    // sigue hacia donde vas, se abre con la velocidad y no se mete en las paredes (freestyle_camaras.js)
+    const quien = (S.espectar && S.ias.find((r) => r.muerto <= 0)) || S.piloto;
+    persecucion(camera, camSt, pos, quien.vel, yaw, S.nivel, dt, cfg.cam === "lejos", camPos.nueva);
+    camPos.nueva = false;
   }
 }
 
@@ -737,7 +746,10 @@ function hud(pos, q3) {
   g.fillStyle = "#fff"; g.beginPath(); g.moveTo(x + Math.cos(yaw) * 7, y - Math.sin(yaw) * 7);
   g.lineTo(x + Math.cos(yaw + 2.5) * 5, y - Math.sin(yaw + 2.5) * 5); g.lineTo(x + Math.cos(yaw - 2.5) * 5, y - Math.sin(yaw - 2.5) * 5); g.fill();
   // la cuenta y los avisos
-  $("cuenta").classList.toggle("hidden", !(S.cuenta > 0));
+  $("cuenta").classList.toggle("hidden", !(S.cuenta > 0) || !!S.intro);
+  $("hud").classList.toggle("en-intro", !!S.intro);
+  $("intro").classList.toggle("hidden", !S.intro);
+  if (S.intro) { $("intro-t").textContent = S.intro.texto || ""; $("intro-sub").textContent = S.intro.t < S.intro.tAlto ? t("{n} portales · {m}", { n: M.gates.length, m: MODOS[modo][0] }) : ""; }
   if (S.cuenta > 0) $("cuenta").textContent = Math.ceil(S.cuenta);
   if (performance.now() > S.avisoT) $("aviso").textContent = "";
   osd(q3);
@@ -799,8 +811,17 @@ function cuadro(now) {
   botonesPad();
   if (S.pantalla === "menu" && Math.random() < 0.02) estadoPad();
   let pos = S.mapa?.spawn || [0, 0, 0], yaw = 0;
-  if (S.pantalla === "vuelo" && S.piloto) {
-    if (!S.pausa && !S.fin) {
+  if (S.pantalla === "replay" && S.repe) {                      // la repetición de tu mejor vuelta
+    S.repe.avanzar(dt);
+    pos = S.repe.pos; yaw = Math.atan2(S.repe.vel[1], S.repe.vel[0]);
+    dron.visible = true; dron.position.copy(V(...pos)); aThree(S.repe.q, dron.quaternion);
+    for (const pr of dron.userData.props) { pr.rotation.y += 60 * dt * pr.userData.dir; pr.userData.disc.visible = true; pr.userData.blade.visible = false; }
+    fantasma.visible = false; S.ias.forEach((r) => (r.mesh.visible = false));
+    camara(dt, pos, null, yaw);
+    $("repe-t").textContent = `${t("REPETICIÓN")} · ${fmtT(S.repe.t)} / ${fmtT(S.repe.dur)}`;
+    if (S.repe.fin) salirRepeticion();
+  } else if (S.pantalla === "vuelo" && S.piloto) {
+    if (!S.pausa && !S.fin && !S.intro) {
       S.acc += dt;
       let k = 0;
       while (S.acc >= DT && k < 8) { paso(); S.acc -= DT; k++; if (S.fin) break; }
@@ -836,6 +857,7 @@ function cuadro(now) {
     osd();
   }
   chispas.tick(dt);
+  if (S.vista) vistaViva(dt, now);
   if (S.vista) {                                                // el sol sigue a la acción (las sombras se ven cerca)
     const f = V(...pos);
     S.vista.sol.position.copy(f).add(S.vista.solOff);
@@ -844,6 +866,71 @@ function cuadro(now) {
   if (calidad === "baja") renderer.render(scene, camera); else composer.render();
 }
 
+// ---------------- lo que se mueve en el mapa, la presentación, la repetición y la IA que entrena ----------------
+const EMBEBIDO = window.parent !== window;                   // abierto adentro del juego (🎮 Volar mientras entrena)
+let pantallaT = 0, padIntro = null;
+/** Cada cuadro: el mapa se anima (humo, agua, público…), las luces de largada, la pantalla gigante y saltar la intro. */
+function vistaViva(dt, now) {
+  const V_ = S.vista;
+  V_.actualizar(dt);
+  S.portales?.latir(now / 1000);
+  $("osd").style.visibility = S.intro || S.repe ? "hidden" : "";
+  if (V_.largada) V_.largada(S.pantalla !== "vuelo" || S.intro ? null : S.cuenta > 0 ? Math.min(5, Math.max(0, Math.ceil((3 - S.cuenta) / 0.6))) : S.t < 1.5 && !S.fin ? "verde" : null);
+  if (V_.pantalla && now - pantallaT > 500) {
+    pantallaT = now;
+    if (S.pantalla === "vuelo" && !S.intro && S.cuenta <= 0) {
+      const n = S.mapa.gates.length, modo = cfg.modo;
+      V_.pantalla(MODOS[modo][0].toUpperCase(), fmtT(modo === "persecucion" ? Math.max(0, 60 - S.t) : S.t),
+        modo === "carrera" || modo === "reloj" ? t("Vuelta {v} de {n} · portal {k} de {m}", { v: Math.min(S.vueltas.length + 1, cfg.vueltas), n: cfg.vueltas, k: (S.k % n) + 1, m: n }) : `${Math.round(Math.hypot(...S.piloto.vel) * 3.6)} km/h`);
+    } else V_.pantalla("NEURAL DRONE", "LEAGUE", S.intro ? NOMBRES[S.mapa.id][0] : "");
+  }
+  if (S.intro) {                                               // un botón del control salta la presentación
+    const gp = padElegido(), b = gp ? gp.buttons.map((x) => x.pressed) : [];
+    if (padIntro && b.some((x, i) => x && !padIntro[i])) S.intro.saltar();
+    padIntro = b;
+  } else padIntro = null;
+}
+window.addEventListener("keydown", (e) => {                    // antes que las demás teclas: saltar la intro / salir de la repetición
+  if (S.pantalla === "vuelo" && S.intro && !e.repeat && !["ShiftLeft", "ShiftRight"].includes(e.code)) { S.intro.saltar(); e.stopPropagation(); e.preventDefault(); return; }
+  if (S.pantalla === "replay" && !e.repeat) { salirRepeticion(); e.stopPropagation(); e.preventDefault(); return; }
+  if (S.pantalla === "vuelo" && e.code === "KeyL" && !e.repeat) {
+    cfg.linea = cfg.linea === false; guardar();
+    S.portales.verLinea = cfg.linea; S.portales.pintarLinea();
+    toast(cfg.linea ? t("Línea de carrera: sí") : t("Línea de carrera: no"), 1100);
+  }
+}, true);
+function repeticion() {
+  if (!S.fantasma?.p?.length) return;
+  S.repe = new Repeticion(S.mapa, S.fantasma, S.nivel, S.dirs);
+  S.pantalla = "replay";
+  $("fin").classList.add("hidden"); $("hud").classList.add("hidden"); $("repe").classList.remove("hidden");
+  S.portales.pintar(-1);
+}
+function salirRepeticion() {
+  if (!S.repe) return;
+  S.repe = null; S.pantalla = "vuelo"; S.camNueva = true;
+  $("repe").classList.add("hidden"); $("hud").classList.remove("hidden"); $("fin").classList.remove("hidden");
+  dron.visible = cfg.cam !== "fpv";
+}
+/** La IA que entrena (en Blender o en segundo plano) mientras vuelas: el mismo estado que lee el juego (GET /api/lab). */
+async function verIA() {
+  const el = $("ia-badge");
+  try {
+    const s = await (await fetch("/api/lab", { cache: "no-store" })).json();
+    const tr = s.entrenador?.activo ? s.entrenador : (s.fondo || []).find((f) => f.activo);
+    if (!tr) { el.classList.add("hidden"); return; }
+    el.classList.remove("hidden");
+    const exito = typeof tr.succ === "number" ? Math.round(tr.succ * 100) : null;
+    el.innerHTML = `<b></b><span></span><i><u style="width:${exito ?? 0}%"></u></i>`;
+    el.querySelector("b").textContent = t("🧠 Tu IA «{m}» sigue entrenando", { m: tr.modelo || "base" });
+    el.querySelector("span").textContent = (tr.pausado || tr.params?.paused) ? t("en pausa") : exito != null ? t("generación {g} · logra {p} %", { g: tr.gen ?? "–", p: exito }) : t("generación {g}", { g: tr.gen ?? "–" });
+  } catch { el.classList.add("hidden"); }
+}
+verIA(); setInterval(verIA, 3000);
+document.body.classList.toggle("embebido", EMBEBIDO);
+$("intro-saltar").textContent = t("Cualquier tecla o botón para saltar");
+$("repe-salir").textContent = t("Cualquier tecla para salir");
+
 // ---------------- arranque ----------------
 S.modelos = await listaModelos();
 S.hangar = await dronesHangar();
@@ -851,5 +938,5 @@ if (cfg.dron !== "racer" && !S.hangar.some((h) => h.id === cfg.dron)) cfg.dron =
 if (!S.modelos.includes(cfg.rival)) cfg.rival = S.modelos.includes("corredor") ? "corredor" : "base";
 if (!S.modelos.includes(cfg.cazador)) cfg.cazador = S.modelos.includes("cazador") ? "cazador" : "base";
 menu();
-window.__fs = { S, cfg, MAPAS, empezar, menu, reiniciar, paso, keys };      // para las pruebas
+window.__fs = { S, cfg, MAPAS, empezar, menu, reiniciar, paso, keys, renderer, composer, scene, camera, repeticion };      // para las pruebas
 requestAnimationFrame(cuadro);
