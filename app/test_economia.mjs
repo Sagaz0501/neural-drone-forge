@@ -39,7 +39,7 @@ function armar(p, nombre, piezas, regalo = false) {
 }
 
 // el segundo dron: el de madera con motores 2204 (el más barato que vuela con viento: empuje/peso ~3)
-const FINCA = { ...DRONES_EJEMPLO.madera, motores: "m2204" };
+const FINCA = { ...DRONES_EJEMPLO.madera, motores: "m2204", radio: "rx_espnow_ant" };   // + la antena: las tomas de la finca llegan a ~24-28 m
 
 /**
  * Juega la demo entregando todo con `est` estrellas (0-3). plan = lo que compra, en orden. Devuelve
@@ -95,7 +95,7 @@ const imprimir = (titulo, r) => {
 {
   const p = PT.nuevaPartida(); p.plata = 999;
   const d = armar(p, "Finca", FINCA), st = PT.dronArmado(p, cat, d).stats;
-  ok(st.ok && st.twr >= 2.2 && st.ayudas.includes("altura"), `el dron de la finca vuela con viento: empuje/peso ${st.twr.toFixed(2)} ≥ 2,2 + barómetro`);
+  ok(st.ok && st.twr >= 2.2 && st.ayudas.includes("altura") && st.alcance_m >= 30, `el dron de la finca vuela con viento: empuje/peso ${st.twr.toFixed(2)} ≥ 2,2 + barómetro + radio ${st.alcance_m} m`);
   const costo = kitFaltan(PT.nuevaPartida(), FINCA).filter((x) => x.ranura !== "soldadura").reduce((s, x) => s + cat[x.ranura].find((z) => z.id === x.id).precio, 0);
   console.log(`      (cuesta $${costo} en piezas)`);
 }

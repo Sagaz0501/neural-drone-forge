@@ -274,6 +274,16 @@ ok(e1.nivel === 13 && e1.mision === "foto" && e2.nivel === 14 && e2.mision === "
   const d3 = NG.nuevoDia(r, D);
   ok(r.negocio.pedidos.length >= nPed + pendientes && d3.nuevos.length >= pendientes, "reloj: si duermes temprano, los pedidos que faltaban llegan igual");
 }
+// al terminar el tutorial (día 1, 10:30) el reloj arranca y los pedidos de hoy llegan en lo que queda del día
+{
+  const r = partida(); NG.asegurar(r, D);
+  const tut = r.negocio.pedidos[0];
+  NG.aceptar(r, D, tut.id); NG.entregar(r, D, tut.id, { estrellas: 1 });
+  r.negocio.hora = 10.5;
+  NG.tick(r, D, 0);
+  const ag = r.negocio.agenda;
+  ok(ag.length > 0 && ag.every((x) => x.h >= 10.5 && x.h <= 19), `reloj: después del tutorial llegan ${ag.length} pedidos hoy (10:45-19:00), no hasta mañana`);
+}
 // con 1 estrella la relación también sube (si no, quedabas solo con Doña Marta)
 {
   const r = partida(); NG.asegurar(r, D); r.negocio.tutorial = 2;

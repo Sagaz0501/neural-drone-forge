@@ -43,7 +43,7 @@ de juego (un día = 30 min jugando), aunque tu IA saque fotos de 1 ★.
 | E4 · Foto fija | **$45** (antes $60) | abre las inspecciones |
 | E5 · Set de fotos | **$60** (antes $80) | abre los videos y los pedidos especiales |
 | E6 · Video con ruta | **$90** (antes $120) | lo último de la demo |
-| El dron de la finca (madera + motores 2204) | **$134** (antes $144) | empuje/peso 2,98 ≥ 2,2 + barómetro; motores 2204 **$35** (antes $45) |
+| El dron de la finca (madera + motores 2204 + ESP-NOW con antena) | **$131** (antes $144) | empuje/peso 2,96 ≥ 2,2 + barómetro + radio 35 m (las tomas llegan a ~24-28 m: el ESP-NOW del kit, 20 m, pierde la señal); motores 2204 **$35** (antes $45) |
 | Insumos de soldar | $3-4 c/u | el regalo trae 10 g de estaño, 5 ml de flux y 2 m de cable: alcanzan para el segundo dron |
 | Arriendo | $60 cada 7 días | recién desde reputación 6 |
 | Reparar | precio × lo que perdió × 0,6 | sin plata: el arreglo casero es gratis (las piezas quedan al 40 %) |
@@ -70,7 +70,7 @@ día 3   +84   $133  techo + fachada + Don Ernesto: la finca
 día 3   −90   $ 43  E6
 día 4   +77   $120  3 pedidos
 día 5   +81   $201  3 pedidos
-día 5  −134   $ 67  el segundo dron (finca)
+día 5  −131   $ 70  el segundo dron (finca)
 ```
 
 Con 2 ★ el mismo camino termina el día 4 con $46 de sobra.

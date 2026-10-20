@@ -154,7 +154,6 @@
  "No conoce un dron así (aprendió con empuje/peso {t0}-{t1} y {m0}-{m1} kg; este: {twr}, {masa} kg).": "It doesn't know a drone like this (it learned with thrust/weight {t0}-{t1} and {m0}-{m1} kg; this one: {twr}, {masa} kg).",
  "Se carga sola en el dron al despegar.": "It loads onto the drone automatically at takeoff.",
  "El cliente no acepta: {lista}.": "The client won't accept: {lista}.",
- "Si la IA no entrega el video, <b>pierdes {n} de reputación</b>; si choca, <b>el dron se daña</b> y hay que repararlo en el taller.": "If the AI doesn't deliver the video, <b>you lose {n} reputation</b>; if it crashes, <b>the drone gets damaged</b> and has to be repaired in the workshop.",
  "No encontré ninguna IA para este dron.": "Couldn't find any AI for this drone.",
  "La IA \"{m}\" todavía no tiene un modelo guardado: vuela la IA base, que no conoce este dron.": "The AI \"{m}\" doesn't have a saved model yet: the base AI flies, and it doesn't know this drone.",
  "Este dron no tiene IA propia: vuela la IA base, que no conoce este dron.": "This drone has no AI of its own: the base AI flies, and it doesn't know this drone.",
@@ -545,7 +544,6 @@
  "desde el código": "from source",
  "a dormir pronto": "bedtime soon",
  "🔓 Se abrió un simulador nuevo: 💻 → 🎮 Simuladores.": "🔓 A new simulator is open: 💻 → 🎮 Simulators.",
- "🌾 La finca pide otro dron (empuje/peso ≥ 2,2 + barómetro): «+ Nuevo dron». El de madera se queda.": "🌾 The farm needs another drone (thrust/weight ≥ 2.2 + barometer): \"+ New drone\". Keep the wooden one.",
  "🎮 Compra <b>E6 · Video con ruta</b> en Simuladores (o vuélalo tú).": "🎮 Buy <b>E6 · Video with a route</b> in Simulators (or fly it yourself).",
  "🌾 Vuela el video de la finca con «{d}»: 💻 → Mensajes → Don Ernesto.": "🌾 Fly the farm video with \"{d}\": 💻 → Messages → Don Ernesto.",
  "Entrega el video de la finca": "Deliver the farm video",
@@ -566,5 +564,9 @@
  "Agregar a mi lista de deseos en Steam": "Add to my Steam wishlist",
  "La web del juego": "The game's website",
  "Seguir jugando": "Keep playing",
- "Tu partida queda guardada: puedes seguir haciendo pedidos con lo que tienes.": "Your game is saved: you can keep doing jobs with what you have."
+ "Tu partida queda guardada: puedes seguir haciendo pedidos con lo que tienes.": "Your game is saved: you can keep doing jobs with what you have.",
+ "Blender no está abierto. ¿Entreno <b>en segundo plano</b> (sin ventana, igual de rápido)? Con Blender ves a los drones aprender en 3D.": "Blender isn't open. Train <b>in the background</b> instead (no window, just as fast)? With Blender you watch the drones learn in 3D.",
+ "Esperar a Blender": "Wait for Blender",
+ "Si la IA no entrega el trabajo, <b>pierdes {n} de reputación</b>; si choca, <b>el dron se daña</b> y hay que repararlo en el taller.": "If the AI doesn't deliver the job, <b>you lose {n} reputation</b>; if it crashes, <b>the drone gets damaged</b> and has to be repaired in the workshop.",
+ "🌾 La finca pide otro dron (empuje/peso ≥ 2,2 + barómetro + radio de 30 m: ESP-NOW + antena): «+ Nuevo dron». El de madera se queda.": "🌾 The farm needs another drone (thrust/weight ≥ 2.2 + barometer + 30 m radio: ESP-NOW + antenna): \"+ New drone\". Keep the wooden one."
 }

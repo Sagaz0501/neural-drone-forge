@@ -12,6 +12,8 @@ export const HASTA = "video_ruta";
 /** Los pedidos especiales de la campaña que trae la demo: la casa (Doña Marta) y la finca (Don Ernesto, el final). */
 export const PEDIDOS = ["casa_venta", "finca"];
 export const FINAL = "finca";
+/** Metros de radio que pide la finca: sus tomas llegan a ~24-28 m de la base y el ESP-NOW del kit llega a 20 (la antena externa, $12, a 35). */
+export const ALCANCE_FINCA = 30;
 /** Los enlaces del final (cámbialos cuando exista la página de Steam). */
 export const STEAM_URL = "https://store.steampowered.com/";
 export const WEB_URL = "https://sagaz0501.github.io/neural-drone-forge/";
@@ -47,7 +49,7 @@ export function pista(p, s, t) {
   if (!ACTIVA || !p?.negocio) return null;
   if (terminada(p)) return p.demoFin ? null : t("🔓 Se abrió un simulador nuevo: 💻 → 🎮 Simuladores.");
   if (!s.finca) return null;
-  if (!s.sirven.length) return t("🌾 La finca pide otro dron (empuje/peso ≥ 2,2 + barómetro): «+ Nuevo dron». El de madera se queda.");
+  if (!s.sirven.length) return t("🌾 La finca pide otro dron (empuje/peso ≥ 2,2 + barómetro + radio de 30 m: ESP-NOW + antena): «+ Nuevo dron». El de madera se queda.");
   if (!s.e6) return t("🎮 Compra <b>E6 · Video con ruta</b> en Simuladores (o vuélalo tú).");
   return t("🌾 Vuela el video de la finca con «{d}»: 💻 → Mensajes → Don Ernesto.", { d: s.sirven[0] });
 }

@@ -1601,5 +1601,5 @@ export function initMesa(ctx) {
     }
   }
 
-  return { abrir, cerrar, estadoTuto, get abierta() { return M.abierta; }, _prueba: { M, cam: () => cam, mundo: () => mundo, empezar: (it) => empezar(it) } };   // _prueba: para las pruebas en el navegador
+  return { abrir, cerrar, estadoTuto, get abierta() { return M.abierta; }, _prueba: { M, cam: () => cam, mundo: () => mundo, empezar: (it) => empezar(it), objetivo: () => objetivo(), fuentes: () => fuentes(), conFlux: (r) => conFlux(r), placas: () => placas() } };   // _prueba: para las pruebas en el navegador
 }

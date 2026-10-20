@@ -307,7 +307,12 @@ async function empezar(dev) {
   estudio.vaciar();                                // sin programas ni modelos: la partida empieza en cero
   TU.pasarA(G.partida, "regalo");                  // el tutorial obligatorio: regalo -> nombre -> armar -> computador -> modelo
   guardar();
+  G.regaloVisto = true;
   irTaller();
+  regalo(dev);
+}
+/** El regalo de mamá (el primer paso del tutorial). También si cerraste el juego antes de aceptarlo (irTaller). */
+function regalo(dev) {
   historia(t("El regalo"), t("Llevabas meses pidiéndole a tu mamá un <b>dron profesional</b>, de esos con cámara 4K y GPS.<br><br>Hoy llega con una caja de cartón y una sonrisa: «Mijo, no me alcanzó para el que querías… pero este se arma. Dicen que el que lo arma aprende más».<br><br>Adentro: un <b>dron de madera</b> en piezas, unos motores sencillos, una placa ESP32, una cámara de juguete… y un cautín."),
     { boton: t("Aceptar el regalo ❤️"), alCerrar: async () => {
       const d = regaloMama(), p = P();
@@ -323,7 +328,13 @@ async function empezar(dev) {
 }
 $("b-modo-dev").onclick = () => empezar(true);
 $("b-modo-normal").onclick = () => empezar(false);
-function irTaller() { show("taller"); G.izq = "hangar"; verDron(); renderTaller(); loadModelos().then(() => G.screen === "taller" && renderTaller()); }   // las generaciones de hoy
+function irTaller() {
+  show("taller"); G.izq = "hangar"; verDron(); renderTaller(); loadModelos().then(() => G.screen === "taller" && renderTaller());   // las generaciones de hoy
+  // cerraste el juego en medio del regalo: vuelve a salir (sin él no hay dron y la nota pedía «Abre el regalo» sin regalo)
+  const e = P()?.tuto?.etapa;
+  if (e === "regalo" && !G.regaloVisto) { G.regaloVisto = true; regalo(P().modo === "dev"); }
+  else if (e === "nombre") { TU.pasarA(P(), "armar"); guardar(); renderTaller(); }
+}
 
 /** Una pantalla de historia (inicio de capítulo). opts: { boton, alCerrar } */
 function historia(titulo, html, opts = {}) {
@@ -455,7 +466,10 @@ function armarKit({ regalo = false } = {}) {
   const p = P(), faltan = kitFaltan(p);
   const err = PT.comprarCarrito(p, cat, faltan, { envio: true, regalo });
   if (err) { toast(err); return; }
-  const d = PT.nuevoDron(p, t("Madera"), regalo ? t("El regalo de mamá") : t("El primer dron: videos de casas"));
+  // un nombre que no esté en el hangar (el segundo kit era otro «Madera» y no se distinguían)
+  let nombre = t("Madera");
+  for (let k = 2; p.drones.some((x) => x.nombre === nombre); k++) nombre = `${t("Madera")} ${k}`;
+  const d = PT.nuevoDron(p, nombre, regalo ? t("El regalo de mamá") : t("El primer dron: videos de casas"));
   avisoRutaDron(d);
   d.estilo = { ...PT.ESTILO };
   for (const [slot, id] of Object.entries(DRONES_EJEMPLO.madera)) PT.instalar(p, d, slot, id);
@@ -725,7 +739,7 @@ function avanzarTutorial(p) {
 /** La demo, después del tutorial: la nota 🎯 que lleva al segundo dron y a la finca (demo.js pista). */
 function pistaDemo(p) {
   const fin = mis.pedidos.find((x) => x.id === DM.FINAL);
-  const sirven = fin ? p.drones.filter((d) => { const st = PT.dronArmado(p, cat, d)?.stats; return st?.ok && !puedeVolar(d) && REQ.cumple(fin.requisitos || {}, st, {}).ok; }).map((d) => d.nombre) : [];
+  const sirven = fin ? p.drones.filter((d) => { const st = PT.dronArmado(p, cat, d)?.stats; return st?.ok && !puedeVolar(d) && REQ.cumple(fin.requisitos || {}, st, {}).ok && st.alcance_m >= DM.ALCANCE_FINCA; }).map((d) => d.nombre) : [];
   const html = DM.pista(p, { finca: !!p.negocio?.ofrecidos?.includes(DM.FINAL), sirven, e6: ESC.tiene(p, DM.HASTA) }, t);
   return html ? [{ id: "demo", fija: true, saltable: false, html }] : [];
 }
@@ -1013,7 +1027,7 @@ $("b-volar-ia").onclick = async () => {
   if (!riesgos.length) return startVuelo(G.pedido, "ia");
   // nunca se bloquea: se avisa y el jugador decide
   $("aviso-ia-p").innerHTML = `<ul>${riesgos.map((r) => `<li>${r}</li>`).join("")}</ul>` +
-    `<p>${t("Si la IA no entrega el video, <b>pierdes {n} de reputación</b>; si choca, <b>el dron se daña</b> y hay que repararlo en el taller.", { n: REP_FALLA_IA })}</p>`;
+    `<p>${t("Si la IA no entrega el trabajo, <b>pierdes {n} de reputación</b>; si choca, <b>el dron se daña</b> y hay que repararlo en el taller.", { n: REP_FALLA_IA })}</p>`;
   modal("aviso-ia");
 };
 $("b-aviso-ia-si").onclick = () => { modal("aviso-ia", false); startVuelo(G.pedido, "ia"); };
@@ -1271,6 +1285,11 @@ async function labIniciar() {
   if (LAB.donde === "blender" && slug !== "base" && bl?.abierto && !("modelo" in bl)) {     // Blender con el drone_lab.py de antes: entrenaría la IA base
     toast(t("El Blender abierto tiene el Drone Lab de antes y entrenaría la IA base. Ciérralo (Detener y guardar) y ábrelo otra vez, o elige <b>En segundo plano</b>."), 7000);
     return;
+  }
+  // Blender cerrado: el pedido se quedaba esperando a Blender (y el selector «Dónde entrena» queda abajo, fuera de la vista)
+  if (LAB.donde === "blender" && slug !== "base" && !bl?.abierto) {
+    const fondo = await confirmar(t("Blender no está abierto. ¿Entreno <b>en segundo plano</b> (sin ventana, igual de rápido)? Con Blender ves a los drones aprender en 3D."), { si: t("En segundo plano"), no: t("Esperar a Blender") });
+    if (fondo) { LAB.donde = "fondo"; saveLab(); renderLab(); }
   }
   if (LAB.donde === "fondo" && slug === "base") { toast(t("La IA base solo entrena en Blender. Para entrenar en segundo plano, dale a este dron su propia IA (copia de la base)."), 5000); return; }
   // de dónde parte un modelo NUEVO (o uno cuya carpeta aún no existe): solo de un modelo que esta partida ve; una partida
