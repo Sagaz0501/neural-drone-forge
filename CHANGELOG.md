@@ -1,5 +1,21 @@
 # Cambios
 
+## v3.3.0 · Freestyle nuevo: pistas, gráficos, mando y volar mientras entrenas (20-10-2026)
+
+- **🎮 Volar mientras entrena:** un botón en el Laboratorio y en la barra del computador (cuando hay un entrenamiento)
+  abre el freestyle encima del juego sin parar la IA. Una esquina muestra su generación y cuánto logra. Mientras vuelas,
+  el reloj del negocio se detiene.
+- **Pistas nuevas en los 3 mapas,** con recta, picada, split-S, hueco y curva cerrada: la fábrica (19 portales), el cañón
+  (20) y el estadio (12). Línea de carrera (tecla L), recorrido de cámara antes de largar y repetición de tu mejor vuelta.
+- **Mejores gráficos:** cielo con sol y nubes (estrellas y luna de noche), reflejos, niebla por mapa; la fábrica con
+  grúa, pasarelas y rayos de sol; el cañón con río y el puente del tren; el estadio con túnel de neón, público, pantalla
+  gigante y semáforo de largada. Sigue a 60 fps.
+- **Angle, Horizon y Acro fáciles en el mando:** nueva **Sensación «Juego»** (de fábrica en mando y teclado): el gas al
+  centro flota, sale armado, gira más rápido (90° en 0,28 s) y en Acro se endereza solo. Antes, con el mando suelto el
+  dron subía 27 m en 2 s. **«Real»** queda como una radio (gas absoluto). El teclado sube en rampa. Fácil no cambió.
+- **PBDMM E6+:** el ejemplo nombra los 8 premios y castigos de un video; sin acercarse y meta la IA no llega a la ruta.
+- **El casino se apagó** (no encajaba con el juego).
+
 ## v3.2.0 · La demo completa: plata, casino, radio y el final (19-10-2026)
 
 - **La demo tiene final:** con E6 armas un **segundo dron** (Madera se queda en el hangar) para grabar la finca de Don

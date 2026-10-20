@@ -16,7 +16,7 @@ paso: primero a despegar, después a llegar a un punto, a seguir una línea, a t
 *25 drones aprendiendo a la vez en el Drone Lab de Blender: el cono de cada cámara pasa de rojo a verde cuando la
 toma es buena. [Ver el minuto completo (MP4)](docs/media/blender_entrenamiento.mp4).*
 
-*v3.0 · app de escritorio (Mac, Windows, Linux) · en español e inglés · 100 % local: tu compu entrena, nada sale a internet · MIT*
+*v3.3 · app de escritorio (Mac, Windows, Linux) · en español e inglés · 100 % local: tu compu entrena, nada sale a internet · MIT*
 
 </div>
 
@@ -28,8 +28,8 @@ Desde la **v3.0**, Neural Drone Forge se juega en **su propia ventana**, como cu
 barra de direcciones, a 60 fps con la GPU. La app arranca sola el servidor del juego (el que entrena la IA) y lo
 cierra al salir. Los mismos gráficos de siempre, ahora como una app de verdad.
 
-> **Por ahora** se descarga el código y se abre con un comando (abajo, 5 minutos).
-> **Lo que viene:** un instalador `.dmg` para Mac y un `.exe` para Windows: lo bajas, le das doble clic y juegas.
+> **Instalador para Mac** (`.dmg`, abajo) y **se actualiza solo:** al abrir, la app busca la versión nueva y te ofrece
+> «Actualizar ahora» (~10 MB, tus partidas y tus IA no se tocan). Windows: muy pronto.
 
 ## Qué es
 
@@ -55,6 +55,27 @@ con PPO (aprendizaje por refuerzo) según los premios y castigos que tú decides
 | **Mírala aprender.** La curva de éxito y la red neuronal del dron que miras, en vivo. | **Avance del modelo.** Su mejor y su peor intento, con las gráficas y la red en cada instante. |
 
 ![Soldando el cable de la batería en el ESC](docs/media/soldar.gif)
+
+## Freestyle: vuela tú mientras tu IA entrena
+
+Mientras tu IA entrena, toma el control. 🎮 **Volar mientras entrena** abre el freestyle encima del juego, sin parar
+el entrenamiento, y una esquina te dice en qué generación va y cuánto logra.
+
+- **3 mapas con pistas de verdad:** la fábrica (por el hueco del techo, entre los silos), el cañón (bajo el puente del
+  tren, sobre el río) y el estadio de noche (el túnel de neón, la picada desde la torre). Rectas, picadas, split-S y
+  huecos; una línea de carrera, un recorrido de cámara antes de largar y la repetición de tu mejor vuelta.
+- **4 modos de vuelo:** Fácil, Angle, Horizon y Acro. Con **Sensación «Juego»** (el mando y el teclado) el gas al centro
+  flota y sale armado; con **«Real»** es como una radio: gas absoluto, armar con interruptor, rates de Betaflight.
+- **Tu radio de verdad** (EdgeTX, TBS, Jumper) por USB, con un asistente que calibra y detecta cada canal. También
+  PS5, Xbox y teclado.
+- **Contra la IA:** carrera, contrarreloj y persecución contra drones entrenados con el mismo sistema que usas tú.
+
+| | |
+|---|---|
+| ![El estadio de noche](docs/img/v33/fs_estadio.jpg) | ![La fábrica](docs/img/v33/fs_fabrica.jpg) |
+| **El estadio de noche.** Túnel de neón, tribunas y la ciudad detrás. | **La fábrica.** Silos, chimenea, la grúa y el techo roto. |
+| ![Acro en el cañón](docs/img/v33/fs_acro.jpg) | ![Volar mientras entrena](docs/img/v33/volar_entrena.jpg) |
+| **Acro en el cañón,** con las palancas en pantalla. | **Volar mientras entrena:** arriba a la izquierda, tu IA sigue aprendiendo. |
 
 ## Descargar y jugar
 
@@ -201,9 +222,10 @@ modelos a la vez) y lo miras en el Monitor.
 
 ## Estado
 
-**Versión 3.0** ([releases](https://github.com/Sagaz0501/neural-drone-forge/releases)). Lo que hay hoy:
+**Versión 3.3** ([releases](https://github.com/Sagaz0501/neural-drone-forge/releases)). Lo que hay hoy:
 
-- ✅ **La app de escritorio** (Electron): su propia ventana, arranca y cierra el servidor sola.
+- ✅ **La app de escritorio** (Electron): su propia ventana, arranca y cierra el servidor sola. Instalador para Mac y
+  **actualizaciones sin reinstalar**.
 - ✅ **El tutorial completo:** el regalo, el armado en la mesa 3D (montar, atornillar, soldar), el banco, el computador
   y la primera IA en dos pasos con examen. Todo con poco texto: un botón 🎯 «¿Qué sigo?» y lo que hay que tocar brilla.
 - ✅ **La partida empieza en cero:** sin modelos ni programas; todo lo entrenas tú.
@@ -211,12 +233,14 @@ modelos a la vez) y lo miras en el Monitor.
 - ✅ Garaje 3D, tienda con piezas reales (ESP32, STM32, ExpressLRS, BLHeli…), inventario y hangar con varios drones.
 - ✅ El negocio: clientes que escriben al celular, trabajos repetibles de ★ a ★★★★, la flota que trabaja sola.
 - ✅ 3 pedidos de la campaña (casa, finca con viento, restaurante entre postes) con tomas calificadas y video.
-- ✅ **Freestyle:** 3 mapas con tu control (PS5/Xbox), FPV y acro; carrera y persecución contra una IA entrenada.
+- ✅ **Freestyle:** 3 mapas con pistas nuevas, 4 modos de vuelo (Fácil, Angle, Horizon, Acro), tu radio USB o mando,
+  carrera y persecución contra una IA entrenada, y 🎮 volar mientras tu IA entrena.
+- ✅ **El día del negocio:** un día dura 30 min (7:00-23:00), los pedidos llegan a su hora y vencen a las 23:00.
+- ✅ **La demo completa:** del dron de madera al segundo dron y la finca, con una plata que siempre se puede remontar.
 - ✅ Modo desarrollador con PBDMM 3, Avance del modelo y Simular prueba, Blender como pantalla del entrenamiento.
 - ✅ Español e inglés.
 
-**Lo que viene:** los instaladores (`.dmg` y `.exe`), las partidas guardadas en archivos, pulir lo que hay y después
-el Acto 2 de la historia. La historia completa y las fases, en el **[Plan maestro](docs/PLAN_MAESTRO.md)**; el paso a
+**Lo que viene:** el `.exe` de Windows, la página de Steam, pulir lo que hay y después el Acto 2 de la historia. La historia completa y las fases, en el **[Plan maestro](docs/PLAN_MAESTRO.md)**; el paso a
 paso, en el **[Roadmap](docs/ROADMAP.md)**.
 
 ## Documentación
@@ -239,7 +263,7 @@ paso, en el **[Roadmap](docs/ROADMAP.md)**.
 ```bash
 python -m pytest -q                                     # simulador + servidor (incluye: un piloto automático pasa E1-E3)
 python game/make_fixture.py && node game/test_sim.mjs   # el simulador de JS == el de Python
-node app/test_parts.mjs && node app/test_banco.mjs && node app/test_pbdmm.mjs && node app/test_negocio.mjs && node app/test_modulos.mjs && node app/test_i18n.mjs && node app/test_freestyle.mjs
+node app/test_parts.mjs && node app/test_banco.mjs && node app/test_pbdmm.mjs && node app/test_modulos.mjs && node app/test_i18n.mjs && node app/test_negocio.mjs && node app/test_economia.mjs && node app/test_taller.mjs && node --import ./app/three_node.mjs app/test_flota.mjs && node app/test_freestyle.mjs && node app/test_radio.mjs && node app/test_demo.mjs && node app/test_casino.mjs && node desktop/test_actualizar.js
 ```
 
 Corren solas en cada push ([GitHub Actions](.github/workflows/pruebas.yml)).

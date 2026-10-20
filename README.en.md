@@ -16,7 +16,7 @@ Blender**: 50 drones trying at once and the neural network lighting up as it lea
 *25 drones learning at once in Blender's Drone Lab: each camera cone goes from red to green when the shot is good.
 [Watch the full minute (MP4)](docs/media/blender_entrenamiento.mp4).*
 
-*v3.0 · desktop app (Mac, Windows, Linux) · English and Spanish · 100 % local: your computer trains, nothing goes online · MIT*
+*v3.3 · desktop app (Mac, Windows, Linux) · English and Spanish · 100 % local: your computer trains, nothing goes online · MIT*
 
 </div>
 
@@ -28,8 +28,8 @@ Since **v3.0**, Neural Drone Forge runs in **its own window**, like any game: no
 the GPU. The app starts the game server (the one that trains the AI) by itself and shuts it down when you quit. Same
 graphics as always, now as a real app.
 
-> **For now** you download the code and open it with one command (below, 5 minutes).
-> **Coming next:** a `.dmg` installer for Mac and an `.exe` for Windows: download, double-click, play.
+> **Mac installer** (`.dmg`, below) and **it updates itself:** on launch the app looks for a new version and offers
+> "Update now" (~10 MB; your saves and your AIs are untouched). Windows: coming soon.
 
 ## What it is
 
@@ -55,6 +55,27 @@ with PPO (reinforcement learning) from the rewards and penalties you choose. Wha
 | **Watch it learn.** The success curve and the neural network of the drone you're watching, live. | **Model progress.** Its best and worst attempt, with the charts and the network at every instant. |
 
 ![Soldering the battery wire on the ESC](docs/media/soldar.gif)
+
+## Freestyle: fly while your AI trains
+
+While your AI trains, take the sticks. 🎮 **Fly while it trains** opens freestyle on top of the game without stopping
+the training, and a corner badge shows its generation and success rate.
+
+- **3 maps with real tracks:** the factory (through the broken roof, between the silos), the canyon (under the mine-train
+  bridge, over the river) and the night stadium (the neon tunnel, the dive from the tower). Straights, dives, split-S and
+  gaps; a racing line, a camera fly-through before the start and a replay of your best lap.
+- **4 flight modes:** Easy, Angle, Horizon and Acro. With **"Game" feel** (gamepad and keyboard) center throttle hovers
+  and you start armed; **"Real"** feels like a radio: absolute throttle, arm switch, Betaflight rates.
+- **Your real radio** (EdgeTX, TBS, Jumper) over USB, with a wizard that calibrates and detects every channel. PS5, Xbox
+  and keyboard too.
+- **Against the AI:** race, time trial and chase against drones trained with the same system you use.
+
+| | |
+|---|---|
+| ![Night stadium](docs/img/v33/fs_estadio.jpg) | ![The factory](docs/img/v33/fs_fabrica.jpg) |
+| **The night stadium.** Neon tunnel, stands and the city behind. | **The factory.** Silos, chimney, the crane and the broken roof. |
+| ![Acro in the canyon](docs/img/v33/fs_acro.jpg) | ![Fly while it trains](docs/img/v33/volar_entrena.jpg) |
+| **Acro in the canyon,** with the sticks on screen. | **Fly while it trains:** top left, your AI keeps learning. |
 
 ## Download and play
 
@@ -175,13 +196,13 @@ it, so a program someone sends you can't touch your computer. Language docs: [do
 
 ## Status
 
-**Version 3.0** ([releases](https://github.com/Sagaz0501/neural-drone-forge/releases)): the desktop app, the full
+**Version 3.3** ([releases](https://github.com/Sagaz0501/neural-drone-forge/releases)): the desktop app, the full
 tutorial (gift → workbench → bench → computer → first AI in two steps), games that start from zero, 12 training
 scenarios with exams, review and a ⭐ base model, the business (clients, repeatable jobs, the fleet), 3 campaign jobs,
-freestyle with your controller, developer mode with PBDMM 3, Blender as the training screen. English and Spanish.
+the business day clock (30 min = one day), the full demo up to a second drone and the farm,
+freestyle with 3 new tracks, 4 flight modes, USB radios and "fly while your AI trains", developer mode with PBDMM 3, Blender as the training screen. English and Spanish.
 
-**Coming next:** installers (`.dmg` and `.exe`), saves stored in files, polishing what's there, then Act 2 of the
-story. See the [Master plan](docs/PLAN_MAESTRO.md) and the [Roadmap](docs/ROADMAP.md) (in Spanish).
+**Coming next:** the Windows `.exe`, the Steam page, polishing what's there, then Act 2 of the story. See the [Master plan](docs/PLAN_MAESTRO.md) and the [Roadmap](docs/ROADMAP.md) (in Spanish).
 
 ## Credits
 
