@@ -2,7 +2,9 @@
 // LA TIENDA (pides piezas por categoría, las cantidades que quieras: llegan a tu estante), el INVENTARIO
 // (cada unidad: su vida, si está libre o en qué dron) y TUS DISEÑOS STL (importar / borrar).
 // =====================================================================
-import { leerSTL, analizar, cargarSTL, STL_CACHE } from "./stl.js";
+import { leerSTL, cargarSTL, STL_CACHE, stlBinario } from "./stl.js";
+import { esSTEP, leerSTEP, juntar } from "./step.js";
+import { abrirAnalisis } from "./ui_importar.js";
 import { t, num } from "./i18n.js";
 import { confirmar } from "./dialogo.js";
 import { miniatura } from "./miniaturas.js";
@@ -290,7 +292,7 @@ export function initTienda(ctx) {
     let html = `<table class="inv-t"><tr><th>${t("Pieza")}</th><th>${t("Cant.")}</th><th>${t("Unidades")}</th></tr>`;
     for (const [ranura, nombre] of CATS()) {
       if (ranura === "herramientas" || ranura === "soldadura" || ranura === "impresion") continue;
-      const ids = [...new Set(p.inventario.map((u) => u.id))].filter((id) => cat[ranura].some((x) => x.id === id));
+      const ids = [...new Set(p.inventario.map((u) => u.id))].filter((id) => (cat[ranura] || []).some((x) => x.id === id));
       if (!ids.length) continue;
       html += `<tr class="grp"><td colspan="3">${nombre}</td></tr>`;
       for (const id of ids) {
@@ -325,7 +327,7 @@ export function initTienda(ctx) {
       const row = document.createElement("div");
       row.className = "card";
       row.style.cursor = "default";
-      row.innerHTML = `<b>${esc(s.nombre)}</b> <span class="muted" style="font-size:12.5px">· ${TIPO[s.tipo] || s.tipo} · ${(s.bytes / 1024).toFixed(0)} KB</span>` +
+      row.innerHTML = `<b>${esc(s.nombre)}</b> <span class="muted" style="font-size:12.5px">· ${TIPO[s.tipo] || s.tipo} · ${s.step ? `STEP (${s.step.elegidos?.length || 1} ${t("pieza(s)")}) → ` : ""}${(s.bytes / 1024).toFixed(0)} KB</span>` +
         `<small>${m ? `${m.tam_mm.join(" × ")} mm · ${m.volumen_cm3} cm³ · ${t("~{g} g impreso en PLA", { g: m.masa_g })}${s.tipo === "chasis" ? ` · ${t("motores a {mm} mm del centro · hélices hasta {pul}\"", { mm: Math.round(m.radio_m * 1000), pul: m.helice_max })}` : ""}` : ""}</small>` +
         `<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"></div>`;
       const acts = row.lastElementChild;
@@ -334,6 +336,12 @@ export function initTienda(ctx) {
         const puesto = d.visuales?.[s.tipo] === s.id;
         btn(puesto ? t("Quitar de \"{dron}\"", { dron: d.nombre }) : t("Ponerlo en \"{dron}\"", { dron: d.nombre }), () => { d.visuales = { ...(d.visuales || {}) }; d.visuales[s.tipo] = puesto ? null : s.id; guardar(); ctx.verDron(); renderSTL(); });
       }
+      btn("🔍 " + t("Analizar"), async () => {
+        const c = STL_CACHE.get(s.id) || (await cargarSTL(s).catch(() => null));
+        if (!c) { toast(t("No pude bajar {id}", { id: s.id })); return; }
+        abrirAnalisis({ nombre: s.nombre, tipo: s.tipo, soloVer: true, step: s.step || null, motores: s.step?.motores_mm || null,
+          cuerpos: [{ nombre: s.step?.elegidos?.length ? s.step.elegidos.join(", ").slice(0, 80) : s.nombre, tri: c.tri, ...(s.step?.volumen_cm3 ? { volumen_cm3: s.step.volumen_cm3 } : {}) }] });
+      });
       if (s.tipo === "chasis" || s.tipo === "canopy") acts.insertAdjacentHTML("beforeend", `<span class='muted' style='font-size:12.5px;align-self:center'>${t("Se imprime en el banco (paso Imprimir).")}</span>`);
       btn(t("Borrar"), async () => {
         if (!(await confirmar(t("¿Borrar \"{nombre}\"? (va a la papelera: stl/_papelera/)", { nombre: s.nombre }), { si: t("Borrar"), peligro: true }))) return;
@@ -347,24 +355,43 @@ export function initTienda(ctx) {
   }
 
   $("b-stl").onclick = () => $("stl-file").click();
+  /** Un STL o un STEP -> «Analizar» (elegir piezas, ver medidas, peso, impresora) -> se guarda como STL (+ lo del STEP). */
   $("stl-file").onchange = async (e) => {
     const f = e.target.files[0];
     e.target.value = "";
     if (!f) return;
-    if (f.size > 25 * 1024 * 1024) { toast(t("Ese STL pesa más de 25 MB: simplifícalo (menos triángulos) en tu programa 3D.")); return; }
-    const buf = await f.arrayBuffer();
-    let meta;
-    try { meta = analizar(leerSTL(buf)); } catch (err) { toast(String(err.message || err)); return; }
-    const tipo = $("stl-tipo").value, nombre = f.name.replace(/\.stl$/i, "");
-    if (tipo === "chasis" && Math.max(...meta.tam_mm) < 60) { if (!(await confirmar(t("Mide {tam} mm: muy chico para un chasis. ¿Está en centímetros? Se importa igual.", { tam: meta.tam_mm.join(" × ") }), { si: t("Importar igual") }))) return; }
-    const r = await fetch(`/api/stl?nombre=${encodeURIComponent(nombre)}&tipo=${tipo}`, { method: "POST", body: buf }).then((x) => x.json()).catch(() => ({ ok: false, msg: t("No hay servidor.") }));
+    if (f.size > 25 * 1024 * 1024) { toast(t("Ese archivo pesa más de 25 MB: simplifícalo (menos triángulos) en tu programa 3D.")); return; }
+    const buf = await f.arrayBuffer(), nombre = f.name.replace(/\.(stl|step|stp)$/i, "");
+    let cuerpos, step = null;
+    try {
+      if (esSTEP(buf)) {
+        toast(t("Leyendo el STEP con OpenCascade…"), 8000);
+        const r = await leerSTEP(buf);
+        cuerpos = r.cuerpos;
+        step = { unidad: r.unidad, esquema: r.esquema, sistema: r.sistema };
+        toast(t("STEP leído: {n} pieza(s).", { n: cuerpos.length }), 2000);
+      } else cuerpos = [{ nombre, tri: leerSTL(buf) }];
+    } catch (err) { toast(String(err.message || err), 6000); return; }
+    const res = await abrirAnalisis({ nombre, tipo: $("stl-tipo").value, cuerpos, step });
+    if (!res) return;
+    const { tipo, inf } = res;
+    const stl = step ? stlBinario(juntar(res.cuerpos), nombre) : buf;
+    if (stl.byteLength > 25 * 1024 * 1024) { toast(t("Como STL pesa más de 25 MB: elige menos piezas.")); return; }
+    const meta = step ? {
+      archivo: f.name, unidad: step.unidad, esquema: step.esquema, sistema: step.sistema || undefined, eje: res.eje,
+      cuerpos: cuerpos.slice(0, 60).map((c) => ({ nombre: c.nombre.slice(0, 60), volumen_cm3: Math.round(c.volumen_cm3 * 100) / 100 })),
+      elegidos: res.cuerpos.slice(0, 60).map((c) => c.nombre.slice(0, 60)), volumen_cm3: inf.volumen_cm3, tam_mm: inf.tam_mm, camas: inf.camas,
+      ...(tipo === "chasis" && inf.motores_de === "agujeros" ? { motores_mm: inf.motores_mm, ejes_mm: inf.ejes_mm } : {}),
+    } : null;
+    const q = `nombre=${encodeURIComponent(nombre)}&tipo=${tipo}` + (meta ? `&step=${encodeURIComponent(JSON.stringify(meta))}` : "");
+    const r = await fetch(`/api/stl?${q}`, { method: "POST", body: stl }).then((x) => x.json()).catch(() => ({ ok: false, msg: t("No hay servidor.") }));
     if (!r.ok) { toast(r.msg || t("No pude guardar el STL.")); return; }
-    const item = { id: r.id, nombre, tipo, bytes: buf.byteLength, url: r.url };
+    const item = { id: r.id, nombre, tipo, bytes: stl.byteLength, url: r.url, ...(meta ? { step: meta } : {}) };
     G.stl.push(item);
-    await cargarSTL(item);
+    const { meta: m } = await cargarSTL(item);
     const d = ctx.D();
     if ((tipo === "controladora" || tipo === "camara") && d) { d.visuales = { ...(d.visuales || {}), [tipo]: r.id }; guardar(); ctx.verDron(); }
-    toast(t("Importado \"{nombre}\": {tam} mm, ~{g} g impreso.", { nombre: esc(nombre), tam: meta.tam_mm.join(" × "), g: meta.masa_g }) + (tipo === "chasis" || tipo === "canopy" ? " " + t("Imprímelo en el banco.") : ""), 5000);
+    toast(t("Importado \"{nombre}\": {tam} mm, ~{g} g impreso.", { nombre: esc(nombre), tam: m.tam_mm.join(" × "), g: m.masa_g }) + (tipo === "chasis" || tipo === "canopy" ? " " + t("Imprímelo en el banco.") : ""), 5000);
     renderSTL();
   };
   $("b-inv-cerrar").onclick = () => { modal("inventario", false); ctx.renderTaller(); };

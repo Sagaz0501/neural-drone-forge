@@ -1018,11 +1018,11 @@
 <section id="inventario" class="modal panel wide hidden" role="dialog" aria-label="Inventario">
   <h2>Inventario</h2><p class="muted" style="margin:0;font-size:14px">Todo lo que has comprado: cuántas tienes, cuáles están libres y en qué dron está cada una. Las libres se pueden vender usadas.</p>
   <div id="inv-body"></div>
-  <h3 style="font-size:13px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin:18px 0 6px">Tus diseños 3D (STL)</h3>
-  <p class="muted" style="margin:0;font-size:13.5px;line-height:1.45">Importa un STL (de Printables, Thingiverse, GrabCAD o hecho por ti en Fusion/Onshape/Blender) para imprimir tu propio chasis o carcasa, o para que tu controladora / cámara se vea como la real. En milímetros, con Z hacia arriba (como cualquier slicer).</p>
+  <h3 style="font-size:13px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin:18px 0 6px">Tus diseños 3D (STL y STEP)</h3>
+  <p class="muted" style="margin:0;font-size:13.5px;line-height:1.45">Importa un STL o un STEP (de Printables, Thingiverse, GrabCAD o hecho por ti en Fusion/Onshape/Blender) para imprimir tu propio chasis o carcasa, o para que tu controladora / cámara se vea como la real. El STEP trae sus unidades y sus piezas: eliges cuáles. El STL, en milímetros con Z hacia arriba (como cualquier slicer).</p>
   <div class="row" style="margin-top:8px;justify-content:flex-start;flex-wrap:wrap"><label class="muted" for="stl-tipo">Es un:</label>
     <select id="stl-tipo" style="background:var(--moss-solid);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:5px 8px;font:inherit"><option value="chasis">Chasis (se imprime, cambia el peso)</option><option value="canopy">Carcasa (canopy)</option><option value="controladora">Cómo se ve la controladora</option><option value="camara">Cómo se ve la cámara</option></select>
-    <input type="file" id="stl-file" accept=".stl" class="hidden"><button class="btn ghost small" id="b-stl">Importar STL…</button></div>
+    <input type="file" id="stl-file" accept=".stl,.step,.stp" class="hidden"><button class="btn ghost small" id="b-stl">Importar STL o STEP…</button></div>
   <div id="stl-lista"></div>
   <div class="go"><button class="btn ghost" id="b-inv-cerrar">Cerrar</button></div>
 </section>

@@ -61,6 +61,7 @@ y entrenando.log si entrena en el fondo). slug = [a-z0-9_-], 1-40, sin "_" al in
 STL del jugador (piezas importadas): stl/<id>.stl + stl/index.json [{id, nombre, tipo, bytes, creado}]
   POST /api/stl?nombre=<texto>&tipo=chasis|canopy|controladora|camara|bateria|otro   cuerpo = bytes del STL
        (binario o ASCII, máx. 25 MB) -> {"ok", "id", "url": "/stl/<id>.stl"}
+       &step=<JSON>  si vino de un STEP (el juego lo pasa a STL en el navegador): lo del original queda en "step"
   GET  /api/stl          -> {"stl": [...índice...]}
   POST /api/stl_borrar   {"id"} -> stl/_papelera/ (y fuera del índice)
   GET  /stl/<id>.stl     el archivo (estático)
@@ -972,8 +973,14 @@ def stl_index():
     return idx if isinstance(idx, list) else []
 
 
-def stl_save(data, nombre, tipo):
-    """Guarda un STL (binario o ASCII). Devuelve (ok, msg, extra)."""
+STEP_META_MAX = 16_000
+
+
+def stl_save(data, nombre, tipo, step=None):
+    """Guarda un STL (binario o ASCII). Devuelve (ok, msg, extra).
+    step = si vino de un STEP (el juego lo convierte a STL con OpenCascade en wasm: app/step.js), lo que se sabe del
+    original (JSON: archivo, unidad, esquema, cuerpos [{nombre, volumen_cm3}], elegidos, volumen_cm3, tam_mm,
+    motores_mm, ejes_mm…): queda en el índice como "step" y el juego lo usa en vez de adivinar desde el STL."""
     if tipo not in STL_TIPOS:
         return False, f"tipo inválido (uno de {', '.join(STL_TIPOS)})", {}
     if not data:
@@ -984,6 +991,14 @@ def stl_save(data, nombre, tipo):
     bin_ok = len(data) >= 84 and 84 + 50 * int.from_bytes(data[80:84], "little") == len(data)
     if not (ascii_ok or bin_ok):
         return False, "no parece un STL (ni binario ni ASCII)", {}
+    meta = None
+    if step:
+        try:
+            meta = json.loads(step) if isinstance(step, str) else step
+        except ValueError:
+            return False, "la información del STEP no es JSON", {}
+        if not isinstance(meta, dict) or len(json.dumps(meta)) > STEP_META_MAX:
+            return False, "la información del STEP es inválida o muy grande", {}
     nombre = (nombre or "pieza").strip()[:80] or "pieza"
     base = re.sub(r"[^a-z0-9]+", "_", nombre.lower()).strip("_")[:30] or "pieza"
     with _stl_lock:
@@ -995,7 +1010,10 @@ def stl_save(data, nombre, tipo):
         tmp = stl_dir() / f"{sid}.stl.guardando"
         tmp.write_bytes(data)
         os.replace(tmp, stl_dir() / f"{sid}.stl")
-        idx.append({"id": sid, "nombre": nombre, "tipo": tipo, "bytes": len(data), "creado": time.strftime("%Y-%m-%d %H:%M:%S")})
+        item = {"id": sid, "nombre": nombre, "tipo": tipo, "bytes": len(data), "creado": time.strftime("%Y-%m-%d %H:%M:%S")}
+        if meta:
+            item["step"] = meta
+        idx.append(item)
         write_json(stl_dir() / "index.json", idx)
     return True, "guardado", {"id": sid, "url": f"/stl/{sid}.stl"}
 
@@ -1059,7 +1077,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return self.send_json({"ok": False, "msg": "el STL pasa de 25 MB"}, 413)
             q = parse_qs(urlparse(self.path).query)
             try:
-                ok, msg, extra = stl_save(self.rfile.read(n), q.get("nombre", ["pieza"])[0], q.get("tipo", ["otro"])[0])
+                ok, msg, extra = stl_save(self.rfile.read(n), q.get("nombre", ["pieza"])[0], q.get("tipo", ["otro"])[0],
+                                          q.get("step", [None])[0])
             except OSError as e:
                 ok, msg, extra = False, str(e), {}
             return self.send_json(dict({"ok": ok, "msg": msg}, **extra), 200 if ok else 400)

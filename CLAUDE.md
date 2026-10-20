@@ -130,8 +130,14 @@ app/               EL JUEGO (Dron Maker): usa los módulos de game/
                    mesa de cableado (SVG), prueba de humo, programar (flashear, calibrar, puertos, radio, motores, IA),
                    hélices, prueba atada
   tienda.js        la tienda virtual (🛒 DronMarket): secciones, tarjetas con foto y barras de stats, detalle que compara con
-                   tu dron, canasta (envío, saldo); inventario (vender usado, insumos), importar STL
-  stl.js           leer STL (binario/ASCII), volumen -> peso impreso, puntas de los brazos -> motores, exportar STL
+                   tu dron, canasta (envío, saldo); inventario (vender usado, insumos), importar STL o STEP
+  stl.js           leer STL (binario/ASCII), volumen -> peso impreso, puntas de los brazos -> motores, exportar STL;
+                   informe() = lo de «Analizar» (pesos PLA/PETG/TPU, camas 180³/256³, malla cerrada, paredes finas);
+                   conStep() = lo guardado del STEP (index.json "step": volumen, motores) pisa lo que se adivina del STL
+  step.js          leer STEP (.step/.stp) con OpenCascade en wasm (game/vendor/occt, LGPL, se carga solo al importar un STEP):
+                   cuerpos del ensamble con nombre y volumen, unidades reales, girar a Z arriba, basesMotor() = los motores
+                   por los AGUJEROS de las bases. Se guarda como STL + "step". test: node --import ./app/three_node.mjs app/test_step.mjs
+  ui_importar.js   la pantalla «🔍 Analizar» (antes de importar y en cada diseño): vista 3D con los motores marcados, elegir piezas
   parts.js         piezas -> física (masa, twr, drag…) + batería y vel. máx.   test: node app/test_parts.mjs
   dron3d.js        el dron en 3D armado con sus piezas (formas, tu STL, carcasa, cables, piezas "fantasma" sin instalar)
   garaje.js        la escena del garaje + el banco: TU impresora 3D (setImpresora: el GLB anima cama/brazo/cabezal, la pieza crece
@@ -221,6 +227,7 @@ node app/test_demo.mjs           # la demo: hasta E6 + la finca (demo.js ACTIVA)
 node app/test_freestyle.mjs            # los mapas del freestyle: la pista libre, salida y portales adentro
 node app/test_casino.mjs               # el casino: baraja, blackjack, póker, mayor o menor, la plata y la ventaja de la casa
 node app/test_radio.mjs                # la radio del freestyle: rates Betaflight, curva del gas, calibración, armar, modos
+node --import ./app/three_node.mjs app/test_step.mjs   # importar STEP: app/test_data/chasis_5in.step (CadQuery: chasis_5in.py) -> cuerpos, volumen, 220 mm, camas
 node app/doc_pbdmm.mjs                 # vuelve a escribir docs/PBDMM.md y docs/pbdmm/tutorial.md si cambias app/data/pbdmm.json
 node app/exportar_dron.mjs             # vuelve a escribir drones/madera.json si cambian las piezas
 cd desktop && npm start                # LA APP DE ESCRITORIO (Electron): "abre el juego" = esto, no el navegador
