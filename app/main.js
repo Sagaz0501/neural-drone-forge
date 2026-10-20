@@ -135,7 +135,10 @@ function dronVista(d = D()) {
   const e = estadoDe(d);
   return { ...b, fantasma, cables: e.pasos.find((x) => x.k === "humo")?.ok, sinHelices: !(B.helices && inst.helices === d.slots.helices) };
 }
-function verDron(changed = null) { garaje.setBuild(dronVista(), cat, changed); }
+function verDron(changed = null) {
+  garaje.setBuild(dronVista(), cat, changed);
+  garaje.equipo({ multimetro: !!G.partida && PT.tieneHerramienta(G.partida, "multimetro"), nombre: D()?.nombre || "" });
+}
 
 // ---------------- las IA (una por dron) ----------------
 const urlModelo = (slug) => (slug === "base" ? "../models/modelo_web.json" : `../models/drones/${slug}/modelo_web.json`);

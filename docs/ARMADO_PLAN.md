@@ -22,7 +22,16 @@ Blender como placa real; la guía de conexión aparte. Lógica y pruebas en `app
 ✅ **También (16-10-2026):** desoldar (extractor X, malla M), multímetro en la mesa (T), la mesa no avisa si una junta
 salió mal, insumos que se gastan (estaño, flux, cable, malla) y cautines con distinta potencia; la tienda por secciones.
 
-🔜 **Falta:** conectar la batería en la mesa (con el XT60 y el smoke stopper), medir voltajes con el multímetro,
+✅ **El multímetro de verdad y el escritorio (20-10-2026):** el multímetro es un modelo de Blender
+(`blender/piezas/multimetro.py` → `app/modelos/multimetro.glb`, lógica 3D en `app/multimetro.js`). En la mesa está parado
+en su pata detrás de la placa; con T (o tocándolo) lo tomas: la punta roja sigue al ratón, un clic deja la negra en un
+pad y la pantalla marca lo que hay entre las dos (continuidad que pita: puente de estaño o dos GND; Ω; voltios si ya pasó
+la prueba de humo). En una junta fría la lectura salta. Clic en el multímetro = cambia el modo (gira la perilla). Ya no
+pinta anillos de colores en los pads: hay que medir. En el garaje (`app/escritorio.js`): tres monitores (el dron en
+alambre, los planos con sus medidas, las estadísticas + la curva de la IA si entrena), lámpara, regleta y cables,
+tapete de soldar, organizador, carretes; el multímetro en la mesa si lo compraste.
+
+🔜 **Falta:** conectar la batería en la mesa (con el XT60 y el smoke stopper),
 cortar y pelar cables a medida, más piezas hechas en Blender (ESC, motores, batería, receptor), componentes dañados.
 
 ## 1. Cómo estaba
