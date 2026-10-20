@@ -10,7 +10,9 @@
 import { buildDrone } from "./dron3d.js";
 import { exportarSTL, STL_CACHE } from "./stl.js";
 import { sfx } from "./garaje.js";
-import { t, idioma } from "./i18n.js";
+import { t, idioma, num } from "./i18n.js";
+import { confirmar } from "./dialogo.js";
+import * as IM from "./impresion.js";
 import * as TA from "./taller.js";
 
 const COLOR_PIN = { "vbat+": "#ff3b30", "5v+": "#ff8a1a", "3v3+": "#ffd23f", vbat_in: "#ff3b30", "5v_in": "#ff8a1a", "3v3_in": "#ffd23f", gnd: "#9aa0a6",
@@ -67,6 +69,7 @@ export function initBanco(ctx) {
     der.innerHTML = "";
     ({ imprimir: pImprimir, armar: pArmar, cablear: pCablear, humo: pHumo, firmware: pProgramar, config: pProgramar, motores: pProgramar, helices: pHelices, prueba: pPrueba })[BK.paso]?.(der, d, e);
     ctx.garaje.conectarUSB(BK.paso === "firmware" || BK.paso === "config" || BK.paso === "motores");
+    if (BK.paso !== "imprimir" && ctx.garaje.view === "imprimir") ctx.garaje.view = "banco";
     const pv = BK.paso === "motores" || BK.paso === "prueba" || BK.paso === "helices" ? BK.paso : null;
     if (pv && BK.pasoVisto !== pv) ctx.garaje.vistaPiloto();       // para ver los motores: como el piloto
     BK.pasoVisto = pv;
@@ -84,51 +87,152 @@ export function initBanco(ctx) {
   };
   const nuevaFila = (der) => { const go = document.createElement("div"); go.className = "go"; der.appendChild(go); };
 
-  // ---------------- imprimir: forma, tu STL, carcasa; descargar STL ----------------
+  // ---------------- imprimir: la impresora, el material, el relleno y la calidad; la forma o tu STL; la carcasa ----------------
+  // La impresión dura horas del juego (impresion.js): empiezas y sigues trabajando; main.js avanza las impresoras y avisa.
+  const fmtH = (hh) => { const m = Math.max(1, Math.round(hh * 60)); return m < 60 ? t("{m} min", { m }) : t("{h} h {m} min", { h: Math.floor(m / 60), m: m % 60 }); };
+  const minReales = (hh) => Math.max(1, Math.round((hh * IM.SEG_POR_HORA) / 60));
+  /** Lo elegido para imprimir (BK.imp), con lo que tenga sentido por defecto: la mejor impresora libre, PLA, 25 %, normal. */
+  function eleccion(p, imps) {
+    const s = (BK.imp = BK.imp || {});
+    if (!imps.some((i) => i.id === s.impresora)) s.impresora = ([...imps].reverse().find((i) => !IM.ocupada(p, i.id)) || imps.at(-1)).id;
+    s.material = s.material || "pla"; s.relleno = s.relleno || "25"; s.calidad = s.calidad || "normal";
+    s.matC = s.matC || "pla";
+    return s;
+  }
+  /** Una fila de opciones (los mismos botones de las formas). */
+  function filaOps(der, titulo, ops) {
+    h(der, `<h4 style="margin:10px 0 2px;font-size:13px">${titulo}</h4>`);
+    const box = document.createElement("div");
+    box.className = "disenos";
+    for (const o of ops) {
+      const b = document.createElement("button");
+      b.setAttribute("aria-pressed", String(!!o.on));
+      b.innerHTML = `${esc(o.n)}<small>${esc(o.s || "")}</small>`;
+      if (o.err) { b.style.opacity = "0.45"; b.title = o.err; }
+      b.onclick = () => (o.err ? toast(o.err) : o.fn());
+      box.appendChild(b);
+    }
+    der.appendChild(box);
+  }
+  /** Lo que se imprime para un chasis con este diseño (la forma o tu STL). */
+  function queChasis(chU, dis) {
+    if (dis.tipo === "stl") {
+      const m = STL_CACHE.get(dis.id)?.meta;
+      return { tipo: "chasis", uid: chU.uid, diseno: { tipo: "stl", id: dis.id }, stl: m ? { tam_mm: m.tam_mm, volumen_cm3: m.volumen_cm3, radio_m: m.radio_m, helice_max: m.helice_max } : null };
+    }
+    return { tipo: "chasis", uid: chU.uid, forma: dis.forma, diseno: { tipo: "forma", forma: dis.forma } };
+  }
+  /** El trabajo en la impresora: la barra que avanza, o la impresión fallida que hay que tirar. */
+  function panelTrabajo(der, j) {
+    const p = P(), imp = IM.impresora(cat, j.impresora), m = IM.material(cat, j.material);
+    const det = `${m.nombre} · ${t("relleno {n} %", { n: j.relleno })} · ${cat.impresion_cfg.calidad[j.calidad]?.nombre || j.calidad} · ${j.g} g`;
+    if (j.estado === "fallo") {
+      h(der, `<div style="border:1px solid rgba(255,80,60,.5);background:rgba(255,80,60,.08);border-radius:10px;padding:10px;margin:6px 0"><b class="bad">❌ ${t("Falló la impresión en la {imp}", { imp: imp.nombre })}</b><br><small>${det}</small>` +
+        `<p style="margin:6px 0 0">${t("Al {pct} %: {que}. Se perdieron {g} g de {m}; el resto del carrete sigue ahí.", { pct: Math.round(j.fallo.en * 100), que: IM.nombreFallo(j.fallo.tipo), g: j.perdido ?? 0, m: m.nombre })}</p></div>`);
+      nuevaFila(der);
+      boton(der, "🗑️ " + t("Tirarla y limpiar la cama"), "main", () => { IM.tirar(p, j.id); sfx("rasgar"); guardar(); ctx.syncImpresora?.(); render(); });
+      return;
+    }
+    const k = IM.progreso(j);
+    h(der, `<div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin:6px 0"><b>🖨️ ${t("Imprimiendo en la {imp}", { imp: imp.nombre })}</b><br><small class="muted">${det}</small>` +
+      `<div style="height:10px;border-radius:5px;background:rgba(234,242,239,.08);margin:8px 0 4px;overflow:hidden"><i id="bk-imp-barra" style="display:block;height:100%;width:${Math.round(k * 100)}%;background:linear-gradient(90deg,#ff7a1a,#ffd23f);transition:width .8s"></i></div>` +
+      `<small id="bk-imp-txt">${textoTrabajo(j)}</small></div><p style="font-size:13px" class="muted">${t("Puedes seguir trabajando: la impresora sigue sola (también de noche). Te aviso cuando termine.")}</p>`);
+    nuevaFila(der);
+    boton(der, t("Cancelar la impresión"), "ghost small", async () => {
+      if (!(await confirmar(t("¿Cancelar? Lo impreso se pierde ({g} g); el resto del filamento vuelve al carrete.", { g: Math.round(j.g * IM.progreso(j)) }), { si: t("Cancelar la impresión"), peligro: true }))) return;
+      IM.cancelar(p, j.id); guardar(); ctx.syncImpresora?.(); render();
+    });
+  }
+  const textoTrabajo = (j) => t("{pct} % · faltan {h} (≈ {m} min jugando)", { pct: Math.round(IM.progreso(j) * 100), h: fmtH(IM.faltan(j)), m: minReales(IM.faltan(j)) });
+  /** Cada segundo (main.js): la barra del trabajo, sin rehacer todo el panel. */
+  function tickImpresion() {
+    if (G.screen !== "banco" || BK.paso !== "imprimir") return;
+    const j = (P().impresiones || []).find((x) => x.estado === "imprimiendo" && document.getElementById("bk-imp-barra"));
+    if (!j) return;
+    document.getElementById("bk-imp-barra").style.width = `${Math.round(IM.progreso(j) * 100)}%`;
+    document.getElementById("bk-imp-txt").textContent = textoTrabajo(j);
+  }
+  /** El resumen antes de imprimir: gramos, tiempo, si cabe, la probabilidad de falla y cómo queda. */
+  function resumen(der, pl, sel, extra = "") {
+    const m = IM.material(cat, sel.material);
+    const linea = pl.g ? `<b>${pl.g} g</b> ${t("de {m}", { m: m?.nombre || sel.material })} · <b>${fmtH(pl.h)}</b> (≈ ${minReales(pl.h)} ${t("min jugando")}) · ${t("falla ~{n} %", { n: Math.max(1, Math.round(pl.prob * 100)) })} · ${t("tienes {n} g", { n: Math.floor(IM.filamento(P(), sel.material)) })}` : "";
+    const cabe = pl.hu && pl.imp ? (pl.cabe.ok ? `<span class="ok">✓ ${t("Cabe: {a} × {b} mm en la cama de {x} mm", { a: pl.hu[0], b: pl.hu[1], x: pl.imp.impresora3d.cama_mm[0] })}</span>` : "") : "";
+    h(der, `<p style="font-size:13px;margin:8px 0 4px;line-height:1.5">${linea}${cabe ? "<br>" + cabe : ""}${extra ? "<br>" + extra : ""}${pl.ok ? "" : `<br><span class="warn">${esc(pl.error)}</span>`}</p>`);
+  }
+
   function pImprimir(der, d) {
-    const p = P(), chU = U(d.slots.chasis), chP = chU && cat.chasis.find((x) => x.id === chU.id), impresora = PT.tieneHerramienta(p, "impresora");
+    const p = P(), chU = U(d.slots.chasis), chP = chU && cat.chasis.find((x) => x.id === chU.id), imps = IM.tuyas(p, cat);
     h(der, `<h3>${t("Diseño e impresión")}</h3>`);
     if (!chU) { h(der, `<p>${t("Primero elige un chasis para este dron (en el hangar).")}</p>`); return; }
+    const sel = imps.length ? eleccion(p, imps) : null, imp = sel && IM.impresora(cat, sel.impresora);
     if (!chP.imprimible) h(der, `<p>${t("El <b>{chasis}</b> viene hecho: no se imprime.", { chasis: chP.nombre })}</p>`);
-    else if (!impresora) h(der, `<p>${t("Sin impresora 3D, el <b>{chasis}</b> llega impreso de la tienda.", { chasis: chP.nombre })}</p>`);
+    else if (!imps.length) h(der, `<p>${chU.diseno ? t("El <b>{chasis}</b> ya venía impreso.", { chasis: chP.nombre }) : t("Para imprimir el <b>{chasis}</b> necesitas una impresora 3D (🛒 Tienda → Impresión 3D).", { chasis: chP.nombre })}</p>`);
     else {
-      const actual = chU.diseno, dis = BK.diseno || actual || { tipo: "forma", forma: "x" };
-      h(der, `<p>${actual ? t("Este chasis ya está impreso ({diseno}). Reimprimirlo cuesta <span class=\"money\">${n}</span> de filamento.", { diseno: actual.tipo === "stl" ? t("tu STL") : cat.estilo.formas[actual.forma], n: reimpresion(chP) }) : t("Elige la forma y dale Imprimir ({mat}).", { mat: chP.id === "petg" ? "PETG" : "PLA" })}</p><div class="disenos" id="bk-dis"></div>`);
-      const box = der.querySelector("#bk-dis");
-      const opts = [...Object.entries(cat.estilo.formas).map(([k, n]) => ({ d: { tipo: "forma", forma: k }, n: n.split(" (")[0], s: (n.split("(")[1] || "").replace(")", "") })),
-        ...G.stl.filter((s) => s.tipo === "chasis").map((s) => { const m = STL_CACHE.get(s.id)?.meta; return { d: { tipo: "stl", id: s.id }, n: s.nombre, s: m ? t("tu STL · ~{g} g · hélices {pul}\"", { g: m.masa_g, pul: m.helice_max }) : t("tu STL") }; })];
-      for (const o of opts) {
-        const b = document.createElement("button");
-        const on = o.d.tipo === dis.tipo && (o.d.forma || o.d.id) === (dis.forma || dis.id);
-        b.setAttribute("aria-pressed", String(on));
-        b.innerHTML = `${esc(o.n)}<small>${esc(o.s)}</small>`;
-        b.onclick = () => { BK.diseno = o.d; render(); verPrevia(o.d); };
-        box.appendChild(b);
+      const j = IM.trabajoDe(p, { uid: chU.uid });
+      if (j) panelTrabajo(der, j);
+      else {
+        const actual = chU.diseno, dis = BK.diseno || actual || { tipo: "forma", forma: "x" };
+        const matAct = actual?.material ? IM.material(cat, actual.material)?.nombre : null;
+        h(der, `<p>${actual ? t("Ya está impreso ({diseno}{mat}). Puedes imprimir otro: el filamento se paga aparte.", { diseno: actual.tipo === "stl" ? t("tu STL") : cat.estilo.formas[actual.forma] || actual.forma, mat: matAct ? ", " + matAct : "" }) : t("Elige la forma, la impresora y el material, y dale Imprimir.")}</p><div class="disenos" id="bk-dis"></div>`);
+        const box = der.querySelector("#bk-dis");
+        const opts = [...Object.entries(cat.estilo.formas).map(([k, n]) => ({ d: { tipo: "forma", forma: k }, n: n.split(" (")[0], s: (n.split("(")[1] || "").replace(")", "") })),
+          ...G.stl.filter((s) => s.tipo === "chasis").map((s) => { const m = STL_CACHE.get(s.id)?.meta; return { d: { tipo: "stl", id: s.id }, n: s.nombre, s: m ? t("tu STL · {a} × {b} mm · hélices {pul}\"", { a: m.tam_mm[0], b: m.tam_mm[1], pul: m.helice_max }) : t("tu STL") }; })];
+        for (const o of opts) {
+          const b = document.createElement("button");
+          const on = o.d.tipo === dis.tipo && (o.d.forma || o.d.id) === (dis.forma || dis.id);
+          const cb = IM.cabe(imp, IM.huella(cat, queChasis(chU, o.d)));
+          b.setAttribute("aria-pressed", String(on));
+          b.innerHTML = `${esc(o.n)}<small>${esc(o.s)}${cb.ok ? "" : " · " + t("no cabe")}</small>`;
+          if (!cb.ok) b.style.opacity = "0.6";
+          b.onclick = () => { BK.diseno = o.d; render(); verPrevia(o.d); };
+          box.appendChild(b);
+        }
+        h(der, `<p style="font-size:13px">${t("¿Tu diseño? Importa un STL en <b>Inventario → Tus diseños 3D</b>.")}</p>`);
+        const que = queChasis(chU, dis);
+        if (dis.tipo === "stl" && !que.stl) { h(der, `<p class="warn">${t("Ese STL todavía se está cargando.")}</p>`); }
+        else {
+          opcionesImpresion(der, p, imps, sel, que, "material");
+          const pl = IM.plan(p, cat, que, sel), mm = IM.material(cat, sel.material);
+          const st = mm?.chasis && IM.chasisImpreso(cat, que, sel.material, sel.relleno, sel.calidad);
+          resumen(der, pl, sel, st ? t("Queda: {g} g · aguanta {v} m/s · durabilidad {d}", { g: dis.tipo === "stl" ? pl.g : st.masa_g, v: num(st.aguante_ms, 1), d: st.durabilidad }) + (imp.impresora3d.multicolor ? " · 🎨 " + t("detalles en otro color (Carrusel 4)") : "") : "");
+          nuevaFila(der);
+          boton(der, actual ? t("Imprimir otro") : t("Imprimir"), "main", () => imprimirChasis(d, que, dis, sel), !pl.ok);
+          boton(der, "👀 " + t("Ver la impresora"), "ghost small", () => { ctx.garaje.view = ctx.garaje.view === "imprimir" ? "banco" : "imprimir"; });
+        }
       }
-      h(der, `<p style="font-size:13px">${t("¿Tu diseño? Importa un STL en <b>Inventario → Tus diseños 3D</b>.")}</p>`);
-      const mismo = actual && actual.tipo === dis.tipo && (actual.forma || actual.id) === (dis.forma || dis.id);
-      boton(der, actual ? (mismo ? t("Ya está impreso así") : t("Reimprimir (${n})", { n: reimpresion(chP) })) : t("Imprimir"), "main", () => imprimirChasis(d, chU, chP, dis, !!actual), mismo);
     }
     // carcasa
-    h(der, `<h3 style="margin-top:18px">${t("Carcasa (canopy)")}</h3><p>${t("Tapa la electrónica.")}</p><div class="disenos" id="bk-can"></div>`);
-    const cb = der.querySelector("#bk-can"), act = d.canopy?.tipo || "ninguna";
-    const copts = [...Object.entries(cat.estilo.canopies).filter(([k]) => !k.startsWith("_")).map(([k, v]) => ({ c: { tipo: k, masa_g: v.masa_g }, n: v.nombre, s: v.masa_g ? `${v.masa_g} g` : "" })),
-      ...G.stl.filter((s) => s.tipo === "canopy").map((s) => { const m = STL_CACHE.get(s.id)?.meta; return { c: { tipo: "stl", id: s.id, masa_g: m?.masa_g || 10 }, n: s.nombre, s: t("tu STL · ~{g} g", { g: m?.masa_g ?? "?" }) }; })];
-    for (const o of copts) {
-      const b = document.createElement("button"), sel = BK.canopy || d.canopy || { tipo: "ninguna" };
-      b.setAttribute("aria-pressed", String(o.c.tipo === sel.tipo && (o.c.id || "") === (sel.id || "")));
-      b.innerHTML = `${esc(o.n)}<small>${esc(o.s)}${o.c.tipo === act && (o.c.id || "") === (d.canopy?.id || "") ? ` · ${t("puesta")}` : ""}</small>`;
-      b.onclick = () => { BK.canopy = o.c; render(); };
-      cb.appendChild(b);
-    }
-    nuevaFila(der);
-    const sel = BK.canopy;
-    if (sel && !(sel.tipo === act && (sel.id || "") === (d.canopy?.id || ""))) {
-      if (sel.tipo === "ninguna") boton(der, t("Quitar la carcasa"), "ghost", () => { d.canopy = null; BK.canopy = null; refrescar(); });
-      else boton(der, impresora ? t("Imprimir carcasa") : t("Necesitas la impresora 3D"), "main", () => imprimirCanopy(d, sel), !impresora);
+    h(der, `<h3 style="margin-top:18px">${t("Carcasa (canopy)")}</h3><p>${t("Tapa la electrónica.")}</p>`);
+    const jc = IM.trabajoDe(p, { dron: d.id, tipo: "canopy" });
+    if (jc) panelTrabajo(der, jc);
+    else {
+      h(der, `<div class="disenos" id="bk-can"></div>`);
+      const cb = der.querySelector("#bk-can"), act = d.canopy?.tipo || "ninguna";
+      const copts = [...Object.entries(cat.estilo.canopies).filter(([k]) => !k.startsWith("_")).map(([k, v]) => ({ c: { tipo: k, masa_g: v.masa_g }, n: v.nombre, s: v.masa_g ? `${v.masa_g} g` : "" })),
+        ...G.stl.filter((s) => s.tipo === "canopy").map((s) => { const m = STL_CACHE.get(s.id)?.meta; return { c: { tipo: "stl", id: s.id, masa_g: m?.masa_g || 10 }, n: s.nombre, s: t("tu STL · ~{g} g", { g: m?.masa_g ?? "?" }) }; })];
+      for (const o of copts) {
+        const b = document.createElement("button"), s = BK.canopy || d.canopy || { tipo: "ninguna" };
+        b.setAttribute("aria-pressed", String(o.c.tipo === s.tipo && (o.c.id || "") === (s.id || "")));
+        b.innerHTML = `${esc(o.n)}<small>${esc(o.s)}${o.c.tipo === act && (o.c.id || "") === (d.canopy?.id || "") ? ` · ${t("puesta")}` : ""}</small>`;
+        b.onclick = () => { BK.canopy = o.c; render(); };
+        cb.appendChild(b);
+      }
+      const c = BK.canopy;
+      if (c && !(c.tipo === act && (c.id || "") === (d.canopy?.id || ""))) {
+        if (c.tipo === "ninguna") { nuevaFila(der); boton(der, t("Quitar la carcasa"), "ghost", () => { d.canopy = null; BK.canopy = null; refrescar(); }); }
+        else if (!imps.length) { nuevaFila(der); boton(der, t("Necesitas una impresora 3D"), "main", () => {}, true); }
+        else {
+          const queC = queCanopy(d, c), selC = { ...sel, material: sel.matC };
+          opcionesImpresion(der, p, imps, sel, queC, "matC");
+          const pl = IM.plan(p, cat, queC, selC);
+          resumen(der, pl, selC);
+          nuevaFila(der);
+          boton(der, t("Imprimir carcasa"), "main", () => imprimirCanopy(d, queC, selC), !pl.ok);
+        }
+      }
     }
     // descargar
-    h(der, `<h3 style="margin-top:18px">${t("Descargar STL")}</h3><p>${t("Para imprimirlo de verdad (Cura, PrusaSlicer, Bambu Studio).")}</p>`);
+    h(der, `<h3 style="margin-top:18px">${t("Descargar STL")}</h3><p>${t("Para imprimirlo de verdad en tu slicer (Cura, PrusaSlicer, OrcaSlicer…).")}</p>`);
     nuevaFila(der);
     const b = ctx.dronVista(d);
     boton(der, t("Chasis"), "ghost small", () => bajar(buildDrone({ chasis: b.chasis, diseno: BK.diseno || b.diseno, estilo: b.estilo }, cat).userData.slots.chasis, `chasis_${d.nombre}`), !b.chasis);
@@ -136,7 +240,18 @@ export function initBanco(ctx) {
     boton(der, t("Controladora"), "ghost small", () => bajar(buildDrone({ controladora: b.controladora }, cat).userData.slots.controladora, b.controladora), !b.controladora);
     boton(der, t("Dron completo"), "ghost small", () => bajar(buildDrone({ ...b, fantasma: [], sinHelices: false, cables: false }, cat), `dron_${d.nombre}`));
   }
-  const reimpresion = (chP) => Math.round(PT.precioDe(P(), chP) * PT.REIMPRIMIR);
+  function queCanopy(d, c) {
+    const m = c.tipo === "stl" ? STL_CACHE.get(c.id)?.meta : null;
+    return { tipo: "canopy", dron: d.id, canopy: c, masa_g: c.masa_g || 10, ...(m ? { stl: { tam_mm: m.tam_mm, volumen_cm3: m.volumen_cm3 } } : {}) };
+  }
+  /** Las filas de impresora, material, relleno y calidad. campoMat = "material" (chasis) o "matC" (carcasa). */
+  function opcionesImpresion(der, p, imps, sel, que, campoMat) {
+    const imp = IM.impresora(cat, sel.impresora);
+    filaOps(der, t("Impresora"), imps.map((i) => { const oc = IM.ocupada(p, i.id); return { n: i.nombre, s: oc ? (oc.estado === "fallo" ? t("cama sucia") : t("imprimiendo")) : `${i.impresora3d.cama_mm[0]} mm · ${i.impresora3d.g_h} g/h`, on: sel.impresora === i.id, fn: () => { sel.impresora = i.id; render(); } }; }));
+    filaOps(der, t("Material"), Object.entries(cat.impresion_cfg.materiales).map(([k, m]) => ({ n: m.nombre, s: t("tienes {n} g", { n: Math.floor(IM.filamento(p, k)) }), on: sel[campoMat] === k, err: IM.puedeMaterial(cat, imp, k, que), fn: () => { sel[campoMat] = k; render(); } })));
+    filaOps(der, t("Relleno"), IM.RELLENOS.map((r) => ({ n: `${r} %`, s: { 15: t("liviano"), 25: t("normal"), 40: t("firme"), 60: t("macizo") }[r], on: sel.relleno === r, fn: () => { sel.relleno = r; render(); } })));
+    filaOps(der, t("Calidad"), IM.CALIDADES.map((q) => ({ n: cat.impresion_cfg.calidad[q].nombre, s: { rapida: t("rápida, falla más"), normal: "", fina: t("lenta, más fuerte") }[q], on: sel.calidad === q, fn: () => { sel.calidad = q; render(); } })));
+  }
   function verPrevia(dis) { const b = ctx.dronVista(); ctx.garaje.setBuild({ ...b, diseno: dis }, cat); }
   function bajar(obj, nombre) {
     if (!obj) return;
@@ -146,43 +261,33 @@ export function initBanco(ctx) {
     toast(t("Descargado {archivo} ({kb} KB).", { archivo: a.download, kb: (blob.size / 1024).toFixed(0) }));
   }
 
-  function imprimirChasis(d, chU, chP, dis, reimprimir) {
-    const p = P();
-    if (reimprimir) { const c = reimpresion(chP); if (p.plata < c) { toast(t("Te faltan ${n} de filamento.", { n: c - p.plata })); return; } p.plata -= c; PT.anotar(p, -c, t("Filamento para reimprimir")); }
-    ocupado(async () => {
-      const g = buildDrone({ chasis: chP.id, diseno: dis, estilo: d.estilo }, cat).userData.slots.chasis;
-      ctx.garaje.view = "imprimir";
-      ctx.garaje.setBuild({}, cat);
-      await ctx.garaje.imprimir(g, 5.5);
-      ctx.garaje.view = "banco";
-      if (dis.tipo === "stl") {
-        const m = STL_CACHE.get(dis.id)?.meta, dens = chP.id === "petg" ? 1.27 : 1.24;
-        chU.diseno = { tipo: "stl", id: dis.id, masa_g: Math.max(40, Math.round((m.volumen_cm3 * dens * 0.45))), radio_m: m.radio_m, helice_max: m.helice_max };
-      } else chU.diseno = { tipo: "forma", forma: dis.forma };
-      d.estilo.forma = dis.forma || d.estilo.forma;
-      if (d.banco?.instalado) d.banco.instalado.chasis = null;       // la pieza nueva hay que montarla
-      BK.diseno = null;
-      guardar();
-      toast(dis.tipo === "stl" ? t("¡Impreso! Tu chasis pesa {g} g. Ahora ármalo.", { g: chU.diseno.masa_g }) : t("¡Impreso! Ahora ármalo."), 3500);
-      BK.paso = "armar";
-    });
+  function imprimirChasis(d, que, dis, sel) {
+    const p = P(), j = IM.empezar(p, cat, que, sel);
+    if (typeof j === "string") { toast(j); return; }
+    if (dis.forma) d.estilo.forma = dis.forma;
+    BK.diseno = null;
+    guardar();
+    sfx("click");
+    ctx.syncImpresora?.();
+    ctx.garaje.view = "imprimir";
+    toast(t("🖨️ Imprimiendo: {h} (≈ {m} min jugando). Te aviso cuando termine.", { h: fmtH(j.h), m: minReales(j.h) }), 4500);
+    render();
   }
-  function imprimirCanopy(d, c) {
-    ocupado(async () => {
-      const g = buildDrone({ canopy: c, estilo: d.estilo }, cat).userData.slots.canopy;
-      ctx.garaje.view = "imprimir";
-      await ctx.garaje.imprimir(g, 3.5);
-      ctx.garaje.view = "banco";
-      d.canopy = c;
-      BK.canopy = null;
-      guardar();
-      toast(t("Carcasa impresa y puesta."));
-    });
+  function imprimirCanopy(d, que, sel) {
+    const p = P(), j = IM.empezar(p, cat, que, sel);
+    if (typeof j === "string") { toast(j); return; }
+    BK.canopy = null;
+    guardar();
+    sfx("click");
+    ctx.syncImpresora?.();
+    ctx.garaje.view = "imprimir";
+    toast(t("🖨️ Imprimiendo la carcasa: {h}.", { h: fmtH(j.h) }), 3500);
+    render();
   }
 
   // ---------------- armar: en la mesa de trabajo (mesa.js) ----------------
   function pArmar(der, d, e) {
-    const p = P(), B = d.banco, chP = cat.chasis.find((x) => x.id === U(d.slots.chasis)?.id), impresora = PT.tieneHerramienta(p, "impresora");
+    const p = P(), B = d.banco, chP = cat.chasis.find((x) => x.id === U(d.slots.chasis)?.id), impresora = PT.tieneImpresora(p);
     const sinImprimir = chP?.imprimible && impresora && !U(d.slots.chasis)?.diseno;
     h(der, `<h3>${t("Armar")}</h3><p>${t("En la mesa: abre las cajas y monta cada pieza.")}</p><ul class="lista bk-estado" id="bk-arm"></ul>`);
     const ul = der.querySelector("#bk-arm"), ic = { montada: "✅", suelta: "🔩", caja: "📦", camino: "🚚" };
@@ -198,7 +303,7 @@ export function initBanco(ctx) {
       const ok = d.extras.length === (B.instalado.extras || []).length && d.extras.every((x) => B.instalado.extras.includes(x));
       ul.insertAdjacentHTML("beforeend", `<li><span>${ok ? "✅" : "🔩"} ${t("Extras")}</span><small class="muted"></small></li>`);
     }
-    if (sinImprimir) h(der, `<p class="warn">${t("Imprime el chasis primero ({mat}).", { mat: chP.id.toUpperCase() })}</p>`);
+    if (sinImprimir) h(der, `<p class="warn">${IM.trabajoDe(p, { uid: d.slots.chasis }) ? t("El chasis se está imprimiendo: espera a que termine.") : t("Imprime el chasis primero.")}</p>`);
     if (camino) h(der, `<p style="font-size:13px">${t("🚚 Lo que viene en camino llega al terminar el día.")}</p>`);
     boton(der, "🔧 " + t("Ir a la mesa de trabajo"), "main", () => ctx.mesa.abrir("armar"), sinImprimir);
     if (e.pasos.find((x) => x.k === "armar").ok) boton(der, t("Siguiente: cablear →"), "ghost", () => { BK.paso = "cablear"; render(); });
@@ -625,5 +730,5 @@ export function initBanco(ctx) {
   addEventListener("pointermove", (ev) => { if (drag !== null && G.screen === "banco") { ctx.garaje.yaw += (ev.clientX - drag) * 0.012; drag = ev.clientX; } });
   ctx.canvas.addEventListener("wheel", (ev) => { if (G.screen === "banco") { ctx.garaje.zoom = Math.min(1.8, Math.max(0.45, ctx.garaje.zoom * (ev.deltaY > 0 ? 1.1 : 0.9))); ev.preventDefault(); } }, { passive: false });
 
-  return { abrir, render, abrirGuia, get paso() { return BK.paso; }, get tab() { return BK.tab; } };
+  return { abrir, render, abrirGuia, tickImpresion, get paso() { return BK.paso; }, get tab() { return BK.tab; } };
 }

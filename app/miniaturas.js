@@ -72,8 +72,21 @@ async function objeto(cat, r, pz) {
       if (id === "cables") return cables();
       return null;
     }
+    case "impresion": {                                // las Forja3D de Blender; el filamento, un carrete de su color
+      if (pz.impresora3d) { const e = modelo(pz.modelo) || await cargarGLB(pz.modelo); return e ? e.clone(true) : null; }
+      if (pz.insumo) return carrete(pz.color || "#ff7a1a");
+      return null;
+    }
     default: return null;
   }
+}
+function carrete(color) {
+  const g = new THREE.Group(), lado = mat(0x1a1c1f, { roughness: 0.6 });
+  for (const y of [-0.031, 0.031]) { const l = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.006, 48), lado); l.position.y = y; g.add(l); }
+  const fil = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.056, 48), mat(color, { roughness: 0.35 })); g.add(fil);
+  const eje = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.07, 32), mat(0xe8e8e8)); g.add(eje);
+  g.rotation.x = Math.PI / 2 - 0.25;
+  return g;
 }
 const mat = (c, extra = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.45, ...extra });
 function extractor() {

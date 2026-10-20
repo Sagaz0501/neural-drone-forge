@@ -25,8 +25,6 @@ export const ESTILO = { color: "#b07a45", acento: "#ff7a1a", forma: "x" };
 export const REP_ETAPA = [0, 0, 5, 12, 20, 30];
 /** Cuánto te dan por una pieza usada (× precio × vida). */
 export const VENTA = 0.4;
-/** Reimprimir un chasis con otra forma: lo que cuesta el filamento (× precio con impresora). */
-export const REIMPRIMIR = 0.3;
 
 // ---------------- crear y migrar ----------------
 /** Un id para el archivo de la partida: p_<tiempo><azar> (= jugar.py PARTIDA_RE). */
@@ -56,8 +54,8 @@ export function nuevaPartidaDesarrollador() {
 export function nuevaPartidaDev(cat, drones, extras = {}) {
   const p = nuevaPartida();
   Object.assign(p, { modo: "dev", plata: 99999, rep: REP_ETAPA.at(-1), empresa: t("Estudio de IA"),
-    herramientas: [...(cat.herramientas || []).map((h) => h.id), "estacion", "extractor"],
-    insumos: { estano: 200, flux: 50, cable: 40, malla: 10 } });
+    herramientas: [...(cat.herramientas || []).map((h) => h.id), "estacion", "extractor", ...(cat.impresion || []).filter((x) => x.herramienta).map((x) => x.id)],
+    insumos: { estano: 200, flux: 50, cable: 40, malla: 10, pla: 3000, petg: 2000, tpu: 500, asa: 1000 } });
   delete p.software;                                  // todos los programas
   delete p.modelos;                                   // todos los modelos (la IA base vuela)
   for (const [nombre, piezas] of Object.entries(drones)) {
@@ -224,6 +222,8 @@ export const unidad = (p, uid) => p.inventario.find((u) => u.uid === uid) || nul
 export const unidades = (p, id) => p.inventario.filter((u) => u.id === id);
 export const tiene = (p, id) => p.inventario.some((u) => u.id === id);
 export const tieneHerramienta = (p, id) => (p.herramientas || []).includes(id);
+/** ¿Tienes alguna impresora 3D? (las Forja3D: piezas.json "impresion", ids imp_…) */
+export const tieneImpresora = (p) => (p.herramientas || []).some((h) => h.startsWith("imp_"));
 
 /** El dron donde está puesta una unidad (o null si está libre en el estante). */
 export function dronDe(p, uid) {
@@ -232,9 +232,10 @@ export function dronDe(p, uid) {
 /** Unidades libres de una pieza (las mejores primero). */
 export const libres = (p, id) => unidades(p, id).filter((u) => !dronDe(p, u.uid)).sort((a, b) => b.vida - a.vida);
 
-/** Lo que cuesta una pieza: con la impresora 3D, los chasis imprimibles salen 40 % más baratos. */
+/** Lo que cuesta una pieza. (Antes, con la impresora, los chasis imprimibles salían 40 % más baratos; ahora el chasis
+ * para imprimir es solo la tornillería y el plástico se paga en filamento: impresion.js.) */
 export function precioDe(p, pz) {
-  return pz.imprimible && tieneHerramienta(p, "impresora") ? Math.round(pz.precio * 0.6) : pz.precio;
+  return pz.precio;
 }
 
 // ---------------- el taller: herramientas de soldar e insumos que se gastan (estaño, flux, cable, malla) ----------------
@@ -242,6 +243,11 @@ export function precioDe(p, pz) {
 export const esHerramienta = (ranura, pz) => ranura === "herramientas" || !!pz?.herramienta;
 /** Partidas de antes de los insumos: el garaje ya tenía un cautín viejo y un poco de todo. */
 export function asegurarTaller(p) {
+  // la impresora 3D genérica de antes es la Forja Mini (con un poco de PLA, para que lo que imprimías siga saliendo)
+  if ((p.herramientas || []).includes("impresora")) {
+    p.herramientas = [...new Set(p.herramientas.map((h) => (h === "impresora" ? "imp_mini" : h)))];
+    if (p.insumos && p.insumos.pla == null) p.insumos.pla = 500;
+  }
   if (!p.escenarios) p.escenarios = ["foto_fija", "set_fotos", "video_ruta"];     // de antes de los simuladores: ya entrenabas fotos y videos
   if (p.insumos) return p;
   p.insumos = { estano: 10, flux: 5, cable: 2, malla: 0 };
@@ -269,7 +275,12 @@ export function puedeComprar(p, cat, ranura, id) {
   if (!pz) return t("Esa pieza no existe.");
   if (esHerramienta(ranura, pz) && tieneHerramienta(p, id)) return t("Ya la tienes.");
   if (pz.etapa > etapa(p)) return t("Se desbloquea con {rep} de reputación.", { rep: REP_ETAPA[pz.etapa] });
-  if (pz.impresora && !tieneHerramienta(p, "impresora")) return t("Necesitas la impresora 3D para imprimirlo.");
+  if (pz.impresora && !tieneImpresora(p)) return t("Necesitas una impresora 3D para imprimirlo.");
+  if (pz.imprime) {
+    const sabe = (p.herramientas || []).some((h) => cat.impresion?.find((x) => x.id === h)?.impresora3d?.materiales.includes(pz.imprime.material));
+    if (!sabe) return t("Ninguna de tus impresoras imprime {m}.", { m: pz.imprime.material.toUpperCase() });
+    if (insumo(p, pz.imprime.material) + 1e-9 < pz.imprime.g) return t("Te falta filamento {m}: gasta {g} g.", { m: pz.imprime.material.toUpperCase(), g: pz.imprime.g });
+  }
   return null;
 }
 
@@ -292,13 +303,15 @@ export function comprar(p, cat, ranura, id, n = 1, { envio = false, regalo = fal
   if (p.plata < total) return t("Te faltan ${n}.", { n: total - p.plata });
   p.plata -= total;
   if (total) anotar(p, -total, n > 1 ? `${pz.nombre} × ${n}` : pz.nombre);
-  if (esHerramienta(ranura, pz)) p.herramientas = [...(p.herramientas || []), id];
+  if (esHerramienta(ranura, pz)) {
+    p.herramientas = [...(p.herramientas || []), id];
+    for (const [k, g] of Object.entries(pz.impresora3d?.muestra || {})) { p.insumos = p.insumos || {}; p.insumos[k] = +(insumo(p, k) + g).toFixed(1); }   // la muestra de filamento
+  }
   else if (pz.insumo) { p.insumos = p.insumos || {}; p.insumos[pz.insumo.k] = +(insumo(p, pz.insumo.k) + pz.insumo.n * n).toFixed(3); }
   else for (let i = 0; i < n; i++) {
     const u = agregarUnidad(p, id);
     if (envio) { u.caja = true; const dd = diasEnvio(pz); if (dd) u.llega = hoy(p) + dd; }
-    // sin impresora, los chasis "impresos" llegan impresos de la tienda (en X); con impresora, los imprimes tú
-    if (pz.imprimible && !tieneHerramienta(p, "impresora")) u.diseno = { tipo: "forma", forma: "x" };
+    if (pz.imprime) { p.insumos[pz.imprime.material] = +(insumo(p, pz.imprime.material) - pz.imprime.g).toFixed(1); delete u.caja; delete u.llega; }   // lo imprimes tú: sale al tiro
   }
   return null;
 }
@@ -387,7 +400,10 @@ export function build(p, d) {
   const ch = unidad(p, d.slots.chasis);
   if (ch?.diseno) {
     b.diseno = ch.diseno;
-    if (ch.diseno.tipo === "stl") b.chasisStl = { masa_g: ch.diseno.masa_g, radio_m: ch.diseno.radio_m, helice_max: ch.diseno.helice_max };
+    // tu STL o un chasis impreso (impresion.js): su peso, su tamaño, su aguante y su rigidez pisan los del catálogo
+    const o = {};
+    for (const k of ["masa_g", "radio_m", "helice_max", "durabilidad", "aguante_ms", "rigidez"]) if (ch.diseno[k] != null) o[k] = ch.diseno[k];
+    if (Object.keys(o).length) b.chasisStl = o;
   }
   if (d.canopy?.masa_g) b.extraMasa_g = d.canopy.masa_g;
   return b;
@@ -436,7 +452,7 @@ export function arregloCasero(p, d) {
  * Las hélices casi siempre se rompen. Devuelve [{nombre, perdio, vida}] para contarlo en pantalla.
  */
 export function chocar(p, cat, d, velGolpe) {
-  const b = build(p, d), ch = pieza(cat, "chasis", b.chasis);
+  const b = build(p, d), ch = { ...pieza(cat, "chasis", b.chasis), ...(b.chasisStl || {}) };   // impreso: su aguante (el PLA se parte antes que el PETG)
   const exceso = Math.max(0, velGolpe - ch.aguante_ms * 0.5);
   const out = [];
   const golpeables = new Set(["chasis", "motores", "helices", "esc", "camara", "montaje"]);

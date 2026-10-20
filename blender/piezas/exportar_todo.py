@@ -27,6 +27,9 @@ PIEZAS = {
     **{f"motor_{m}": ("motor", (-30, 28, 1.2), {"id": m}) for m in ("m1806", "m2204", "m1404", "m2306", "m2207", "m2806")},
     **{f"bateria_{b}": ("bateria", (-35, 32, 1.05), {"id": b})
        for b in ("b2s1000", "b3s1300", "b3s2200", "b4s1500", "b4s2200", "b4s3000")},
+    "impresora_mini": ("impresora", (-35, 26, 1.0), {"id": "imp_mini"}),
+    "impresora_pro": ("impresora", (-30, 24, 1.1), {"id": "imp_pro"}),
+    "impresora_x": ("impresora", (-28, 12, 1.1), {"id": "imp_x"}),
 }
 
 

@@ -25,6 +25,42 @@ salió mal, insumos que se gastan (estaño, flux, cable, malla) y cautines con d
 🔜 **Falta:** conectar la batería en la mesa (con el XT60 y el smoke stopper), medir voltajes con el multímetro,
 cortar y pelar cables a medida, más piezas hechas en Blender (ESC, motores, batería, receptor), componentes dañados.
 
+## Impresión 3D (20-10-2026)
+
+> Santiago: impresoras 3D en la tienda, inspiradas en las de cama móvil chiquitas que se venden hoy (la más barata, la primera);
+> la impresora es una compra NECESARIA para imprimir un chasis de PLA.
+
+Marca **inventada** (el juego se vende: nada de marcas ni logos reales): **Forja3D**.
+
+| Impresora | Precio | Cama | Velocidad | Falla base | Materiales | Extra |
+|---|---|---|---|---|---|---|
+| **Forja Mini** (cama móvil, columna a la izquierda) | $90 · etapa 1 | 180³ mm | 60 g/h | 6 % | PLA, PETG, TPU | 250 g de PLA de muestra |
+| **Forja Pro + Carrusel 4** | $230 · etapa 2 | 256³ mm | 85 g/h | 4,5 % | PLA, PETG, TPU | multicolor (detalles sin pintar) |
+| **Forja X cerrada** (CoreXY) | $480 · etapa 3 | 256³ mm | 150 g/h | 2,5 % | + **ASA** | cerrada: el PETG casi no se deforma |
+
+- **Filamento** (sección 🖨️ Impresión 3D de la tienda): PLA 1 kg $8, PETG 1 kg $10, TPU 500 g $9, ASA 1 kg $14 (etapa 3).
+  Va en `p.insumos` en gramos. El chasis para imprimir ahora cuesta $6 (la tornillería); el plástico se paga en filamento.
+- **Cuánto gasta y tarda** (`app/impresion.js`): gramos = 170 g × relleno (15/25/40/60 %) × densidad (o el volumen de tu
+  STL); horas = 0,1 + g / (g/h) × calidad (rápida 0,7 · normal 1 · fina 1,6) / material (PETG 0,85 · TPU 0,45). Un chasis
+  en X de PLA en la Mini: **170 g, 2 h 56 min** del juego (≈ 6 min jugando); en la X, ~1 h 15 min.
+- **Cabe o no**: huella por forma (X 168 · H 172×158 · deadcat 178×160 · stretch 148×196 · **marco 232**): el de marco y
+  el stretch no caben en la Mini. Tu STL usa su tamaño real.
+- **Falla** (el azar decide al empezar, con rng inyectable): impresora × material (PETG ×1,8, ASA ×2, TPU ×2,2; cerrada
+  menos) × calidad × lo justa que queda en la cama. Tipos: **primera capa** (2-8 %), **warping** (20-60 %), **spaghetti**
+  (30-90 %). Al fallar, la cama queda con el desastre (spaghetti en 3D) hasta que la tiras; se pierde el filamento
+  hasta ahí, el resto vuelve.
+- **El chasis impreso** pisa los números del catálogo (`u.diseno`: material, relleno, calidad, masa_g, durabilidad,
+  aguante_ms, rigidez → `PT.build` → `parts.js`): PLA 55 / 3,5 m/s (rígido, se parte), PETG 72 / 4,0, ASA 78 / 4,3 y más
+  liviano; el relleno sube el peso y el aguante. Un chasis de TPU no sirve; carcasas y el soporte de TPU (6 g) sí.
+- **El tiempo**: imprime con el reloj del negocio y sigue de noche (`ctx.alDormir`); puedes seguir trabajando. Avisa al
+  terminar o al fallar. Partidas viejas: la "impresora 3D" genérica pasa a ser la Forja Mini con 500 g de PLA.
+- **3D**: `blender/piezas/impresora.py` (`exportar_todo.py -- impresora_mini impresora_pro impresora_x`) → nodos con nombre
+  `cama`, `cama_superficie`, `brazo`, `cabezal`, `boquilla`, `pantalla`, `carrete(_1..4)`, `puerta` y rangos en userData.
+  En el garaje la cama va y viene (la X baja la cama), el cabezal hace zigzag, la boquilla brilla, la pieza crece con un
+  plano de corte y suena el motor paso a paso; la tienda saca la foto del GLB.
+- **Falta**: desgaste de la cama PEI, la imagen multicolor real en el dron, imprimir piezas sueltas fuera del banco,
+  las mangueras (bowden) que sigan al cabezal (hoy están ocultas en el garaje).
+
 ## 1. Cómo estaba
 
 El banco (`app/banco.js` la lógica, `app/ui_banco.js` la pantalla) ya tiene los pasos de un armado real: imprimir →

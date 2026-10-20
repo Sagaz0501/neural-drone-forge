@@ -23,24 +23,25 @@
     },
     {
       "id": "pla",
-      "nombre": "Impreso en PLA 220 mm",
+      "nombre": "Chasis para imprimir 220 mm",
       "etapa": 1,
-      "precio": 40,
+      "precio": 6,
       "masa_g": 170,
       "helice_max": 5,
       "arrastre": 0.035,
       "durabilidad": 55,
       "aguante_ms": 3.5,
       "radio_m": 0.16,
-      "desc": "Liviano, pero se parte en choques fuertes. Con la impresora 3D: más barato y de la forma y color que quieras.",
+      "desc": "La tornillería y los separadores: el chasis lo imprimes tú en el banco (PLA, PETG o ASA), de la forma y el color que quieras. Necesita una impresora 3D.",
       "rigidez": 1.15,
-      "imprimible": true
+      "imprimible": true,
+      "impresora": true
     },
     {
       "id": "petg",
       "nombre": "Impreso en PETG 220 mm",
       "etapa": 2,
-      "precio": 55,
+      "precio": 8,
       "masa_g": 185,
       "helice_max": 5,
       "arrastre": 0.034,
@@ -49,7 +50,9 @@
       "radio_m": 0.16,
       "rigidez": 1.05,
       "imprimible": true,
-      "desc": "Como el PLA pero no se parte: aguanta golpes y calor."
+      "desc": "El de antes (ahora el material se elige al imprimir el Chasis para imprimir 220 mm).",
+      "impresora": true,
+      "oculto": true
     },
     {
       "id": "aluminio",
@@ -642,11 +645,15 @@
       "id": "mt_tpu",
       "nombre": "Soft-mount de TPU impreso",
       "etapa": 2,
-      "precio": 15,
+      "precio": 2,
       "masa_g": 6,
       "vib": 0.45,
       "impresora": true,
-      "desc": "Un soporte flexible impreso en TPU (necesita la impresora 3D)."
+      "desc": "Un soporte flexible que imprimes en TPU (6 g): necesita una impresora 3D y filamento TPU.",
+      "imprime": {
+        "material": "tpu",
+        "g": 6
+      }
     }
   ],
   "soldadura": [
@@ -747,14 +754,293 @@
       "desc": "Cobre trenzado: pones la malla sobre el estaño (mantén M) y con el cautín encima lo absorbe. Más fina que la bomba."
     }
   ],
-  "herramientas": [
+  "impresion": [
     {
-      "id": "impresora",
-      "nombre": "Impresora 3D",
+      "id": "imp_mini",
+      "nombre": "Forja Mini",
       "etapa": 1,
-      "precio": 60,
-      "desc": "Imprime chasis de PLA/PETG (40 % más baratos, de la forma y color que quieras) y soportes de TPU."
+      "precio": 90,
+      "herramienta": true,
+      "modelo": "impresora_mini",
+      "impresora3d": {
+        "tipo": "cama",
+        "cama_mm": [
+          180,
+          180,
+          180
+        ],
+        "g_h": 60,
+        "fallo": 0.06,
+        "materiales": [
+          "pla",
+          "petg",
+          "tpu"
+        ],
+        "multicolor": false,
+        "cerrada": false,
+        "muestra": {
+          "pla": 250
+        }
+      },
+      "desc": "Chiquita y fácil: cama de 180 mm (un chasis en X o H cabe justo; el de marco no). Imprime PLA, PETG y TPU, de un color. Trae 250 g de PLA de muestra."
     },
+    {
+      "id": "imp_pro",
+      "nombre": "Forja Pro + Carrusel 4",
+      "etapa": 2,
+      "precio": 230,
+      "herramienta": true,
+      "modelo": "impresora_pro",
+      "impresora3d": {
+        "tipo": "cama",
+        "cama_mm": [
+          256,
+          256,
+          256
+        ],
+        "g_h": 85,
+        "fallo": 0.045,
+        "materiales": [
+          "pla",
+          "petg",
+          "tpu"
+        ],
+        "multicolor": true,
+        "cerrada": false,
+        "muestra": {
+          "pla": 250
+        }
+      },
+      "desc": "Cama de 256 mm (cabe cualquier chasis) y el Carrusel 4: cambia de carrete solo e imprime los detalles en otro color, sin pintar."
+    },
+    {
+      "id": "imp_x",
+      "nombre": "Forja X cerrada",
+      "etapa": 3,
+      "precio": 480,
+      "herramienta": true,
+      "modelo": "impresora_x",
+      "impresora3d": {
+        "tipo": "corexy",
+        "cama_mm": [
+          256,
+          256,
+          256
+        ],
+        "g_h": 150,
+        "fallo": 0.025,
+        "materiales": [
+          "pla",
+          "petg",
+          "tpu",
+          "asa"
+        ],
+        "multicolor": true,
+        "cerrada": true,
+        "muestra": {
+          "pla": 250
+        }
+      },
+      "desc": "CoreXY cerrada: casi el doble de rápida, casi no falla y, con la cámara caliente, imprime ASA (el PETG tampoco se deforma). Trae el Carrusel 4."
+    },
+    {
+      "id": "fil_pla",
+      "nombre": "Filamento PLA · 1 kg",
+      "etapa": 1,
+      "precio": 8,
+      "color": "#ff7a1a",
+      "insumo": {
+        "k": "pla",
+        "n": 1000,
+        "unidad": "g"
+      },
+      "desc": "El de siempre: fácil de imprimir y rígido, pero se parte en un choque fuerte. Un chasis gasta ~170 g."
+    },
+    {
+      "id": "fil_petg",
+      "nombre": "Filamento PETG · 1 kg",
+      "etapa": 1,
+      "precio": 10,
+      "color": "#2b62d8",
+      "insumo": {
+        "k": "petg",
+        "n": 1000,
+        "unidad": "g"
+      },
+      "desc": "Más tenaz: se dobla antes de partirse. Hace hilos y se despega más (falla un poco más), y es más lento."
+    },
+    {
+      "id": "fil_tpu",
+      "nombre": "Filamento TPU 95A · 500 g",
+      "etapa": 1,
+      "precio": 9,
+      "color": "#1d8a4a",
+      "insumo": {
+        "k": "tpu",
+        "n": 500,
+        "unidad": "g"
+      },
+      "desc": "Flexible como goma: soportes de cámara y carcasas que aguantan golpes. Para un chasis no sirve (se dobla). Se imprime lento."
+    },
+    {
+      "id": "fil_asa",
+      "nombre": "Filamento ASA · 1 kg",
+      "etapa": 3,
+      "precio": 14,
+      "color": "#e8e8e8",
+      "insumo": {
+        "k": "asa",
+        "n": 1000,
+        "unidad": "g"
+      },
+      "desc": "Aguanta golpes, sol y calor, y pesa menos. Solo en una impresora cerrada: al aire se deforma (warping)."
+    }
+  ],
+  "impresion_cfg": {
+    "_nota": "Impresión 3D (app/impresion.js, docs/ARMADO_PLAN.md). Tiempos en horas del juego (1 h ≈ 1 min 52 s jugando). Las impresoras siguen imprimiendo de noche.",
+    "materiales": {
+      "pla": {
+        "nombre": "PLA",
+        "densidad": 1.24,
+        "vel": 1,
+        "fallo": 1,
+        "tipos": {
+          "capa1": 0.5,
+          "warping": 0.15,
+          "spaghetti": 0.35
+        },
+        "chasis": {
+          "durabilidad": 55,
+          "aguante_ms": 3.5,
+          "rigidez": 1.15
+        }
+      },
+      "petg": {
+        "nombre": "PETG",
+        "densidad": 1.27,
+        "vel": 0.85,
+        "fallo": 1.8,
+        "fallo_cerrada": 1.2,
+        "tipos": {
+          "capa1": 0.3,
+          "warping": 0.35,
+          "spaghetti": 0.35
+        },
+        "chasis": {
+          "durabilidad": 72,
+          "aguante_ms": 4.0,
+          "rigidez": 1.05
+        }
+      },
+      "asa": {
+        "nombre": "ASA",
+        "densidad": 1.07,
+        "vel": 0.9,
+        "fallo": 2.0,
+        "necesita_cerrada": true,
+        "tipos": {
+          "capa1": 0.2,
+          "warping": 0.6,
+          "spaghetti": 0.2
+        },
+        "chasis": {
+          "durabilidad": 78,
+          "aguante_ms": 4.3,
+          "rigidez": 1.0
+        }
+      },
+      "tpu": {
+        "nombre": "TPU",
+        "densidad": 1.21,
+        "vel": 0.45,
+        "fallo": 2.2,
+        "tipos": {
+          "capa1": 0.25,
+          "warping": 0.05,
+          "spaghetti": 0.7
+        },
+        "chasis": null
+      }
+    },
+    "relleno": {
+      "15": {
+        "masa": 0.88,
+        "dur": 0.85
+      },
+      "25": {
+        "masa": 1,
+        "dur": 1
+      },
+      "40": {
+        "masa": 1.15,
+        "dur": 1.12
+      },
+      "60": {
+        "masa": 1.32,
+        "dur": 1.22
+      }
+    },
+    "calidad": {
+      "rapida": {
+        "nombre": "Rápida 0,28 mm",
+        "tiempo": 0.7,
+        "fallo": 1.35,
+        "dur": 0.95
+      },
+      "normal": {
+        "nombre": "Normal 0,20 mm",
+        "tiempo": 1,
+        "fallo": 1,
+        "dur": 1
+      },
+      "fina": {
+        "nombre": "Fina 0,12 mm",
+        "tiempo": 1.6,
+        "fallo": 0.8,
+        "dur": 1.03
+      }
+    },
+    "huella_mm": {
+      "x": [
+        168,
+        168,
+        14
+      ],
+      "h": [
+        172,
+        158,
+        14
+      ],
+      "deadcat": [
+        178,
+        160,
+        14
+      ],
+      "stretch": [
+        148,
+        196,
+        14
+      ],
+      "marco": [
+        232,
+        232,
+        14
+      ],
+      "canopy": [
+        70,
+        55,
+        40
+      ],
+      "montaje": [
+        40,
+        30,
+        20
+      ]
+    },
+    "calentar_h": 0.1,
+    "masa_chasis_g": 170
+  },
+  "herramientas": [
     {
       "id": "humo",
       "nombre": "Probador de humo (smoke stopper)",

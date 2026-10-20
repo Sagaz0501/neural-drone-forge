@@ -15,7 +15,7 @@ export const llegaTxt = (pz) => ["🚚 " + t("llega hoy"), "🚚 " + t("llega ma
 const CATS = () => [
   ["kits", t("Kits"), "🎁"], ["chasis", t("Chasis"), "✖️"], ["motores", t("Motores"), "⚙️"], ["helices", t("Hélices"), "🌀"], ["escs", "ESC", "⚡"], ["baterias", t("Baterías"), "🔋"],
   ["controladoras", t("Controladoras"), "🧠"], ["radios", t("Radios"), "📡"], ["camaras", t("Cámaras"), "🎥"], ["montajes", t("Montajes"), "🔩"], ["extras", t("Extras"), "✨"],
-  ["soldadura", t("Soldadura"), "🔥"], ["herramientas", t("Herramientas"), "🧰"],
+  ["soldadura", t("Soldadura"), "🔥"], ["impresion", t("Impresión 3D"), "🖨️"], ["herramientas", t("Herramientas"), "🧰"],
 ];
 /** Lo que se compara de cada sección: [campo o función, nombre, unidad, +1 más es mejor / −1 menos es mejor]. */
 const wh = (pz) => +((pz.mah * pz.celdas * 3.7) / 1000).toFixed(1);
@@ -31,6 +31,7 @@ const STATS = () => ({
   montajes: [["vib", t("Vibración"), "", -1], ["masa_g", t("Peso"), "g", -1]],
   extras: [["masa_g", t("Peso"), "g", -1]],
   soldadura: [[(pz) => pz.cautin?.potencia, t("Potencia"), "", 1]],
+  impresion: [[(pz) => pz.impresora3d?.cama_mm[0], t("Cama"), "mm", 1], [(pz) => pz.impresora3d?.g_h, t("Velocidad"), "g/h", 1], [(pz) => pz.impresora3d && Math.round((1 - pz.impresora3d.fallo) * 100), t("Sin fallas"), "%", 1]],
   herramientas: [],
 });
 /** La ranura del dron que ocupa cada sección (para comparar con lo que tienes puesto). */
@@ -86,15 +87,17 @@ export function initTienda(ctx) {
     const q = T.q.trim().toLowerCase();
     const lista = q ? CATS().flatMap(([r]) => (cat[r] || []).map((pz) => [r, pz])).filter(([, pz]) => (pz.nombre + " " + (pz.desc || "")).toLowerCase().includes(q))
       : (cat[T.cat] || []).map((pz) => [T.cat, pz]);
+    const filas = lista.filter(([, pz]) => !pz.oculto);              // "oculto": de antes, ya no se vende (el chasis de PETG)
     const ins = p.insumos || {};
     $("t-head").innerHTML = q ? `<h3>🔎 “${esc(T.q)}”</h3><span class="muted">${t("{n} resultados", { n: lista.length })}</span>`
       : `<h3>${ICONO[T.cat]} ${esc(CATS().find(([k]) => k === T.cat)[1])}</h3>` +
-        (T.cat === "soldadura" ? `<span class="tv-chips"><span>🧵 ${num(ins.estano || 0, 1)} g</span><span>💧 ${num(ins.flux || 0, 1)} ml</span><span>🧷 ${num(ins.cable || 0, 1)} m</span><span>🟫 ${num(ins.malla || 0, 2)} m</span></span>` : "");
+        (T.cat === "soldadura" ? `<span class="tv-chips"><span>🧵 ${num(ins.estano || 0, 1)} g</span><span>💧 ${num(ins.flux || 0, 1)} ml</span><span>🧷 ${num(ins.cable || 0, 1)} m</span><span>🟫 ${num(ins.malla || 0, 2)} m</span></span>` : "") +
+        (T.cat === "impresion" ? `<span class="tv-chips">${filamentos(ins)}</span>` : "");
     // las tarjetas
     const box = $("t-prods");
     box.innerHTML = "";
     if (T.cat === "kits" && !q) { kits(box); lado(); return; }
-    for (const [r, pz] of lista) {
+    for (const [r, pz] of filas) {
       if (pz.etapa > et + 1) continue;
       const bloq = pz.etapa > et, herr = esHerr(r, pz), precio = PT.precioDe(p, pz);
       const tengo = herr ? (PT.tieneHerramienta(p, pz.id) ? 1 : 0) : pz.insumo ? 0 : PT.unidades(p, pz.id).length;
@@ -104,7 +107,7 @@ export function initTienda(ctx) {
       c.innerHTML = `<div class="tv-img"></div><div class="tv-info"><b>${esc(pz.nombre)}</b><span class="tv-precio">${precio ? "$" + precio : t("gratis")}</span></div>` +
         `<div class="tv-stats">${barras(r, pz)}</div>` +
         `<div class="tv-pie">${herr || pz.insumo ? `<span class="tv-envio">🏪 ${t("hoy")}</span>` : `<span class="tv-envio">${llegaTxt(pz)}</span>`}` +
-        `<span class="tv-tengo">${herr ? (tengo ? "✓ " + t("la tienes") : "") : pz.insumo ? `${t("tienes")} ${num(ins[pz.insumo.k] || 0, 1)} ${pz.insumo.unidad}` : tengo ? t("tienes {n}", { n: tengo }) : ""}</span>` +
+        `<span class="tv-tengo">${herr ? (tengo ? "✓ " + t("la tienes") : "") : pz.insumo ? `${t("tienes")} ${num(ins[pz.insumo.k] || 0, pz.insumo.n >= 100 ? 0 : 1)} ${pz.insumo.unidad}` : tengo ? t("tienes {n}", { n: tengo }) : ""}</span>` +
         `<button class="tv-add" aria-label="${t("Agregar a la canasta")}">${enCarro ? enCarro : "+"}</button></div>` +
         (bloq ? `<div class="tv-candado">🔒 ${t("Reputación {rep}", { rep: PT.REP_ETAPA[pz.etapa] })}</div>` : "");
       imagen(r, pz, c.querySelector(".tv-img"));
@@ -114,6 +117,10 @@ export function initTienda(ctx) {
     }
     if (!box.childElementCount) box.innerHTML = `<p class="muted">${t("Nada por aquí.")}</p>`;
     lado();
+  }
+  /** Lo que te queda de cada filamento (chips). */
+  function filamentos(ins) {
+    return (cat.impresion || []).filter((x) => x.insumo).map((x) => `<span><i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${x.color};margin-right:4px"></i>${x.insumo.k.toUpperCase()} ${num(ins[x.insumo.k] || 0, 0)} g</span>`).join("");
   }
   /** Los kits: el Kit del garaje (lo que falte del dron de madera + lo básico para soldar) en un dron nuevo. */
   function kits(box) {
@@ -133,7 +140,7 @@ export function initTienda(ctx) {
     const p = P(), key = `${r}|${pz.id}`, herr = esHerr(r, pz), en = T.carro.get(key) || 0;
     if (pz.etapa > PT.etapa(p)) { toast(t("Se desbloquea con {rep} de reputación.", { rep: PT.REP_ETAPA[pz.etapa] })); return; }
     if (herr && PT.tieneHerramienta(p, pz.id)) { toast(t("Ya la tienes.")); return; }
-    if (pz.impresora && !PT.tieneHerramienta(p, "impresora")) { toast(t("Eso se imprime: necesitas la impresora 3D.")); return; }
+    { const err = !herr && PT.puedeComprar(p, cat, r, pz.id); if (err && (pz.impresora || pz.imprime)) { toast(err); return; } }
     const n = Math.max(0, Math.min(herr ? 1 : 8, en + d));
     n ? T.carro.set(key, n) : T.carro.delete(key);
     render();
@@ -239,7 +246,7 @@ export function initTienda(ctx) {
       return b;
     };
     for (const [r, nombre, ic] of CATS()) {
-      if (r === "kits" || r === "herramientas" || r === "soldadura") continue;
+      if (r === "kits" || r === "herramientas" || r === "soldadura" || r === "impresion") continue;
       const ids = [...new Set(p.inventario.map((u) => u.id))].filter((id) => cat[r]?.some((x) => x.id === id));
       fila(`${ic} ${nombre}`, ids.map((id) => {
         const pz = cat[r].find((x) => x.id === id), us = PT.unidades(p, id), libres = us.filter((u) => !PT.dronDe(p, u.uid)).length;
@@ -247,10 +254,12 @@ export function initTienda(ctx) {
         return caja(r, pz, us.length, vida, libres ? t("{n} libres", { n: libres }) : t("en uso"), () => { E_.sel = { r, id }; renderEstante(); });
       }), t("vacío"));
     }
-    const herr = [...cat.herramientas.map((x) => ["herramientas", x]), ...(cat.soldadura || []).filter((x) => x.herramienta).map((x) => ["soldadura", x])].filter(([, x]) => PT.tieneHerramienta(p, x.id));
+    const herr = [...cat.herramientas.map((x) => ["herramientas", x]), ...(cat.soldadura || []).filter((x) => x.herramienta).map((x) => ["soldadura", x]), ...(cat.impresion || []).filter((x) => x.herramienta).map((x) => ["impresion", x])].filter(([, x]) => PT.tieneHerramienta(p, x.id));
     fila(`🧰 ${t("Herramientas")}`, herr.map(([r, pz]) => caja(r, pz, 1, null, "", () => { E_.sel = { r, id: pz.id }; renderEstante(); })), t("vacío"));
     const ins = (cat.soldadura || []).filter((x) => x.insumo);
     fila(`🔥 ${t("Soldadura")}`, ins.map((pz) => caja("soldadura", pz, 1, null, `${num(PT.insumo(p, pz.insumo.k), pz.insumo.k === "malla" ? 2 : 1)} ${pz.insumo.unidad}`, () => { E_.sel = { r: "soldadura", id: pz.id }; renderEstante(); })), t("vacío"));
+    const fil = (cat.impresion || []).filter((x) => x.insumo && PT.insumo(p, x.insumo.k) > 0);
+    fila(`🖨️ ${t("Filamento")}`, fil.map((pz) => caja("impresion", pz, 1, null, `${num(PT.insumo(p, pz.insumo.k), 0)} g`, () => { E_.sel = { r: "impresion", id: pz.id }; renderEstante(); })), t("vacío"));
     detalleEstante();
   }
   function detalleEstante() {
@@ -280,7 +289,7 @@ export function initTienda(ctx) {
     const p = P(), body = $("inv-body");
     let html = `<table class="inv-t"><tr><th>${t("Pieza")}</th><th>${t("Cant.")}</th><th>${t("Unidades")}</th></tr>`;
     for (const [ranura, nombre] of CATS()) {
-      if (ranura === "herramientas" || ranura === "soldadura") continue;
+      if (ranura === "herramientas" || ranura === "soldadura" || ranura === "impresion") continue;
       const ids = [...new Set(p.inventario.map((u) => u.id))].filter((id) => cat[ranura].some((x) => x.id === id));
       if (!ids.length) continue;
       html += `<tr class="grp"><td colspan="3">${nombre}</td></tr>`;
@@ -288,16 +297,16 @@ export function initTienda(ctx) {
         const pz = cat[ranura].find((x) => x.id === id), us = PT.unidades(p, id);
         html += `<tr><td>${pz.nombre}</td><td>${us.length}</td><td>${us.map((u) => {
           const d = PT.dronDe(p, u.uid), plata = Math.round(pz.precio * PT.VENTA * (u.vida / 100));
-          const dis = u.diseno ? ` · ${u.diseno.tipo === "stl" ? t("tu STL") : (cat.estilo.formas[u.diseno.forma] || u.diseno.forma).split(" ")[0]}` : pz.imprimible && PT.tieneHerramienta(p, "impresora") ? ` · ${t("sin imprimir")}` : "";
+          const dis = u.diseno ? ` · ${u.diseno.tipo === "stl" ? t("tu STL") : (cat.estilo.formas[u.diseno.forma] || u.diseno.forma).split(" ")[0]}` : pz.imprimible && PT.tieneImpresora(p) ? ` · ${t("sin imprimir")}` : "";
           const fw = u.fw ? ` · ${u.fw.ok ? t("con firmware") : t("firmware malo")}` : "";
           const env = TA.enCamino(p, u) ? ` · 🚚 ${t("llega el día {n}", { n: u.llega })}` : TA.enCaja(p, u) ? ` · 📦 ${t("en su caja")}` : "";
           return `<span class="u"><span class="${u.vida <= 0 ? "bad" : u.vida < 100 ? "warn" : ""}">${u.vida} %</span>${dis}${fw}${env} · ${d ? t("en <b>{dron}</b>", { dron: esc(d.nombre) }) : `${t("libre")} <button data-v="${u.uid}" title="${t("Vender usada")}">${t("vender ${n}", { n: plata })}</button>`}</span>`;
         }).join("")}</td></tr>`;
       }
     }
-    const herr = (p.herramientas || []).map((id) => [...cat.herramientas, ...(cat.soldadura || [])].find((x) => x.id === id)?.nombre).filter(Boolean);
+    const herr = (p.herramientas || []).map((id) => [...cat.herramientas, ...(cat.soldadura || []), ...(cat.impresion || [])].find((x) => x.id === id)?.nombre).filter(Boolean);
     const ins = p.insumos || {};
-    html += `<tr class="grp"><td colspan="3">${t("Herramientas")}</td></tr><tr><td colspan="3">${herr.length ? herr.join(" · ") : `<span class='muted'>${t("Ninguna todavía (la tienda tiene impresora 3D, probador de humo y multímetro).")}</span>`}</td></tr><tr class="grp"><td colspan="3">${t("Soldadura")}</td></tr><tr><td colspan="3">🧵 ${num(ins.estano || 0, 1)} g · 💧 ${num(ins.flux || 0, 1)} ml · 🧷 ${num(ins.cable || 0, 1)} m · 🟫 ${num(ins.malla || 0, 2)} m</td></tr></table>`;
+    html += `<tr class="grp"><td colspan="3">${t("Herramientas")}</td></tr><tr><td colspan="3">${herr.length ? herr.join(" · ") : `<span class='muted'>${t("Ninguna todavía (la tienda tiene impresora 3D, probador de humo y multímetro).")}</span>`}</td></tr><tr class="grp"><td colspan="3">${t("Soldadura")}</td></tr><tr><td colspan="3">🧵 ${num(ins.estano || 0, 1)} g · 💧 ${num(ins.flux || 0, 1)} ml · 🧷 ${num(ins.cable || 0, 1)} m · 🟫 ${num(ins.malla || 0, 2)} m</td></tr><tr class="grp"><td colspan="3">${t("Filamento")}</td></tr><tr><td colspan="3">${(cat.impresion || []).filter((x) => x.insumo).map((x) => `${x.insumo.k.toUpperCase()} ${num(ins[x.insumo.k] || 0, 0)} g`).join(" · ")}</td></tr></table>`;
     body.innerHTML = html;
     body.querySelectorAll("[data-v]").forEach((b) => (b.onclick = () => {
       const r = PT.vender(P(), cat, b.dataset.v);

@@ -4,6 +4,8 @@ import { readFileSync } from "fs";
 import * as TA from "./taller.js";
 import * as PT from "./partida.js";
 import * as BA from "./banco.js";
+import * as IM from "./impresion.js";
+import { calcular } from "./parts.js";
 
 let fallas = 0;
 const ok = (c, msg) => { console.log(`${c ? "ok  " : "MAL "}  ${msg}`); if (!c) fallas++; };
@@ -178,6 +180,75 @@ ok(TA.peor(["buena", "fria", "buena"]) === "fria" && TA.peor(["buena", "buena", 
   ok(r.ok, `y el banco lo acepta (la cámara recibe batería)${r.ok ? "" : ": " + [...r.faltan, ...r.fallas, ...r.danos].map((x) => x.msg).join(" · ")}`);
   const fc = comps.find((c) => c.k === "fc");
   ok(fc.pines.some((p) => p.id === "tx1" && p.bus === "UART1") && fc.pines.some((p) => p.id === "rx2" && p.bus === "UART2"), "el ESP32 tiene UART1 (GPIO27/26) y UART2 (GPIO17/16)");
+}
+
+// 9) la impresión 3D (impresion.js): la impresora es necesaria, el filamento se gasta, tarda horas, cabe o no, falla
+{
+  const p = PT.nuevaPartida(); p.plata = 1000; p.rep = 30; p.negocio = { dia: 1 };
+  ok(!!PT.puedeComprar(p, cat, "chasis", "pla") && !!PT.puedeComprar(p, cat, "montajes", "mt_tpu"), "sin impresora no se compra el chasis para imprimir ni el soporte de TPU");
+  ok(!PT.puedeComprar(p, cat, "chasis", "madera"), "el de madera (el camino de la demo) no necesita impresora");
+  ok(!PT.comprar(p, cat, "impresion", "imp_mini") && PT.tieneImpresora(p) && IM.filamento(p, "pla") === 250, "la Forja Mini se compra y trae 250 g de PLA de muestra");
+  ok(!PT.comprar(p, cat, "chasis", "pla"), "con impresora: el chasis para imprimir (la tornillería)");
+  const u = p.inventario.at(-1);
+  ok(!u.diseno, "llega sin imprimir");
+  const imp = IM.impresora(cat, "imp_mini"), xo = { tipo: "chasis", uid: u.uid, forma: "x", diseno: { tipo: "forma", forma: "x" } };
+  const g = IM.gramos(cat, xo, "pla", "25"), hh = IM.horas(cat, imp, g, "pla", "normal");
+  ok(g === 170 && hh > 1.5 && hh < 3.2, `un chasis en X: ${g} g de PLA, ${hh.toFixed(2)} h en la Mini (1,5-3 h)`);
+  ok(IM.horas(cat, IM.impresora(cat, "imp_x"), g, "pla") < hh * 0.5 && IM.horas(cat, imp, g, "pla", "fina") > hh * 1.4 && IM.horas(cat, imp, g, "petg") > hh, "la X es el doble de rápida; fina y PETG tardan más");
+  ok(IM.gramos(cat, xo, "pla", "60") > g && IM.gramos(cat, xo, "pla", "15") < g, "más relleno = más gramos");
+  ok(IM.cabe(imp, IM.huella(cat, xo)).ok && !IM.cabe(imp, IM.huella(cat, { tipo: "chasis", forma: "marco" })).ok && IM.cabe(IM.impresora(cat, "imp_pro"), IM.huella(cat, { tipo: "chasis", forma: "marco" })).ok, "el de marco (232 mm) no cabe en la cama de 180: en la Pro sí");
+  ok(!IM.cabe(imp, IM.huella(cat, { tipo: "chasis", stl: { tam_mm: [150, 200, 12] } })).ok && IM.cabe(imp, IM.huella(cat, { tipo: "chasis", stl: { tam_mm: [175, 120, 12] } })).ok, "tu STL: cabe según su tamaño");
+  ok(!!IM.puedeMaterial(cat, imp, "asa") && !IM.puedeMaterial(cat, IM.impresora(cat, "imp_x"), "asa") && !!IM.puedeMaterial(cat, imp, "tpu", xo) && !IM.puedeMaterial(cat, imp, "tpu", { tipo: "canopy" }), "ASA solo en la cerrada; un chasis de TPU no sirve (una carcasa sí)");
+  ok(IM.probFallo(cat, imp, "petg") > IM.probFallo(cat, imp, "pla") && IM.probFallo(cat, IM.impresora(cat, "imp_x"), "pla") < IM.probFallo(cat, imp, "pla") && IM.probFallo(cat, imp, "pla", "rapida") > IM.probFallo(cat, imp, "pla"), "falla más el PETG, la calidad rápida y la impresora barata");
+  ok(IM.probFallo(cat, imp, "pla", "normal", 0.99) > IM.probFallo(cat, imp, "pla", "normal", 0.5) * 1.8, "una pieza justa en la cama falla más (se levantan las puntas)");
+  // imprimir: sin falla (rng que nunca falla)
+  const op = { impresora: "imp_mini", material: "pla", relleno: "25", calidad: "normal" };
+  const p2 = PT.nuevaPartida(); p2.plata = 1000; PT.comprar(p2, cat, "impresion", "imp_mini"); PT.comprar(p2, cat, "chasis", "pla");
+  const u2 = p2.inventario.at(-1), q2 = { ...xo, uid: u2.uid };
+  p2.insumos.pla = 100;
+  ok(/filamento/i.test(IM.plan(p2, cat, q2, op).error || ""), "con 100 g de PLA no alcanza: falta filamento");
+  PT.comprar(p2, cat, "impresion", "fil_pla");
+  ok(IM.filamento(p2, "pla") === 1100, "un carrete de PLA = 1000 g más");
+  const j = IM.empezar(p2, cat, q2, op, () => 0.99);
+  ok(typeof j === "object" && IM.filamento(p2, "pla") === 1100 - 170 && !j.fallo, "empezar gasta los 170 g y no falla (rng alto)");
+  ok(typeof IM.empezar(p2, cat, q2, op, () => 0.99) === "string", "la impresora ocupada no toma otro trabajo");
+  IM.avanzar(p2, cat, j.h / 2);
+  ok(j.estado === "imprimiendo" && Math.abs(IM.progreso(j) - 0.5) < 1e-6 && !u2.diseno, "a la mitad: sigue imprimiendo, el chasis todavía no está");
+  const ev = IM.avanzar(p2, cat, j.h);
+  ok(ev.length === 1 && ev[0].ev === "listo" && u2.diseno?.material === "pla" && u2.diseno.forma === "x" && u2.diseno.masa_g === 170, "terminó: el chasis queda en el inventario, impreso en PLA");
+  ok(!IM.ocupada(p2, "imp_mini"), "la impresora queda libre");
+  // un chasis de PETG con 60 % aguanta más que el de PLA (parts.js por PT.build)
+  const d = PT.nuevoDron(p2, "Impreso");
+  const b = { chasis: "pla", motores: "m2204", helices: "h5", bateria: "b3s1300", controladora: "fc_baro", camara: "cam_juguete" };
+  for (const [slot, id] of Object.entries(b)) d.slots[slot] = slot === "chasis" ? u2.uid : PT.agregarUnidad(p2, id).uid;
+  const stPla = calcular(PT.build(p2, d), cat);
+  u2.diseno = { ...u2.diseno, ...IM.chasisImpreso(cat, q2, "petg", "60", "normal"), material: "petg" };
+  const stPetg = calcular(PT.build(p2, d), cat);
+  ok(stPetg.durabilidad > stPla.durabilidad && stPetg.crashSpeed > stPla.crashSpeed && stPetg.masa_g > stPla.masa_g, `PETG al 60 %: más aguante (${stPla.durabilidad} -> ${stPetg.durabilidad}, ${stPla.crashSpeed} -> ${stPetg.crashSpeed} m/s) y más peso`);
+  // una falla: rng que falla (spaghetti al 50 %)
+  const seq = [0, 0.99, 0.5]; let i = 0;
+  const j2 = IM.empezar(p2, cat, q2, op, () => seq[i++ % seq.length]);
+  ok(j2.fallo?.tipo === "spaghetti" && j2.fallo.en > 0.3 && j2.fallo.en < 0.9, `el azar decide: falla por ${j2.fallo?.tipo} al ${Math.round(j2.fallo?.en * 100)} %`);
+  const antes = IM.filamento(p2, "pla");
+  const ev2 = IM.avanzar(p2, cat, j2.h);
+  ok(ev2[0]?.ev === "fallo" && j2.estado === "fallo" && IM.filamento(p2, "pla") === antes + (170 - j2.perdido) && j2.perdido === Math.round(170 * j2.fallo.en), `falló: se perdieron ${j2.perdido} g y vuelve el resto`);
+  ok(!!IM.ocupada(p2, "imp_mini") && /tírala/.test(IM.plan(p2, cat, q2, op).error), "la cama queda ocupada con el desastre");
+  ok(!IM.tirar(p2, j2.id) && !IM.ocupada(p2, "imp_mini"), "tirarla libera la cama");
+  // cancelar
+  const j3 = IM.empezar(p2, cat, q2, op, () => 0.99); const f3 = IM.filamento(p2, "pla");
+  IM.avanzar(p2, cat, j3.h * 0.25); IM.cancelar(p2, j3.id);
+  ok(j3.estado === "tirado" && Math.abs(IM.filamento(p2, "pla") - (f3 + 170 - Math.round(170 * 0.25))) < 1, "cancelar: se pierde lo impreso");
+  // la carcasa de TPU y el soporte de TPU
+  PT.comprar(p2, cat, "impresion", "fil_tpu");
+  const jc = IM.empezar(p2, cat, { tipo: "canopy", dron: d.id, canopy: { tipo: "domo", masa_g: 12 }, masa_g: 12 }, { ...op, material: "tpu" }, () => 0.99);
+  IM.avanzar(p2, cat, 99);
+  ok(jc.estado === "listo" && d.canopy?.tipo === "domo" && d.canopy.material === "tpu", "la carcasa de TPU queda puesta en su dron");
+  p2.rep = 30;
+  const errTpu = PT.comprar(p2, cat, "montajes", "mt_tpu");
+  ok(!errTpu && IM.filamento(p2, "tpu") === 500 - jc.g - 6, "el soporte de TPU gasta 6 g de TPU");
+  // las partidas de antes: la impresora genérica es la Forja Mini
+  const vieja = PT.asegurarTaller({ herramientas: ["impresora", "humo"], insumos: { estano: 1 } });
+  ok(vieja.herramientas.includes("imp_mini") && !vieja.herramientas.includes("impresora") && vieja.insumos.pla === 500, "partida vieja: la impresora 3D pasa a ser la Forja Mini con 500 g de PLA");
 }
 
 console.log(fallas ? `\n${fallas} pruebas fallaron.` : "\nTodas las pruebas pasan.");

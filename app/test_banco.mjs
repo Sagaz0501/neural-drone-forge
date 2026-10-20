@@ -19,6 +19,7 @@ const v2 = { v: 2, plata: 3, rep: 14, inventario: { m2204: { vida: 100 }, cinewh
 store["dronmaker.partida"] = JSON.stringify(v2);
 const p = PT.cargar();
 ok(p.v === 3 && p.drones.length === 1 && p.inventario.length === 13, "v2 -> v3: 13 unidades y 1 dron");
+ok(p.herramientas.includes("imp_mini") && !p.herramientas.includes("impresora") && PT.tieneImpresora(p), "la impresora 3D de antes ahora es la Forja Mini");
 const d = p.drones[0], U = (uid) => PT.unidad(p, uid);
 const b = PT.build(p, d);
 ok(b.esc === "esc45" && b.extras.join() === "protectores,tof", "el dron migrado tiene las mismas piezas");
@@ -84,7 +85,7 @@ ok(PT.vender(q, cat, PT.unidades(q, "m2204").find((u) => !PT.dronDe(q, u.uid)).u
 {
   const { DRONES_EJEMPLO, EXTRAS_EJEMPLO } = await import("./parts.js");
   const pd = PT.nuevaPartidaDev(cat, { "Madera (dev)": DRONES_EJEMPLO.madera, "Cine (dev)": DRONES_EJEMPLO.cine }, { "Cine (dev)": EXTRAS_EJEMPLO.cine });
-  ok(pd.modo === "dev" && pd.drones.length === 2 && pd.herramientas.includes("impresora"), "partida dev: 2 drones y todas las herramientas");
+  ok(pd.modo === "dev" && pd.drones.length === 2 && pd.herramientas.includes("imp_mini") && PT.tieneImpresora(pd), "partida dev: 2 drones y todas las herramientas (y las impresoras)");
   for (const dd of pd.drones) {
     const ee = BA.estado(cat, dd, PT.build(pd, dd), (u) => PT.unidad(pd, u), { impresora: true });
     ok(ee.listo && PT.dronArmado(pd, cat, dd).stats.ok, `"${dd.nombre}" listo para volar: ${ee.pasos.filter((x) => !x.ok).map((x) => x.k + ": " + x.nota).join(" | ")}`);
@@ -96,7 +97,7 @@ if (existsSync(new URL("../partida.json", import.meta.url))) {
   const pr = PT.cargar();
   ok(pr.v === 3 && pr.drones.length > 0, `tu partida.json carga: ${pr.drones.length} drones, ${pr.inventario.length} unidades`);
   for (const dr of pr.drones) {        // solo informa: un dron a medio armar no es una falla
-    const er = BA.estado(cat, dr, PT.build(pr, dr), (u) => PT.unidad(pr, u), { impresora: PT.tieneHerramienta(pr, "impresora") });
+    const er = BA.estado(cat, dr, PT.build(pr, dr), (u) => PT.unidad(pr, u), { impresora: PT.tieneImpresora(pr) });
     console.log(`      "${dr.nombre}": ${er.listo ? "listo" : "falta " + er.pasos.filter((x) => !x.ok).map((x) => x.k).join(", ")}`);
   }
 }

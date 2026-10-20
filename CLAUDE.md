@@ -75,6 +75,12 @@ app/               EL JUEGO (Dron Maker): usa los módulos de game/
                    u.llega), tornillos (mantener hasta el clic; si sigues, se barre la rosca), soldar (estación que calienta,
                    punta que se ensucia, flux, estaño que solo moja si el pad está caliente) -> junta buena/fría/puente/
                    levantado en d.banco.juntas; efectivos() = el cableado que conduce. test: node app/test_taller.mjs
+  impresion.js     LA IMPRESIÓN 3D (lógica, sin pantalla): impresoras Forja3D (piezas.json "impresion": imp_mini 180 mm,
+                   imp_pro 256 mm + Carrusel 4 multicolor, imp_x CoreXY cerrada = ASA), filamento en gramos (p.insumos.pla/
+                   petg/tpu/asa), trabajos p.impresiones: gramos, horas del juego, cabe en la cama, falla (capa1/warping/
+                   spaghetti, rng inyectable); avanzar(h) = main.js cada 1 s + la noche (ctx.alDormir). Sin impresora no se
+                   compra el chasis para imprimir (la madera no la necesita). Modelos: blender/piezas/impresora.py.
+                   test: node app/test_taller.mjs (sección 9)
   tutorial.js      EL TUTORIAL del primer dron (los dos modos, obligatorio): p.tuto.etapa = regalo -> nombre -> armar (computador
                    cerrado, negocio.espera: nadie escribe) -> pc (comprar Mensajes + Simulador/IDE en 🛍️ Apps) -> modelo (nivel 13 ≥ 80 % SIN ruido: candidatosFoto
                    + GET /api/evaluar = 20 intentos fijos con la red tal cual; si no hay servidor, exitoFoto con "recientes") -> cliente (NG.primerCliente: Doña Marta).
@@ -128,7 +134,8 @@ app/               EL JUEGO (Dron Maker): usa los módulos de game/
   stl.js           leer STL (binario/ASCII), volumen -> peso impreso, puntas de los brazos -> motores, exportar STL
   parts.js         piezas -> física (masa, twr, drag…) + batería y vel. máx.   test: node app/test_parts.mjs
   dron3d.js        el dron en 3D armado con sus piezas (formas, tu STL, carcasa, cables, piezas "fantasma" sin instalar)
-  garaje.js        la escena del garaje + el banco: impresora 3D, portátil con USB, animaciones (instalar, chispas,
+  garaje.js        la escena del garaje + el banco: TU impresora 3D (setImpresora: el GLB anima cama/brazo/cabezal, la pieza crece
+                   con un plano de corte, spaghetti si falla), portátil con USB, animaciones (instalar, chispas,
                    humo, motores girando, prueba atada, la caja del pedido) y los sonidos (sintetizados)
   mision_sim.js    un vuelo SIN pantalla (física del dron armado, batería, radio, tomas, calificación, IA): la flota
   vuelo.js         el mismo vuelo con pantalla (class Vuelo extends MisionSim): 3D, cámara del dron, grabar video, fotos

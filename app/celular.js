@@ -228,7 +228,9 @@ export function initCelular(ctx) {
       render();
       filas = await volarFlota(ctx, (a) => { C.reporte.aviso = a; pintarAviso(); });
     }
+    const hAntes = NG.hora(p, ctx.ND);
     const r = NG.nuevoDia(p, ctx.ND);
+    ctx.alDormir?.(24 - hAntes + NG.reloj(ctx.ND).despierta);          // la noche: las impresoras 3D siguen imprimiendo
     ctx.guardar();
     const partes = [t("☀️ Día {n}", { n: p.negocio.dia })];
     if (r.nuevos.length) partes.push(r.nuevos.length === 1 ? t("1 mensaje nuevo") : t("{n} mensajes nuevos", { n: r.nuevos.length }));

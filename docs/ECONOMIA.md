@@ -47,6 +47,8 @@ de juego (un día = 30 min jugando), aunque tu IA saque fotos de 1 ★.
 | Insumos de soldar | $3-4 c/u | el regalo trae 10 g de estaño, 5 ml de flux y 2 m de cable: alcanzan para el segundo dron |
 | Arriendo | $60 cada 7 días | recién desde reputación 6 |
 | Reparar | precio × lo que perdió × 0,6 | sin plata: el arreglo casero es gratis (las piezas quedan al 40 %) |
+| Impresora 3D (Forja Mini / Pro / X) | $90 / $230 / $480 | NO está en el camino de la demo (el dron de madera no se imprime). Sin impresora no se compra el chasis para imprimir |
+| Filamento | $8-14 el kg | un chasis gasta ~170 g (≈ $1,4 de PLA); el chasis para imprimir es la tornillería: $6 |
 
 ## Siempre se puede seguir (desde $0)
 

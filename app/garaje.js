@@ -4,7 +4,7 @@
 // =====================================================================
 import * as THREE from "three";
 import { buildDrone, popIn, tickPop, disposeDrone } from "./dron3d.js";
-import { modelo } from "./modelos3d.js";
+import { modelo, hay } from "./modelos3d.js";
 import { t } from "./i18n.js";
 
 function canvasTex(w, h, paint, repeat = [1, 1]) {
@@ -222,9 +222,12 @@ export class Garaje {
     }
 
     // ---- impresora 3D (atrás a la derecha) y portátil con el configurador (a la izquierda) ----
-    this.impresora = makeImpresora();
+    // la impresora es la TUYA (setImpresora: el modelo de Blender de la Forja que compraste); sin impresora, no hay
+    this.impresora = new THREE.Group();
     this.impresora.position.set(1.12, 0.96, -2.12);
     this.impresora.rotation.y = -0.35;
+    this.impresora.visible = false;
+    this.imp = null;
     S.add(this.impresora);
     this.portatil = makePortatil();
     this.portatil.position.set(-0.78, 0.96, -2.1);
@@ -411,30 +414,90 @@ export class Garaje {
     d.position.y = 0.02;
   }
 
-  /** Imprime una pieza en la impresora 3D: aparece capa por capa. obj = Group con la pieza. */
-  async imprimir(obj, dur = 5) {
-    const bed = this.impresora.userData.bed, head = this.impresora.userData.head;
-    const box = new THREE.Box3().setFromObject(obj), size = box.getSize(new THREE.Vector3());
-    const k = 0.26 / Math.max(size.x, size.z, 0.01);
-    obj.scale.multiplyScalar(k);
-    obj.position.set(0, 0.012, 0);
-    const plane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
-    obj.traverse((o) => { if (o.isMesh) { o.material = o.material.clone(); o.material.clippingPlanes = [plane]; o.material.clipShadows = true; } });
-    bed.add(obj);
-    this.imprimiendo = obj;
-    const h = size.y * k + 0.012, base = bed.getWorldPosition(new THREE.Vector3()).y;
-    sfx("impresora", dur);
-    await this.animar(dur, (tt) => {
-      const y = 0.012 + h * tt;
-      plane.constant = base + y;
-      head.position.set(Math.sin(tt * 90) * 0.12, y + 0.03, Math.cos(tt * 67) * 0.1);
+  /**
+   * La impresora del garaje y su trabajo (main.js syncImpresora, cada segundo). pz = la impresora del catálogo (o null:
+   * no tienes); trabajo = { id, estado: "imprimiendo" | "fallo", k (0-1), fallo, color, multicolor, crear() -> la pieza }.
+   * La pieza crece capa por capa (un plano de corte), el cabezal y la cama se mueven, la boquilla brilla.
+   */
+  setImpresora(pz, trabajo = null) {
+    const id = pz?.id || null;
+    if ((this.imp?.id || null) !== id || (this.imp && !this.imp.glb && pz?.modelo && hay(pz.modelo))) {   // otra impresora, o ya cargó su GLB
+      this.impresora.clear();
+      this.imp = null;
+      if (pz) {
+        const glb = pz.modelo && modelo(pz.modelo), m = glb || makeImpresora();
+        this.impresora.add(m);
+        this.imp = { id, obj: m, glb: !!glb, ...nodosImpresora(m, pz), pieza: null, trabajo: null, k: 0, sonido: 0 };
+      }
+    }
+    this.impresora.visible = !!pz;
+    const I = this.imp;
+    if (!I) return;
+    const clave = trabajo ? `${trabajo.id}|${trabajo.estado}` : null;
+    if (clave !== I.clave) {
+      if (I.pieza) { I.sup.remove(I.pieza); I.pieza = null; }
+      if (I.spaghetti) { I.sup.remove(I.spaghetti); I.spaghetti = null; }
+      I.clave = clave;
+      if (trabajo) this._piezaImpresa(I, trabajo);
+      if (I.trabajo?.estado === "imprimiendo" && !trabajo) sfx("listo");
+      else if (trabajo?.estado === "fallo" && I.trabajo?.estado === "imprimiendo") sfx("error");
+    }
+    I.trabajo = trabajo;
+    if (trabajo && trabajo.estado === "fallo") I.k = trabajo.fallo?.en ?? trabajo.k;
+  }
+  /** La pieza sobre la cama, del color del filamento, con su plano de corte (y el desastre si falló). */
+  _piezaImpresa(I, j) {
+    const obj = j.crear?.();
+    if (!obj) return;
+    const g = new THREE.Group();
+    g.add(obj);
+    const bb = new THREE.Box3().setFromObject(obj), c = bb.getCenter(new THREE.Vector3()), sz = bb.getSize(new THREE.Vector3());
+    obj.position.sub(new THREE.Vector3(c.x, bb.min.y, c.z));
+    const cama = I.camaMm / 1000, k = Math.min(1, (cama * 0.98) / Math.max(sz.x, sz.z, 0.01));   // por si una forma vieja no cabe
+    if (k < 1) g.scale.setScalar(k);
+    const plano = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
+    const col = new THREE.Color(j.color || "#ff7a1a");
+    g.traverse((o) => {
+      if (!o.isMesh) return;
+      o.material = o.material.clone();
+      if (!j.multicolor && o.material.color) o.material.color.copy(col);       // de un solo color: el del carrete
+      o.material.clippingPlanes = [plano]; o.material.clipShadows = true;
+      o.castShadow = o.receiveShadow = true;
     });
-    obj.traverse((o) => { if (o.isMesh) o.material.clippingPlanes = []; });
-    head.position.set(0, 0.32, 0);
-    sfx("listo");
-    await this.animar(0.8, () => {});
-    bed.remove(obj);
-    this.imprimiendo = null;
+    I.sup.add(g);
+    I.pieza = g; I.plano = plano; I.alto = Math.max(0.004, sz.y * (k < 1 ? k : 1)); I.radio = Math.max(sz.x, sz.z) * (k < 1 ? k : 1) / 2;
+    I.k = j.k;
+    if (j.estado === "fallo") {
+      const en = j.fallo?.en ?? j.k;
+      if (j.fallo?.tipo === "warping") { g.rotation.z = 0.06; g.position.y = 0.002; }
+      I.spaghetti = spaghetti(col, I.radio, I.alto * en, j.fallo?.tipo === "spaghetti" ? 7 : 2, (j.id || "x").length + Math.round(en * 1000));
+      I.sup.add(I.spaghetti);
+    }
+  }
+  /** Cada cuadro: el cabezal y la cama siguen el recorrido de la capa, la boquilla brilla, suena el motor paso a paso. */
+  _tickImpresora(dt) {
+    const I = this.imp;
+    if (!I) return;
+    const j = I.trabajo, imprimiendo = j?.estado === "imprimiendo";
+    if (imprimiendo) I.k += (j.k - I.k) * Math.min(1, dt * 2);
+    const zCapa = I.pieza ? I.alto * I.k : 0;
+    if (I.plano && I.pieza) I.plano.constant = I.sup.getWorldPosition(this._v || (this._v = new THREE.Vector3())).y + zCapa + 0.0003;
+    const tt = this.t, ax = Math.min(I.rx, (I.radio || 0.05) * 0.95), az = Math.min(I.ry, (I.radio || 0.05) * 0.95);
+    // el recorrido: un zigzag rápido (la línea) sobre uno lento (el relleno); quieto si no imprime
+    const ox = imprimiendo ? Math.sin(tt * 7.3) * ax * (0.55 + 0.45 * Math.sin(tt * 0.9)) : 0;
+    const oz = imprimiendo ? Math.sin(tt * 1.7 + Math.sin(tt * 5.1) * 0.6) * az : 0;
+    const subir = imprimiendo || j?.estado === "fallo" ? zCapa + (j?.estado === "fallo" ? 0.03 : 0) : 0.04;
+    if (I.cabezal) I.cabezal.position.x = I.p0.cabezal.x + ox;
+    if (I.corexy) {
+      if (I.brazo) I.brazo.position.z = I.p0.brazo.z + oz;                  // CoreXY: el pórtico va de adelante a atrás
+      if (I.cama) I.cama.position.y = I.p0.cama.y - subir;                  // y la cama baja una capa a la vez
+    } else {
+      if (I.cama) I.cama.position.z = I.p0.cama.z - oz;                     // cama móvil: la cama va y viene
+      if (I.brazo) I.brazo.position.y = I.p0.brazo.y + subir;               // y el brazo sube
+    }
+    if (I.boquilla) { const m = I.boquilla.material; if (m?.emissive) { m.emissive.setRGB(1, 0.35, 0.05); m.emissiveIntensity += ((imprimiendo ? 1.6 : 0) - m.emissiveIntensity) * Math.min(1, dt * 3); } }
+    if (imprimiendo) for (const c of I.carretes) c.rotation[c.name === "carrete" ? "z" : "x"] += dt * 0.25;   // el de arriba gira de adelante a atrás; los del Carrusel, de lado
+    if (imprimiendo && this.view === "imprimir" && (I.sonido -= dt) <= 0) { I.sonido = 2.6; sfx("impresora", 2.5); }
   }
 
   /** Llega un pedido de la tienda: una caja cae en la mesa y se abre. */
@@ -471,6 +534,7 @@ export class Garaje {
   update(dt) {
     this.t += dt;
     if (this.motas) { this.motas.rotation.y += dt * 0.02; this.motas.position.y = Math.sin(this.t * 0.15) * 0.03; }
+    this._tickImpresora(dt);
     if (this.view === "banco") this.turn.rotation.y += (this.yaw - this.turn.rotation.y) * Math.min(1, dt * 8);
     else { this.turn.rotation.y += dt * 0.45; this.yaw = this.turn.rotation.y; }
     for (const a of [...this.anims]) {
@@ -499,7 +563,7 @@ export class Garaje {
     } else if (this.view === "banco" || this.view === "imprimir") {
       // el banco: el dron de cerca, a la izquierda (el panel de trabajo a la derecha)
       const z = this.zoom;
-      if (this.view === "imprimir") { target.set(1.0, 1.15, -2.1); pos = new THREE.Vector3(0.55, 1.55, -1.2); }
+      if (this.view === "imprimir") { target.set(1.32, 1.1, -2.1); pos = new THREE.Vector3(0.78, 1.5, -1.32); }   // la impresora a la izquierda del panel
       else {
         target.set(this.wide ? 0.12 : 0, 1.0, -1.85);
         pos = new THREE.Vector3(this.wide ? 0.12 : 0, 1.0 + 1.0 * z, -1.85 + 1.25 * z);
@@ -518,6 +582,35 @@ export class Garaje {
 }
 
 // ---------------- cosas del banco ----------------
+/** Los nodos que se mueven (por nombre, del GLB de blender/piezas/impresora.py; o los de la de cajas). */
+function nodosImpresora(m, pz) {
+  const n = (k) => m.getObjectByName(k) || null;
+  const cama = n("cama") || m.userData.bed || null, cabezal = n("cabezal") || m.userData.head || null;
+  const sup = n("cama_superficie") || m.userData.sup || cama;
+  const brazo = n("brazo") || m.userData.brazo || null, boquilla = n("boquilla") || m.userData.noz || null;
+  if (boquilla?.material) boquilla.material = boquilla.material.clone();
+  for (const k of ["tubo_bowden", "tubos_carrusel", "tubos"]) { const o = n(k); if (o) o.visible = false; }   // fijos en el modelo: no siguen al cabezal
+  const carretes = ["carrete", "carrete_1", "carrete_2", "carrete_3", "carrete_4"].map(n).filter(Boolean);
+  const I3 = pz.impresora3d || {}, half = (I3.cama_mm?.[0] || 180) / 2000;
+  m.traverse((o) => { if (o.isMesh && o.material?.transparent) o.material.depthWrite = false; });   // los vidrios de la Forja X
+  return { cama, sup, cabezal, brazo, boquilla, carretes, corexy: I3.tipo === "corexy",
+    camaMm: I3.cama_mm?.[0] || 180, rx: cabezal?.userData?.rango_x ?? half, ry: cama?.userData?.rango_y ?? half,
+    p0: { cama: cama?.position.clone() || new THREE.Vector3(), cabezal: cabezal?.position.clone() || new THREE.Vector3(), brazo: brazo?.position.clone() || new THREE.Vector3() } };
+}
+/** El nido de filamento de una impresión fallida (spaghetti): tubos finitos que dan vueltas sobre la pieza. */
+function spaghetti(color, radio, alto, n, semilla) {
+  const g = new THREE.Group(), r = rnd(semilla), mat = new THREE.MeshStandardMaterial({ color, roughness: 0.45 });
+  for (let i = 0; i < n; i++) {
+    const pts = [];
+    let x = (r() - 0.5) * radio, z = (r() - 0.5) * radio, y = alto + 0.002;
+    for (let k = 0; k < 26; k++) { x += (r() - 0.5) * 0.03; z += (r() - 0.5) * 0.03; y = Math.max(0.0015, y + (r() - 0.45) * 0.008); pts.push(new THREE.Vector3(Math.max(-radio, Math.min(radio, x)), y, Math.max(-radio, Math.min(radio, z)))); }
+    const tubo = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 120, 0.0007, 5), mat);
+    tubo.castShadow = true;
+    g.add(tubo);
+  }
+  return g;
+}
+
 function makeImpresora() {
   const g = new THREE.Group(), metal = new THREE.MeshStandardMaterial({ color: 0x2b2f33, metalness: 0.6, roughness: 0.4 });
   const add = (geo, mat, x, y, z) => { const o = new THREE.Mesh(geo, mat); o.position.set(x, y, z); o.castShadow = true; g.add(o); return o; };
@@ -531,10 +624,12 @@ function makeImpresora() {
   noz.rotation.x = Math.PI; noz.position.y = -0.04;
   head.add(h1, noz);
   head.position.set(0, 0.32, 0);
-  bed.add(head);
+  // de respaldo (si el GLB no cargó): el brazo sube con el cabezal; la pieza va arriba de la cama
+  const brazo = new THREE.Group(); brazo.position.set(0, 0.096, 0); brazo.add(head); head.position.set(0, 0.04, 0); g.add(brazo);
+  const sup = new THREE.Object3D(); sup.position.y = 0.006; bed.add(sup);
   const spool = add(new THREE.CylinderGeometry(0.07, 0.07, 0.05, 20), new THREE.MeshStandardMaterial({ color: 0x3ccbff, roughness: 0.6 }), 0.2, 0.56, -0.17);
   spool.rotation.x = Math.PI / 2;
-  g.userData = { bed, head };
+  g.userData = { bed, head, brazo, sup, noz };
   return g;
 }
 
@@ -631,11 +726,11 @@ export function sfx(kind, dur = 1) {
     else if (kind === "chispa") { ruido(0, 0.2, 0.6, 7500); }                       // el estaño y el flux chisporroteando
     else if (kind === "motor" || kind === "impresora") {
       const o = AC.createOscillator(), g = AC.createGain();
-      o.type = kind === "motor" ? "sawtooth" : "square";
+      o.type = kind === "motor" ? "sawtooth" : "triangle";                  // la impresora: los motores paso a paso, bajito
       o.frequency.setValueAtTime(kind === "motor" ? 80 : 300, t0);
       if (kind === "motor") o.frequency.linearRampToValueAtTime(420, t0 + dur * 0.4);
       else for (let i = 0; i < dur * 6; i++) o.frequency.setValueAtTime(260 + ((i * 97) % 160), t0 + i / 6);
-      g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(kind === "motor" ? 0.5 : 0.12, t0 + 0.15); g.gain.setValueAtTime(kind === "motor" ? 0.5 : 0.12, t0 + dur - 0.2); g.gain.linearRampToValueAtTime(0.0001, t0 + dur);
+      g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(kind === "motor" ? 0.5 : 0.07, t0 + 0.15); g.gain.setValueAtTime(kind === "motor" ? 0.5 : 0.07, t0 + dur - 0.2); g.gain.linearRampToValueAtTime(0.0001, t0 + dur);
       o.connect(g).connect(out); o.start(t0); o.stop(t0 + dur + 0.05);
     }
   } catch { /* sin audio */ }

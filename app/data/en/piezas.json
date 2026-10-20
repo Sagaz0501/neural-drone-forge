@@ -10,13 +10,13 @@
     },
     {
       "id": "pla",
-      "nombre": "3D-printed PLA 220 mm",
-      "desc": "Light, but it snaps in hard crashes. With the 3D printer: cheaper, in any shape and color you want."
+      "nombre": "Frame to print 220 mm",
+      "desc": "The screws and standoffs: you print the frame yourself at the workbench (PLA, PETG or ASA), in any shape and color you want. Needs a 3D printer."
     },
     {
       "id": "petg",
       "nombre": "3D-printed PETG 220 mm",
-      "desc": "Like PLA but it doesn't snap: handles hits and heat."
+      "desc": "The old one (now the material is chosen when you print the Frame to print 220 mm)."
     },
     {
       "id": "aluminio",
@@ -243,15 +243,10 @@
     {
       "id": "mt_tpu",
       "nombre": "Printed TPU soft-mount",
-      "desc": "A flexible mount printed in TPU (needs the 3D printer)."
+      "desc": "A flexible mount you print in TPU (6 g): needs a 3D printer and TPU filament."
     }
   ],
   "herramientas": [
-    {
-      "id": "impresora",
-      "nombre": "3D printer",
-      "desc": "Prints PLA/PETG frames (40 % cheaper, in any shape and color you want) and TPU mounts."
-    },
     {
       "id": "humo",
       "nombre": "Smoke stopper",
@@ -342,5 +337,55 @@
       "nombre": "Desoldering braid · 1.5 m",
       "desc": "Braided copper: put the braid on the solder (hold M) and with the iron on top it soaks it up. Finer than the pump."
     }
-  ]
+  ],
+  "impresion": [
+    {
+      "id": "imp_mini",
+      "nombre": "Forja Mini",
+      "desc": "Small and easy: 180 mm bed (an X or H frame just fits; the ring frame doesn't). Prints PLA, PETG and TPU, in one color. Comes with a 250 g PLA sample."
+    },
+    {
+      "id": "imp_pro",
+      "nombre": "Forja Pro + Carrusel 4",
+      "desc": "256 mm bed (any frame fits) and the Carrusel 4: it swaps spools by itself and prints the details in another color, no painting."
+    },
+    {
+      "id": "imp_x",
+      "nombre": "Forja X enclosed",
+      "desc": "Enclosed CoreXY: almost twice as fast, almost never fails and, with the warm chamber, it prints ASA (PETG doesn't warp either). Comes with the Carrusel 4."
+    },
+    {
+      "id": "fil_pla",
+      "nombre": "PLA filament · 1 kg",
+      "desc": "The usual: easy to print and stiff, but it snaps in a hard crash. A frame uses ~170 g."
+    },
+    {
+      "id": "fil_petg",
+      "nombre": "PETG filament · 1 kg",
+      "desc": "Tougher: it bends before it snaps. It strings and lifts more (fails a bit more often), and it's slower."
+    },
+    {
+      "id": "fil_tpu",
+      "nombre": "TPU 95A filament · 500 g",
+      "desc": "Flexible like rubber: camera mounts and canopies that take hits. Useless for a frame (it bends). Prints slowly."
+    },
+    {
+      "id": "fil_asa",
+      "nombre": "ASA filament · 1 kg",
+      "desc": "Handles hits, sun and heat, and it's lighter. Only on an enclosed printer: in open air it warps."
+    }
+  ],
+  "impresion_cfg": {
+    "calidad": {
+      "rapida": {
+        "nombre": "Fast 0.28 mm"
+      },
+      "normal": {
+        "nombre": "Normal 0.20 mm"
+      },
+      "fina": {
+        "nombre": "Fine 0.12 mm"
+      }
+    }
+  }
 }

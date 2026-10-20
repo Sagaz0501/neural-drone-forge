@@ -24,6 +24,8 @@ import { mundoLugar, alcanceNecesario } from "./lugares.js";
 import { cargarSTL } from "./stl.js";
 import { initTienda } from "./tienda.js";
 import { initBanco } from "./ui_banco.js";
+import * as IM from "./impresion.js";
+import { buildDrone } from "./dron3d.js";
 import { initMesa } from "./mesa.js";
 import { initEstudio } from "./estudio.js";
 import { initSim } from "./ui_sim.js";
@@ -123,7 +125,7 @@ const D = () => (G.partida ? PT.dronActivo(G.partida) : null);
 const U = (uid) => PT.unidad(G.partida, uid);
 function guardar() { PT.guardar(G.partida); }
 /** El estado del banco del dron (pasos, listo para volar…). */
-const estadoDe = (d) => BA.estado(cat, d, PT.build(G.partida, d), U, { impresora: PT.tieneHerramienta(G.partida, "impresora") });
+const estadoDe = (d) => BA.estado(cat, d, PT.build(G.partida, d), U, { impresora: PT.tieneImpresora(G.partida) });
 
 /** Lo que se ve del dron en 3D: sus piezas, lo no instalado como fantasma, los cables si ya pasó la prueba de humo. */
 function dronVista(d = D()) {
@@ -372,6 +374,7 @@ function descr(ranura, pz) {
     case "extras": return `${pz.masa_g} g · ${pz.desc || ""}`;
     case "herramientas": return pz.desc || "";
     case "soldadura": return pz.desc || "";
+    case "impresion": return pz.impresora3d ? t("cama {x} × {y} × {z} mm · {v} g/h · {m}", { x: pz.impresora3d.cama_mm[0], y: pz.impresora3d.cama_mm[1], z: pz.impresora3d.cama_mm[2], v: pz.impresora3d.g_h, m: pz.impresora3d.materiales.map((k) => k.toUpperCase()).join(", ") }) + ` · ${pz.desc || ""}` : pz.desc || "";
     default: return "";
   }
 }
@@ -460,7 +463,7 @@ function kitFaltan(p = P()) {
   for (const [k, id, min] of [["estano", "estano", 3], ["flux", "flux", 1.5], ["cable", "cables", 2]]) if (PT.insumo(p, k) < min) out.push({ ranura: "soldadura", id, n: 1 });
   return out;
 }
-const kitCosto = () => kitFaltan().reduce((s, x) => s + PT.precioDe(P(), pieza(cat, x.ranura, x.id)) * x.n, 0);   // lo mismo que cobra comprarCarrito (con impresora, el chasis sale más barato)
+const kitCosto = () => kitFaltan().reduce((s, x) => s + PT.precioDe(P(), pieza(cat, x.ranura, x.id)) * x.n, 0);   // lo mismo que cobra comprarCarrito
 /** El regalo de mamá: el kit del garaje gratis (llega en cajas a la mesa) en un dron nuevo. */
 const regaloMama = () => armarKit({ regalo: true });
 function armarKit({ regalo = false } = {}) {
@@ -822,6 +825,47 @@ setInterval(() => {
   if (r.nuevos.length) { if (celular.abierto()) celular.render(); guardar(); }
   if (r.dormir && G.screen !== "vuelo") { G.durmiendo = true; celular.terminarDia(true).finally(() => { G.durmiendo = false; pintarReloj(); }); return; }
   if (++relojN % 15 === 0) guardar();
+}, 1000);
+// ---------------- las impresoras 3D (impresion.js): siguen imprimiendo mientras juegas (y de noche: ctx.alDormir) ----------------
+const COLOR_FIL = Object.fromEntries((cat.impresion || []).filter((x) => x.insumo).map((x) => [x.insumo.k, x.color]));
+/** La pieza que se está imprimiendo, en 3D (para la cama de la impresora del garaje). */
+function piezaImpresa(j) {
+  const p = P(), q = j.que, d = p.drones.find((x) => x.id === q.dron || Object.values(x.slots).includes(q.uid));
+  const estilo = { ...(d?.estilo || PT.ESTILO), ...(q.forma ? { forma: q.forma } : {}) };
+  if (q.tipo === "chasis") return buildDrone({ chasis: PT.unidad(p, q.uid)?.id || "pla", diseno: q.diseno, estilo }, cat).userData.slots.chasis || null;
+  if (q.tipo === "canopy") return buildDrone({ canopy: q.canopy, estilo }, cat).userData.slots.canopy || null;
+  return null;
+}
+/** La impresora del garaje = la que imprime (o la mejor que tienes), con su trabajo. */
+function syncImpresora() {
+  const p = P();
+  if (!p) return;
+  const j = (p.impresiones || []).find((x) => x.estado === "imprimiendo" || x.estado === "fallo");
+  const pz = IM.impresora(cat, j?.impresora) || IM.tuyas(p, cat).at(-1) || null;
+  garaje.setImpresora(pz, j ? { id: j.id, estado: j.estado, k: IM.progreso(j), fallo: j.fallo, color: COLOR_FIL[j.material], multicolor: j.multicolor, crear: () => piezaImpresa(j) } : null);
+}
+ctx.syncImpresora = syncImpresora;
+/** Pasaron horas del juego: avanzan las impresoras y se avisa lo que terminó o falló. */
+function avanzarImpresoras(h) {
+  const p = P();
+  if (!p?.impresiones?.length) return;
+  for (const { j, ev } of IM.avanzar(p, cat, h)) {
+    const imp = IM.impresora(cat, j.impresora)?.nombre || "";
+    const que = j.que.tipo === "chasis" ? t("el chasis") : t("la carcasa");
+    if (ev === "listo") { toast(t("🖨️ ¡Listo! La {imp} terminó {que}.", { imp, que }), 4500); sfx("listo"); }
+    else { toast(t("❌ La {imp} falló al {pct} %: {motivo}.", { imp, pct: Math.round(j.fallo.en * 100), motivo: IM.nombreFallo(j.fallo.tipo) }), 6000); sfx("error"); }
+    guardar();
+    if (G.screen === "banco") banco.render();
+    else if (G.screen === "taller") renderTaller();
+  }
+}
+ctx.alDormir = (h) => { avanzarImpresoras(h); syncImpresora(); };
+setInterval(() => {
+  const p = P();
+  if (!p || document.hidden || G.screen === "inicio" || !$("pausa").classList.contains("hidden") || window.__fsAbierto) return;
+  avanzarImpresoras(1 / IM.SEG_POR_HORA);
+  syncImpresora();
+  banco.tickImpresion();
 }, 1000);
 $("b-lab-volar").onclick = () => abrirFreestyle();     // 🎮 Volar mientras entrena: el entrenamiento sigue en el servidor
 ctx.ent = ent; ctx.mis = mis; ctx.P = () => P(); ctx.dronParaEntrenar = (d) => dronParaEntrenar(d);
