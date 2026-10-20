@@ -13,7 +13,7 @@
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://sagaz0501.github.io/neural-drone-forge/novedades.html">
 <meta property="og:title" content="Neural Drone Forge — Arma el dron. Entrena su cerebro. Míralo aprender a volar.">
-<meta property="og:description" content="Armas un dron de madera, lo sueldas cable por cable y le enseñas a volar con una IA que aprende frente a ti. Gratis y open source.">
+<meta property="og:description" content="La demo está lista: arma un dron de madera, suéldalo cable por cable y enséñale a volar con una IA que aprende frente a ti. Gratis para Mac y Windows, open source.">
 <meta property="og:image" content="https://sagaz0501.github.io/neural-drone-forge/img/og.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://sagaz0501.github.io/neural-drone-forge/img/og.jpg">
@@ -67,7 +67,7 @@ nav .links a:hover{color:var(--text)}
 .lang{white-space:nowrap;font-family:var(--mono);font-size:13px;border:1px solid var(--line);border-radius:999px;padding:6px 12px;background:none;color:var(--muted);cursor:pointer}
 .lang b{color:var(--text)}
 nav .btn{padding:10px 18px;font-size:14px}
-@media (max-width:860px){nav .links{display:none} nav .lang{margin-left:auto}}
+@media (max-width:1040px){nav .links{display:none} nav .lang{margin-left:auto}}
 @media (max-width:480px){nav .btn span{display:none} nav .btn{padding:10px 12px} nav .wrap{gap:12px} .logo{font-size:16px} .badge{border-radius:14px}}
 
 footer{border-top:1px solid var(--line);padding:44px 0 60px;color:var(--muted);font-size:14.5px}
@@ -113,9 +113,10 @@ nav .links a.on{color:var(--text)}
   <div class="wrap">
     <a class="logo" href="index.html"><img src="img/logo.svg" alt="" width="34" height="34">Neural Drone Forge</a>
     <div class="links">
+      <a href="index.html#demo" data-en="The demo">La demo</a>
       <a href="index.html#ciclo" data-en="How it works">Cómo funciona</a>
       <a href="index.html#aprende" data-en="Watch it learn">Míralo aprender</a>
-      <a href="index.html#escenarios" data-en="Scenarios">Escenarios</a>
+      <a href="index.html#freestyle">Freestyle</a>
       <a class="on" href="#" data-en="What's new">Novedades</a>
       <a href="index.html#descargar" data-en="Download">Descargar</a>
     </div>
@@ -132,13 +133,28 @@ nav .links a.on{color:var(--text)}
     <span class="eyebrow" data-en="Devlog">Diario de desarrollo</span>
     <h1 data-en="What's new">Novedades</h1>
     <p class="lead" data-en="Every release of Neural Drone Forge, newest first. The notes are in Spanish (the game is made in Spanish first).">Cada versión de Neural Drone Forge, de la más nueva a la primera.</p>
-    <div class="indice"><a href="#v3-1-4">v3.1.4</a><a href="#v3-1-3">v3.1.3</a><a href="#v3-1-2">v3.1.2</a><a href="#v3-1-1">v3.1.1</a><a href="#v3-1">v3.1</a><a href="#v3-0">v3.0</a><a href="#v2-1">v2.1</a><a href="#v2-0">v2.0</a><a href="#v1-0">v1.0</a><a href="#v0-3">v0.3</a><a href="#v0-2">v0.2</a><a href="#v0-1">v0.1</a></div>
+    <div class="indice"><a href="#v3-3-1">v3.3.1</a><a href="#v3-3-0">v3.3.0</a><a href="#v3-2-0">v3.2.0</a><a href="#v3-1-4">v3.1.4</a><a href="#v3-1-3">v3.1.3</a><a href="#v3-1-2">v3.1.2</a><a href="#v3-1-1">v3.1.1</a><a href="#v3-1">v3.1</a><a href="#v3-0">v3.0</a><a href="#v2-1">v2.1</a><a href="#v2-0">v2.0</a><a href="#v1-0">v1.0</a><a href="#v0-3">v0.3</a><a href="#v0-2">v0.2</a><a href="#v0-1">v0.1</a></div>
   </div>
 </header>
 
 <main class="wrap"><div class="vers">
+<article class="ver rv" id="v3-3-1">
+  <div class="ver-h"><span class="vn">v3.3.1</span><span class="nueva" data-en="Latest">La última</span><time><span data-en="Oct 20, 2026">20 oct 2026</span></time><a class="rel" href="https://github.com/Sagaz0501/neural-drone-forge/releases/tag/v3.3.1" target="_blank" rel="noopener"><span data-en="Release on GitHub">Release en GitHub</span> ↗</a></div>
+  <h3>Windows</h3>
+  <ul><li><span><b>Instalador para Windows 10/11</b> (<code>Neural-Drone-Forge-windows.exe</code>, ~230 MB, sin permisos de administrador). Probado en un Windows de GitHub Actions: instala, abre en ~5 s, entrena en el fondo, examen, actualizar sin reinstalar y cerrar sin dejar procesos. Todavía sin firmar: «Windows protegió su PC» → Más información → Ejecutar de todas formas.</span></li><li><span><b>Arreglos para Windows:</b> revisar si un entrenamiento seguía vivo lo cerraba; los acentos de los archivos (UTF-8); guardar el modelo con el archivo abierto tumbaba el entrenamiento; la pantalla vacía si Windows no reconocía los .js; el <code>tar</code> de las actualizaciones; Blender (la versión más nueva y el de Steam).</span></li><li><span><b>Con la ventana atrás, el garaje se dibuja a 10 fps:</b> la CPU queda para entrenar.</span></li></ul>
+</article>
+<article class="ver rv" id="v3-3-0">
+  <div class="ver-h"><span class="vn">v3.3.0</span><time><span data-en="Oct 20, 2026">20 oct 2026</span></time><a class="rel" href="https://github.com/Sagaz0501/neural-drone-forge/releases/tag/v3.3.0" target="_blank" rel="noopener"><span data-en="Release on GitHub">Release en GitHub</span> ↗</a></div>
+  <h3>Freestyle nuevo: pistas, gráficos, mando y volar mientras entrenas</h3>
+  <ul><li><span><b>🎮 Volar mientras entrena:</b> un botón en el Laboratorio y en la barra del computador (cuando hay un entrenamiento) abre el freestyle encima del juego sin parar la IA. Una esquina muestra su generación y cuánto logra. Mientras vuelas, el reloj del negocio se detiene.</span></li><li><span><b>Pistas nuevas en los 3 mapas,</b> con recta, picada, split-S, hueco y curva cerrada: la fábrica (19 portales), el cañón (20) y el estadio (12). Línea de carrera (tecla L), recorrido de cámara antes de largar y repetición de tu mejor vuelta.</span></li><li><span><b>Mejores gráficos:</b> cielo con sol y nubes (estrellas y luna de noche), reflejos, niebla por mapa; la fábrica con grúa, pasarelas y rayos de sol; el cañón con río y el puente del tren; el estadio con túnel de neón, público, pantalla gigante y semáforo de largada. Sigue a 60 fps.</span></li><li><span><b>Angle, Horizon y Acro fáciles en el mando:</b> nueva <b>Sensación «Juego»</b> (de fábrica en mando y teclado): el gas al centro flota, sale armado, gira más rápido (90° en 0,28 s) y en Acro se endereza solo. Antes, con el mando suelto el dron subía 27 m en 2 s. <b>«Real»</b> queda como una radio (gas absoluto). El teclado sube en rampa. Fácil no cambió.</span></li><li><span><b>PBDMM E6+:</b> el ejemplo nombra los 8 premios y castigos de un video; sin acercarse y meta la IA no llega a la ruta.</span></li><li><span><b>El casino se apagó</b> (no encajaba con el juego).</span></li></ul>
+</article>
+<article class="ver rv" id="v3-2-0">
+  <div class="ver-h"><span class="vn">v3.2.0</span><time><span data-en="Oct 19, 2026">19 oct 2026</span></time><a class="rel" href="https://github.com/Sagaz0501/neural-drone-forge/releases/tag/v3.2.0" target="_blank" rel="noopener"><span data-en="Release on GitHub">Release en GitHub</span> ↗</a></div>
+  <h3>La demo completa: plata, casino, radio y el final</h3>
+  <ul><li><span><b>La demo tiene final:</b> con E6 armas un <b>segundo dron</b> (Madera se queda en el hangar) para grabar la finca de Don Ernesto. Al ir a comprar E7/E8 sale «¡Lo lograste!» con tu resumen (drones, días, plata, generaciones, pedidos) y lo que trae el juego completo. La partida queda guardada y puedes seguir haciendo pedidos.</span></li><li><span><b>La plata, rebalanceada:</b> 1 ★ paga el 70 %, simuladores y apps más baratos (Simulador/IDE $30, E3 $30, E4 $45, E5 $60, E6 $90), un pedido fácil cada día y el regalo gratis de verdad (sin cobros dobles). Siempre se puede salir de $0.</span></li><li><span><b>🎰 Casino:</b> app gratis del computador con Blackjack, Video póker y Mayor o menor (apuestas de $1 a $50).</span></li><li><span><b>Freestyle como una radio:</b> modos Fácil, Angle, Horizon y Acro con gas absoluto, armar con interruptor (o L1/E), rates de Betaflight con presets, radios USB (EdgeTX/TBS) con asistente de calibración, las palancas en pantalla y un timer de batería opcional.</span></li><li><span><b>Arreglado (jugando la demo entera):</b> el entrenamiento ahora se detiene al aprobar el examen (seguía y dañaba la IA); después de Doña Marta llegan pedidos el mismo día; la finca pide radio de 30 m (la de 20 m no llegaba a las tomas); los videos especiales llegan al comprar el simulador; el kit nuevo crea «Madera 2»; las inspecciones piden 1 foto con E4; sin Blender ofrece entrenar en segundo plano; el botón 🎓 Examen al volver a Simuladores; el tutorial ya no se traba si cierras antes del regalo; textos («le pago la mitad», el log del flasheo).</span></li></ul>
+</article>
 <article class="ver rv" id="v3-1-4">
-  <div class="ver-h"><span class="vn">v3.1.4</span><span class="nueva" data-en="Latest">La última</span><time><span data-en="Oct 19, 2026">19 oct 2026</span></time></div>
+  <div class="ver-h"><span class="vn">v3.1.4</span><time><span data-en="Oct 19, 2026">19 oct 2026</span></time></div>
   <h3>El reloj del negocio</h3>
   <ul><li><span><b>Un día dura 30 minutos jugando</b> (de 7:00 a 23:00). Un relojito con agujas arriba de la ficha del dron (y arriba al centro cuando vuelas): ☀️ de día, 🌙 de noche y «a dormir pronto» desde las 22:00. La hora también sale en el computador y el celular.</span></li><li><span><b>Los pedidos llegan a lo largo del día</b> (entre las 8:00 y las 19:00), con aviso y la hora en cada mensaje.</span></li><li><span><b>Plazos con hora:</b> un pedido vence a las 23:00 de su último día («Vence hoy a las 23:00 · quedan 3 h 20 min»).</span></li><li><span><b>A las 23:00 te vas a dormir solo:</b> vuela la flota y empieza el día siguiente. También puedes 😴 dormir antes.</span></li><li><span><b>Arreglado:</b> con Simuladores (o 🛍️ Apps) abierto, el botón de comprar se quedaba gris aunque ya te alcanzara la plata: ahora se habilita apenas cobras.</span></li><li><span><b>Balance:</b> con 1 ★ la relación con el cliente también sube, así que Doña Marta te recomienda a Ernesto. Antes, una IA que sacaba 1 ★ te dejaba solo con ella, sin reputación ni plata.</span></li></ul>
 </article>
