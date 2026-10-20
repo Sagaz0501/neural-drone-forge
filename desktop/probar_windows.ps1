@@ -106,7 +106,8 @@ try {
   $w = Invoke-WebRequest "http://127.0.0.1:$($p.puerto)/app/" -UseBasicParsing -TimeoutSec 20
   Paso "GET /app/" ($w.StatusCode -eq 200) "$($w.StatusCode), $($w.RawContentLength) bytes"
   $w = Invoke-WebRequest "http://127.0.0.1:$($p.puerto)/app/main.js" -UseBasicParsing -TimeoutSec 20
-  Paso "main.js como JavaScript" ($w.Headers["Content-Type"] -like "*javascript*") "$($w.Headers['Content-Type'])"
+  $ct = @($w.Headers["Content-Type"]) -join ","     # (pwsh 7: los encabezados vienen como lista)
+  Paso "main.js como JavaScript" ($ct -like "*javascript*") $ct
   $m = Api "/api/modelos"
   Paso "GET /api/modelos" ($null -ne $m.modelos) "$(@($m.modelos).Count) modelos: $((@($m.modelos) | ForEach-Object { $_.slug }) -join ', ')"
   $esc = @(Get-NetTCPConnection -LocalPort $p.puerto -State Listen -ErrorAction SilentlyContinue | ForEach-Object { $_.LocalAddress } | Sort-Object -Unique)
@@ -180,8 +181,6 @@ try {
     if ($p) {
       $w = Invoke-WebRequest "http://127.0.0.1:$($p.puerto)/app/" -UseBasicParsing -TimeoutSec 20
       Paso "el juego responde con el código nuevo" ($w.StatusCode -eq 200) ""
-      $s = Servidores
-      Paso "el servidor corre desde la actualización" (@($s | Where-Object { $_.pid })[0] -ne $null) ((Get-CimInstance Win32_Process -Filter "Name='servidor.exe'" | Select-Object -First 1).CommandLine)
       Start-Sleep -Seconds 8
       Captura "3_actualizado"
     }

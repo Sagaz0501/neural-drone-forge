@@ -106,7 +106,7 @@ async function actualizar(win, cod) {
 async function abrir() {
   const puerto = await puertoLibre();
   const win = new BrowserWindow({
-    width: 1440, height: 900, minWidth: 960, minHeight: 600, backgroundColor: "#0f1714", title: "Neural Drone Forge", icon: path.join(__dirname, "icon.png"),
+    width: 1440, height: 900, minWidth: 960, minHeight: 600, backgroundColor: "#0f1714", autoHideMenuBar: true, title: "Neural Drone Forge", icon: path.join(__dirname, "icon.png"),
     show: !captura, paintWhenInitiallyHidden: true, webPreferences: { contextIsolation: true, sandbox: true },
   });
   win.webContents.setWindowOpenHandler(({ url: u }) => { shell.openExternal(u); return { action: "deny" }; });   // enlaces de afuera: el navegador
