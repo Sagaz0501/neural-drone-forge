@@ -24,16 +24,14 @@
   centro flota, sale armado, gira más rápido (90° en 0,28 s) y en Acro se endereza solo. Antes, con el mando suelto el
   dron subía 27 m en 2 s. **«Real»** queda como una radio (gas absoluto). El teclado sube en rampa. Fácil no cambió.
 - **PBDMM E6+:** el ejemplo nombra los 8 premios y castigos de un video; sin acercarse y meta la IA no llega a la ruta.
-- **El casino se apagó** (no encajaba con el juego).
 
-## v3.2.0 · La demo completa: plata, casino, radio y el final (19-10-2026)
+## v3.2.0 · La demo completa: plata, radio y el final (19-10-2026)
 
 - **La demo tiene final:** con E6 armas un **segundo dron** (Madera se queda en el hangar) para grabar la finca de Don
   Ernesto. Al ir a comprar E7/E8 sale «¡Lo lograste!» con tu resumen (drones, días, plata, generaciones, pedidos) y lo
   que trae el juego completo. La partida queda guardada y puedes seguir haciendo pedidos.
 - **La plata, rebalanceada:** 1 ★ paga el 70 %, simuladores y apps más baratos (Simulador/IDE $30, E3 $30, E4 $45, E5
   $60, E6 $90), un pedido fácil cada día y el regalo gratis de verdad (sin cobros dobles). Siempre se puede salir de $0.
-- **🎰 Casino:** app gratis del computador con Blackjack, Video póker y Mayor o menor (apuestas de $1 a $50).
 - **Freestyle como una radio:** modos Fácil, Angle, Horizon y Acro con gas absoluto, armar con interruptor (o L1/E),
   rates de Betaflight con presets, radios USB (EdgeTX/TBS) con asistente de calibración, las palancas en pantalla y un
   timer de batería opcional.
