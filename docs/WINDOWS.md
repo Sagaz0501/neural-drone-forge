@@ -21,19 +21,19 @@ En un PC con Windows: `pwsh desktop/probar_windows.ps1 -Instalador <el .exe>` (O
 
 ## Resultados (run [39369297072](https://github.com/Sagaz0501/neural-drone-forge/actions/runs/39369297072), 20-10-2026, v3.3.0)
 
-Todo en verde (28 pasos). Números:
+Todo en verde (28 pasos; también el run [39370748215](https://github.com/Sagaz0501/neural-drone-forge/actions/runs/39370748215)). Números (el rango = los dos runs):
 
 | | |
 |---|---|
 | Instalador (`Neural-Drone-Forge-windows.exe`, NSIS asistido, sin firmar) | **227 MB** |
 | Instalado (`%LOCALAPPDATA%\Programs\Neural Drone Forge`, por usuario, sin admin) | **835 MB** |
-| Instalar con `/S` | ~60 s |
-| Arranque (hasta que el juego responde) | **4,4 s** la 1.ª vez · 3,7 s después |
+| Instalar con `/S` | 42-60 s |
+| Arranque (hasta que el juego responde) | **4,4-5,7 s** la 1.ª vez · 3,6-3,7 s después |
 | Accesos directos | escritorio ✓ · menú inicio ✓ |
 | Escucha solo en `127.0.0.1` (TCP del juego y UDP 9032 del entrenador) | ✓ → sin aviso del firewall |
-| Entrenar en el fondo (nivel 19, 16 drones), app **minimizada** | **2.442 pasos/s** |
-| Entrenar con la app **a la vista** (el runner no tiene GPU) | 108 pasos/s (ver «Problemas conocidos») |
-| El entrenador congelado solo, sin la app | 2.346 pasos/s |
+| Entrenar en el fondo (nivel 19, 16 drones), app **minimizada** | **1.694-2.442 pasos/s** |
+| Entrenar con la app **a la vista** (el runner no tiene GPU) | 43-108 pasos/s (ver «Problemas conocidos») |
+| El entrenador congelado solo, sin la app | 2.289-2.346 pasos/s |
 | `/api/evaluar` (n=5) · `/api/simular` | ✓ (34 s / ✓) |
 | Cerrar con un entrenamiento andando | el entrenador sigue (como en Mac), el servidor no; al abrir otra vez lo encuentra y lo detiene |
 | Actualización sin reinstalar (9,4 MB, `tar.exe` de System32) | ✓ 3,7 s; al volver a abrir sigue en la 9.9.9 |
@@ -69,15 +69,17 @@ El comportamiento en Mac queda igual (lo de Windows va con `os.name == "nt"`; la
 ## Problemas conocidos
 
 - **PCs sin aceleración gráfica**: si Chromium no puede usar la GPU dibuja el garaje con la CPU (SwiftShader). En el
-  runner eso se come 3,7 de los 4 núcleos y el entrenamiento cae de 2.442 a 108 pasos/s (el entrenador queda casi sin
+  runner eso se come 3,7 de los 4 núcleos y el entrenamiento cae de ~2.000 a 43-108 pasos/s (el entrenador queda casi sin
   CPU: Windows le da prioridad a la ventana de adelante). Con GPU no debería pasar, pero no lo pudimos medir. Ideas:
   bajar los fps del garaje mientras entrena, o pausar el dibujo cuando la ventana no está al frente.
 - **SmartScreen**: sin firma, la primera vez sale «Windows protegió su PC» → *Más información → Ejecutar de todas formas*.
 - **No probado** (no hay en el runner): Blender en Windows, un mando/radio USB, una GPU de verdad, Windows 10, una
   cuenta con espacios o acentos en el nombre de usuario, antivirus de terceros. La carpeta de datos con espacios
   (`%APPDATA%\Neural Drone Forge`) sí está probada.
-- Rutas largas: la ruta más larga del instalado sale en `resultados.json` (`ruta_mas_larga`); con un usuario muy largo
-  o otra carpeta de instalación podría pasar de 260 caracteres.
+- Rutas largas: la más larga del instalado son 155 caracteres después de la carpeta de instalación (una licencia
+  dentro de `torch-*.dist-info`); en `C:\Users\<usuario>\AppData\Local\Programs\Neural Drone Forge` queda bajo el
+  límite de 260 salvo con un nombre de usuario de más de ~45 letras o una carpeta elegida muy profunda. Si molesta:
+  borrar `torch-*.dist-info/licenses/third_party` en `servidor.spec`.
 
 ## Lo que falta (decide Santiago)
 
