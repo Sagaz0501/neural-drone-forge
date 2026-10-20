@@ -198,6 +198,25 @@ def test_stl_subir_listar_borrar(root):
     assert not jugar.stl_delete("../index")[0]
 
 
+def test_stl_desde_step_guarda_la_metadata(root):
+    meta = {"archivo": "chasis_5in.step", "unidad": "mm", "esquema": "AP214", "volumen_cm3": 56.4,
+            "motores_mm": [[77.8, 77.8], [-77.8, 77.8], [-77.8, -77.8], [77.8, -77.8]], "cuerpos": [{"nombre": "brazo_1", "volumen_cm3": 6.4}]}
+    ok, msg, ex = jugar.stl_save(_stl_bin(), "Chasis 5", "chasis", json.dumps(meta))
+    assert ok, msg
+    e = next(x for x in jugar.stl_index() if x["id"] == ex["id"])
+    assert e["step"] == meta
+    sin = jugar.stl_save(_stl_bin(), "b", "chasis")[2]["id"]
+    assert "step" not in next(x for x in jugar.stl_index() if x["id"] == sin)
+    assert not jugar.stl_save(_stl_bin(), "x", "chasis", "{no es json")[0]
+    assert not jugar.stl_save(_stl_bin(), "x", "chasis", json.dumps([1, 2]))[0]
+    assert not jugar.stl_save(_stl_bin(), "x", "chasis", json.dumps({"x": "a" * 20000}))[0]
+
+
+def test_wasm_con_su_tipo():
+    assert jugar.Handler.extensions_map[".wasm"] == "application/wasm"
+    assert (Path(jugar.ROOT) / "game" / "vendor" / "occt" / "occt-import-js.wasm").exists()
+
+
 def test_modelo_inicial_clon_nuevo(tmp_path, monkeypatch):
     """Un clon del repo sin models/modelo.zip toma la IA publicada; si ya hay una, no la toca."""
     monkeypatch.setattr(jugar, "ROOT", tmp_path)
