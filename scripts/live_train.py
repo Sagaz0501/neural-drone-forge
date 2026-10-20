@@ -118,6 +118,18 @@ def r3(v):
     return [round(float(x), 3) for x in v]
 
 
+def reemplazar(tmp, dst, intentos=40):
+    """os.replace que aguanta Windows: allá falla (PermissionError) si otro proceso tiene `dst` abierto justo en ese
+    instante (el servidor leyendo entrenando.json, el juego bajando modelo_web.json). Reintenta ~2 s; en Mac es os.replace."""
+    for i in range(intentos):
+        try:
+            return os.replace(tmp, dst)
+        except PermissionError:
+            if os.name != "nt" or i == intentos - 1:
+                raise
+            time.sleep(0.05)
+
+
 class LiveLink(BaseCallback):
     def __init__(self, args, reward, model_path, meta):
         super().__init__()
@@ -252,8 +264,8 @@ class LiveLink(BaseCallback):
         path = Path(self.args.estado)
         tmp = path.with_name(path.stem + "_guardando.json")
         try:
-            tmp.write_text(json.dumps(out, separators=(",", ":")))
-            os.replace(tmp, path)
+            tmp.write_text(json.dumps(out, separators=(",", ":")), encoding="utf-8")
+            reemplazar(tmp, path)
         except OSError:
             pass
 
@@ -269,7 +281,7 @@ class LiveLink(BaseCallback):
         """Guarda el modelo (.zip + .json + _web.json, en su carpeta) sin dejar nunca un archivo a medias."""
         tmp = self.model_path.with_name(self.model_path.stem + "_guardando.zip")
         self.model.save(tmp)
-        os.replace(tmp, self.model_path)
+        reemplazar(tmp, self.model_path)
         self.meta.update(generaciones=self.gen_done, pasos=int(self.num_timesteps), historia=self.history,
                          actualizado=time.strftime("%Y-%m-%d %H:%M"))
         # qué sabe el modelo (lo lee el juego): qué drones vuela y qué tomas graba
@@ -294,8 +306,8 @@ class LiveLink(BaseCallback):
         niveles[k] = niveles.get(k, 0) + int(self.num_timesteps) - self.meta.get("_pasos_contados", self.steps0)
         self.meta["_pasos_contados"] = int(self.num_timesteps)
         tmpj = self.model_path.with_name(self.model_path.stem + "_guardando.json")
-        tmpj.write_text(json.dumps(self.meta, ensure_ascii=False))
-        os.replace(tmpj, self.model_path.with_suffix(".json"))
+        tmpj.write_text(json.dumps(self.meta, ensure_ascii=False), encoding="utf-8")
+        reemplazar(tmpj, self.model_path.with_suffix(".json"))
         self.save_web()
 
     def save_web(self):
@@ -311,8 +323,8 @@ class LiveLink(BaseCallback):
         meta["sizes"] = [layers[0]["in"]] + [L["out"] for L in layers]
         web = self.model_path.with_name(self.model_path.stem + "_web.json")
         tmp = self.model_path.with_name(self.model_path.stem + "_web_guardando.json")
-        tmp.write_text(json.dumps({"meta": meta, "layers": layers}, separators=(",", ":")))
-        os.replace(tmp, web)
+        tmp.write_text(json.dumps({"meta": meta, "layers": layers}, separators=(",", ":")), encoding="utf-8")
+        reemplazar(tmp, web)
 
     def send_frame(self):
         d = []
@@ -381,8 +393,8 @@ class LiveLink(BaseCallback):
                        in_lbl=OBS_LABELS[:int(x.shape[1])], act_lbl=ACT_LABELS)
             try:
                 tmp = self.red_path.with_name(self.red_path.name + ".tmp")
-                tmp.write_text(json.dumps(red, separators=(",", ":")))
-                os.replace(tmp, self.red_path)
+                tmp.write_text(json.dumps(red, separators=(",", ":")), encoding="utf-8")
+                reemplazar(tmp, self.red_path)
             except OSError:
                 pass
 
@@ -618,7 +630,7 @@ def capas_red(args, model_path):
     if args.capas:
         return [int(x) for x in args.capas.split(",") if x.strip()]
     try:
-        capas = json.loads((Path(model_path).parent / "info.json").read_text()).get("capas")
+        capas = json.loads((Path(model_path).parent / "info.json").read_text(encoding="utf-8")).get("capas")
         if isinstance(capas, list) and 1 <= len(capas) <= 4 and all(isinstance(c, int) and 8 <= c <= 512 for c in capas):
             return capas
     except (OSError, ValueError):
@@ -685,7 +697,7 @@ def main():
         args.modelo_txt = str(model_path)
     meta_path = model_path.with_suffix(".json")
     existe = model_path.exists()
-    meta = json.loads(meta_path.read_text()) if (existe and meta_path.exists()) else {}
+    meta = json.loads(meta_path.read_text(encoding="utf-8")) if (existe and meta_path.exists()) else {}
 
     ampliado = False
     if existe:

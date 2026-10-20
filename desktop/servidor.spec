@@ -15,5 +15,7 @@ a = Analysis(
     noarchive=False,
 )
 pyz = PYZ(a.pure)
-exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="servidor", console=True, strip=False, upx=False)
+# X utf8 = el modo UTF-8 de Python (como `python -X utf8`): en Windows open()/read_text() sin encoding leen cp1252 y los
+# acentos de missions.json o modelo.json se rompen. (El código igual pone encoding="utf-8": esto es por si se escapa uno.)
+exe = EXE(pyz, a.scripts, [("X utf8", None, "OPTION")], exclude_binaries=True, name="servidor", console=True, strip=False, upx=False)
 coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name="servidor")

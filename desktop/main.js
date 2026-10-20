@@ -25,6 +25,14 @@ const RAIZ = path.resolve(__dirname, "..");
 const PY = [path.join(RAIZ, ".venv", "bin", "python"), path.join(RAIZ, ".venv", "Scripts", "python.exe")].find(fs.existsSync) || "python3";
 const captura = (process.argv.find((a) => a.startsWith("--captura=")) || "").split("=")[1];
 let servidor = null;
+// DRONMAKER_PRUEBA=1 (la prueba de Windows en GitHub Actions, .github/workflows/probar-windows.yml): sin diálogos, la
+// salida del servidor en <datos>/servidor.log y, cuando el juego responde, <datos>/prueba.json = {puerto, version, ms…}
+const PRUEBA = process.env.DRONMAKER_PRUEBA === "1";
+const T0 = Date.now();
+function anotarPrueba(obj) {
+  if (!PRUEBA) return;
+  try { fs.writeFileSync(path.join(app.getPath("userData"), "prueba.json"), JSON.stringify({ ...obj, ms: Date.now() - T0, pid: process.pid }, null, 1)); } catch { /* sin carpeta */ }
+}
 if (process.env.DRONMAKER_PERFIL) app.setPath("userData", path.resolve(process.env.DRONMAKER_PERFIL));   // probar con otra carpeta de datos
 
 function puertoLibre(desde = 8770) {
@@ -58,8 +66,10 @@ const pagina = (html) => `data:text/html;charset=utf-8,${encodeURIComponent(`<bo
 function arrancar(puerto, codigo) {
   if (app.isPackaged) {                               // el Python congelado + el código (recursos o actualización); los datos en la carpeta del usuario
     const exe = path.join(process.resourcesPath, "servidor", process.platform === "win32" ? "servidor.exe" : "servidor");
-    servidor = spawn(exe, ["--no-browser", "--port", String(puerto)], { cwd: codigo, stdio: "ignore", windowsHide: true,   // sin ventana de consola en Windows
-      env: { ...process.env, DRONMAKER_CODIGO: codigo, DRONMAKER_DATOS: app.getPath("userData"), PYTHONIOENCODING: "utf-8" } });
+    let stdio = "ignore";
+    if (PRUEBA) { fs.mkdirSync(app.getPath("userData"), { recursive: true }); const fd = fs.openSync(path.join(app.getPath("userData"), "servidor.log"), "a"); stdio = ["ignore", fd, fd]; }
+    servidor = spawn(exe, ["--no-browser", "--port", String(puerto)], { cwd: codigo, stdio, windowsHide: true,   // sin ventana de consola en Windows
+      env: { ...process.env, DRONMAKER_CODIGO: codigo, DRONMAKER_DATOS: app.getPath("userData"), PYTHONIOENCODING: "utf-8", PYTHONUTF8: "1" } });
   } else {                                            // desde el proyecto: el .venv y sus carpetas (como el navegador)
     servidor = spawn(PY, [path.join(RAIZ, "scripts", "jugar.py"), "--no-browser", "--port", String(puerto)], { cwd: RAIZ, stdio: "inherit", env: process.env });
   }
@@ -71,7 +81,7 @@ async function actualizar(win, cod) {
   const m = await ACT.buscar(cod.version, MOTOR, app.getPath("userData"));
   if (!m) return cod;
   const mb = m.bytes ? ` (${Math.max(1, Math.round(m.bytes / 1048576))} MB)` : "";
-  const { response } = process.env.DRONMAKER_ACTUALIZAR === "si" ? { response: 0 } : await dialog.showMessageBox(win, {   // "si": sin preguntar (pruebas) type: "info", buttons: ["Actualizar ahora", "Ahora no"], defaultId: 0, cancelId: 1,
+  const { response } = process.env.DRONMAKER_ACTUALIZAR === "si" ? { response: 0 } : PRUEBA ? { response: 1 } : await dialog.showMessageBox(win, {   // "si": sin preguntar (pruebas) type: "info", buttons: ["Actualizar ahora", "Ahora no"], defaultId: 0, cancelId: 1,
     message: `Hay una versión nueva del juego: ${m.version}`, detail: `Tienes la ${cod.version}. La actualización${mb} tarda unos segundos; tus partidas y tus IA no se tocan.` });
   if (response !== 0) return cod;
   win.loadURL(pagina(`<h2>Actualizando a la ${m.version}…</h2><p id="p">0 %</p>`));
@@ -87,6 +97,7 @@ async function actualizar(win, cod) {
     return { dir, version: m.version, actualizado: true };
   } catch (e) {
     win.setProgressBar(-1);
+    if (PRUEBA) { anotarPrueba({ error_actualizar: e.message }); return cod; }
     await dialog.showMessageBox(win, { type: "warning", message: "No se pudo actualizar", detail: `${e.message}\nSigues jugando con la ${cod.version}; la app lo intenta otra vez la próxima vez que abras.` });
     return cod;
   }
@@ -118,6 +129,7 @@ async function abrir() {
     arrancar(puerto, cod.dir);
     listo = await esperar(url, 90000);
   }
+  anotarPrueba(listo ? { puerto, version: cod?.version, codigo: cod?.dir, actualizado: !!cod?.actualizado } : { error: "no arrancó el servidor" });
   if (!listo) {
     const ayuda = app.isPackaged ? "Cierra la app y ábrela otra vez. Si sigue igual, reinicia el computador y vuelve a intentarlo." : `Revisa que exista ${RAIZ}/.venv (python3 -m venv .venv && pip install -r requirements.txt).`;
     win.loadURL(pagina(`<h2>No arrancó el servidor</h2><p>${ayuda}</p>`)); return;

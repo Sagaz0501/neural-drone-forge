@@ -49,7 +49,9 @@ function codigoActual(incluido, datos, motor) {
   }
   for (const n of nombres) {                       // las viejas, las a medias y las de otro motor: fuera
     const dir = path.join(carpeta, n);
-    if (dir !== mejor.dir && !n.endsWith(".mala")) fs.rmSync(dir, { recursive: true, force: true });
+    // (Windows: no se puede borrar la carpeta de un proceso que sigue corriendo ahí, ej. un entrenamiento del fondo
+    // que lanzó la versión anterior: se intenta otra vez la próxima vez que abra)
+    if (dir !== mejor.dir && !n.endsWith(".mala")) try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* en uso */ }
   }
   return mejor;
 }
@@ -89,7 +91,9 @@ async function instalar(m, datos, progreso = () => {}) {
     fs.rmSync(tmp, { recursive: true, force: true });
     fs.mkdirSync(tmp);
     await new Promise((ok, mal) => {               // tar: viene en macOS y en Windows 10/11 (System32\tar.exe)
-      const p = spawn("tar", ["-xzf", tgz, "-C", tmp], { windowsHide: true, stdio: "ignore" });
+      // en Windows el de System32 con su ruta completa: si el PATH trae el tar de Git (GNU), "C:\..." le parece un servidor remoto
+      const tar = process.platform === "win32" ? path.join(process.env.SystemRoot || "C:\\Windows", "System32", "tar.exe") : "tar";
+      const p = spawn(tar, ["-xzf", tgz, "-C", tmp], { windowsHide: true, stdio: "ignore" });
       p.on("error", mal);
       p.on("exit", (c) => (c === 0 ? ok() : mal(new Error(`tar salió con ${c}`))));
     });

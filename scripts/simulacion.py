@@ -54,7 +54,7 @@ class RedWeb:
 
     @staticmethod
     def cargar(path: Path) -> "RedWeb":
-        return RedWeb(json.loads(Path(path).read_text()))
+        return RedWeb(json.loads(Path(path).read_text(encoding="utf-8")))
 
     def capas(self):
         return [self.nin] + [w.shape[0] for w in self.W]
@@ -93,7 +93,7 @@ def config_prueba(carpeta: Path, entrenando: dict | None = None) -> dict:
     de PBDMM 3, que queda en info.json)."""
     cfg = _config_prueba(carpeta, entrenando)
     try:
-        cfg["tarea"] = json.loads((carpeta / "info.json").read_text()).get("tarea")
+        cfg["tarea"] = json.loads((carpeta / "info.json").read_text(encoding="utf-8")).get("tarea")
     except (OSError, ValueError):
         cfg["tarea"] = None
     return cfg
@@ -107,7 +107,7 @@ def _config_prueba(carpeta: Path, entrenando: dict | None = None) -> dict:
                 "density": float(params.get("density", 1.0)), "reward": params.get("reward")}
     meta = {}
     try:
-        meta = json.loads((carpeta / "modelo.json").read_text())
+        meta = json.loads((carpeta / "modelo.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
         pass
     hist = meta.get("historia") or []
@@ -263,7 +263,7 @@ class Avance:
     def __init__(self, path: Path):
         self.path = Path(path)
         try:
-            self.datos = json.loads(self.path.read_text())
+            self.datos = json.loads(self.path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             self.datos = {}
         # para comparar sin releer: {stage: (premio mejor, premio peor)}
@@ -301,7 +301,7 @@ class Avance:
             m[0 if cual == "mejor" else 1] = rep["resultado"]["premio"]
             self.marcas[st] = tuple(m)
         tmp = self.path.with_name(self.path.name + ".tmp")
-        tmp.write_text(json.dumps(self.datos, separators=(",", ":")))
+        tmp.write_text(json.dumps(self.datos, separators=(",", ":")), encoding="utf-8")
         tmp.replace(self.path)
 
 

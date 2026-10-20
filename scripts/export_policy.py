@@ -60,7 +60,7 @@ def npz_to_web(npz_path, out_path, extra_meta=None):
                        "W": [float(f"{x:.7g}") for x in W.ravel()], "b": [float(f"{x:.7g}") for x in b]})
     out = Path(out_path)
     tmp = out.with_name(out.stem + "_guardando.json")
-    tmp.write_text(json.dumps({"meta": meta, "layers": layers}, separators=(",", ":")))
+    tmp.write_text(json.dumps({"meta": meta, "layers": layers}, separators=(",", ":")), encoding="utf-8")
     tmp.replace(out)
     return out
 
@@ -76,6 +76,6 @@ if __name__ == "__main__":
         meta_path = Path(a.model).with_suffix(".json")
         extra = {}
         if meta_path.exists():
-            m = json.loads(meta_path.read_text())
+            m = json.loads(meta_path.read_text(encoding="utf-8"))
             extra = {k: m.get(k) for k in ("generaciones", "pasos", "niveles", "creado", "actualizado")}
         print(npz_to_web(npz, Path(a.model).with_name(Path(a.model).stem + "_web.json"), extra))

@@ -45,6 +45,10 @@ def main():
             f.reconfigure(line_buffering=True, encoding="utf-8", errors="replace")   # (la consola de Windows: los acentos)
         except (AttributeError, ValueError):
             pass
+    if os.environ.get("DRONMAKER_PRUEBA") == "1":     # la prueba de Windows (probar-windows.yml): con qué corre
+        import locale
+        print(f"lanzador: python {sys.version.split()[0]} utf8_mode={sys.flags.utf8_mode} "
+              f"locale={locale.getpreferredencoding(False)} exe={sys.executable} args={args}", flush=True)
     codigo = Path(os.environ.get("DRONMAKER_CODIGO") or Path(__file__).resolve().parents[1])
     if args and args[0].endswith(".py"):
         script, resto = Path(args[0]), args[1:]

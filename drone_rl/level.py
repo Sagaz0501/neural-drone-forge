@@ -62,7 +62,7 @@ class Level:
 
     @staticmethod
     def load(path: str | Path) -> "Level":
-        return Level.from_dict(json.loads(Path(path).read_text()))
+        return Level.from_dict(json.loads(Path(path).read_text(encoding="utf-8")))
 
     def to_dict(self) -> dict:
         return {

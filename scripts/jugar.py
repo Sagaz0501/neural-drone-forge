@@ -118,21 +118,25 @@ def _fresh_web_model(quiet, folder):
     meta = {}
     mj = folder / "modelo.json"
     if mj.exists():
-        m = json.loads(mj.read_text())
+        m = json.loads(mj.read_text(encoding="utf-8"))
         meta = {k: m.get(k) for k in ("generaciones", "pasos", "niveles", "creado", "actualizado",
                                       "rango_fisica", "tomas", "drones")}
     print("Exportado:", npz_to_web(npz, web, meta))
 
 
 def _buscar_blender():
-    """Blender instalado (el del sistema): $BLENDER, la carpeta de Aplicaciones (también la del usuario) o, en Windows, la
-    más nueva de Program Files\Blender Foundation."""
+    r"""Blender instalado (el del sistema): $BLENDER, la carpeta de Aplicaciones (también la del usuario) o, en Windows, la
+    más nueva de Program Files\Blender Foundation (Blender 4.10 > 4.9) o la de Steam."""
     if os.environ.get("BLENDER"):
         return os.environ["BLENDER"]
     if os.name == "nt":
         import glob
         pf = os.environ.get("ProgramFiles", r"C:\Program Files")
-        cands = sorted(glob.glob(os.path.join(pf, "Blender Foundation", "Blender*", "blender.exe")), reverse=True)
+        num = lambda f: [int(x) for x in re.findall(r"\d+", Path(f).parent.name)]      # noqa: E731
+        cands = sorted(glob.glob(os.path.join(pf, "Blender Foundation", "Blender*", "blender.exe")), key=num, reverse=True)
+        steam = os.path.join(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)"), "Steam", "steamapps", "common",
+                             "Blender", "blender.exe")
+        cands += [steam] if os.path.isfile(steam) else []
         return cands[0] if cands else os.path.join(pf, "Blender Foundation", "Blender", "blender.exe")
     for d in ("/Applications", os.path.expanduser("~/Applications")):
         f = os.path.join(d, "Blender.app", "Contents", "MacOS", "Blender")
@@ -148,18 +152,34 @@ REWARD_KEYS = ("progress", "goal", "crash", "time", "smooth", "tilt", "near", "c
 FIS_KEYS = ("mass", "twr", "drag", "max_angle_deg", "yaw_rate_deg", "att_resp", "crash_speed", "radius")
 
 
+def reemplazar(tmp, dst, intentos=40):
+    """os.replace que aguanta Windows: allá falla (PermissionError) si otro proceso tiene `dst` abierto justo en ese
+    instante (el entrenador leyendo, el juego bajando modelo_web.json). Reintenta ~2 s; en Mac/Linux es os.replace."""
+    for i in range(intentos):
+        try:
+            return os.replace(tmp, dst)
+        except PermissionError:
+            if os.name != "nt" or i == intentos - 1:
+                raise
+            time.sleep(0.05)
+
+
 def read_json(path):
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
+    for i in range(3 if os.name == "nt" else 1):        # Windows: el archivo puede estar a medio reemplazar
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except PermissionError:
+            time.sleep(0.02)
+        except (OSError, ValueError):
+            return None
+    return None
 
 
 def write_json(path, obj):
     tmp = path.with_name(path.stem + "_guardando.json")
     path.parent.mkdir(parents=True, exist_ok=True)       # la carpeta de datos de la app instalada empieza vacía
     tmp.write_text(json.dumps(obj, ensure_ascii=False, indent=1), encoding="utf-8")
-    os.replace(tmp, path)
+    reemplazar(tmp, path)
 
 
 def other_trainers():
@@ -208,7 +228,7 @@ def lab_request(body):
     req = {"id": time.time_ns(), "t": time.time(), "accion": acc, "python": sys.executable}
     if "nivel" in body:
         req["nivel"] = int(body["nivel"])
-        niveles = [k for k in json.loads((ROOT / "drone_rl" / "missions.json").read_text()) if k.isdigit()]
+        niveles = [k for k in json.loads((ROOT / "drone_rl" / "missions.json").read_text(encoding="utf-8")) if k.isdigit()]
         if str(req["nivel"]) not in niveles:      # los niveles que existen salen de missions.json (12, 13… sin tocar esto)
             return False, f"nivel {req['nivel']} no existe"
     if "drones" in body:
@@ -235,7 +255,7 @@ def lab_request(body):
             if "fotos" in tarea:
                 t2["fotos"] = max(1, min(6, int(tarea["fotos"])))
             if tarea.get("repaso"):              # los niveles que ya aprobó: el 20 % de los intentos los repasa
-                niveles = {k for k in json.loads((ROOT / "drone_rl" / "missions.json").read_text()) if k.isdigit()}
+                niveles = {k for k in json.loads((ROOT / "drone_rl" / "missions.json").read_text(encoding="utf-8")) if k.isdigit()}
                 t2["repaso"] = sorted({int(x) for x in tarea["repaso"] if str(int(x)) in niveles})[:6]
         except (TypeError, ValueError):
             return False, "tarea: foto_seg [min, max], foto_ok (0,2-0,95), fotos (1-6), repaso [niveles]"
@@ -583,6 +603,8 @@ def fondo_procs():
             if f["proc"].poll() is not None:        # terminó (y así no queda zombi)
                 _fondo.pop(slug)
         res = {slug: {k: f[k] for k in ("pid", "ctrl", "port", "cfg")} for slug, f in _fondo.items()}
+    if os.name == "nt":
+        return fondo_win(res)
     script = str(ROOT / "scripts" / "live_train.py")
     ddir = str(drones_dir())
     try:
@@ -679,8 +701,68 @@ def fondo_start(slug, req):
     proc = subprocess.Popen(cmd, cwd=str(ROOT), stdout=log, stderr=subprocess.STDOUT, start_new_session=True, **sin_ventana)
     log.close()
     cfg = fondo_cfg(req)
+    if os.name == "nt":                              # para encontrarlo otra vez sin `ps` (fondo_win)
+        write_json(d / "fondo.json", {"pid": proc.pid, "port": par[0], "ctrl": par[1], "cfg": list(cfg), "exe": cmd[0]})
     _fondo[slug] = {"proc": proc, "pid": proc.pid, "port": par[0], "ctrl": par[1], "cfg": cfg}
     return True, f"entrenando {slug} en el fondo (puertos {par[0]}/{par[1]})", proc.pid
+
+
+def pid_vivo(pid):
+    """¿Sigue vivo ese proceso? OJO Windows: allá os.kill(pid, 0) no pregunta, MATA el proceso (TerminateProcess)."""
+    if os.name == "nt":
+        import ctypes
+        k32 = ctypes.windll.kernel32
+        h = k32.OpenProcess(0x1000, False, int(pid))      # PROCESS_QUERY_LIMITED_INFORMATION
+        if not h:
+            return False
+        try:
+            code = ctypes.c_ulong()
+            return bool(k32.GetExitCodeProcess(h, ctypes.byref(code))) and code.value == 259   # STILL_ACTIVE
+        finally:
+            k32.CloseHandle(h)
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+
+
+def pid_exe(pid):
+    """Windows: el ejecutable de ese proceso (C:\\...\\servidor.exe) o None."""
+    import ctypes
+    k32 = ctypes.windll.kernel32
+    h = k32.OpenProcess(0x1000, False, int(pid))
+    if not h:
+        return None
+    try:
+        buf, n = ctypes.create_unicode_buffer(32768), ctypes.c_ulong(32768)
+        return buf.value if k32.QueryFullProcessImageNameW(h, 0, buf, ctypes.byref(n)) else None
+    finally:
+        k32.CloseHandle(h)
+
+
+def fondo_win(res):
+    """Windows no tiene `ps`: cada entrenador del fondo deja <carpeta del modelo>/fondo.json (pid, puertos, cfg) y aquí
+    se encuentran los que siguen vivos (los de antes de cerrar y abrir la app). Que el pid no sea de otro programa: el
+    entrenador escribe su pid en entrenando.json y el proceso tiene que ser el mismo ejecutable que lo lanzó."""
+    if not drones_dir().is_dir():
+        return res
+    for f in drones_dir().glob("*/fondo.json"):
+        slug = f.parent.name
+        if slug in res or not SLUG_RE.fullmatch(slug):
+            continue
+        r, tr = read_json(f) or {}, read_json(f.parent / "entrenando.json") or {}
+        pid = r.get("pid")
+        if not isinstance(pid, int) or tr.get("pid") != pid or tr.get("phase") == "stopped" or not pid_vivo(pid):
+            continue
+        exe = pid_exe(pid)
+        if not exe or Path(exe).name.lower() != Path(r.get("exe") or "").name.lower():
+            continue
+        try:
+            res[slug] = {"pid": pid, "ctrl": int(r["ctrl"]), "port": int(r["port"]), "cfg": tuple(r["cfg"])}
+        except (KeyError, TypeError, ValueError):
+            pass
+    return res
 
 
 def _vivo(pid):
@@ -688,11 +770,7 @@ def _vivo(pid):
         for f in _fondo.values():
             if f["pid"] == pid:
                 return f["proc"].poll() is None
-    try:
-        os.kill(pid, 0)
-        return True
-    except OSError:
-        return False
+    return pid_vivo(pid)
 
 
 def _restart_later(slug, req, pids):
@@ -958,7 +1036,12 @@ def open_blender():
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
-    extensions_map = dict(http.server.SimpleHTTPRequestHandler.extensions_map, **{".stl": "model/stl"})
+    # los tipos fijos: en Windows mimetypes los lee del registro y hay PCs donde .js sale "text/plain" (y el navegador
+    # no carga los módulos ES: pantalla vacía)
+    extensions_map = dict(http.server.SimpleHTTPRequestHandler.extensions_map, **{
+        ".stl": "model/stl", ".js": "text/javascript", ".mjs": "text/javascript", ".json": "application/json",
+        ".css": "text/css", ".html": "text/html", ".svg": "image/svg+xml", ".wasm": "application/wasm",
+        ".glb": "model/gltf-binary", ".png": "image/png", ".webm": "video/webm"})
 
     def send_json(self, obj, code=200):
         data = json.dumps(obj, ensure_ascii=False).encode()
